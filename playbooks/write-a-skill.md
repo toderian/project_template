@@ -24,16 +24,31 @@ Create new agent skills with proper structure, progressive disclosure, and bundl
 
 ## Skill Structure
 
+Every skill has three parts: a shared playbook and two thin wrappers.
+
 ```
-skill-name/
-├── SKILL.md           # Main instructions (required)
-├── REFERENCE.md       # Detailed docs (if needed)
-├── EXAMPLES.md        # Usage examples (if needed)
-└── scripts/           # Utility scripts (if needed)
-    └── helper.js
+playbooks/<name>.md                    # Shared workflow logic (authoritative)
+skills/<name>/SKILL.md                 # Codex wrapper (thin)
+.claude/skills/<name>/SKILL.md         # Claude Code wrapper (thin)
 ```
 
-## SKILL.md Template
+The playbook is the single source of truth. Wrappers just point to it.
+
+Optional additions in the playbook directory:
+
+```
+playbooks/<name>/REFERENCE.md          # Detailed docs
+playbooks/<name>/EXAMPLES.md           # Usage examples
+```
+
+Optional additions in skill directories (when needed):
+
+```
+skills/<name>/scripts/helper.sh        # Codex utility scripts
+.claude/skills/<name>/scripts/helper.sh # Claude utility scripts
+```
+
+## Codex Wrapper Template
 
 ```md
 ---
@@ -43,17 +58,47 @@ description: Brief description of capability. Use when [specific triggers].
 
 # Skill Name
 
-## Quick start
+Read and follow:
 
-[Minimal working example]
+- `playbooks/<name>.md`
 
-## Workflows
+Keep this skill thin. The playbook is the shared workflow and should be updated first when the process changes.
+```
 
-[Step-by-step processes with checklists for complex tasks]
+## Claude Code Wrapper Template
 
-## Advanced features
+```md
+---
+name: skill-name
+description: Brief description of capability. Use when [specific triggers].
+disable-model-invocation: true
+---
 
-[Link to separate files: See [REFERENCE.md](REFERENCE.md)]
+Read and follow:
+
+- `playbooks/<name>.md`
+
+Keep this skill thin. The playbook is the shared workflow and should be updated first when the process changes.
+```
+
+The `disable-model-invocation: true` flag tells Claude to follow the playbook rather than generating its own approach.
+
+## Playbook Template
+
+```md
+# Skill Name
+
+## Purpose
+
+[What this skill does and when to use it]
+
+## Process
+
+[Step-by-step workflow]
+
+## Quality bar
+
+[What good looks like, review checklist]
 ```
 
 ## Description Requirements
@@ -108,8 +153,12 @@ Split into separate files when:
 
 After drafting, verify:
 
+- [ ] Playbook created in `playbooks/`
+- [ ] Codex wrapper created in `skills/<name>/SKILL.md`
+- [ ] Claude wrapper created in `.claude/skills/<name>/SKILL.md`
+- [ ] Both wrappers point to the same playbook
 - [ ] Description includes triggers ("Use when...")
-- [ ] SKILL.md under 100 lines
+- [ ] Wrapper SKILL.md under 100 lines (logic lives in playbook)
 - [ ] No time-sensitive info
 - [ ] Consistent terminology
 - [ ] Concrete examples included

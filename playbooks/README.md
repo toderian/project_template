@@ -4,10 +4,9 @@ This directory stores agent-neutral workflow instructions shared across Codex an
 
 Design rule:
 
-- `planning/` stores state
 - `playbooks/` stores reusable workflow logic
-- `skills/` stores Codex adapters
-- `.claude/skills/` stores Claude adapters
-- `.claude/agents/` stores Claude-specific subagents
+- `skills/` stores Codex skill wrappers
+- `.claude/skills/` stores Claude Code skill wrappers
+- both point to playbooks as the single source of truth
 
-When changing a planning workflow, update the relevant playbook first and keep the agent-specific wrappers thin.
+When changing a workflow, update the relevant playbook first and keep the agent-specific wrappers thin.

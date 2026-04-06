@@ -246,6 +246,26 @@ Work is done when:
 - the solution survived at least one critic pass
 - the final result is concise, clear, and easy for a human to adopt
 
+## Skills and playbooks
+
+This repo includes reusable agent skills shared across Claude Code and Codex.
+
+### How skills work
+
+- `playbooks/` contains the authoritative workflow logic
+- `skills/` contains thin Codex wrappers that point to playbooks
+- `.claude/skills/` contains thin Claude Code wrappers that point to playbooks
+
+When a skill is invoked, read and follow the referenced playbook. Do not improvise a workflow when a playbook exists for the task.
+
+### When changing a workflow
+
+Update the playbook first. Keep skill wrappers thin — they exist only to route agents to the right playbook with proper metadata.
+
+### Creating new skills
+
+Follow `playbooks/write-a-skill.md`. Every new skill needs three files: a playbook, a Codex wrapper, and a Claude wrapper.
+
 ## Anti-patterns
 
 Avoid these defaults:
@@ -256,3 +276,5 @@ Avoid these defaults:
 - benchmark chasing without real-task validation
 - rewriting tests or requirements to hide failure
 - verbose artifacts that make future maintenance harder
+- duplicating playbook logic inside skill wrappers
+- improvising a workflow when a playbook already covers the task
