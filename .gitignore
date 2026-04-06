@@ -1,2 +1,9 @@
 .idea
-.local
+
+# Agent runtime artifacts (start from templates/ when needed)
+AGENT_PROGRESS.md
+AGENT_TASKS.json
+AGENT_DECISIONS.md
+
+# GitHub triage knowledge base (repo-specific, not template content)
+.out-of-scope/
