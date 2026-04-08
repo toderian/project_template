@@ -127,93 +127,25 @@ Why:
 
 Use this loop by default.
 
-### Phase 0: Frame the problem
-
-- restate the user objective in operational terms
-- identify constraints and missing information
-- define what “done” means
-
-### Phase 1: Understand the environment
-
-- inspect repository structure and relevant files
-- locate existing patterns, tests, and interfaces
-- identify the smallest surface that can solve the problem
-
-### Phase 2: Build a first-principles model
-
-Write down:
-
-- root problem
-- likely causes or leverage points
-- failure modes
-- verification strategy
-
-### Phase 3: Choose the workflow
-
-- simple change: one agent, sequential role emulation
-- medium change: one agent with explicit extra tester and critic passes
-- large or parallelizable change: manager coordinates distinct builders/testers/reviewers with clear ownership
-
-### Phase 4: Make the smallest strong change
-
-- implement the minimal step that advances the objective
-- avoid speculative refactors unless they are necessary
-- preserve unrelated behavior
-
-### Phase 5: Test and verify
-
-- run the narrowest relevant checks first
-- then run broader regression checks as needed
-- inspect the actual outputs, not only exit codes
-
-### Phase 6: Critique and refine
-
-Ask:
-
-- what assumption was weakest
-- what could still be wrong even if tests passed
-- what is overbuilt, under-tested, or unclear
-- is there a simpler design with equal or better outcomes
-
-Then refine.
-
-### Phase 7: Review and communicate
-
-- ensure the final change is understandable by another engineer
-- document residual risks and unverified assumptions
-- explain what changed, why, and how it was verified
+0. **Frame**: restate the objective, identify constraints, define done
+1. **Understand**: inspect the repo, locate patterns and tests, find the smallest surface
+2. **Model**: write down root problem, likely causes, failure modes, verification strategy
+3. **Choose workflow**: simple (one agent, sequential roles), medium (extra tester/critic passes), or large (manager coordinates parallel agents with clear ownership)
+4. **Build**: implement the minimal step that advances the objective — no speculative refactors
+5. **Test**: run narrowest checks first, then broader regression checks — inspect actual outputs
+6. **Critique**: what assumption was weakest? what could still be wrong? is there a simpler design? Then refine.
+7. **Review**: ensure the change is understandable, document residual risks, explain what changed and why
 
 ## Role definitions
 
-### Manager
+See `personalities/` for detailed role cards including default questions and failure modes:
 
-- define scope and done criteria
-- sequence work into the smallest sensible increments
-- decide whether the task stays single-agent or becomes multi-agent
-- protect against scope drift
-
-### Builder
-
-- implement the next highest-value increment
-- respect local patterns unless there is a strong reason to change them
-- prefer reversible, inspectable edits
-
-### Tester
-
-- turn requirements into checks
-- validate both intended behavior and regressions
-- reject fake-green outcomes caused by weak or misaligned tests
-
-### Critic
-
-- actively look for broken assumptions, edge cases, and simpler alternatives
-- challenge design choices before they harden into template policy
-- force another pass when evidence is weak
-
-### Reviewer
-
-- evaluate clarity, maintainability, security, performance, and operator usability
-- check whether the solution fits real project adoption, not just benchmark aesthetics
+- `manager.md` — scope, sequencing, exit criteria
+- `builder.md` — smallest strong implementation
+- `tester.md` — verification, regression detection
+- `critic.md` — challenge assumptions, find failure modes
+- `reviewer.md` — maintainability, clarity, adoption fitness
+- `researcher.md` — research-focused investigation
 
 ## Multi-agent rules
 
