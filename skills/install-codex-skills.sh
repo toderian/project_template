@@ -3,6 +3,14 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# Source project.env if it exists
+if [[ -f "${REPO_ROOT}/project.env" ]]; then
+  # shellcheck source=/dev/null
+  source "${REPO_ROOT}/project.env"
+fi
+
 SOURCE_SKILLS_DIR="${SCRIPT_DIR}"
 CODEX_HOME="${CODEX_HOME:-${HOME}/.codex}"
 TARGET_SKILLS_DIR="${CODEX_HOME}/skills"

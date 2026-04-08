@@ -1,5 +1,8 @@
 .idea
 
+# Local environment config (copy from project.env.example)
+project.env
+
 # Agent runtime artifacts (start from templates/ when needed)
 AGENT_PROGRESS.md
 AGENT_TASKS.json
