@@ -94,7 +94,7 @@ Keep context small and high-signal.
 
 If changing the repo’s agent doctrine, workflows, role definitions, or evaluation philosophy:
 
-- rerun the process in `AGENTS_UPDATE_PLAN.md`
+- rerun the process in `playbooks/meta/UPDATE_PLAN.md`
 - prefer primary sources
 - separate enduring principles from vendor-specific implementation details
 - update the dated research snapshot and examples
@@ -138,7 +138,7 @@ Use this loop by default.
 
 ## Role definitions
 
-See `personalities/` for detailed role cards including default questions and failure modes:
+See `playbooks/personalities/` for detailed role cards including default questions and failure modes:
 
 - `manager.md` — scope, sequencing, exit criteria
 - `builder.md` — smallest strong implementation
@@ -172,7 +172,7 @@ When a task spans many sessions, add lightweight artifacts such as:
 - `AGENT_DECISIONS.md`: decisions, assumptions, rejected alternatives
 
 Prefer structured files for task state when possible.
-If this template repo is used directly, start from the files in `templates/`.
+If this template repo is used directly, start from the files in `playbooks/templates/`.
 
 ## Definition of done
 

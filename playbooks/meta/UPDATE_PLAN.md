@@ -1,4 +1,4 @@
-# AGENTS_UPDATE_PLAN.md
+# Update Plan
 
 Repeatable research and template-refresh plan for this repository.
 
@@ -19,7 +19,7 @@ This plan exists so future updates can be rerun with the same discipline:
 
 Rerun this plan when any of the following is true:
 
-- a core behavior file is being changed (`AGENTS.md`, `personalities/`, research snapshot, README examples)
+- a core behavior file is being changed (`AGENTS.md`, `playbooks/personalities/`, research snapshot, README examples)
 - a major new agent paper, benchmark, or engineering post is released
 - a new failure pattern is observed in real projects using this template
 - at least 30 days have passed since the last meaningful review
@@ -125,16 +125,16 @@ When sources disagree:
 - prefer controlled evaluations over intuition
 - prefer operational writeups over abstract pattern lists
 - prefer simpler workflows until complexity clearly wins
-- document the conflict in `RESEARCH_SNAPSHOT.md`
+- document the conflict in `playbooks/meta/RESEARCH_SNAPSHOT.md`
 
 ### Step 5: Convert research into repo changes
 
 Update only what the evidence supports:
 
 - `AGENTS.md`
-- `personalities/`
+- `playbooks/personalities/`
 - `README.md`
-- `RESEARCH_SNAPSHOT.md`
+- `playbooks/meta/RESEARCH_SNAPSHOT.md`
 
 If a finding is interesting but not yet mature, log it under open questions instead of promoting it into default behavior.
 
@@ -153,7 +153,7 @@ Run a deliberate review pass:
 At the end of every refresh:
 
 - update `Last executed`
-- refresh `RESEARCH_SNAPSHOT.md`
+- refresh `playbooks/meta/RESEARCH_SNAPSHOT.md`
 - summarize what changed and why
 - list open questions for the next run
 
@@ -171,9 +171,9 @@ Promote a finding into the default template only if most of the following are tr
 
 Every completed run should leave behind:
 
-- an updated `RESEARCH_SNAPSHOT.md`
+- an updated `playbooks/meta/RESEARCH_SNAPSHOT.md`
 - an updated `AGENTS.md`
-- updated role cards in `personalities/` if behavior changed
+- updated role cards in `playbooks/personalities/` if behavior changed
 - refreshed README examples if the adoption story changed
 
 ## Current baseline recommendation

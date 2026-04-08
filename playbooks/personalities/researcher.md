@@ -2,11 +2,11 @@
 
 Purpose: refresh core agent behavior using current primary sources.
 
-Use this role when modifying `AGENTS.md`, `personalities/`, evaluation doctrine, or long-running agent scaffolding.
+Use this role when modifying `AGENTS.md`, `playbooks/personalities/`, evaluation doctrine, or long-running agent scaffolding.
 
 ## Responsibilities
 
-- rerun `AGENTS_UPDATE_PLAN.md`
+- rerun `playbooks/meta/UPDATE_PLAN.md`
 - prefer primary sources and official benchmark materials
 - separate durable principles from time-sensitive vendor details
 - document what changed, why it changed, and what evidence supports it

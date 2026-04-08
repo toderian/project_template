@@ -8,37 +8,35 @@ This repo is designed to work with both **Claude Code** and **OpenAI Codex**. Co
 
 ```text
 .
-├── AGENTS.md                           # Core agent operating contract
-├── AGENTS_UPDATE_PLAN.md               # Repeatable research refresh process
-├── RESEARCH_SNAPSHOT.md                # Dated evidence snapshot
+├── AGENTS.md                              # Core agent operating contract
 ├── README.md
 ├── LICENSE
 │
-├── personalities/                      # Role cards for multi-pass workflows
-│   ├── manager.md
-│   ├── builder.md
-│   ├── tester.md
-│   ├── critic.md
-│   ├── reviewer.md
-│   └── researcher.md
+├── playbooks/                             # Shared workflow logic (single source of truth)
+│   ├── <skill-name>.md                    # Playbook per skill
+│   ├── personalities/                     # Role cards for multi-pass workflows
+│   │   ├── manager.md, builder.md, tester.md
+│   │   ├── critic.md, reviewer.md, researcher.md
+│   ├── templates/                         # Durable artifacts for long-running tasks
+│   │   ├── AGENT_TASKS.template.json
+│   │   ├── AGENT_PROGRESS.template.md
+│   │   └── AGENT_DECISIONS.template.md
+│   └── meta/                              # Template maintenance
+│       ├── UPDATE_PLAN.md
+│       └── RESEARCH_SNAPSHOT.md
 │
-├── templates/                          # Durable artifacts for long-running tasks
-│   ├── AGENT_TASKS.template.json
-│   ├── AGENT_PROGRESS.template.md
-│   └── AGENT_DECISIONS.template.md
+├── skills/                                # Codex skill wrappers (thin)
+│   ├── <skill-name>/SKILL.md
+│   └── install-codex-skills.sh
 │
-├── skills/                             # Codex skill wrappers (thin)
-│   └── <skill-name>/SKILL.md
-│
-├── .claude/
-│   └── skills/                         # Claude Code skill wrappers (thin)
-│       └── <skill-name>/SKILL.md
-│
-├── playbooks/                          # Shared workflow logic (single source of truth)
-│   └── <skill-name>.md
-│
-└── scripts/
-    └── install-codex-skills.sh         # Symlink Codex skills into ~/.codex/skills/
+└── .claude/
+    ├── skills/                            # Claude Code skill wrappers (thin)
+    │   └── <skill-name>/SKILL.md
+    ├── agents/                            # Claude Code subagent definitions
+    │   ├── implementer.md
+    │   └── reviewer.md
+    ├── hooks/                             # PreToolUse hook scripts
+    └── settings.json                      # Hook configuration
 ```
 
 ## Core design
@@ -154,9 +152,8 @@ description: What it does. Use when [triggers].
 Copy these into the target project:
 
 - `AGENTS.md`
-- `personalities/`
-- `skills/`, `.claude/skills/`, `playbooks/`
-- optionally `AGENTS_UPDATE_PLAN.md` and `RESEARCH_SNAPSHOT.md` if the project will evolve its agent doctrine
+- `playbooks/` (includes personalities, templates, and meta docs)
+- `skills/`, `.claude/skills/`
 
 ### Option 2: use as a submodule
 
@@ -176,9 +173,9 @@ Then reference the files from the root project or symlink the chosen artifacts i
 ### Stronger adoption
 
 - use `manager.md`, `builder.md`, `tester.md`, `critic.md`, and `reviewer.md` as explicit passes or sub-agent roles
-- copy the files in `templates/` for durable progress, task, and decision state
+- copy the files in `playbooks/templates/` for durable progress, task, and decision state
 - require agents to use conventional commit summaries plus a commit body
-- rerun `AGENTS_UPDATE_PLAN.md` whenever you change the project's agent doctrine
+- rerun `playbooks/meta/UPDATE_PLAN.md` whenever you change the project's agent doctrine
 
 ## Examples
 
@@ -214,15 +211,15 @@ Do not push a one-line commit message.
 
 ```text
 Use researcher.md.
-Rerun AGENTS_UPDATE_PLAN.md.
+Rerun playbooks/meta/UPDATE_PLAN.md.
 Check the latest primary sources.
-Update RESEARCH_SNAPSHOT.md, AGENTS.md, and README examples together.
+Update playbooks/meta/RESEARCH_SNAPSHOT.md, AGENTS.md, and README examples together.
 ```
 
 ## Update workflow
 
-1. Run `AGENTS_UPDATE_PLAN.md`.
-2. Refresh `RESEARCH_SNAPSHOT.md`.
-3. Update `AGENTS.md` and `personalities/` only where evidence supports a change.
+1. Run `playbooks/meta/UPDATE_PLAN.md`.
+2. Refresh `playbooks/meta/RESEARCH_SNAPSHOT.md`.
+3. Update `AGENTS.md` and `playbooks/personalities/` only where evidence supports a change.
 4. Review the repo for clarity and portability.
 5. Update README examples so adoption stays easy.

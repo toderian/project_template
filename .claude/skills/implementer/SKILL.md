@@ -7,7 +7,7 @@ disable-model-invocation: true
 Read and follow:
 
 - `playbooks/subagent-protocol.md`
-- `personalities/builder.md`
+- `playbooks/personalities/builder.md`
 
 Key rules:
 

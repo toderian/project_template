@@ -36,8 +36,8 @@ Only proceed to this stage if spec compliance passes.
 - Simplicity: is there a simpler design with equal outcomes?
 
 Follow the reviewer and critic personalities:
-- `personalities/reviewer.md`
-- `personalities/critic.md`
+- `playbooks/personalities/reviewer.md`
+- `playbooks/personalities/critic.md`
 
 ## Skepticism directive
 

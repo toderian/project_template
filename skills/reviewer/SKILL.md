@@ -10,8 +10,8 @@ Use this skill when reviewing implementation work.
 Read and follow:
 
 - `playbooks/subagent-protocol.md`
-- `personalities/reviewer.md`
-- `personalities/critic.md`
+- `playbooks/personalities/reviewer.md`
+- `playbooks/personalities/critic.md`
 
 Key rules:
 

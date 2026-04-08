@@ -45,7 +45,7 @@ When dispatching a subagent, the parent must construct a self-contained prompt w
 1. **Task description**: what to build or review, in concrete terms
 2. **Acceptance criteria**: testable conditions that define done
 3. **Scope fence**: files and directories the subagent may touch, and those it must not
-4. **Personality**: which role card to follow (e.g. `personalities/builder.md`)
+4. **Personality**: which role card to follow (e.g. `playbooks/personalities/builder.md`)
 5. **Context files**: explicit list of files to read — not "read everything"
 6. **Model hint**: suggested model class (see model selection below)
 

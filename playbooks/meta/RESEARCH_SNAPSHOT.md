@@ -1,4 +1,4 @@
-# RESEARCH_SNAPSHOT.md
+# Research Snapshot
 
 Current research snapshot for this template.
 
