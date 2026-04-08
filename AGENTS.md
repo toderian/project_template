@@ -159,7 +159,7 @@ If multiple agents are used, the manager must enforce:
 
 Do not create multiple agents to work on the same vague problem statement.
 
-For the full coordination protocol — status vocabulary, dispatch format, two-stage review, escalation rules, and model selection — see `playbooks/subagent-protocol.md`.
+For the full coordination protocol — status vocabulary, dispatch format, two-stage review, escalation rules, and model selection — see `playbooks/skills/subagent-protocol.md`.
 
 Agent definitions for Claude Code live in `.claude/agents/`. Codex equivalents are available as skills in `skills/implementer/` and `skills/reviewer/`.
 
@@ -202,7 +202,7 @@ Update the playbook first. Keep skill wrappers thin — they exist only to route
 
 ### Creating new skills
 
-Follow `playbooks/write-a-skill.md`. Every new skill needs three files: a playbook, a Codex wrapper, and a Claude wrapper.
+Follow `playbooks/skills/write-a-skill.md`. Every new skill needs three files: a playbook, a Codex wrapper, and a Claude wrapper.
 
 ### Per-directory overrides
 

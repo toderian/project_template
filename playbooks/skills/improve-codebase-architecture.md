@@ -26,7 +26,7 @@ Present a numbered list of deepening opportunities. For each candidate, show:
 
 - **Cluster**: Which modules/concepts are involved
 - **Why they're coupled**: Shared types, call patterns, co-ownership of a concept
-- **Dependency category**: See `playbooks/improve-codebase-architecture/REFERENCE.md` for the four categories
+- **Dependency category**: See `playbooks/skills/improve-codebase-architecture/REFERENCE.md` for the four categories
 - **Test impact**: What existing tests would be replaced by boundary tests
 
 Do NOT propose interfaces yet. Ask the user: "Which of these would you like to explore?"
@@ -59,7 +59,7 @@ Each sub-agent outputs:
 1. Interface signature (types, methods, params)
 2. Usage example showing how callers use it
 3. What complexity it hides internally
-4. Dependency strategy (how deps are handled — see `playbooks/improve-codebase-architecture/REFERENCE.md`)
+4. Dependency strategy (how deps are handled — see `playbooks/skills/improve-codebase-architecture/REFERENCE.md`)
 5. Trade-offs
 
 Present designs sequentially, then compare them in prose.
@@ -70,4 +70,4 @@ After comparing, give your own recommendation: which design you think is stronge
 
 ### 7. Create GitHub issue
 
-Create a refactor RFC as a GitHub issue using `gh issue create`. Use the template in `playbooks/improve-codebase-architecture/REFERENCE.md`. Do NOT ask the user to review before creating — just create it and share the URL.
+Create a refactor RFC as a GitHub issue using `gh issue create`. Use the template in `playbooks/skills/improve-codebase-architecture/REFERENCE.md`. Do NOT ask the user to review before creating — just create it and share the URL.

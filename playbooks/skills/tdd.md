@@ -12,7 +12,7 @@ Build features or fix bugs using TDD with a red-green-refactor loop and vertical
 
 **Bad tests** are coupled to implementation. They mock internal collaborators, test private methods, or verify through external means (like querying a database directly instead of using the interface). The warning sign: your test breaks when you refactor, but behavior hasn't changed. If you rename an internal function and tests fail, those tests were testing implementation, not behavior.
 
-See `playbooks/tdd/tests.md` for examples and `playbooks/tdd/mocking.md` for mocking guidelines.
+See `playbooks/skills/tdd/tests.md` for examples and `playbooks/skills/tdd/mocking.md` for mocking guidelines.
 
 ## Anti-Pattern: Horizontal Slices
 
@@ -47,8 +47,8 @@ Before writing any code:
 
 - [ ] Confirm with user what interface changes are needed
 - [ ] Confirm with user which behaviors to test (prioritize)
-- [ ] Identify opportunities for deep modules (see `playbooks/tdd/deep-modules.md`)
-- [ ] Design interfaces for testability (see `playbooks/tdd/interface-design.md`)
+- [ ] Identify opportunities for deep modules (see `playbooks/skills/tdd/deep-modules.md`)
+- [ ] Design interfaces for testability (see `playbooks/skills/tdd/interface-design.md`)
 - [ ] List the behaviors to test (not implementation steps)
 - [ ] Get user approval on the plan
 
@@ -85,7 +85,7 @@ Rules:
 
 ### 4. Refactor
 
-After all tests pass, look for refactor candidates (see `playbooks/tdd/refactoring.md`):
+After all tests pass, look for refactor candidates (see `playbooks/skills/tdd/refactoring.md`):
 
 - [ ] Extract duplication
 - [ ] Deepen modules (move complexity behind simple interfaces)

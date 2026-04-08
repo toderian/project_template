@@ -9,6 +9,6 @@ Use this skill to create a PRD and file it as a GitHub issue.
 
 Read and follow:
 
-- `playbooks/write-a-prd.md`
+- `playbooks/skills/write-a-prd.md`
 
 Keep this skill thin. The playbook is the shared workflow and should be updated first when the process changes.

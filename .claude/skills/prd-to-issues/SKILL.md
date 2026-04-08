@@ -8,6 +8,6 @@ Use this skill to break a PRD into GitHub issues using vertical slices.
 
 Read and follow:
 
-- `playbooks/prd-to-issues.md`
+- `playbooks/skills/prd-to-issues.md`
 
 Keep this skill thin. The playbook is the shared workflow and should be updated first when the process changes.

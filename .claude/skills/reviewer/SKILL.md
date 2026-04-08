@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 Read and follow:
 
-- `playbooks/subagent-protocol.md`
+- `playbooks/skills/subagent-protocol.md`
 - `playbooks/personalities/reviewer.md`
 - `playbooks/personalities/critic.md`
 

@@ -9,7 +9,7 @@ Use this skill to set up git safety guardrails via Claude Code hooks.
 
 Read and follow:
 
-- `playbooks/git-guardrails-claude-code.md`
+- `playbooks/skills/git-guardrails-claude-code.md`
 
 The hook script is bundled at `.claude/skills/git-guardrails-claude-code/scripts/block-dangerous-git.sh`.
 

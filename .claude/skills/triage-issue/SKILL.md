@@ -8,6 +8,6 @@ Use this skill to investigate bugs and file TDD fix plans as GitHub issues.
 
 Read and follow:
 
-- `playbooks/triage-issue.md`
+- `playbooks/skills/triage-issue.md`
 
 Keep this skill thin. The playbook is the shared workflow and should be updated first when the process changes.

@@ -9,7 +9,7 @@ Use this skill when implementing a single well-scoped task slice.
 
 Read and follow:
 
-- `playbooks/subagent-protocol.md`
+- `playbooks/skills/subagent-protocol.md`
 - `playbooks/personalities/builder.md`
 
 Key rules:

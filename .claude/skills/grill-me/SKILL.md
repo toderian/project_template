@@ -8,6 +8,6 @@ Use this skill to stress-test a plan or design through relentless interviewing.
 
 Read and follow:
 
-- `playbooks/grill-me.md`
+- `playbooks/skills/grill-me.md`
 
 Keep this skill thin. The playbook is the shared workflow and should be updated first when the process changes.

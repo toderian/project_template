@@ -8,6 +8,6 @@ Use this skill to edit and improve article drafts.
 
 Read and follow:
 
-- `playbooks/edit-article.md`
+- `playbooks/skills/edit-article.md`
 
 Keep this skill thin. The playbook is the shared workflow and should be updated first when the process changes.

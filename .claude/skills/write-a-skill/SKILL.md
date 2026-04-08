@@ -8,6 +8,6 @@ Use this skill to create new agent skills with proper structure.
 
 Read and follow:
 
-- `playbooks/write-a-skill.md`
+- `playbooks/skills/write-a-skill.md`
 
 Keep this skill thin. The playbook is the shared workflow and should be updated first when the process changes.

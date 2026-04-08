@@ -9,6 +9,6 @@ Use this skill to generate and compare multiple interface designs for a module.
 
 Read and follow:
 
-- `playbooks/design-an-interface.md`
+- `playbooks/skills/design-an-interface.md`
 
 Keep this skill thin. The playbook is the shared workflow and should be updated first when the process changes.

@@ -8,8 +8,8 @@ Triage issues in the current repo using a label-based state machine.
 
 Read and follow:
 
-- `playbooks/github-triage.md`
-- `playbooks/github-triage/AGENT-BRIEF.md`
-- `playbooks/github-triage/OUT-OF-SCOPE.md`
+- `playbooks/skills/github-triage.md`
+- `playbooks/skills/github-triage/AGENT-BRIEF.md`
+- `playbooks/skills/github-triage/OUT-OF-SCOPE.md`
 
 Keep this skill thin. The playbook is the shared workflow and should be updated first when the process changes.

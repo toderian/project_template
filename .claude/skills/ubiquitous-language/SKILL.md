@@ -8,6 +8,6 @@ Use this skill to extract and formalize domain terminology into a glossary.
 
 Read and follow:
 
-- `playbooks/ubiquitous-language.md`
+- `playbooks/skills/ubiquitous-language.md`
 
 Keep this skill thin. The playbook is the shared workflow and should be updated first when the process changes.

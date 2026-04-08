@@ -8,7 +8,7 @@ Use this skill to find and propose architectural improvements via module deepeni
 
 Read and follow:
 
-- `playbooks/improve-codebase-architecture.md`
-- `playbooks/improve-codebase-architecture/REFERENCE.md`
+- `playbooks/skills/improve-codebase-architecture.md`
+- `playbooks/skills/improve-codebase-architecture/REFERENCE.md`
 
 Keep this skill thin. The playbook is the shared workflow and should be updated first when the process changes.

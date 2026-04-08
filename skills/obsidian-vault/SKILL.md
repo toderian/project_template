@@ -9,6 +9,6 @@ Use this skill to interact with the Obsidian vault.
 
 Read and follow:
 
-- `playbooks/obsidian-vault.md`
+- `playbooks/skills/obsidian-vault.md`
 
 Keep this skill thin. The playbook is the shared workflow and should be updated first when the process changes.

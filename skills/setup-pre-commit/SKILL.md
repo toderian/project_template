@@ -9,6 +9,6 @@ Use this skill to set up Husky pre-commit hooks with lint-staged and Prettier.
 
 Read and follow:
 
-- `playbooks/setup-pre-commit.md`
+- `playbooks/skills/setup-pre-commit.md`
 
 Keep this skill thin. The playbook is the shared workflow and should be updated first when the process changes.

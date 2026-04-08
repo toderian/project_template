@@ -9,11 +9,11 @@ Use this skill for test-driven development with red-green-refactor loops.
 
 Read and follow:
 
-- `playbooks/tdd.md`
-- `playbooks/tdd/tests.md`
-- `playbooks/tdd/mocking.md`
-- `playbooks/tdd/deep-modules.md`
-- `playbooks/tdd/interface-design.md`
-- `playbooks/tdd/refactoring.md`
+- `playbooks/skills/tdd.md`
+- `playbooks/skills/tdd/tests.md`
+- `playbooks/skills/tdd/mocking.md`
+- `playbooks/skills/tdd/deep-modules.md`
+- `playbooks/skills/tdd/interface-design.md`
+- `playbooks/skills/tdd/refactoring.md`
 
 Keep this skill thin. The playbook is the shared workflow and should be updated first when the process changes.

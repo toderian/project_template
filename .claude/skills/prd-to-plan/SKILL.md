@@ -8,6 +8,6 @@ Use this skill to turn a PRD into a phased implementation plan.
 
 Read and follow:
 
-- `playbooks/prd-to-plan.md`
+- `playbooks/skills/prd-to-plan.md`
 
 Keep this skill thin. The playbook is the shared workflow and should be updated first when the process changes.

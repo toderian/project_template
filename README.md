@@ -13,7 +13,10 @@ This repo is designed to work with both **Claude Code** and **OpenAI Codex**. Co
 ├── LICENSE
 │
 ├── playbooks/                             # Shared workflow logic (single source of truth)
-│   ├── <skill-name>.md                    # Playbook per skill
+│   ├── skills/                            # Skill playbooks
+│   │   ├── <skill-name>.md
+│   │   ├── tdd/                           # Complex skill subdirectories
+│   │   └── github-triage/
 │   ├── personalities/                     # Role cards for multi-pass workflows
 │   │   ├── manager.md, builder.md, tester.md
 │   │   ├── critic.md, reviewer.md, researcher.md
@@ -99,7 +102,7 @@ Both wrappers point to the same playbook. **The playbook is the single source of
 3. Create the Claude wrapper: `.claude/skills/<name>/SKILL.md`
 4. For Codex, run `skills/install-codex-skills.sh` and restart Codex
 
-See `playbooks/write-a-skill.md` for the full skill authoring guide.
+See `playbooks/skills/write-a-skill.md` for the full skill authoring guide.
 
 ## Platform support
 

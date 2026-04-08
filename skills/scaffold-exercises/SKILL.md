@@ -9,6 +9,6 @@ Use this skill to scaffold exercise directory structures.
 
 Read and follow:
 
-- `playbooks/scaffold-exercises.md`
+- `playbooks/skills/scaffold-exercises.md`
 
 Keep this skill thin. The playbook is the shared workflow and should be updated first when the process changes.
