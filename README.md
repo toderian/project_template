@@ -72,6 +72,7 @@ Both wrappers point to the same playbook. **The playbook is the single source of
 | Skill | Description |
 |-------|-------------|
 | design-an-interface | Design software interfaces |
+| implementer | Act as an implementer for a single task slice |
 | edit-article | Edit and improve articles |
 | git-guardrails-claude-code | Git safety hooks for Claude Code |
 | github-triage | Label-based GitHub issue triage with grilling sessions |
@@ -83,8 +84,10 @@ Both wrappers point to the same playbook. **The playbook is the single source of
 | prd-to-plan | Convert PRDs to implementation plans |
 | qa | Quality assurance review |
 | request-refactor-plan | Refactoring plans |
+| reviewer | Two-stage review (spec compliance + code quality) |
 | scaffold-exercises | Scaffold learning exercises |
 | setup-pre-commit | Set up pre-commit hooks |
+| subagent-protocol | Multi-agent coordination protocol |
 | tdd | Test-driven development |
 | triage-issue | Investigate bugs and file TDD fix plans |
 | ubiquitous-language | Domain language definition |
@@ -99,6 +102,18 @@ Both wrappers point to the same playbook. **The playbook is the single source of
 4. For Codex, run `scripts/install-codex-skills.sh` and restart Codex
 
 See `playbooks/write-a-skill.md` for the full skill authoring guide.
+
+## Platform support
+
+| Feature | Claude Code | Codex |
+|---------|------------|-------|
+| AGENTS.md | Auto-loaded | Auto-loaded |
+| Skills (slash commands) | `.claude/skills/` auto-discovered | `skills/` via `install-codex-skills.sh` |
+| Agent definitions | `.claude/agents/` native subagent dispatch | `skills/implementer/`, `skills/reviewer/` as behavioral skills |
+| Hooks | `.claude/settings.json` PreToolUse | Codex approval policy (`suggest`/`auto-edit`/`full-auto`) |
+| Per-directory overrides | Nested `AGENTS.md` in subdirectories | Not supported — root `AGENTS.md` only |
+
+All workflow logic lives in `playbooks/` (shared). Platform-specific features in `.claude/` and `skills/` are additive — a Codex user reading only `AGENTS.md` + `playbooks/` + `skills/` gets the full picture.
 
 ## Using with Claude Code
 

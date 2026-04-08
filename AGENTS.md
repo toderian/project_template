@@ -204,6 +204,10 @@ Update the playbook first. Keep skill wrappers thin — they exist only to route
 
 Follow `playbooks/write-a-skill.md`. Every new skill needs three files: a playbook, a Codex wrapper, and a Claude wrapper.
 
+### Per-directory overrides
+
+For monorepos, place an `AGENTS.md` in any subdirectory to override or extend the root contract for that area. Subdirectory files should reference the root contract and specify only what differs. Note: this is supported by Claude Code; Codex reads only the root `AGENTS.md`.
+
 ## Anti-patterns
 
 Avoid these defaults:
