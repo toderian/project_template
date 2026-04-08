@@ -2,6 +2,8 @@
 
 Portable operating contract for software agents working in any development repository.
 
+At session start, check for available skills before acting. If a skill covers the current task, follow its playbook rather than improvising.
+
 Last aligned with external research: 2026-03-22.
 
 ## Objective
