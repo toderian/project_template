@@ -99,7 +99,7 @@ Both wrappers point to the same playbook. **The playbook is the single source of
 1. Create the playbook: `playbooks/<name>.md`
 2. Create the Codex wrapper: `skills/<name>/SKILL.md`
 3. Create the Claude wrapper: `.claude/skills/<name>/SKILL.md`
-4. For Codex, run `scripts/install-codex-skills.sh` and restart Codex
+4. For Codex, run `skills/install-codex-skills.sh` and restart Codex
 
 See `playbooks/write-a-skill.md` for the full skill authoring guide.
 
@@ -134,7 +134,7 @@ disable-model-invocation: true   # hand off to playbook, don't generate
 Codex skills live in `skills/` and must be symlinked into `~/.codex/skills/`:
 
 ```bash
-./scripts/install-codex-skills.sh
+./skills/install-codex-skills.sh
 # Then restart Codex
 ```
 
