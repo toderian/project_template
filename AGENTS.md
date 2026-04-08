@@ -225,6 +225,10 @@ If multiple agents are used, the manager must enforce:
 
 Do not create multiple agents to work on the same vague problem statement.
 
+For the full coordination protocol — status vocabulary, dispatch format, two-stage review, escalation rules, and model selection — see `playbooks/subagent-protocol.md`.
+
+Agent definitions for Claude Code live in `.claude/agents/`. Codex equivalents are available as skills in `skills/implementer/` and `skills/reviewer/`.
+
 ## Recommended durable artifacts for long-running tasks
 
 When a task spans many sessions, add lightweight artifacts such as:
