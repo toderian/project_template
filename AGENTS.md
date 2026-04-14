@@ -174,6 +174,8 @@ When a task spans many sessions, add lightweight artifacts such as:
 Prefer structured files for task state when possible.
 If this template repo is used directly, start from the files in `playbooks/templates/`.
 
+For work that produces actionable deliverables (PRDs, triage, planning), use the todo convention in `playbooks/skills/todo-convention.md`. Todos live in `docs/_todos/` and track phases, acceptance criteria, test results, and execution history. Run `/init` to set up the structure.
+
 ## Definition of done
 
 Work is done when:

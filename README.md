@@ -79,10 +79,12 @@ Both wrappers point to the same playbook. **The playbook is the single source of
 | github-triage | Label-based GitHub issue triage with grilling sessions |
 | grill-me | Interactive grilling/quiz sessions |
 | improve-codebase-architecture | Codebase architecture improvements |
+| init | Initialize project todo tracking structure |
 | migrate-to-shoehorn | Shoehorn migration |
 | obsidian-vault | Obsidian vault operations |
 | prd-to-issues | Convert PRDs to GitHub issues |
 | prd-to-plan | Convert PRDs to implementation plans |
+| prd-to-todos | Extract todos from a PRD into docs/_todos/ |
 | qa | Quality assurance review |
 | request-refactor-plan | Refactoring plans |
 | reviewer | Two-stage review (spec compliance + code quality) |

@@ -58,7 +58,7 @@ A list of implementation decisions that were made. This can include:
 
 Do NOT include specific file paths or code snippets. They may end up being outdated very quickly.
 
-## Testing Decisions
+## Testing decisions
 
 A list of testing decisions that were made. Include:
 
@@ -75,3 +75,9 @@ A description of the things that are out of scope for this PRD.
 Any further notes about the feature.
 
 </prd-template>
+
+6. After the PRD is complete, ask the user: **"Would you like me to generate todos from this PRD?"**
+
+   If yes, follow `playbooks/skills/todo-convention.md` to create todo files in `docs/_todos/`. Create one todo per vertical slice or major actionable item. Set `Source` to `write-a-prd` and `Source ref` to the PRD identifier (issue number, file path, etc.).
+
+   If the user declines, remind them they can run `/prd-to-todos` later to extract todos from the PRD.
