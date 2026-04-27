@@ -5,6 +5,7 @@ Place repo-provided Codex plugins in this directory.
 Bundled plugins:
 
 - `superpowers`: planning, TDD, debugging, review, and branch-finishing workflows.
+- `github`: PR, issue, CI, review-comment, and publishing workflows.
 
 Each plugin should use the standard plugin layout:
 
