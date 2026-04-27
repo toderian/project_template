@@ -1,4 +1,5 @@
 .idea
+.codex
 
 # Local environment config (copy from project.env.example)
 project.env

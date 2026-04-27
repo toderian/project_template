@@ -31,6 +31,9 @@ This repo is designed to work with both **Claude Code** and **OpenAI Codex**. Co
 ├── skills/                                # Codex skill wrappers (thin)
 │   ├── <skill-name>/SKILL.md
 │   └── install-codex-skills.sh
+├── plugins/                               # Optional Codex plugins
+│   ├── <plugin-name>/.codex-plugin/plugin.json
+│   └── install-codex-plugins.sh
 │
 └── .claude/
     ├── skills/                            # Claude Code skill wrappers (thin)
@@ -63,7 +66,7 @@ Skills are reusable agent capabilities invoked by name (e.g. `/tdd`, `/qa`, `/gr
 ```
 skills/<name>/SKILL.md          →  thin Codex wrapper
 .claude/skills/<name>/SKILL.md  →  thin Claude Code wrapper
-playbooks/<name>.md             →  shared workflow logic (authoritative)
+playbooks/skills/<name>.md      →  shared workflow logic (authoritative)
 ```
 
 Both wrappers point to the same playbook. **The playbook is the single source of truth.** When changing a workflow, update the playbook first; keep the wrappers thin.
@@ -99,7 +102,7 @@ Both wrappers point to the same playbook. **The playbook is the single source of
 
 ### Adding a new skill
 
-1. Create the playbook: `playbooks/<name>.md`
+1. Create the playbook: `playbooks/skills/<name>.md`
 2. Create the Codex wrapper: `skills/<name>/SKILL.md`
 3. Create the Claude wrapper: `.claude/skills/<name>/SKILL.md`
 4. For Codex, run `skills/install-codex-skills.sh` and restart Codex
@@ -112,11 +115,12 @@ See `playbooks/skills/write-a-skill.md` for the full skill authoring guide.
 |---------|------------|-------|
 | AGENTS.md | Auto-loaded | Auto-loaded |
 | Skills (slash commands) | `.claude/skills/` auto-discovered | `skills/` via `install-codex-skills.sh` |
+| Plugins | Not applicable | `plugins/` via `install-codex-plugins.sh` and local marketplace entries |
 | Agent definitions | `.claude/agents/` native subagent dispatch | `skills/implementer/`, `skills/reviewer/` as behavioral skills |
 | Hooks | `.claude/settings.json` PreToolUse | Codex approval policy (`suggest`/`auto-edit`/`full-auto`) |
 | Per-directory overrides | Nested `AGENTS.md` in subdirectories | Not supported — root `AGENTS.md` only |
 
-All workflow logic lives in `playbooks/` (shared). Platform-specific features in `.claude/` and `skills/` are additive — a Codex user reading only `AGENTS.md` + `playbooks/` + `skills/` gets the full picture.
+All workflow logic lives in `playbooks/` (shared). Platform-specific features in `.claude/`, `skills/`, and `plugins/` are additive — a Codex user reading only `AGENTS.md` + `playbooks/` + `skills/` + `plugins/` gets the full picture.
 
 ## Using with Claude Code
 
@@ -141,6 +145,17 @@ Codex skills live in `skills/` and must be symlinked into `~/.codex/skills/`:
 # Then restart Codex
 ```
 
+Codex plugins live in `plugins/` and use the `.codex-plugin/plugin.json`
+manifest layout:
+
+```bash
+./plugins/install-codex-plugins.sh
+# Then restart Codex
+```
+
+The plugin installer symlinks repo plugins into `~/plugins/` by default and
+adds local marketplace entries to `~/.agents/plugins/marketplace.json`.
+
 Codex skill metadata:
 
 ```yaml
@@ -159,6 +174,7 @@ Copy these into the target project:
 - `AGENTS.md`
 - `playbooks/` (includes personalities, templates, and meta docs)
 - `skills/`, `.claude/skills/`
+- `plugins/` if the target project should distribute Codex plugins
 
 ### Option 2: use as a submodule
 
@@ -173,7 +189,7 @@ Then reference the files from the root project or symlink the chosen artifacts i
 ### Minimum adoption
 
 - place `AGENTS.md` at the project root
-- copy the skills you need
+- copy the skills and plugins you need
 
 ### Stronger adoption
 
