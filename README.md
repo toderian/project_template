@@ -78,6 +78,7 @@ Both wrappers point to the same playbook. **The playbook is the single source of
 | design-an-interface | Design software interfaces |
 | implementer | Act as an implementer for a single task slice |
 | edit-article | Edit and improve articles |
+| frontend-design | Build distinctive frontend interfaces (imported from Anthropic's frontend-design plugin) |
 | git-guardrails-claude-code | Git safety hooks for Claude Code |
 | github-triage | Label-based GitHub issue triage with grilling sessions |
 | grill-me | Interactive grilling/quiz sessions |
@@ -165,16 +166,46 @@ description: What it does. Use when [triggers].
 ---
 ```
 
+## Third-party plugins (own installers)
+
+Some upstream tools ship multi-platform installers and don't fit the
+`playbooks/` + dual-wrapper convention. They're not vendored — instead,
+`plugins/bootstrap-third-party.sh` runs (or documents) their native install
+paths:
+
+| Tool | What it adds | Install path |
+|------|--------------|--------------|
+| `get-shit-done-cc` | Spec-driven dev workflow (researchers/planners/executors) | `npx get-shit-done-cc --claude --global` and `--codex --global` |
+| `context-mode` | MCP server + hooks that sandbox tool output (~98% context savings on Claude, ~60% on Codex) | `/plugin marketplace add mksglu/context-mode` |
+| `claude-mem` | Cross-session memory via MCP; ships both `.claude-plugin/` and `.codex-plugin/` | `/plugin marketplace add thedotmack/claude-mem` |
+
+Run `./plugins/bootstrap-third-party.sh` to install the npm-based ones and
+print the marketplace commands for the others. Toggle each section with env
+vars (`INSTALL_GSD`, `INSTALL_CONTEXT_MODE`, `INSTALL_CLAUDE_MEM`).
+
 ## Quick start
 
 ### Option 1: copy into a repo
 
-Copy these into the target project:
+Copy these into the target project (then run the Codex installers if you use Codex):
 
-- `AGENTS.md`
-- `playbooks/` (includes personalities, templates, and meta docs)
-- `skills/`, `.claude/skills/`
-- `plugins/` if the target project should distribute Codex plugins
+| Artifact | Required for | Notes |
+|----------|--------------|-------|
+| `AGENTS.md` | Both | Auto-loaded operating contract |
+| `playbooks/` | Both | Authoritative workflow logic, role cards, templates |
+| `.claude/` | Claude Code | Skills, native subagents, hook scripts, settings |
+| `skills/` | Codex | Thin wrappers + `install-codex-skills.sh` |
+| `plugins/` | Codex (optional) | Vendored plugins + `install-codex-plugins.sh` + `bootstrap-third-party.sh` |
+| `project.env.example` | Both (optional) | Copy to `project.env` to override default install paths |
+
+After copying, Claude Code is ready immediately. For Codex, run:
+
+```bash
+./skills/install-codex-skills.sh
+./plugins/install-codex-plugins.sh
+./plugins/bootstrap-third-party.sh   # optional third-party stack
+# Then restart Codex
+```
 
 ### Option 2: use as a submodule
 

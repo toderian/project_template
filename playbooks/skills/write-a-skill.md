@@ -2,53 +2,152 @@
 
 ## Purpose
 
-Create new agent skills with proper structure, progressive disclosure, and bundled resources.
+Create new agent skills with proper structure, progressive disclosure, and bundled resources. Skills are reusable agent capabilities invoked by name and shared across Claude Code and Codex.
+
+This playbook combines the dual-tool layout convention used by this template with the practical authoring wisdom from Anthropic's [`skill-creator`](https://github.com/anthropics/skills/tree/main/skills/skill-creator). The eval/benchmark/optimization machinery from skill-creator is intentionally omitted — it depends on Claude-specific subagent infrastructure not available here.
 
 ## Process
 
-1. **Gather requirements** - ask user about:
-   - What task/domain does the skill cover?
-   - What specific use cases should it handle?
-   - Does it need executable scripts or just instructions?
-   - Any reference materials to include?
-
-2. **Draft the skill** - create:
-   - SKILL.md with concise instructions
-   - Additional reference files if content exceeds 500 lines
-   - Utility scripts if deterministic operations needed
-
-3. **Review with user** - present draft and ask:
-   - Does this cover your use cases?
-   - Anything missing or unclear?
-   - Should any section be more/less detailed?
+1. **Capture intent** — understand what the skill should enable, when it should trigger, and what the expected output is.
+2. **Interview and research** — ask about edge cases, input/output formats, example files, success criteria, and dependencies. Pull context from the conversation history first; only ask the user to fill the gaps.
+3. **Draft** — write the playbook (authoritative) and the two thin wrappers.
+4. **Try it on 2–3 realistic prompts** — the kind of thing a real user would actually say. Refine based on what works and what doesn't.
+5. **Review with user** — confirm coverage, clarity, and the right level of detail.
 
 ## Skill Structure
 
 Every skill has three parts: a shared playbook and two thin wrappers.
 
 ```
-playbooks/<name>.md                    # Shared workflow logic (authoritative)
+playbooks/skills/<name>.md             # Shared workflow logic (authoritative)
 skills/<name>/SKILL.md                 # Codex wrapper (thin)
 .claude/skills/<name>/SKILL.md         # Claude Code wrapper (thin)
 ```
 
-The playbook is the single source of truth. Wrappers just point to it.
+**The playbook is the single source of truth.** Wrappers just point to it. When changing a workflow, update the playbook first.
 
-Optional additions in the playbook directory:
+Optional additions in the playbook directory (when SKILL.md exceeds 500 lines or covers multiple distinct domains):
 
 ```
-playbooks/<name>/REFERENCE.md          # Detailed docs
-playbooks/<name>/EXAMPLES.md           # Usage examples
+playbooks/skills/<name>/REFERENCE.md   # Detailed docs read on demand
+playbooks/skills/<name>/EXAMPLES.md    # Usage examples
+playbooks/skills/<name>/<domain>.md    # Per-domain reference (e.g., aws.md, gcp.md)
 ```
 
-Optional additions in skill directories (when needed):
+Optional additions in skill directories (when the skill needs deterministic helpers):
 
 ```
 skills/<name>/scripts/helper.sh        # Codex utility scripts
 .claude/skills/<name>/scripts/helper.sh # Claude utility scripts
 ```
 
-## Codex Wrapper Template
+## Anatomy of a skill
+
+Borrowed from skill-creator:
+
+```
+skill-name/
+├── SKILL.md (required)
+│   ├── YAML frontmatter (name, description required)
+│   └── Markdown instructions
+└── Bundled resources (optional, in the playbook directory)
+    ├── scripts/    — Executable code for deterministic/repetitive tasks
+    ├── references/ — Docs loaded into context as needed
+    └── assets/     — Files used in output (templates, icons, fonts)
+```
+
+In this template, the bundled resources live next to the **playbook** (under `playbooks/skills/<name>/`), not next to the wrappers — both runtimes read them through the same path.
+
+## Progressive disclosure
+
+Skills load in three levels. Design with this hierarchy in mind:
+
+1. **Metadata** (name + description) — always in context. ~100 words.
+2. **SKILL.md / playbook body** — loaded when the skill triggers. Aim for under 500 lines.
+3. **Bundled resources** — loaded only when needed. Unlimited; scripts can run without their source being read.
+
+Patterns:
+
+- Keep the playbook body under 500 lines. If approaching the limit, add a layer of hierarchy with clear pointers about where to read next.
+- Reference files clearly from the playbook with guidance on **when** to read them.
+- For large reference files (>300 lines), include a table of contents.
+
+**Domain organization** — when a skill supports multiple domains/frameworks, organize by variant so the agent reads only the relevant file:
+
+```
+playbooks/skills/cloud-deploy.md           # Workflow + selection logic
+playbooks/skills/cloud-deploy/aws.md
+playbooks/skills/cloud-deploy/gcp.md
+playbooks/skills/cloud-deploy/azure.md
+```
+
+## Description requirements
+
+The description is **the only thing the agent sees** when deciding which skill to load. It's surfaced in the system prompt alongside every other installed skill.
+
+**Goal:** give the agent just enough info to know:
+
+1. What capability this skill provides
+2. When/why to trigger it (specific keywords, contexts, file types)
+
+**Format:**
+
+- Max 1024 chars
+- Third person
+- First sentence: what it does
+- Second sentence: "Use when [specific triggers]"
+
+**Be a little pushy.** Agents tend to *under*trigger skills — they default to handling things directly even when a skill would help. Counter this by naming concrete contexts the skill should fire in, including ones the user might not phrase explicitly.
+
+**Good example:**
+
+```
+Extract text and tables from PDF files, fill forms, merge documents. Use when working with PDF files or when user mentions PDFs, forms, or document extraction — even if they don't explicitly ask to "use a skill".
+```
+
+**Bad example:**
+
+```
+Helps with documents.
+```
+
+The bad example gives the agent no way to distinguish this from any other document skill.
+
+## Writing style
+
+Try to explain the **why** behind every instruction. Modern LLMs have good theory of mind — when given the reasoning, they go beyond rote instructions and actually solve the problem. When you find yourself writing `ALWAYS` or `NEVER` in all caps, or building rigid step-by-step structures, that's a yellow flag. Reframe and explain why the thing matters; the agent will handle edge cases better.
+
+Other tips:
+
+- Prefer the imperative form for instructions.
+- Make the skill *general*, not narrowly tied to one example. Use examples to illustrate, not to define the boundary.
+- Write a draft, then come back with fresh eyes and improve it.
+
+### Writing patterns
+
+**Defining output formats:**
+
+```markdown
+## Report structure
+ALWAYS use this exact template:
+# [Title]
+## Executive summary
+## Key findings
+## Recommendations
+```
+
+**Examples:**
+
+```markdown
+## Commit message format
+**Example 1:**
+Input: Added user authentication with JWT tokens
+Output: feat(auth): implement JWT-based authentication
+```
+
+## Wrapper templates
+
+### Codex wrapper
 
 ```md
 ---
@@ -60,12 +159,12 @@ description: Brief description of capability. Use when [specific triggers].
 
 Read and follow:
 
-- `playbooks/<name>.md`
+- `playbooks/skills/<name>.md`
 
 Keep this skill thin. The playbook is the shared workflow and should be updated first when the process changes.
 ```
 
-## Claude Code Wrapper Template
+### Claude Code wrapper
 
 ```md
 ---
@@ -76,14 +175,14 @@ disable-model-invocation: true
 
 Read and follow:
 
-- `playbooks/<name>.md`
+- `playbooks/skills/<name>.md`
 
 Keep this skill thin. The playbook is the shared workflow and should be updated first when the process changes.
 ```
 
-The `disable-model-invocation: true` flag tells Claude to follow the playbook rather than generating its own approach.
+The `disable-model-invocation: true` flag tells Claude to follow the playbook rather than improvising from the description.
 
-## Playbook Template
+### Playbook template
 
 ```md
 # Skill Name
@@ -94,72 +193,58 @@ The `disable-model-invocation: true` flag tells Claude to follow the playbook ra
 
 ## Process
 
-[Step-by-step workflow]
+[Step-by-step workflow — explain the why for non-obvious steps]
 
 ## Quality bar
 
-[What good looks like, review checklist]
+[What good looks like; review checklist]
 ```
 
-## Description Requirements
-
-The description is **the only thing your agent sees** when deciding which skill to load. It's surfaced in the system prompt alongside all other installed skills. Your agent reads these descriptions and picks the relevant skill based on the user's request.
-
-**Goal**: Give your agent just enough info to know:
-
-1. What capability this skill provides
-2. When/why to trigger it (specific keywords, contexts, file types)
-
-**Format**:
-
-- Max 1024 chars
-- Write in third person
-- First sentence: what it does
-- Second sentence: "Use when [specific triggers]"
-
-**Good example**:
-
-```
-Extract text and tables from PDF files, fill forms, merge documents. Use when working with PDF files or when user mentions PDFs, forms, or document extraction.
-```
-
-**Bad example**:
-
-```
-Helps with documents.
-```
-
-The bad example gives your agent no way to distinguish this from other document skills.
-
-## When to Add Scripts
+## When to add scripts
 
 Add utility scripts when:
 
-- Operation is deterministic (validation, formatting)
-- Same code would be generated repeatedly
+- The operation is deterministic (validation, formatting, packaging)
+- The same code would be generated repeatedly across invocations
 - Errors need explicit handling
 
-Scripts save tokens and improve reliability vs generated code.
+Scripts save tokens and improve reliability vs. generated code. **Strong signal:** if you've watched the skill run on a few real tasks and the agent independently writes the same helper each time, bundle that helper as a script and tell the skill to call it.
 
-## When to Split Files
+## When to split files
 
 Split into separate files when:
 
-- SKILL.md exceeds 100 lines
-- Content has distinct domains (finance vs sales schemas)
-- Advanced features are rarely needed
+- The playbook body exceeds ~500 lines
+- The content has distinct domains (finance vs. sales schemas; aws vs. gcp deploys)
+- Advanced features are rarely needed and can live one click deeper
 
-## Review Checklist
+## Iteration philosophy
+
+When improving an existing skill based on real-world use:
+
+1. **Generalize from the feedback.** A skill is meant to be invoked across many different prompts. If a stubborn issue keeps appearing, don't bolt on overfitted MUSTs — try a different metaphor or a different working pattern. Cheap to try, sometimes lands on something great.
+2. **Keep the prompt lean.** Remove instructions that aren't pulling their weight. If transcripts show the agent wasting time on something unproductive, look for the part of the skill that's pushing it there and cut.
+3. **Explain the why.** Terse rules produce brittle behavior. Reasoning produces robust behavior.
+4. **Look for repeated work across runs.** If multiple invocations all independently write the same helper script or follow the same multi-step setup, lift that into a bundled script.
+
+## Principle of Lack of Surprise
+
+A skill's content must not surprise the user given its description. No malware, no exploit code, nothing that could compromise system security or facilitate unauthorized access. "Roleplay as X" skills are fine — deceptive or covert capability skills are not.
+
+## Review checklist
 
 After drafting, verify:
 
-- [ ] Playbook created in `playbooks/`
+- [ ] Playbook created in `playbooks/skills/<name>.md` (or `<name>/` directory if multi-file)
 - [ ] Codex wrapper created in `skills/<name>/SKILL.md`
-- [ ] Claude wrapper created in `.claude/skills/<name>/SKILL.md`
+- [ ] Claude wrapper created in `.claude/skills/<name>/SKILL.md` with `disable-model-invocation: true`
 - [ ] Both wrappers point to the same playbook
-- [ ] Description includes triggers ("Use when...")
+- [ ] Description includes triggers ("Use when…") and is a little pushy about when to fire
 - [ ] Wrapper SKILL.md under 100 lines (logic lives in playbook)
-- [ ] No time-sensitive info
-- [ ] Consistent terminology
-- [ ] Concrete examples included
-- [ ] References one level deep
+- [ ] Playbook body under 500 lines (split if longer)
+- [ ] No time-sensitive info embedded in the skill body
+- [ ] Consistent terminology throughout
+- [ ] Concrete examples included where they clarify intent
+- [ ] References go one level deep — clear pointers to bundled files, not three nested layers
+- [ ] The "why" is explained for any non-obvious instruction
+- [ ] Skill added to the README skill table
