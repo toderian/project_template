@@ -73,6 +73,8 @@ Both wrappers point to the same playbook. **The playbook is the single source of
 
 ### Available skills
 
+The table below lists the skills authored in this template. Vendored Codex plugins ship additional skills not listed here — `plugins/superpowers/` (~14 skills: brainstorming, dispatching-parallel-agents, writing-plans, executing-plans, test-driven-development, systematic-debugging, etc.) and `plugins/github/` (PR/issue/CI workflows). Those become available when you run `./plugins/install-codex-plugins.sh` (Codex) or load the equivalent plugin in Claude Code.
+
 | Skill | Description |
 |-------|-------------|
 | design-an-interface | Design software interfaces |
@@ -85,6 +87,7 @@ Both wrappers point to the same playbook. **The playbook is the single source of
 | improve-codebase-architecture | Codebase architecture improvements |
 | init | Initialize project todo tracking structure |
 | migrate-to-shoehorn | Shoehorn migration |
+| migration-safety | Safe DB schema migrations (PG/MySQL/SQLite) — locks, backfills, rollbacks (adapted from OmexIT) |
 | obsidian-vault | Obsidian vault operations |
 | prd-to-issues | Convert PRDs to GitHub issues |
 | prd-to-plan | Convert PRDs to implementation plans |
@@ -93,6 +96,7 @@ Both wrappers point to the same playbook. **The playbook is the single source of
 | request-refactor-plan | Refactoring plans |
 | reviewer | Two-stage review (spec compliance + code quality) |
 | scaffold-exercises | Scaffold learning exercises |
+| security-review-owasp | OWASP Top 10:2025, ASVS 5.0, LLM Top 10, Agentic AI 2026 review (vendored from agamm/claude-code-owasp) |
 | setup-pre-commit | Set up pre-commit hooks |
 | subagent-protocol | Multi-agent coordination protocol |
 | tdd | Test-driven development |

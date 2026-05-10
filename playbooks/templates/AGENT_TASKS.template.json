@@ -1,6 +1,7 @@
 {
-  "last_updated": "YYYY-MM-DD",
-  "objective": "Replace with the current task objective.",
+  "_README": "Copy to AGENT_TASKS.json at the project root. Replace REPLACE_ME placeholders before committing. Status values are listed below for reference; remove the status_values array once you don't need it.",
+  "last_updated": "REPLACE_ME_WITH_ISO_DATE",
+  "objective": "REPLACE_ME with the current task objective.",
   "status_values": ["todo", "in_progress", "done", "done_with_concerns", "blocked", "needs_context"],
   "tasks": [
     {

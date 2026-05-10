@@ -138,6 +138,8 @@ Use this loop by default.
 
 ## Role definitions
 
+Personalities are role cards an agent adopts during a workflow — they are *not* invocable as slash commands. A single agent moves through them sequentially (or, in multi-agent setups, the manager assigns them to workers).
+
 See `playbooks/personalities/` for detailed role cards including default questions and failure modes:
 
 - `manager.md` — scope, sequencing, exit criteria
