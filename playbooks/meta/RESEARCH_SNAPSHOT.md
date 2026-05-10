@@ -2,7 +2,7 @@
 
 Current research snapshot for this template.
 
-Reviewed on: 2026-03-22.
+Reviewed on: 2026-05-10.
 
 ## What changed this iteration
 
@@ -84,6 +84,7 @@ Template impact:
 
 | Date | Source | Why it mattered | Repo consequence |
 | --- | --- | --- | --- |
+| 2026-05-10 | [Claude Code Skills](https://code.claude.com/docs/en/skills), [Codex Skills](https://developers.openai.com/codex/skills), [Agent Skills Specification](https://agentskills.io/specification), [obra/superpowers Codex integration](https://deepwiki.com/obra/superpowers/5.2-codex-integration) | Mapped current dual-runtime conventions: expanded Claude SKILL.md frontmatter (`when_to_use`, `paths`, `allowed-tools`, `model`, `effort`, `hooks`), Codex hook arrival (v0.128, April 2026), Codex MultiAgentV2 (March 2026), `.agents/skills` discovery | Removed Claude-specific tool names from playbooks; left frontmatter expansion and CI lint as future work |
 | 2026-02-23 | [Why SWE-bench Verified no longer measures frontier coding capabilities](https://openai.com/index/why-we-no-longer-evaluate-swe-bench-verified/) | Strong warning on contamination and flawed tests in coding benchmarks | Added explicit benchmark skepticism and stronger evaluation rules |
 | 2026-01-09 | [Demystifying evals for AI agents](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents) | Concrete guidance on solvable tasks, reference solutions, balanced evals, and grader design | Tightened definition of done and testing guidance |
 | 2026-01-21 | [Designing AI-resistant technical evaluations](https://www.anthropic.com/engineering/AI-resistant-technical-evaluations) | Reinforces eval integrity as an adversarial problem | Kept evaluation integrity as an explicit update-plan concern |

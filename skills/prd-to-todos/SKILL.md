@@ -10,6 +10,6 @@ Use this skill to extract todos from a PRD.
 Read and follow:
 
 - `playbooks/skills/prd-to-todos.md`
-- `playbooks/skills/todo-convention.md`
+- `playbooks/conventions/todo-convention.md`
 
 Keep this skill thin. The playbook is the shared workflow and should be updated first when the process changes.

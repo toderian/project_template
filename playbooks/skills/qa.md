@@ -18,7 +18,7 @@ Do NOT over-interview. If the description is clear enough to file, move on.
 
 ### 2. Explore the codebase in the background
 
-While talking to the user, kick off an Agent (subagent_type=Explore) in the background to understand the relevant area. The goal is NOT to find a fix — it's to:
+While talking to the user, kick off a focused codebase exploration in the background to understand the relevant area (use whichever exploration mechanism the host runtime offers — e.g., Claude Code's Explore subagent, a Codex MultiAgentV2 worker, or a parallel `rg`/`grep` sweep). The goal is NOT to find a fix — it's to:
 
 - Learn the domain language used in that area (check UBIQUITOUS_LANGUAGE.md)
 - Understand what the feature is supposed to do

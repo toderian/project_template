@@ -14,7 +14,7 @@ Do NOT ask follow-up questions yet. Start investigating immediately.
 
 ### 2. Explore and diagnose
 
-Use the Agent tool with subagent_type=Explore to deeply investigate the codebase. Your goal is to find:
+Run a thorough codebase exploration to deeply investigate (using whatever the host runtime provides — Claude Code's Explore subagent, a Codex MultiAgentV2 worker, or a careful manual `rg`/`grep` pass). Your goal is to find:
 
 - **Where** the bug manifests (entry points, UI, API responses)
 - **What** code path is involved (trace the flow)

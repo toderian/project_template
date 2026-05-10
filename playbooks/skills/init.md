@@ -26,7 +26,7 @@ Create both directories with `.gitkeep` files so they're tracked by git even whe
 
 Report what was created. Remind the user that:
 
-- Any skill can produce todos following `playbooks/skills/todo-convention.md`
+- Any skill can produce todos following `playbooks/conventions/todo-convention.md`
 - `/write-a-prd` can generate todos at the end of the PRD workflow
 - `/prd-to-todos` can extract todos from an existing PRD
 - Completed todos should be moved to `_todos_archived/`

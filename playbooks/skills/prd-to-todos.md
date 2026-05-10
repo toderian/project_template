@@ -60,7 +60,7 @@ Iterate until approved.
 
 ### 5. Create todo files
 
-For each approved item, create a file in `docs/_todos/` following the full format in `playbooks/skills/todo-convention.md`, including:
+For each approved item, create a file in `docs/_todos/` following the full format in `playbooks/conventions/todo-convention.md`, including:
 
 - Metadata table with `Source: prd-to-todos`, `Source ref` pointing to the PRD, `Priority`, and `Blocked by` (referencing other todo filenames if dependent)
 - Phases with per-phase checklists

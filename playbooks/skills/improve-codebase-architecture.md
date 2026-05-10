@@ -10,7 +10,7 @@ A **deep module** (John Ousterhout, "A Philosophy of Software Design") has a sma
 
 ### 1. Explore the codebase
 
-Use the Agent tool with subagent_type=Explore to navigate the codebase naturally. Do NOT follow rigid heuristics — explore organically and note where you experience friction:
+Navigate the codebase naturally (using whatever exploration mechanism the host runtime offers — Claude Code's Explore subagent, a Codex MultiAgentV2 worker, or direct `rg`/`grep`). Do NOT follow rigid heuristics — explore organically and note where you experience friction:
 
 - Where does understanding one concept require bouncing between many small files?
 - Where are modules so shallow that the interface is nearly as complex as the implementation?
@@ -45,16 +45,16 @@ Show this to the user, then immediately proceed to Step 5. The user reads and th
 
 ### 5. Design multiple interfaces
 
-Spawn 3+ sub-agents in parallel using the Agent tool. Each must produce a **radically different** interface for the deepened module.
+Spawn 3+ parallel design explorations — one per constraint. Use whatever parallel-dispatch mechanism the host runtime offers (Claude Code's `Agent` tool, Codex's MultiAgentV2 workers, or sequentially as a fallback if neither is available). Each must produce a **radically different** interface for the deepened module.
 
-Prompt each sub-agent with a separate technical brief (file paths, coupling details, dependency category, what's being hidden). This brief is independent of the user-facing explanation in Step 4. Give each agent a different design constraint:
+Prompt each exploration with a separate technical brief (file paths, coupling details, dependency category, what's being hidden). This brief is independent of the user-facing explanation in Step 4. Give each one a different design constraint:
 
-- Agent 1: "Minimize the interface — aim for 1-3 entry points max"
-- Agent 2: "Maximize flexibility — support many use cases and extension"
-- Agent 3: "Optimize for the most common caller — make the default case trivial"
-- Agent 4 (if applicable): "Design around the ports & adapters pattern for cross-boundary dependencies"
+- Exploration 1: "Minimize the interface — aim for 1-3 entry points max"
+- Exploration 2: "Maximize flexibility — support many use cases and extension"
+- Exploration 3: "Optimize for the most common caller — make the default case trivial"
+- Exploration 4 (if applicable): "Design around the ports & adapters pattern for cross-boundary dependencies"
 
-Each sub-agent outputs:
+Each exploration outputs:
 
 1. Interface signature (types, methods, params)
 2. Usage example showing how callers use it

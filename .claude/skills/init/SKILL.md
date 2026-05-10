@@ -7,6 +7,6 @@ disable-model-invocation: true
 Read and follow:
 
 - `playbooks/skills/init.md`
-- `playbooks/skills/todo-convention.md`
+- `playbooks/conventions/todo-convention.md`
 
 Keep this skill thin. The playbook is the shared workflow and should be updated first when the process changes.

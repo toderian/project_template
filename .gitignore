@@ -11,3 +11,6 @@ AGENT_DECISIONS.md
 
 # GitHub triage knowledge base (repo-specific, not template content)
 .out-of-scope/
+
+# Local Claude Code settings (per-machine permission allowlist, hooks, etc.)
+.claude/settings.local.json

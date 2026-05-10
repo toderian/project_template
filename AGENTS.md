@@ -4,7 +4,7 @@ Portable operating contract for software agents working in any development repos
 
 At session start, check for available skills before acting. If a skill covers the current task, follow its playbook rather than improvising.
 
-Last aligned with external research: 2026-03-22.
+Last aligned with external research: 2026-05-10.
 
 ## Objective
 
@@ -174,7 +174,7 @@ When a task spans many sessions, add lightweight artifacts such as:
 Prefer structured files for task state when possible.
 If this template repo is used directly, start from the files in `playbooks/templates/`.
 
-For work that produces actionable deliverables (PRDs, triage, planning), use the todo convention in `playbooks/skills/todo-convention.md`. Todos live in `docs/_todos/` and track phases, acceptance criteria, test results, and execution history. Run `/init` to set up the structure.
+For work that produces actionable deliverables (PRDs, triage, planning), use the todo convention in `playbooks/conventions/todo-convention.md`. Todos live in `docs/_todos/` and track phases, acceptance criteria, test results, and execution history. Run `/init` to set up the structure.
 
 ## Definition of done
 

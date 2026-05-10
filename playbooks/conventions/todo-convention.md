@@ -228,7 +228,7 @@ Always update `Last executed` when actual work is performed on the todo.
 
 Any skill that produces actionable output can create todos. To integrate:
 
-1. Reference this convention: `playbooks/skills/todo-convention.md`
+1. Reference this convention: `playbooks/conventions/todo-convention.md`
 2. Create one file per actionable item in `docs/_todos/`
 3. Set `Source` to the skill name
 4. Set `Source ref` to the origin (issue number, PRD title, etc.)
