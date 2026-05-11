@@ -2,7 +2,7 @@
 
 Purpose: refresh core agent behavior using current primary sources.
 
-Use this role when modifying `AGENTS.md`, `playbooks/personalities/`, evaluation doctrine, or long-running agent scaffolding.
+Use this role when modifying `AGENTS_BASE.md`, `playbooks/personalities/`, evaluation doctrine, or long-running agent scaffolding.
 
 ## Responsibilities
 
@@ -10,7 +10,7 @@ Use this role when modifying `AGENTS.md`, `playbooks/personalities/`, evaluation
 - prefer primary sources and official benchmark materials
 - separate durable principles from time-sensitive vendor details
 - document what changed, why it changed, and what evidence supports it
-- update the dated snapshot and README examples
+- update the dated snapshot and `README_BASE.md` examples
 
 ## Default questions
 

@@ -1,281 +1,39 @@
 # Agents Template
 
-Template repository for portable agent behavior contracts and reusable skills in any development project.
+This is the base **agents template** — a portable operating contract (`AGENTS.md`) and reusable skills/playbooks for Claude Code and OpenAI Codex, designed to be seeded into new projects and updated in place via a `template` git remote.
 
-This repo is designed to work with both **Claude Code** and **OpenAI Codex**. Copy it into a project or use it as a submodule.
+> **This `README.md` extends [`README_BASE.md`](./README_BASE.md).** The base file is the authoritative documentation (skills, playbooks, sync workflow, adoption patterns). Downstream projects seeded from this template should keep `README_BASE.md` exactly as inherited (so future upstream improvements merge cleanly) and write their own `README.md` that links to it.
 
-## What is in the repo
+**Canonical URL:** `git@github.com:toderian/project_template.git`
 
-```text
-.
-├── AGENTS.md                              # Core agent operating contract
-├── README.md
-├── LICENSE
-│
-├── playbooks/                             # Shared workflow logic (single source of truth)
-│   ├── skills/                            # Skill playbooks
-│   │   ├── <skill-name>.md
-│   │   ├── tdd/                           # Complex skill subdirectories
-│   │   └── github-triage/
-│   ├── personalities/                     # Role cards for multi-pass workflows
-│   │   ├── manager.md, builder.md, tester.md
-│   │   ├── critic.md, reviewer.md, researcher.md
-│   ├── templates/                         # Durable artifacts for long-running tasks
-│   │   ├── AGENT_TASKS.template.json
-│   │   ├── AGENT_PROGRESS.template.md
-│   │   └── AGENT_DECISIONS.template.md
-│   └── meta/                              # Template maintenance
-│       ├── UPDATE_PLAN.md
-│       └── RESEARCH_SNAPSHOT.md
-│
-├── skills/                                # Codex skill wrappers (thin)
-│   ├── <skill-name>/SKILL.md
-│   └── install-codex-skills.sh
-├── plugins/                               # Optional Codex plugins
-│   ├── <plugin-name>/.codex-plugin/plugin.json
-│   └── install-codex-plugins.sh
-│
-└── .claude/
-    ├── skills/                            # Claude Code skill wrappers (thin)
-    │   └── <skill-name>/SKILL.md
-    ├── agents/                            # Claude Code subagent definitions
-    │   ├── implementer.md
-    │   └── reviewer.md
-    ├── hooks/                             # PreToolUse hook scripts
-    └── settings.json                      # Hook configuration
+## Quick links
+
+- [Base contract → `README_BASE.md`](./README_BASE.md) — full template documentation
+- [Operating contract → `AGENTS.md`](./AGENTS.md)
+- [Skills → `playbooks/skills/`](./playbooks/skills/)
+- [Seed a new project → "Option 3" in `README_BASE.md`](./README_BASE.md#option-3-seed-a-new-project-from-this-template)
+- [Pull template updates → "Staying in sync" in `README_BASE.md`](./README_BASE.md#staying-in-sync-with-the-template)
+
+## Convention for downstream projects
+
+Projects seeded from this template follow a strict two-file split:
+
+| File | Owned by | On `git fetch template && git merge` |
+|------|----------|---------------------------------------|
+| `README.md` | **Downstream project** (write your own; describes your project) | Not touched — never conflicts |
+| `README_BASE.md` | **Upstream template** (do not edit downstream) | Updated cleanly with upstream changes |
+
+A minimal downstream `README.md`:
+
+```markdown
+# MyApp
+
+What MyApp does, how to run it, etc.
+
+## Agent contract
+
+This project extends the agents template — see [`README_BASE.md`](./README_BASE.md)
+([upstream](https://github.com/toderian/project_template)).
 ```
 
-## Core design
-
-The template encodes a few strong defaults:
-
-1. Start from first principles.
-2. Inspect the real repo before acting.
-3. Make the smallest useful change.
-4. Test it.
-5. Critique it.
-6. Review it.
-7. Repeat until the result is strong enough to ship.
-
-## Skills and playbooks
-
-Skills are reusable agent capabilities invoked by name (e.g. `/tdd`, `/qa`, `/grill-me`).
-
-### Architecture
-
-```
-skills/<name>/SKILL.md          →  thin Codex wrapper
-.claude/skills/<name>/SKILL.md  →  thin Claude Code wrapper
-playbooks/skills/<name>.md      →  shared workflow logic (authoritative)
-```
-
-Both wrappers point to the same playbook. **The playbook is the single source of truth.** When changing a workflow, update the playbook first; keep the wrappers thin.
-
-### Available skills
-
-The table below lists the skills authored in this template. Vendored Codex plugins ship additional skills not listed here — `plugins/superpowers/` (~14 skills: brainstorming, dispatching-parallel-agents, writing-plans, executing-plans, test-driven-development, systematic-debugging, etc.) and `plugins/github/` (PR/issue/CI workflows). Those become available when you run `./plugins/install-codex-plugins.sh` (Codex) or load the equivalent plugin in Claude Code.
-
-| Skill | Description |
-|-------|-------------|
-| design-an-interface | Design software interfaces |
-| implementer | Act as an implementer for a single task slice |
-| edit-article | Edit and improve articles |
-| frontend-design | Build distinctive frontend interfaces (imported from Anthropic's frontend-design plugin) |
-| git-guardrails-claude-code | Git safety hooks for Claude Code |
-| github-triage | Label-based GitHub issue triage with grilling sessions |
-| grill-me | Interactive grilling/quiz sessions |
-| improve-codebase-architecture | Codebase architecture improvements |
-| init | Initialize project todo tracking structure |
-| migrate-to-shoehorn | Shoehorn migration |
-| migration-safety | Safe DB schema migrations (PG/MySQL/SQLite) — locks, backfills, rollbacks (adapted from OmexIT) |
-| obsidian-vault | Obsidian vault operations |
-| prd-to-issues | Convert PRDs to GitHub issues |
-| prd-to-plan | Convert PRDs to implementation plans |
-| prd-to-todos | Extract todos from a PRD into docs/_todos/ |
-| qa | Quality assurance review |
-| request-refactor-plan | Refactoring plans |
-| reviewer | Two-stage review (spec compliance + code quality) |
-| scaffold-exercises | Scaffold learning exercises |
-| security-review-owasp | OWASP Top 10:2025, ASVS 5.0, LLM Top 10, Agentic AI 2026 review (vendored from agamm/claude-code-owasp) |
-| setup-pre-commit | Set up pre-commit hooks |
-| subagent-protocol | Multi-agent coordination protocol |
-| tdd | Test-driven development |
-| triage-issue | Investigate bugs and file TDD fix plans |
-| ubiquitous-language | Domain language definition |
-| write-a-prd | Write product requirement documents |
-| write-a-skill | Create new skills |
-
-### Adding a new skill
-
-1. Create the playbook: `playbooks/skills/<name>.md`
-2. Create the Codex wrapper: `skills/<name>/SKILL.md`
-3. Create the Claude wrapper: `.claude/skills/<name>/SKILL.md`
-4. For Codex, run `skills/install-codex-skills.sh` and restart Codex
-
-See `playbooks/skills/write-a-skill.md` for the full skill authoring guide.
-
-## Platform support
-
-| Feature | Claude Code | Codex |
-|---------|------------|-------|
-| AGENTS.md | Auto-loaded | Auto-loaded |
-| Skills (slash commands) | `.claude/skills/` auto-discovered | `skills/` via `install-codex-skills.sh` |
-| Plugins | Not applicable | `plugins/` via `install-codex-plugins.sh` and local marketplace entries |
-| Agent definitions | `.claude/agents/` native subagent dispatch | `skills/implementer/`, `skills/reviewer/` as behavioral skills |
-| Hooks | `.claude/settings.json` PreToolUse | Codex approval policy (`suggest`/`auto-edit`/`full-auto`) |
-| Per-directory overrides | Nested `AGENTS.md` in subdirectories | Not supported — root `AGENTS.md` only |
-
-All workflow logic lives in `playbooks/` (shared). Platform-specific features in `.claude/`, `skills/`, and `plugins/` are additive — a Codex user reading only `AGENTS.md` + `playbooks/` + `skills/` + `plugins/` gets the full picture.
-
-## Using with Claude Code
-
-Claude Code discovers skills automatically from `.claude/skills/`. No installation needed — open the project and skills are available as slash commands.
-
-Claude-specific skill metadata:
-
-```yaml
----
-name: skill-name
-description: What it does. Use when [triggers].
-disable-model-invocation: true   # hand off to playbook, don't generate
----
-```
-
-## Using with Codex
-
-Codex skills live in `skills/` and must be symlinked into `~/.codex/skills/`:
-
-```bash
-./skills/install-codex-skills.sh
-# Then restart Codex
-```
-
-Codex plugins live in `plugins/` and use the `.codex-plugin/plugin.json`
-manifest layout:
-
-```bash
-./plugins/install-codex-plugins.sh
-# Then restart Codex
-```
-
-The plugin installer symlinks repo plugins into `~/plugins/` by default and
-adds local marketplace entries to `~/.agents/plugins/marketplace.json`.
-
-Codex skill metadata:
-
-```yaml
----
-name: skill-name
-description: What it does. Use when [triggers].
----
-```
-
-## Third-party plugins (own installers)
-
-Some upstream tools ship multi-platform installers and don't fit the
-`playbooks/` + dual-wrapper convention. They're not vendored — instead,
-`plugins/bootstrap-third-party.sh` runs (or documents) their native install
-paths:
-
-| Tool | What it adds | Install path |
-|------|--------------|--------------|
-| `get-shit-done-cc` | Spec-driven dev workflow (researchers/planners/executors) | `npx get-shit-done-cc --claude --global` and `--codex --global` |
-| `context-mode` | MCP server + hooks that sandbox tool output (~98% context savings on Claude, ~60% on Codex) | `/plugin marketplace add mksglu/context-mode` |
-| `claude-mem` | Cross-session memory via MCP; ships both `.claude-plugin/` and `.codex-plugin/` | `/plugin marketplace add thedotmack/claude-mem` |
-
-Run `./plugins/bootstrap-third-party.sh` to install the npm-based ones and
-print the marketplace commands for the others. Toggle each section with env
-vars (`INSTALL_GSD`, `INSTALL_CONTEXT_MODE`, `INSTALL_CLAUDE_MEM`).
-
-## Quick start
-
-### Option 1: copy into a repo
-
-Copy these into the target project (then run the Codex installers if you use Codex):
-
-| Artifact | Required for | Notes |
-|----------|--------------|-------|
-| `AGENTS.md` | Both | Auto-loaded operating contract |
-| `playbooks/` | Both | Authoritative workflow logic, role cards, templates |
-| `.claude/` | Claude Code | Skills, native subagents, hook scripts, settings |
-| `skills/` | Codex | Thin wrappers + `install-codex-skills.sh` |
-| `plugins/` | Codex (optional) | Vendored plugins + `install-codex-plugins.sh` + `bootstrap-third-party.sh` |
-| `project.env.example` | Both (optional) | Copy to `project.env` to override default install paths |
-
-After copying, Claude Code is ready immediately. For Codex, run:
-
-```bash
-./skills/install-codex-skills.sh
-./plugins/install-codex-plugins.sh
-./plugins/bootstrap-third-party.sh   # optional third-party stack
-# Then restart Codex
-```
-
-### Option 2: use as a submodule
-
-```bash
-git submodule add <this-repo-url> agent-template
-```
-
-Then reference the files from the root project or symlink the chosen artifacts into place.
-
-## Recommended adoption pattern
-
-### Minimum adoption
-
-- place `AGENTS.md` at the project root
-- copy the skills and plugins you need
-
-### Stronger adoption
-
-- use `manager.md`, `builder.md`, `tester.md`, `critic.md`, and `reviewer.md` as explicit passes or sub-agent roles
-- copy the files in `playbooks/templates/` for durable progress, task, and decision state
-- require agents to use conventional commit summaries plus a commit body
-- rerun `playbooks/meta/UPDATE_PLAN.md` whenever you change the project's agent doctrine
-
-## Examples
-
-### Example 1: single-agent task
-
-```text
-Read AGENTS.md and solve this task as one agent.
-Work sequentially as manager, builder, tester, critic, and reviewer.
-Do not stop at the first plausible answer.
-Keep the final output concise and evidence-based.
-```
-
-### Example 2: multi-role task
-
-```text
-Manager: frame the task, define done, and split the work.
-Builder: implement the smallest useful change.
-Tester: verify behavior and regressions.
-Critic: challenge assumptions and propose a better version.
-Reviewer: decide whether the result is ready to merge.
-If the critic or tester finds a real problem, loop again.
-```
-
-### Example 3: commit and push behavior
-
-```text
-If you commit, use a conventional summary line such as feat:, fix:, or chore:.
-Always include a commit body that explains what changed and why.
-Do not push a one-line commit message.
-```
-
-### Example 4: updating the template itself
-
-```text
-Use researcher.md.
-Rerun playbooks/meta/UPDATE_PLAN.md.
-Check the latest primary sources.
-Update playbooks/meta/RESEARCH_SNAPSHOT.md, AGENTS.md, and README examples together.
-```
-
-## Update workflow
-
-1. Run `playbooks/meta/UPDATE_PLAN.md`.
-2. Refresh `playbooks/meta/RESEARCH_SNAPSHOT.md`.
-3. Update `AGENTS.md` and `playbooks/personalities/` only where evidence supports a change.
-4. Review the repo for clarity and portability.
-5. Update README examples so adoption stays easy.
+If you need to add project-specific agent rules, do it in your own `README.md` or in a project `AGENTS.md`, **not** by editing `README_BASE.md`. That file belongs to the template and gets updates with time.
