@@ -13,7 +13,11 @@ For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
 
-_Nothing yet._
+### Add `spec-workflow` skill
+
+New heavyweight skill that drives a plan → build → review → fix loop for a single engineering item, with four standardized artifacts under `specs/<slug>/` (`spec.md`, `design.md`, `tasks.md`, `review.md`). Reuses the existing `subagent-protocol` dispatch + status vocabulary and the existing `implementer` and `reviewer` subagent/skill definitions — no new agent definitions, no experimental flags. Runtime-agnostic: same playbook and artifacts on Claude Code (Task-tool parallel dispatch) and Codex (sequential `/implementer` invocation per task). Composes with the existing PRD chain — `write-a-prd` / `prd-to-plan` / `prd-to-issues` / `prd-to-todos` remain unchanged; spec-workflow accepts a PRD or rough intent as input. Strong "do NOT use for…" guardrails in the wrapper description keep it from auto-triggering on small tasks.
+
+**Downstream impact:** none. New skill; opt-in by invocation. After merging, run `./scripts/gen-skills-table.sh` to regenerate the skills table in this file's sibling `_base/README.md`. No conflicts expected; new files only.
 
 ## 2026-05-11
 

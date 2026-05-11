@@ -110,6 +110,7 @@ The table below lists the skills authored in this template (base tier). Downstre
 | scaffold-exercises | Create exercise directory structures with sections, problems, solutions, and explainers that pass linting. Use when user wants to scaffold exercises, create exercise stubs, or set up a new course section. |
 | security-review-owasp | Apply current OWASP standards (Top 10:2025, ASVS 5.0, LLM Top 10 2025, Agentic AI 2026) when writing or reviewing code. Use when reviewing code for security issues, implementing auth/authz, handling user input, designing API endpoints, building AI agent systems, integrating LLMs/RAG, or discussing application security. |
 | setup-pre-commit | Set up Husky pre-commit hooks with lint-staged (Prettier), type checking, and tests in the current repo. Use when user wants to add pre-commit hooks, set up Husky, configure lint-staged, or add commit-time formatting/typechecking/testing. |
+| spec-workflow | Heavyweight spec-driven development loop (plan → build → review → fix) for a single engineering item, with four artifacts under specs/<slug>/ (spec.md, design.md, tasks.md, review.md) and parallel implementer dispatch via the subagent-protocol. Use when the user asks to "spec it out", run a spec-driven workflow, plan + build + review a non-trivial feature, parallelize implementer subagents against a written design, or mentions "spec workflow" / "spec-driven". Do NOT use for one-file edits, typos, trivial bug fixes, exploratory spikes, or anything the default single-agent operating loop can handle in one pass — this skill is intentionally heavy. |
 | subagent-protocol | Multi-agent coordination protocol with status vocabulary, dispatch format, and two-stage review. Use when dispatching subagents, coordinating multi-agent work, or reviewing implementation output. |
 | tdd | Test-driven development with red-green-refactor loop. Use when user wants to build features or fix bugs using TDD, mentions "red-green-refactor", wants integration tests, or asks for test-first development. |
 | triage-issue | Triage a bug or issue by exploring the codebase to find root cause, then create a GitHub issue with a TDD-based fix plan. Use when user reports a bug, wants to file an issue, mentions "triage", or wants to investigate and plan a fix for a problem. |
@@ -380,6 +381,21 @@ Rerun playbooks/meta/UPDATE_PLAN.md.
 Check the latest primary sources.
 Update playbooks/meta/RESEARCH_SNAPSHOT.md, _base/AGENTS.md, and _base/README.md examples together.
 ```
+
+### Example 5: spec-driven development with `/spec-workflow`
+
+Use the [`spec-workflow`](../playbooks/skills/spec-workflow.md) skill when work is large enough to warrant an up-front spec, parallel implementer dispatch, and an explicit reviewer pass. **Not** for one-file edits, typos, or exploratory spikes — the default operating loop handles those.
+
+Invoke it like this:
+
+```text
+Use /spec-workflow.
+Input: <PRD link, issue #, plan file, or rough intent>.
+Drive the plan → build → review → fix loop end-to-end.
+Stop when the reviewer passes, or escalate to me after 3 iterations.
+```
+
+The skill creates `specs/<slug>/` at the project root and populates it with four artifacts (`spec.md`, `design.md`, `tasks.md`, `review.md`). Phase 2 dispatches implementer subagents per task (parallel on Claude Code via the `Task` tool; sequential on Codex via `/implementer`); Phase 3 runs a single reviewer pass (two-stage: spec compliance + code quality) and appends to `review.md`. On a failed review, fix tasks are appended to `tasks.md` and the loop runs again. Full mechanics in [`playbooks/skills/spec-workflow.md`](../playbooks/skills/spec-workflow.md).
 
 ## Update workflow
 
