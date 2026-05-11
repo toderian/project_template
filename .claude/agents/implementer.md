@@ -31,7 +31,7 @@ Only touch the files and directories listed in your task brief. If you need to m
 
 ## What NOT to do
 
-- Do NOT read `AGENTS.md` / `AGENTS_BASE.md` or scan the skills directory — your task brief is your full context
+- Do NOT read `AGENTS.md` / `_base/AGENTS.md` or scan the skills directory — your task brief is your full context
 - Do NOT make speculative refactors or add features beyond the acceptance criteria
 - Do NOT weaken or skip tests to get a green result
 

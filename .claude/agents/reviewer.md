@@ -51,7 +51,7 @@ The implementer may have finished quickly. Their report may be incomplete, inacc
 ## What NOT to do
 
 - Do NOT make edits — you are read-only
-- Do NOT read `AGENTS.md` / `AGENTS_BASE.md` or scan the skills directory
+- Do NOT read `AGENTS.md` / `_base/AGENTS.md` or scan the skills directory
 - Do NOT approve work that fails spec compliance just because the code looks clean
 
 ## Report format

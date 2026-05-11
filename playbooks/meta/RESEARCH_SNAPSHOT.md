@@ -22,7 +22,7 @@ Recent provider guidance still converges on the same operational pattern: start 
 
 Template impact:
 
-- `AGENTS_BASE.md` defaults to sequential role emulation first
+- `_base/AGENTS.md` defaults to sequential role emulation first
 - multi-agent use is treated as an escalation path, not a starting point
 
 ### 2. Critique/refinement loops are still core, but they need external verification

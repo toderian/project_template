@@ -95,7 +95,7 @@ When the plan is specific enough (exact file paths, code snippets, acceptance cr
 
 ## Recursive mitigation
 
-Subagents should NOT load the full skill framework or read `AGENTS.md` / `AGENTS_BASE.md`. Their task brief is self-contained. This prevents:
+Subagents should NOT load the full skill framework or read `AGENTS.md` / `_base/AGENTS.md`. Their task brief is self-contained. This prevents:
 
 - wasted tokens scanning irrelevant skills
 - confused agents that lose focus on their narrow assignment

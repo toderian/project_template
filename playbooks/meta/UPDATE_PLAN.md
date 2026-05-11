@@ -19,7 +19,7 @@ This plan exists so future updates can be rerun with the same discipline:
 
 Rerun this plan when any of the following is true:
 
-- a core behavior file is being changed (`AGENTS_BASE.md`, `playbooks/personalities/`, research snapshot, `README_BASE.md` examples)
+- a core behavior file is being changed (`_base/AGENTS.md`, `playbooks/personalities/`, research snapshot, `_base/README.md` examples)
 - a major new agent paper, benchmark, or engineering post is released
 - a new failure pattern is observed in real projects using this template
 - at least 30 days have passed since the last meaningful review
@@ -131,9 +131,9 @@ When sources disagree:
 
 Update only what the evidence supports:
 
-- `AGENTS_BASE.md`
+- `_base/AGENTS.md`
 - `playbooks/personalities/`
-- `README_BASE.md`
+- `_base/README.md`
 - `playbooks/meta/RESEARCH_SNAPSHOT.md`
 
 If a finding is interesting but not yet mature, log it under open questions instead of promoting it into default behavior.
@@ -172,9 +172,9 @@ Promote a finding into the default template only if most of the following are tr
 Every completed run should leave behind:
 
 - an updated `playbooks/meta/RESEARCH_SNAPSHOT.md`
-- an updated `AGENTS_BASE.md`
+- an updated `_base/AGENTS.md`
 - updated role cards in `playbooks/personalities/` if behavior changed
-- refreshed `README_BASE.md` examples if the adoption story changed
+- refreshed `_base/README.md` examples if the adoption story changed
 
 ## Current baseline recommendation
 

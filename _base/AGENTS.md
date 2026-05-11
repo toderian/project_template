@@ -1,6 +1,6 @@
-# AGENTS_BASE.md — Base operating contract
+# Base operating contract
 
-> This is `AGENTS_BASE.md`: the authoritative, shared base contract for software agents in any project seeded from this template. It is loaded indirectly: each project's `AGENTS.md` (auto-loaded by Claude Code and Codex) instructs the agent to read this file as part of session start.
+> This is `_base/AGENTS.md`: the authoritative, shared base contract for software agents in any project seeded from this template. It is loaded indirectly: each project's root `AGENTS.md` (auto-loaded by Claude Code and Codex) instructs the agent to read this file as part of session start.
 >
 > **Upstream-owned.** Downstream projects must not edit this file — keep it as inherited so `git fetch template && git merge` updates it cleanly. Project-specific rules go in the downstream-owned `AGENTS.md`.
 
@@ -222,10 +222,12 @@ Downstream projects follow a strict split:
 
 | File | Ownership | Notes |
 |------|-----------|-------|
-| `AGENTS.md` | **Downstream-owned** | Auto-loaded entrypoint. Each project writes its own project-specific overrides. Loads `AGENTS_BASE.md` by instruction. |
-| `AGENTS_BASE.md` | **Upstream-owned** | This file. Base contract. Do not edit downstream — it flows in cleanly from upstream. |
-| `README.md` | **Downstream-owned** | Each project's own README. Links to `README_BASE.md`. |
-| `README_BASE.md` | **Upstream-owned** | Authoritative template documentation. Do not edit downstream. |
+| `AGENTS.md` | **Downstream-owned** | Auto-loaded entrypoint. Each project writes its own project-specific overrides. Loads `_base/AGENTS.md` by instruction. |
+| `_base/AGENTS.md` | **Upstream-owned** | This file. Base contract. Do not edit downstream — it flows in cleanly from upstream. |
+| `README.md` | **Downstream-owned** | Each project's own README. Links to `_base/README.md`. |
+| `_base/README.md` | **Upstream-owned** | Authoritative template documentation. Do not edit downstream. |
+| `_base/CHANGELOG.md` | **Upstream-owned** | Base-template changelog. Agents must check this before applying a template merge so they can communicate downstream impact to the user. |
+| `CHANGELOG.md` (optional) | **Downstream-owned** | Downstream project's own changelog, if they keep one. Never overlaps with `_base/CHANGELOG.md`. |
 | `.claude/settings.json` | Mixed | Merge hook entries by hand. |
 | `playbooks/`, `skills/`, `.claude/skills/` | Mixed | Accept upstream for skills not customized; keep downstream for forked skills. |
 
@@ -234,8 +236,8 @@ Downstream projects follow a strict split:
 Agents working in a downstream project must:
 
 - treat `template` as **fetch-only**; never push to it (the push URL is disabled by convention as `DISABLE`)
-- on requests like "update from the template" or "pull template updates", run `git fetch template`, show the diff (`git log --oneline HEAD..template/master`), and let the user choose between `git merge template/master` and selective `git cherry-pick`
-- if the `template` remote is missing in a project that clearly originated from this template (it has `AGENTS.md` + `AGENTS_BASE.md`, `playbooks/`, `.claude/skills/`), offer to add it:
+- on requests like "update from the template" or "pull template updates", run `git fetch template`, **read `CHANGELOG.md` from the template** (`git diff HEAD..template/master -- CHANGELOG.md`) and surface each new entry's **Downstream impact** line to the user, then show the commit-level diff (`git log --oneline HEAD..template/master`) and let the user choose between `git merge template/master` and selective `git cherry-pick`
+- if the `template` remote is missing in a project that clearly originated from this template (it has `AGENTS.md` + `_base/AGENTS.md`, `playbooks/`, `.claude/skills/`), offer to add it:
 
   ```bash
   git remote add template git@github.com:toderian/project_template.git
@@ -243,10 +245,10 @@ Agents working in a downstream project must:
   git fetch template
   ```
 
-- never edit `AGENTS_BASE.md` or `README_BASE.md` from within a downstream project; suggested base-contract changes belong upstream in the template repo
+- never edit `_base/AGENTS.md` or `_base/README.md` from within a downstream project; suggested base-contract changes belong upstream in the template repo
 - when resolving merge conflicts from a template pull, accept upstream for the `_BASE` files and for skills the downstream has not modified; keep downstream for `AGENTS.md`, `README.md`, and any customized skills/playbooks
 
-See `README_BASE.md` → "Staying in sync with the template" for the full workflow.
+See `_base/README.md` → "Staying in sync with the template" for the full workflow.
 
 ## Anti-patterns
 
