@@ -17,6 +17,28 @@
 
 set -euo pipefail
 
+readonly VERSION="0.1.0"
+
+usage() {
+  cat <<'EOF'
+Usage: gen-skills-table.sh [OPTION]
+
+Regenerate the "Available skills" table in _base/README.md from playbooks/skills/*.md.
+
+With no option, regenerate the table in place.
+
+Options:
+  --version    Print version and exit.
+  --help       Show this message and exit.
+EOF
+}
+
+case "${1:-}" in
+  --version) printf 'gen-skills-table.sh %s\n' "$VERSION"; exit 0 ;;
+  --help)    usage; exit 0 ;;
+  *)         ;;
+esac
+
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 README="$REPO_ROOT/_base/README.md"
 PLAYBOOKS_DIR="$REPO_ROOT/playbooks/skills"
