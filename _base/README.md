@@ -126,9 +126,23 @@ The table below lists the skills authored in this template (base tier). Downstre
 1. Create the playbook: `playbooks/skills/<name>.md`
 2. Create the Codex wrapper: `skills/<name>/SKILL.md`
 3. Create the Claude wrapper: `.claude/skills/<name>/SKILL.md`
-4. For Codex, run `skills/install-codex-skills.sh` and restart Codex
+4. Regenerate the skills table: `./scripts/gen-skills-table.sh`
+5. Validate consistency: `./scripts/check-skills-sync.sh` (fix any findings and re-run until clean)
+6. For Codex, run `skills/install-codex-skills.sh` and restart Codex
 
 See `playbooks/skills/write-a-skill.md` for the full skill authoring guide.
+
+### Validating skill/wrapper consistency
+
+`scripts/check-skills-sync.sh` verifies that every playbook has matching Codex + Claude wrappers, that frontmatter names/descriptions stay in sync, that the auto-generated skills table is up-to-date, and that personalities aren't accidentally exposed as slash commands. Designed to be called by an agent in a loop:
+
+```bash
+./scripts/check-skills-sync.sh
+# Read each finding (line format: SEVERITY  CHECK_ID  PATH  [details]).
+# Fix one or a batch, then re-run. Stop when output is "OK ...".
+```
+
+Severities: **BLOCKER** (missing/orphan files, broken references), **DRIFT** (out-of-sync metadata, mechanically fixable), **STYLE** (advisory thin-wrapper / convention violations). The script exits non-zero on BLOCKER or DRIFT; STYLE alone is allowed.
 
 ## Platform support
 
