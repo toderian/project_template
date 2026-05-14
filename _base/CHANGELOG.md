@@ -13,6 +13,12 @@ For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
 
+### Broaden researcher personality to a general research role
+
+`playbooks/personalities/researcher.md` evolved from a narrow doctrine-refresher into a general research role. New content: a four-phase workflow (codebase recon → targeted search → deep read of authoritative sources → synthesis), an explicit source hierarchy (official docs → reference implementations → community sources), and explicit citation + tradeoff requirements. The original doctrine-refresh use case (refreshing `_base/AGENTS.md` and evaluation guides) is preserved as one application of the broader role.
+
+**Downstream impact:** strict superset of the previous personality — projects relying on the old framing keep working. Any new investigation task can now reference this role for consistent methodology.
+
 ### Move `project.env.example` under `_base/`
 
 The reference env-vars file is now at `_base/project.env.example`. The live `project.env` continues to live at the repo root (gitignored) and is the file all four installer scripts (`skills/install-codex-skills.sh`, `plugins/install-codex-plugins.sh`, `plugins/install-claude-plugins.sh`, `plugins/bootstrap-third-party.sh`) source — no installer changes were needed. The example file's internal header comment now documents the new copy command: `cp _base/project.env.example project.env`.
