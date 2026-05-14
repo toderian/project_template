@@ -1,6 +1,6 @@
 ---
 name: triage-issue
-description: Triage a bug or issue by exploring the codebase to find root cause, then create a GitHub issue with a TDD-based fix plan. Use when the user wants Codex to investigate a bug, file an issue, or plan a fix for a problem.
+description: Triage a bug or issue by exploring the codebase to find root cause, then create a GitHub issue with a TDD-based fix plan. Use when the user wants Codex to "triage" a bug, investigate an issue, file an issue, or plan a fix for a problem.
 ---
 
 # Triage Issue
