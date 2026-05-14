@@ -13,6 +13,14 @@ For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
 
+### Add `block-write-sensitive` hook to guard Write/Edit on sensitive paths
+
+New `.claude/hooks/block-write-sensitive.sh` is a `PreToolUse` hook on `Write|Edit|MultiEdit` that denies operations targeting sensitive paths. Patterns blocked: `.env` and `.env.*` files, anything under `.git/`, `credentials`, `secrets`, `private*key`, `*.pem`, `*.key`, `.ssh/`, `.aws/`. Closes the chokepoint that the existing Bash guards (`block-dangerous-bash.sh`, `block-dangerous-git.sh`) don't cover — the Write/Edit tools can otherwise overwrite secrets and git internals without going through a shell.
+
+Matches the existing hook style (stdin → `jq` → exit 2 on block with stderr message, exit 0 on allow). The new matcher entry is appended to `.claude/settings.json` next to the existing Bash matcher; no existing hooks were modified.
+
+**Downstream impact:** new files and a new `PreToolUse.matcher` entry in `.claude/settings.json`. Downstream projects that have customized `.claude/settings.json` will need to merge the new `Write|Edit|MultiEdit` matcher block by hand (the existing `Bash` block is unchanged). If a downstream project has a legitimate reason to write to one of the protected paths (e.g., generating a `.env` from a configurator script), either narrow the patterns in the script or remove it from the matcher list locally — agents that hit the block should ask the user before overriding.
+
 ### Add adversarial review and research subagents
 
 Four new Claude Code subagents in `.claude/agents/`, ported from the [autonomous-dev](https://github.com/akaszubski/autonomous-dev) harness and adapted to this template's style and skill graph:
