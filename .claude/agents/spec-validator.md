@@ -65,6 +65,8 @@ For each testable criterion, write one test that:
 - has a single clear assertion tied to the criterion
 - lives in `tests/spec_validation/` (create `__init__.py` if missing)
 
+The tests you write are the acceptance layer of `playbooks/conventions/test-taxonomy.md` — spec-driven, public-interface, one binary assertion per criterion. Do not produce unit, integration, or property-based tests here; those belong to the implementer.
+
 Run all tests. Record pass/fail per criterion.
 
 ## Scope fence

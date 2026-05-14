@@ -4,6 +4,8 @@
 
 Build features or fix bugs using TDD with a red-green-refactor loop and vertical slices.
 
+For the shared vocabulary of test layers (acceptance, contract, property-based, integration, unit), see `playbooks/conventions/test-taxonomy.md`. This skill is the loop that produces tests; the taxonomy is the layer they belong to.
+
 ## Philosophy
 
 **Core principle**: Tests should verify behavior through public interfaces, not implementation details. Code can change entirely; tests shouldn't.

@@ -13,6 +13,19 @@ For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
 
+### Add `test-taxonomy` convention naming the five test layers
+
+New `playbooks/conventions/test-taxonomy.md` names the five layers this template recognizes — acceptance, contract, property-based, integration, unit — with definitions, when-to-use guidance, example assertion shapes, a decision matrix by change type (utility / data model / API / auth / multi-component / bug fix / UI / refactor), and a failure-modes section. The convention is shared vocabulary, not a workflow.
+
+Existing files gain one-paragraph references:
+
+- `playbooks/skills/tdd.md` — points readers at the taxonomy for the layer vocabulary; the skill itself stays focused on the RGR loop and vertical slices.
+- `.claude/agents/spec-validator.md` — notes that the binary pass/fail tests it writes are the acceptance layer of the taxonomy, scoping it away from unit/integration/property-based work.
+
+Neither file is restructured. The taxonomy lives in `playbooks/conventions/` next to `todo-convention.md` and `plan-critique.md`, matching the bare-markdown convention pattern.
+
+**Downstream impact:** new file plus two minimal additions. No conflicts expected. Downstream projects that have customized `tdd.md` will need to merge the new one-paragraph reference by hand. The convention is opt-in — any skill or agent that wants the shared vocabulary can reference it; nothing forces it.
+
 ### Add `block-write-sensitive` hook to guard Write/Edit on sensitive paths
 
 New `.claude/hooks/block-write-sensitive.sh` is a `PreToolUse` hook on `Write|Edit|MultiEdit` that denies operations targeting sensitive paths. Patterns blocked: `.env` and `.env.*` files, anything under `.git/`, `credentials`, `secrets`, `private*key`, `*.pem`, `*.key`, `.ssh/`, `.aws/`. Closes the chokepoint that the existing Bash guards (`block-dangerous-bash.sh`, `block-dangerous-git.sh`) don't cover — the Write/Edit tools can otherwise overwrite secrets and git internals without going through a shell.
