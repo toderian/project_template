@@ -78,6 +78,20 @@ The template ships a `AGENTS.md` that auto-loads `_base/AGENTS.md` and reserves 
 
 **Check:** `grep -A3 '^## Project-specific overrides' AGENTS.md | tail -1` does **not** equal `_None for the base template itself._`. The literal string `_base/AGENTS.md` still appears at the top (the auto-load directive is intact).
 
+### 2c — `PROJECT.md` (optional, enables `/align`)
+
+If the project wants feature-level alignment gating via the `/align` skill, copy the template and fill in at least Vision, Goals, and Out of scope:
+
+```bash
+cp _base/PROJECT.md.template PROJECT.md
+```
+
+Then edit `PROJECT.md`. The template has inline guidance per section. `/align` works as soon as the three core sections are filled; Constraints, Current phase, Known limitations are useful but not required.
+
+If the project does not want alignment gating, skip this step — the rest of the template still works.
+
+**Check:** either `PROJECT.md` exists and the literal string `<Replace this paragraph` no longer appears in its Vision section, **or** the project intentionally has no `PROJECT.md` (in which case `/align` is unavailable and the user has been informed).
+
 ---
 
 ## Phase 3 — Claude Code setup (run **only if you are Claude Code**)

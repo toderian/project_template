@@ -13,6 +13,21 @@ For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
 
+### Add `PROJECT.md` template for downstream project alignment
+
+New `_base/PROJECT.md.template` is a lightweight scaffold downstream projects copy to `PROJECT.md` at the repo root when they want feature-level alignment gating. Sections: Vision, Goals, Out of scope, Constraints, Current phase, Known limitations, How agents should use this file, plus an optional Version history. Each section has brief inline guidance and `<placeholder>` markers the user replaces.
+
+Tone: light and flexible (~160 lines). The template deliberately does **not** prescribe directory structure, root-file-count limits, or file-placement rules — those are downstream-project decisions and would collide with each project's own conventions. The Vision / Goals / Out of scope sections are the load-bearing ones for `/align` (forthcoming); the rest are optional context.
+
+Supporting touch-ups:
+
+- `_base/SETUP_INSTRUCTIONS.md` — new Phase 2c step covering `cp _base/PROJECT.md.template PROJECT.md`, marked optional. Skipping is supported and clearly stated.
+- `_base/README.md` — file-tree diagram, "Quick start" copy-into-a-repo artifact table, and the downstream/upstream/mixed file-ownership matrix all gain rows for `PROJECT.md.template` (upstream-owned) and `PROJECT.md` (downstream-owned, never collides on pulls).
+
+The mechanism mirrors the existing `_base/project.env.example` → `project.env` pattern: an upstream-owned example flows in cleanly via `git fetch template && git merge`, and a downstream-owned live file is the project's own.
+
+**Downstream impact:** new files plus three small additions to `_base/SETUP_INSTRUCTIONS.md` and `_base/README.md`. No conflicts expected. Existing projects gain the option to add a `PROJECT.md` later; nothing forces them to. The `/align` skill (next entry) is the only consumer; without it the template is just documentation. Downstream projects that already maintain a project-vision doc under another name can either rename it to `PROJECT.md` (recommended) or fork the `/align` skill locally to read their preferred path.
+
 ### Add `test-taxonomy` convention naming the five test layers
 
 New `playbooks/conventions/test-taxonomy.md` names the five layers this template recognizes — acceptance, contract, property-based, integration, unit — with definitions, when-to-use guidance, example assertion shapes, a decision matrix by change type (utility / data model / API / auth / multi-component / bug fix / UI / refactor), and a failure-modes section. The convention is shared vocabulary, not a workflow.

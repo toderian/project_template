@@ -22,6 +22,7 @@ This repo is designed to work with both **Claude Code** and **OpenAI Codex**. Co
 │   ├── README.md                          # Base documentation (this file)
 │   ├── CHANGELOG.md                       # Base-template changelog
 │   ├── SETUP_INSTRUCTIONS.md              # Numbered setup steps for an agent (or human) to execute
+│   ├── PROJECT.md.template                # Optional alignment-doc scaffold; copy to ./PROJECT.md to enable /align
 │   ├── project.env.example                # Reference env vars; copy to ./project.env at repo root
 │   └── scripts/                           # Maintenance scripts (operate only on upstream content)
 │       ├── gen-skills-table.sh            # Regenerates the skills table in _base/README.md
@@ -243,6 +244,7 @@ Copy these into the target project (then point an agent at `_base/SETUP_INSTRUCT
 | `skills/` | Codex | Thin wrappers + `install-codex-skills.sh` |
 | `plugins/` | Both | Vendored plugins, `install-codex-plugins.sh`, `install-claude-plugins.sh`, `bootstrap-third-party.sh` |
 | `_base/project.env.example` | Both (optional) | Copy to `project.env` at the repo root (`cp _base/project.env.example project.env`) to override default install paths |
+| `_base/PROJECT.md.template` | Both (optional) | Copy to `PROJECT.md` at the repo root (`cp _base/PROJECT.md.template PROJECT.md`) and fill in to enable the `/align` skill for feature-level alignment gating |
 
 After copying, run the appropriate installers — or just point an agent at `_base/SETUP_INSTRUCTIONS.md` and let it do this for you.
 
@@ -350,6 +352,7 @@ Each repo file falls into one of three buckets:
 
 - `README.md` — describes the project, links to `_base/README.md`.
 - `AGENTS.md` — entrypoint auto-loaded by agents; instructs them to read `_base/AGENTS.md` and then applies any project-specific overrides.
+- `PROJECT.md` — optional; created by copying `_base/PROJECT.md.template`. When present, the `/align` skill reads it to check whether a proposed feature is aligned with the project's vision, goals, scope, and constraints. Not committed by the template itself.
 
 **Upstream-owned** — everything under `_base/`. Do not edit; flows in cleanly from `git fetch template && git merge`. Simple rule for merge conflicts: always accept upstream for `_base/*`.
 
@@ -357,12 +360,14 @@ Each repo file falls into one of three buckets:
 - `_base/AGENTS.md` — base operating contract.
 - `_base/CHANGELOG.md` — base-template changelog; read this after `git fetch template` to know what's coming in. Downstream projects may keep their own root-level `CHANGELOG.md` for project-specific changes (downstream-owned, never collides).
 - `_base/SETUP_INSTRUCTIONS.md` — agent-readable numbered setup steps. Point an agent at this file to wire up a fresh project end-to-end (template remote, runtime installers, downstream-slot replacements, verification).
+- `_base/PROJECT.md.template` — alignment-doc scaffold; copy to `PROJECT.md` at the repo root if you want feature-level alignment gating via `/align`.
 
 **Mixed** (manual merge required):
 
 - `.claude/settings.json` — merge hook entries by hand; don't blindly accept upstream.
 - `playbooks/skills/*` and `skills/*` / `.claude/skills/*` — accept upstream for skills you haven't customized; keep downstream for skills you've forked.
 - `project.env` — never committed; not a conflict source.
+- `PROJECT.md` — downstream-owned alignment doc, if seeded from `_base/PROJECT.md.template`. The template flows in cleanly; the seeded `PROJECT.md` is the project's own and is not touched by template pulls.
 
 ### Agent instructions for downstream projects
 

@@ -1,0 +1,87 @@
+# <Project Name>
+
+> **This is a downstream-owned file.** Copy it from `_base/PROJECT.md.template` to `PROJECT.md` at the repo root and fill in the sections below. Every section is optional — `/align` works as long as at least Vision, Goals, and Out of scope are filled in.
+
+---
+
+## Vision
+
+*Why this project exists. The underlying problem and the change in the world it should produce when it works.*
+
+*Write one paragraph that a new contributor (or an agent) can read in 30 seconds and understand what success looks like. Avoid feature lists here — those belong under Goals.*
+
+<Replace this paragraph with one or two sentences describing the project's reason for being. Example: "We are building a self-serve analytics tool for ops teams who today rely on engineers to write SQL. Success looks like a non-technical ops lead answering 80% of their own data questions without filing a ticket.">
+
+---
+
+## Goals
+
+*What this project explicitly aims to do. Each goal should be observable — someone outside the project can tell whether it has been achieved.*
+
+- <Goal 1, e.g. "Reduce time-to-answer on common ops questions from days to minutes.">
+- <Goal 2, e.g. "Support the top ten recurring report shapes without writing SQL.">
+- <Goal 3, e.g. "Stay within the existing analytics warehouse — no new data infrastructure.">
+
+Add or remove bullets to fit the project. Keep this list short — typically 3 to 6 goals. A long Goals list usually means the project's scope is still negotiable.
+
+---
+
+## Out of scope
+
+*What this project explicitly will NOT do, even if technically feasible or adjacent. These are the most useful entries to write — they prevent scope creep before it starts.*
+
+- <Out-of-scope item 1, e.g. "Custom dashboards. Ops teams use the existing BI tool for visualization; we only produce the data.">
+- <Out-of-scope item 2, e.g. "External user access. The tool is internal-only; no per-customer logins.">
+- <Out-of-scope item 3, e.g. "Real-time data. Daily refresh is acceptable; sub-hour SLAs are not on the roadmap.">
+
+A change request that targets one of these items is not automatically rejected — but it forces the team to either re-scope (update this file) or decline (do not implement). Both are valid; silent drift is not.
+
+---
+
+## Constraints
+
+*Technical, organizational, or time-shaped constraints that meaningfully shape decisions. List things that would make a reviewer say "wait, why did we go that way?" if not documented.*
+
+- <Constraint 1, e.g. "Python 3.11 only — the warehouse client doesn't support newer versions yet.">
+- <Constraint 2, e.g. "No external paid services in the critical path; the team's procurement cycle is six weeks.">
+- <Constraint 3, e.g. "Must run on the existing Kubernetes cluster; no new VPC or cloud account.">
+
+---
+
+## Current phase
+
+*Where the project is in its lifecycle. What is active, what is done, what is deferred.*
+
+- **Active:** <what is being worked on right now>
+- **Done:** <recent meaningful milestones, e.g. "v0.1 released to the ops team in 2026-Q1">
+- **Deferred:** <items that were considered and explicitly pushed out, with one-line reason>
+
+Update this section when phases shift — at least every few weeks. A stale Current phase is worse than no Current phase.
+
+---
+
+## Known limitations
+
+*Things the team accepts as costs of the current design. Documenting these here keeps `/align` from flagging them as scope conflicts every time a related feature is proposed.*
+
+- <Limitation 1, e.g. "Query latency is bounded by the warehouse, not our service — we can not deliver answers faster than the warehouse responds.">
+- <Limitation 2, e.g. "User-facing error messages are generic; we do not have a translation layer.">
+
+A known limitation is different from an out-of-scope item: limitations are about *how the system behaves today*; out-of-scope items are about *what the system intentionally does not try to do*.
+
+---
+
+## How agents should use this file
+
+- The `/align` skill reads this file before non-trivial work to check whether a proposed feature is aligned, needs clarification, or is out of scope.
+- Updates to this file should be deliberate, not incidental. If `/align` surfaces a real misalignment, the user decides whether to update the file (broadening scope) or adjust the feature.
+- This file is **downstream-owned**: each project maintains its own. The template at `_base/PROJECT.md.template` is upstream-owned and updated cleanly via `git fetch template && git merge`.
+- The `/align` skill is the only automated reader. Agents should not silently edit `PROJECT.md` based on inference; user approval is required for any change here.
+
+---
+
+## Version history
+
+*Optional: brief notes on major changes to this file. Useful when scope has shifted enough that previous decisions need context.*
+
+- <YYYY-MM-DD>: <Initial fill-in.>
