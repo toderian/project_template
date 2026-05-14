@@ -160,7 +160,7 @@ Both scripts live under `_base/scripts/` because they only operate on upstream-o
 | AGENTS.md (+ _base/AGENTS.md) | Auto-loaded; loads `_base/AGENTS.md` by instruction | Auto-loaded; loads `_base/AGENTS.md` by instruction |
 | Skills (slash commands) | `.claude/skills/` auto-discovered | `skills/` via `install-codex-skills.sh` |
 | Plugins | Not applicable | `plugins/` via `install-codex-plugins.sh` and local marketplace entries |
-| Agent definitions | `.claude/agents/` native subagent dispatch | `skills/implementer/`, `skills/reviewer/` as behavioral skills |
+| Agent definitions | `.claude/agents/` native subagent dispatch (`implementer`, `reviewer`, `plan-critic`, `spec-validator`, `security-auditor`, `researcher`) | `skills/implementer/`, `skills/reviewer/` as behavioral skills; other subagents have no Codex equivalent and run on the main thread under their cited personality + skill/convention |
 | Hooks | `.claude/settings.json` PreToolUse | Codex approval policy (`suggest`/`auto-edit`/`full-auto`) |
 | Per-directory overrides | Nested `AGENTS.md` in subdirectories | Not supported — root `AGENTS.md` only |
 
@@ -353,7 +353,6 @@ Each repo file falls into one of three buckets:
 
 - `README.md` — describes the project, links to `_base/README.md`.
 - `AGENTS.md` — entrypoint auto-loaded by agents; instructs them to read `_base/AGENTS.md` and then applies any project-specific overrides.
-- `PROJECT.md` — optional; created by copying `_base/PROJECT.md.template`. When present, the `/align` skill reads it to check whether a proposed feature is aligned with the project's vision, goals, scope, and constraints. Not committed by the template itself.
 
 **Upstream-owned** — everything under `_base/`. Do not edit; flows in cleanly from `git fetch template && git merge`. Simple rule for merge conflicts: always accept upstream for `_base/*`.
 

@@ -13,6 +13,18 @@ For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
 
+### Fix dual-runtime wiring for the PROJECT.md / `/align` rollout
+
+Follow-up to the four preceding entries (block-write-sensitive hook, test-taxonomy convention, PROJECT.md template, `/align` skill). Validation against the repo's Codex/Claude dual-runtime ideology surfaced three issues:
+
+- **`_base/SETUP_INSTRUCTIONS.md` Phase 2c was not idempotent.** The `cp _base/PROJECT.md.template PROJECT.md` line was unconditional, so if Claude's setup agent ran the phase first and then Codex's agent ran it second (or the user already seeded the file), the second run would overwrite existing content. Phases 0–2 are required to be idempotent per the file's own header. Fixed with a `[[ -f PROJECT.md ]] && echo "already exists" || cp …` guard.
+- **`_base/README.md` listed `PROJECT.md` in two ownership buckets.** Once under "Downstream-owned" (alongside the required `README.md` and `AGENTS.md`) and again under "Mixed" (alongside the similarly-optional `project.env`). `PROJECT.md` is optional, so the "Mixed" entry is the correct one; the "Downstream-owned" duplicate was removed.
+- **`_base/README.md` platform-support table** still showed only `implementer` and `reviewer` as agent definitions, missing the four new Claude-only subagents (`plan-critic`, `spec-validator`, `security-auditor`, `researcher`) added in a prior entry. Refreshed both columns to reflect all six subagents and to call out that the four new ones have no Codex equivalent — they run on the main thread under the cited personality + skill/convention.
+
+`playbooks/conventions/test-taxonomy.md` was also rephrased to mirror the inclusive "consumer on Claude, main-thread on Codex" wording already used by `playbooks/conventions/plan-critique.md`. No behavior change; clarity only.
+
+**Downstream impact:** documentation-only fixes. No skills, agents, hooks, or settings affected. `_base/SETUP_INSTRUCTIONS.md` and `_base/README.md` are upstream-owned and update cleanly via `git fetch template && git merge`. Downstream projects do not need to take any action.
+
 ### Add `/align` skill for feature alignment against `PROJECT.md`
 
 New `playbooks/skills/align.md` plus Codex and Claude wrappers. The skill compares a proposed feature or change against the active `PROJECT.md` (Vision, Goals, Out of scope, Constraints) and issues one of three verdicts:

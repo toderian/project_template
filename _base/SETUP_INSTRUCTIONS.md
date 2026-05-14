@@ -80,13 +80,13 @@ The template ships a `AGENTS.md` that auto-loads `_base/AGENTS.md` and reserves 
 
 ### 2c — `PROJECT.md` (optional, enables `/align`)
 
-If the project wants feature-level alignment gating via the `/align` skill, copy the template and fill in at least Vision, Goals, and Out of scope:
+If the project wants feature-level alignment gating via the `/align` skill, copy the template (only if `PROJECT.md` does not already exist) and fill in at least Vision, Goals, and Out of scope:
 
 ```bash
-cp _base/PROJECT.md.template PROJECT.md
+[[ -f PROJECT.md ]] && echo "PROJECT.md already exists, not overwriting" || cp _base/PROJECT.md.template PROJECT.md
 ```
 
-Then edit `PROJECT.md`. The template has inline guidance per section. `/align` works as soon as the three core sections are filled; Constraints, Current phase, Known limitations are useful but not required.
+The guard makes this step idempotent — re-running after the other runtime's agent (or the user) already seeded `PROJECT.md` leaves their content untouched. Then edit `PROJECT.md`. The template has inline guidance per section. `/align` works as soon as the three core sections are filled; Constraints, Current phase, Known limitations are useful but not required.
 
 If the project does not want alignment gating, skip this step — the rest of the template still works.
 
