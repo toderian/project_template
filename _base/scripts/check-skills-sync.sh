@@ -48,13 +48,13 @@ case "${1:-}" in
   *)         printf 'unknown option: %s\n' "$1" >&2; usage >&2; exit 2 ;;
 esac
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PLAYBOOKS_DIR="$REPO_ROOT/playbooks/skills"
 CODEX_SKILLS_DIR="$REPO_ROOT/skills"
 CLAUDE_SKILLS_DIR="$REPO_ROOT/.claude/skills"
 PERSONALITIES_DIR="$REPO_ROOT/playbooks/personalities"
 README="$REPO_ROOT/_base/README.md"
-GEN_SCRIPT="$REPO_ROOT/scripts/gen-skills-table.sh"
+GEN_SCRIPT="$REPO_ROOT/_base/scripts/gen-skills-table.sh"
 
 # Names that have wrappers in skills/ and .claude/skills/ but no playbook.
 # These are agent definitions; their canonical role file lives in .claude/agents/.
@@ -307,13 +307,13 @@ if [[ -x "$GEN_SCRIPT" ]]; then
     if [[ "$pre_hash" != "$post_hash" ]]; then
       emit DRIFT skills-table-out-of-date \
         "_base/README.md" \
-        "scripts/gen-skills-table.sh produced changes — run it and commit"
+        "_base/scripts/gen-skills-table.sh produced changes — run it and commit"
       # Restore so this check is non-destructive.
       cp "$tmp_readme" "$README"
     fi
   else
     emit BLOCKER skills-table-generator-failed \
-      "scripts/gen-skills-table.sh" \
+      "_base/scripts/gen-skills-table.sh" \
       "generator exited non-zero"
   fi
 fi

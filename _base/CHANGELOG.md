@@ -13,6 +13,18 @@ For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
 
+### Move maintenance scripts under `_base/scripts/`
+
+Both `scripts/gen-skills-table.sh` and `scripts/check-skills-sync.sh` now live at `_base/scripts/`. They only operate on upstream-owned content (the auto-generated table in `_base/README.md` and the template's skill catalog), so colocating them with the other `_base/` upstream files makes the ownership boundary explicit and frees the root-level `scripts/` namespace for downstream-owned tooling. The internal `REPO_ROOT` resolution in each script and the auto-generated table comment now point to the new path.
+
+**Downstream impact:** if you have any local automation (CI, git hooks, shell aliases, downstream `AGENTS.md` rules) that invokes `./scripts/gen-skills-table.sh` or `./scripts/check-skills-sync.sh`, update the path to `./_base/scripts/…` after merging. No behavior change otherwise. If your downstream project has its own `scripts/` directory, it now coexists cleanly with the template's maintenance scripts (no merge conflict).
+
+### Add `_base/scripts/check-skills-sync.sh` validator
+
+New maintenance script that validates skill / wrapper / table consistency: every playbook has matching Codex + Claude wrappers, frontmatter `name` matches the directory, descriptions are present, Claude wrappers carry `disable-model-invocation: true`, wrappers reference their playbook and stay thin (≤50 lines), personalities aren't exposed as slash commands, the auto-generated skills table in `_base/README.md` is up-to-date, and quoted trigger phrases (e.g. `"red-green-refactor"`) don't drift between the Codex and Claude wrapper descriptions. Line-oriented output (`SEVERITY<tab>CHECK_ID<tab>PATH<tab>[details]`) with three tiers (BLOCKER / DRIFT / STYLE); exit 1 on BLOCKER or DRIFT, designed to be called by an agent in a loop (run → fix → re-run until clean).
+
+**Downstream impact:** none. Opt-in maintenance script. Recommended after adding or modifying any skill or wrapper, and as a CI gate for downstream projects that add their own skills. The "Adding a new skill" checklist in `_base/README.md` now includes a regenerate-table + validate step.
+
 ### Add `plugins/install-claude-plugins.sh` and `_base/SETUP_INSTRUCTIONS.md`
 
 Two related additions that close the dual-runtime setup story for downstream projects.
@@ -26,7 +38,7 @@ Two related additions that close the dual-runtime setup story for downstream pro
 
 New heavyweight skill that drives a plan → build → review → fix loop for a single engineering item, with four standardized artifacts under `specs/<slug>/` (`spec.md`, `design.md`, `tasks.md`, `review.md`). Reuses the existing `subagent-protocol` dispatch + status vocabulary and the existing `implementer` and `reviewer` subagent/skill definitions — no new agent definitions, no experimental flags. Runtime-agnostic: same playbook and artifacts on Claude Code (Task-tool parallel dispatch) and Codex (sequential `/implementer` invocation per task). Composes with the existing PRD chain — `write-a-prd` / `prd-to-plan` / `prd-to-issues` / `prd-to-todos` remain unchanged; spec-workflow accepts a PRD or rough intent as input. Strong "do NOT use for…" guardrails in the wrapper description keep it from auto-triggering on small tasks.
 
-**Downstream impact:** none. New skill; opt-in by invocation. After merging, run `./scripts/gen-skills-table.sh` to regenerate the skills table in this file's sibling `_base/README.md`. No conflicts expected; new files only.
+**Downstream impact:** none. New skill; opt-in by invocation. After merging, run `./_base/scripts/gen-skills-table.sh` to regenerate the skills table in this file's sibling `_base/README.md`. No conflicts expected; new files only.
 
 ## 2026-05-11
 
