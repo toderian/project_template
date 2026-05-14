@@ -22,6 +22,7 @@ This repo is designed to work with both **Claude Code** and **OpenAI Codex**. Co
 │   ├── README.md                          # Base documentation (this file)
 │   ├── CHANGELOG.md                       # Base-template changelog
 │   ├── SETUP_INSTRUCTIONS.md              # Numbered setup steps for an agent (or human) to execute
+│   ├── project.env.example                # Reference env vars; copy to ./project.env at repo root
 │   └── scripts/                           # Maintenance scripts (operate only on upstream content)
 │       ├── gen-skills-table.sh            # Regenerates the skills table in _base/README.md
 │       └── check-skills-sync.sh           # Validates skill/wrapper/table consistency
@@ -240,7 +241,7 @@ Copy these into the target project (then point an agent at `_base/SETUP_INSTRUCT
 | `.claude/` | Claude Code | Skills, native subagents, hook scripts, settings |
 | `skills/` | Codex | Thin wrappers + `install-codex-skills.sh` |
 | `plugins/` | Both | Vendored plugins, `install-codex-plugins.sh`, `install-claude-plugins.sh`, `bootstrap-third-party.sh` |
-| `project.env.example` | Both (optional) | Copy to `project.env` to override default install paths |
+| `_base/project.env.example` | Both (optional) | Copy to `project.env` at the repo root (`cp _base/project.env.example project.env`) to override default install paths |
 
 After copying, run the appropriate installers — or just point an agent at `_base/SETUP_INSTRUCTIONS.md` and let it do this for you.
 

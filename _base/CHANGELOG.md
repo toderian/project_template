@@ -13,6 +13,12 @@ For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
 
+### Move `project.env.example` under `_base/`
+
+The reference env-vars file is now at `_base/project.env.example`. The live `project.env` continues to live at the repo root (gitignored) and is the file all four installer scripts (`skills/install-codex-skills.sh`, `plugins/install-codex-plugins.sh`, `plugins/install-claude-plugins.sh`, `plugins/bootstrap-third-party.sh`) source — no installer changes were needed. The example file's internal header comment now documents the new copy command: `cp _base/project.env.example project.env`.
+
+**Downstream impact:** if your downstream `README.md`, scripts, CI, or local notes reference `project.env.example` at the repo root, update the path to `_base/project.env.example` after merging. Your live `project.env` at the repo root is unaffected and continues to work as-is. Future template updates to the reference env vars (new entries, removed entries, comment changes) will now arrive cleanly inside `_base/` instead of as root-level merge candidates. Downstream projects that want to ship their *own* `.env.example` for project-specific env vars can now do so at the repo root without colliding with the template's.
+
 ### Move maintenance scripts under `_base/scripts/`
 
 Both `scripts/gen-skills-table.sh` and `scripts/check-skills-sync.sh` now live at `_base/scripts/`. They only operate on upstream-owned content (the auto-generated table in `_base/README.md` and the template's skill catalog), so colocating them with the other `_base/` upstream files makes the ownership boundary explicit and frees the root-level `scripts/` namespace for downstream-owned tooling. The internal `REPO_ROOT` resolution in each script and the auto-generated table comment now point to the new path.
