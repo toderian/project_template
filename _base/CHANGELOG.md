@@ -13,6 +13,24 @@ For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
 
+### Add `/align` skill for feature alignment against `PROJECT.md`
+
+New `playbooks/skills/align.md` plus Codex and Claude wrappers. The skill compares a proposed feature or change against the active `PROJECT.md` (Vision, Goals, Out of scope, Constraints) and issues one of three verdicts:
+
+- **ALIGNED** — proceed; cites the goal(s) the change advances
+- **NEEDS_CLARIFICATION** — surfaces specific questions to the user (ambiguous goals, missing scope entry)
+- **OUT_OF_SCOPE** — surfaces the conflict and presents three explicit options: (a) update `PROJECT.md` to bring the feature into scope with user approval, (b) adjust the feature to fit current scope, or (c) cancel and discuss scope first
+
+Comparison runs on three axes: goal alignment, scope (against the explicit Out-of-scope list), and constraint violations. Each axis must be marked with cited evidence from `PROJECT.md` — soft verdicts ("mostly aligned") and silent edits to the alignment doc are explicit failure modes.
+
+`/align` is positioned at the front of the adversarial review pipeline: `align` (project-level) → `planning-workflow` → `plan-critic` (plan-level) → implementation → `spec-validator` → `security-auditor`. Each layer catches a different class of mistake.
+
+This is a methodology skill — no Python library, no LLM-as-judge score thresholds, no audit-log JSONL. The model does the comparison in the skill's context with the user in the loop. Autonomous-dev's score-based `alignment_gate.py` (642 lines, ≥7/10 thresholds) is intentionally **not** ported; project_template's user-driven design does not need automated gating.
+
+The skills table in `_base/README.md` was regenerated to include `align`.
+
+**Downstream impact:** new files only; no conflicts expected. The skill is opt-in by invocation, and requires `PROJECT.md` at the repo root (downstream projects set it up via the previous CHANGELOG entry). Downstream projects without a `PROJECT.md` can ignore the skill entirely — it simply errors with instructions when invoked. After merging, run `./_base/scripts/gen-skills-table.sh` if your downstream `_base/README.md` skills table is out of date.
+
 ### Add `PROJECT.md` template for downstream project alignment
 
 New `_base/PROJECT.md.template` is a lightweight scaffold downstream projects copy to `PROJECT.md` at the repo root when they want feature-level alignment gating. Sections: Vision, Goals, Out of scope, Constraints, Current phase, Known limitations, How agents should use this file, plus an optional Version history. Each section has brief inline guidance and `<placeholder>` markers the user replaces.
