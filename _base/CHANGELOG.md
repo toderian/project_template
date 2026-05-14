@@ -13,6 +13,17 @@ For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
 
+### Add `planning-workflow` skill and `plan-critique` convention
+
+New methodology for pre-implementation planning:
+
+- **`planning-workflow` skill** (`playbooks/skills/planning-workflow.md` + Codex wrapper at `skills/planning-workflow/` + Claude wrapper at `.claude/skills/planning-workflow/`) — a seven-step pre-implementation workflow: problem statement, scope check (with a 1.5x halt rule), existing-solutions search, minimal-path design, adversarial critique, decomposition, and durable plan output.
+- **`plan-critique` convention** (`playbooks/conventions/plan-critique.md`) — a five-axis scoring rubric (assumption audit, scope creep, existing solutions, minimalism, uncertainty) with a fixed composite-to-verdict mapping (≥3.0 / no axis below 2 → PROCEED; <3.0 or any axis at 1 → REVISE; <2.0 or two or more axes at 1 → BLOCKED), calibration anchors per axis, minimum-rounds rule scaled by complexity, and a required output template. Applicable on the main thread under the `critic` personality, and used directly by the new `plan-critic` subagent (forthcoming).
+
+The skills table in `_base/README.md` was regenerated to include `planning-workflow`.
+
+**Downstream impact:** new files only; no conflicts expected. The convention adds a published rubric that existing skills like `prd-to-plan` and the `critic` personality can reference for plan validation. Run `./_base/scripts/gen-skills-table.sh` after merging if your downstream `_base/README.md` skills table is out of date.
+
 ### Broaden researcher personality to a general research role
 
 `playbooks/personalities/researcher.md` evolved from a narrow doctrine-refresher into a general research role. New content: a four-phase workflow (codebase recon → targeted search → deep read of authoritative sources → synthesis), an explicit source hierarchy (official docs → reference implementations → community sources), and explicit citation + tradeoff requirements. The original doctrine-refresh use case (refreshing `_base/AGENTS.md` and evaluation guides) is preserved as one application of the broader role.

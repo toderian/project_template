@@ -1,0 +1,17 @@
+---
+name: planning-workflow
+description: Seven-step pre-implementation planning workflow. Use when the user wants Codex to plan a non-trivial change before writing code — multi-file features, multiple plausible approaches, or work that needs scope bounded. Includes a five-axis adversarial critique rubric for plan validation.
+---
+
+# Planning Workflow
+
+Use this skill to plan non-trivial changes before implementation.
+
+Read and follow:
+
+- `playbooks/skills/planning-workflow.md`
+- `playbooks/conventions/plan-critique.md`
+
+For adversarial critique, apply the rubric on the main thread under `playbooks/personalities/critic.md`.
+
+Keep this skill thin. The playbook is the shared workflow and should be updated first when the process changes.
