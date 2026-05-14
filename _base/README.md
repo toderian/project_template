@@ -20,7 +20,8 @@ This repo is designed to work with both **Claude Code** and **OpenAI Codex**. Co
 ├── _base/                                 # Upstream-owned base content — never edit downstream
 │   ├── AGENTS.md                          # Base operating contract
 │   ├── README.md                          # Base documentation (this file)
-│   └── CHANGELOG.md                       # Base-template changelog
+│   ├── CHANGELOG.md                       # Base-template changelog
+│   └── SETUP_INSTRUCTIONS.md              # Numbered setup steps for an agent (or human) to execute
 │
 │
 ├── playbooks/                             # Shared workflow logic (single source of truth)
@@ -199,28 +200,49 @@ Run `./plugins/bootstrap-third-party.sh` to install the npm-based ones and print
 
 ## Quick start
 
+**Primary path — point an agent at `_base/SETUP_INSTRUCTIONS.md`.**
+That file contains numbered, mechanical setup steps with per-step checks; an agent reading it executes the whole thing autonomously and stops on any failed check. Use it like:
+
+```
+Follow _base/SETUP_INSTRUCTIONS.md.
+```
+
+The options below describe how to *seed* a project (i.e. how the files get onto disk in the first place); `SETUP_INSTRUCTIONS.md` then walks the agent through everything after that (template remote, runtime installers, project-specific overrides, verification).
+
 ### Option 1: copy into a repo
 
-Copy these into the target project (then run the Codex installers if you use Codex):
+Copy these into the target project (then point an agent at `_base/SETUP_INSTRUCTIONS.md`, or run the installers yourself):
 
 | Artifact | Required for | Notes |
 |----------|--------------|-------|
 | `AGENTS.md` | Both | Auto-loaded entrypoint; downstream-owned (project-specific overrides go here) |
-| `_base/` | Both | Base operating contract, base README, base changelog; upstream-owned (do not edit downstream) |
+| `_base/` | Both | Base operating contract, base README, base changelog, **base setup instructions**; upstream-owned (do not edit downstream) |
 | `playbooks/` | Both | Authoritative workflow logic, role cards, templates |
 | `.claude/` | Claude Code | Skills, native subagents, hook scripts, settings |
 | `skills/` | Codex | Thin wrappers + `install-codex-skills.sh` |
-| `plugins/` | Codex (optional) | Vendored plugins + `install-codex-plugins.sh` + `bootstrap-third-party.sh` |
+| `plugins/` | Both | Vendored plugins, `install-codex-plugins.sh`, `install-claude-plugins.sh`, `bootstrap-third-party.sh` |
 | `project.env.example` | Both (optional) | Copy to `project.env` to override default install paths |
 
-After copying, Claude Code is ready immediately. For Codex, run:
+After copying, run the appropriate installers — or just point an agent at `_base/SETUP_INSTRUCTIONS.md` and let it do this for you.
+
+Claude Code:
+
+```bash
+./plugins/install-claude-plugins.sh   # merges into ~/.claude/settings.json
+./plugins/bootstrap-third-party.sh    # optional shared third-party stack
+# Restart Claude Code
+```
+
+Codex:
 
 ```bash
 ./skills/install-codex-skills.sh
 ./plugins/install-codex-plugins.sh
-./plugins/bootstrap-third-party.sh   # optional third-party stack
-# Then restart Codex
+./plugins/bootstrap-third-party.sh    # optional shared third-party stack
+# Restart Codex
 ```
+
+`.claude/skills/` is auto-discovered by Claude Code, so there is no Claude skills installer.
 
 ### Option 2: use as a submodule
 
@@ -313,6 +335,7 @@ Each repo file falls into one of three buckets:
 - `_base/README.md` — base documentation.
 - `_base/AGENTS.md` — base operating contract.
 - `_base/CHANGELOG.md` — base-template changelog; read this after `git fetch template` to know what's coming in. Downstream projects may keep their own root-level `CHANGELOG.md` for project-specific changes (downstream-owned, never collides).
+- `_base/SETUP_INSTRUCTIONS.md` — agent-readable numbered setup steps. Point an agent at this file to wire up a fresh project end-to-end (template remote, runtime installers, downstream-slot replacements, verification).
 
 **Mixed** (manual merge required):
 
