@@ -13,6 +13,21 @@ For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
 
+### Add adversarial review and research subagents
+
+Four new Claude Code subagents in `.claude/agents/`, ported from the [autonomous-dev](https://github.com/akaszubski/autonomous-dev) harness and adapted to this template's style and skill graph:
+
+- **`plan-critic`** — adversarial plan review against the five-axis rubric in `playbooks/conventions/plan-critique.md`. Issues PROCEED, REVISE, or BLOCKED with composite scoring. Read-only.
+- **`spec-validator`** — spec-blind behavioral validation. Reads only the acceptance criteria (not the implementation), writes binary pass/fail tests in `tests/spec_validation/`, and reports PASS or FAIL.
+- **`security-auditor`** — OWASP + LLM + Agentic AI review using the existing `security-review-owasp` skill. Smart secret detection that distinguishes correctly-gitignored `.env` from secrets in source/history. Flags deletion of security-related tests as HIGH.
+- **`researcher`** — codebase-first investigation with citation and tradeoff requirements. Pairs with the broadened `researcher` personality.
+
+`_base/AGENTS.md` gains a new "Available subagents" subsection under Multi-agent rules, cataloging all six subagents (the four new ones plus the existing `implementer` and `reviewer`) with purpose and dispatch trigger.
+
+Harness-specific bits from the source were dropped during the port: file-write verdict gates, checkpoint-tracker Python blocks, active-scanner library imports, pipeline-state JSON files, RFC 2119 MUST/SHOULD shouting, and HARD GATE / FORBIDDEN markers. The ported content references this template's existing personalities (`critic`, `reviewer`, `researcher`) and skills (`security-review-owasp`) rather than duplicating their content.
+
+**Downstream impact:** new files only; no conflicts expected. Claude Code users gain four additional subagents discoverable via `.claude/agents/` and the updated catalog in `_base/AGENTS.md`. Codex has no equivalent subagent runtime — `plan-critic`, `spec-validator`, `security-auditor`, and `researcher` must run on the main thread under the cited personality + skill/convention in Codex sessions; only the `planning-workflow` skill (shipped in the previous entry) has full Codex parity.
+
 ### Add `planning-workflow` skill and `plan-critique` convention
 
 New methodology for pre-implementation planning:
