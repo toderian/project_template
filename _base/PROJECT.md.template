@@ -78,6 +78,10 @@ A known limitation is different from an out-of-scope item: limitations are about
 - This file is **downstream-owned**: each project maintains its own. The template at `_base/PROJECT.md.template` is upstream-owned and updated cleanly via `git fetch template && git merge`.
 - The `/align` skill is the only automated reader. Agents should not silently edit `PROJECT.md` based on inference; user approval is required for any change here.
 
+## Companion: CONTEXT.md
+
+`PROJECT.md` covers **why and what** the project exists for. Its sibling `CONTEXT.md` (also at the repo root, copied from `_base/CONTEXT.md.template`) covers **what words mean** in the project's domain — the canonical vocabulary, relationships, and resolved ambiguities. `grill-with-docs`, `diagnose`, and `zoom-out` consult it to use the right terminology. Maintain the two files separately — don't fold language into `PROJECT.md` or scope into `CONTEXT.md`.
+
 ---
 
 ## Version history

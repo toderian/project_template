@@ -241,6 +241,10 @@ Downstream projects follow a strict split:
 | `_base/README.md` | **Upstream-owned** | Authoritative template documentation. Do not edit downstream. |
 | `_base/CHANGELOG.md` | **Upstream-owned** | Base-template changelog. Agents must check this before applying a template merge so they can communicate downstream impact to the user. |
 | `_base/SETUP_INSTRUCTIONS.md` | **Upstream-owned** | Numbered setup steps an agent (or human) executes to wire up a fresh project — template remote, runtime installers, downstream-slot replacements, verification. |
+| `PROJECT.md` | **Downstream-owned** | Vision, goals, scope. Copied from `_base/PROJECT.md.template`. Read by the `/align` skill. |
+| `_base/PROJECT.md.template` | **Upstream-owned** | Template for `PROJECT.md`. |
+| `CONTEXT.md` | **Downstream-owned** | Domain glossary (canonical terms, relationships, resolved ambiguities). Copied from `_base/CONTEXT.md.template`. Read and updated inline by `grill-with-docs`; consulted by `diagnose` and `zoom-out`. |
+| `_base/CONTEXT.md.template` | **Upstream-owned** | Template for `CONTEXT.md`. |
 | `CHANGELOG.md` (optional) | **Downstream-owned** | Downstream project's own changelog, if they keep one. Never overlaps with `_base/CHANGELOG.md`. |
 | `.claude/settings.json` | Mixed | Merge hook entries by hand. |
 | `playbooks/`, `skills/`, `.claude/skills/` | Mixed | Accept upstream for skills not customized; keep downstream for forked skills. |
