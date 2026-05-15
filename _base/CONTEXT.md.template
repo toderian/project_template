@@ -60,7 +60,7 @@ _Avoid_: Client, buyer, account.
 
 Most projects have a single context: one `CONTEXT.md` at the repo root.
 
-If the project has multiple bounded contexts (e.g. Ordering, Billing, Fulfillment as separate domains), create a `CONTEXT-MAP.md` at the root that lists the contexts and how they relate, and put a per-context `CONTEXT.md` inside each subtree. See `playbooks/skills/grill-with-docs/CONTEXT-FORMAT.md` for the layout.
+If the project has multiple bounded contexts (e.g. Ordering, Billing, Fulfillment as separate domains), create a `CONTEXT-MAP.md` at the root that lists the contexts and how they relate, and put a per-context `CONTEXT.md` inside each subtree. See `playbooks/skills/engineering/grill-with-docs/CONTEXT-FORMAT.md` for the layout.
 
 ---
 

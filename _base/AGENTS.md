@@ -165,7 +165,7 @@ If multiple agents are used, the manager must enforce:
 
 Do not create multiple agents to work on the same vague problem statement.
 
-For the full coordination protocol — status vocabulary, dispatch format, two-stage review, escalation rules, and model selection — see `playbooks/skills/subagent-protocol.md`.
+For the full coordination protocol — status vocabulary, dispatch format, two-stage review, escalation rules, and model selection — see `playbooks/skills/productivity/subagent-protocol.md`.
 
 ### Available subagents
 
@@ -177,7 +177,7 @@ Subagent definitions for Claude Code live in `.claude/agents/`. Dispatch them wh
 | `reviewer` | Two-stage spec compliance + code quality review | After an implementer reports DONE |
 | `plan-critic` | Adversarial plan review using the five-axis rubric in `playbooks/conventions/plan-critique.md` | After a plan is drafted, before any code is written |
 | `spec-validator` | Spec-blind behavioral validation — writes tests from acceptance criteria only and reports binary PASS/FAIL | After implementation, as an independent check against the spec |
-| `security-auditor` | OWASP + LLM + Agentic AI review using `playbooks/skills/security-review-owasp.md` | After implementation on any change touching auth, input handling, crypto, or AI surfaces |
+| `security-auditor` | OWASP + LLM + Agentic AI review using `playbooks/skills/engineering/security-review-owasp.md` | After implementation on any change touching auth, input handling, crypto, or AI surfaces |
 | `researcher` | Codebase-first investigation with citation requirements, following `playbooks/personalities/researcher.md` | When the team needs evidence-backed findings before action |
 
 Codex has no equivalent subagent runtime. For Codex sessions, `implementer` and `reviewer` are available as behavioral skills (`skills/implementer/`, `skills/reviewer/`); the others (`plan-critic`, `spec-validator`, `security-auditor`, `researcher`) must be run on the main thread using the cited personality + skill/convention.
@@ -223,7 +223,7 @@ Update the playbook first. Keep skill wrappers thin — they exist only to route
 
 ### Creating new skills
 
-Follow `playbooks/skills/write-a-skill.md`. Every new skill needs three files: a playbook, a Codex wrapper, and a Claude wrapper.
+Follow `playbooks/skills/productivity/write-a-skill.md`. Every new skill needs three files: a playbook, a Codex wrapper, and a Claude wrapper.
 
 ## Template-remote convention
 

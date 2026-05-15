@@ -8,11 +8,15 @@
 #   3. Fix one or a batch.
 #   4. Re-run. Watch the findings shrink. Stop when clean.
 #
+# Active skills are enumerated in `.claude-plugin/plugin.json`. Anything on
+# disk that isn't in the manifest is flagged as orphan; anything in the
+# manifest that isn't on disk is flagged as missing.
+#
 # Exits 0 if no BLOCKER or DRIFT findings (STYLE alone does not fail).
 
 set -euo pipefail
 
-readonly VERSION="0.1.0"
+readonly VERSION="0.2.0"
 
 usage() {
   cat <<'EOF'
@@ -49,10 +53,10 @@ case "${1:-}" in
 esac
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+MANIFEST="$REPO_ROOT/.claude-plugin/plugin.json"
 PLAYBOOKS_DIR="$REPO_ROOT/playbooks/skills"
 CODEX_SKILLS_DIR="$REPO_ROOT/skills"
 CLAUDE_SKILLS_DIR="$REPO_ROOT/.claude/skills"
-PERSONALITIES_DIR="$REPO_ROOT/playbooks/personalities"
 README="$REPO_ROOT/_base/README.md"
 GEN_SCRIPT="$REPO_ROOT/_base/scripts/gen-skills-table.sh"
 
@@ -63,8 +67,9 @@ AGENT_ONLY_NAMES=("implementer" "reviewer")
 # Personalities live only in playbooks/personalities/ and must NOT be exposed
 # as skill wrappers (they are role cards, not slash commands).
 PERSONALITY_NAMES=("manager" "builder" "tester" "critic" "researcher")
-# Note: "reviewer" is intentionally both an agent and a personality card; it's
-# allowed in wrappers because of the agent role. We do not flag it here.
+
+# Recognised buckets. Any other top-level dir under skills/ etc. is an orphan.
+BUCKETS=("engineering" "productivity" "misc" "personal")
 
 # Wrappers should fit on a quick read; longer than this is a thinness smell.
 WRAPPER_MAX_LINES=50
@@ -73,7 +78,6 @@ WRAPPER_MAX_LINES=50
 FINDINGS=()
 
 emit() {
-  # emit SEVERITY CHECK_ID PATH [details]
   local severity="$1" check_id="$2" path="$3"
   shift 3
   local details="$*"
@@ -88,7 +92,6 @@ in_array() {
 }
 
 # Extract a frontmatter field from a wrapper SKILL.md.
-# Usage: fm_field <path> <field-name>
 fm_field() {
   local file="$1" field="$2"
   awk -v field="$field" '
@@ -107,10 +110,8 @@ fm_field() {
 }
 
 # Extract quoted trigger phrases from a description.
-# Returns lowercase phrases, one per line, deduplicated.
 quoted_triggers() {
   local desc="$1"
-  # grep -oE exits 1 when there are no matches; suppress so pipefail doesn't kill us.
   printf '%s\n' "$desc" \
     | { grep -oE '"[^"]+"' || true; } \
     | tr -d '"' \
@@ -119,91 +120,150 @@ quoted_triggers() {
 }
 
 # ----------------------------------------------------------------------------
-# Discovery
+# Read the manifest
 # ----------------------------------------------------------------------------
 
-mapfile -t PLAYBOOK_NAMES < <(
-  find "$PLAYBOOKS_DIR" -maxdepth 1 -type f -name '*.md' -printf '%f\n' \
-    | sed 's/\.md$//' \
-    | sort
+if [[ ! -f "$MANIFEST" ]]; then
+  printf 'error: manifest not found at %s\n' "$MANIFEST" >&2
+  exit 2
+fi
+
+declare -A NAME_TO_BUCKET
+while IFS=$'\t' read -r name bucket; do
+  NAME_TO_BUCKET["$name"]="$bucket"
+done < <(python3 - "$MANIFEST" <<'PY'
+import json, sys
+with open(sys.argv[1]) as f:
+    data = json.load(f)
+for p in data["skills"]:
+    parts = p.strip("./").split("/")
+    if len(parts) != 3 or parts[0] != "skills":
+        sys.exit(f"manifest entry malformed: {p}")
+    print(f"{parts[2]}\t{parts[1]}")
+PY
 )
 
-mapfile -t CODEX_NAMES < <(
-  find "$CODEX_SKILLS_DIR" -maxdepth 1 -mindepth 1 -type d -printf '%f\n' \
-    | sort
-)
-
-mapfile -t CLAUDE_NAMES < <(
-  find "$CLAUDE_SKILLS_DIR" -maxdepth 1 -mindepth 1 -type d -printf '%f\n' \
-    | sort
-)
+mapfile -t MANIFEST_NAMES < <(printf '%s\n' "${!NAME_TO_BUCKET[@]}" | sort)
 
 # ----------------------------------------------------------------------------
-# Check 1: pairing — every playbook has both wrappers
+# Check 1: every manifest entry has both wrappers (and a playbook unless agent-only)
 # ----------------------------------------------------------------------------
 
-for name in "${PLAYBOOK_NAMES[@]}"; do
-  if [[ ! -f "$CODEX_SKILLS_DIR/$name/SKILL.md" ]]; then
-    emit BLOCKER missing-codex-wrapper \
-      "skills/$name/SKILL.md" \
-      "playbook exists at playbooks/skills/$name.md"
+for name in "${MANIFEST_NAMES[@]}"; do
+  bucket="${NAME_TO_BUCKET[$name]}"
+
+  codex_wrapper="$CODEX_SKILLS_DIR/$bucket/$name/SKILL.md"
+  claude_wrapper="$CLAUDE_SKILLS_DIR/$bucket/$name/SKILL.md"
+
+  if [[ ! -f "$codex_wrapper" ]]; then
+    emit BLOCKER missing-codex-wrapper "skills/$bucket/$name/SKILL.md" "listed in manifest"
   fi
-  if [[ ! -f "$CLAUDE_SKILLS_DIR/$name/SKILL.md" ]]; then
-    emit BLOCKER missing-claude-wrapper \
-      ".claude/skills/$name/SKILL.md" \
-      "playbook exists at playbooks/skills/$name.md"
+  if [[ ! -f "$claude_wrapper" ]]; then
+    emit BLOCKER missing-claude-wrapper ".claude/skills/$bucket/$name/SKILL.md" "listed in manifest"
+  fi
+
+  if ! in_array "$name" "${AGENT_ONLY_NAMES[@]}"; then
+    if [[ ! -f "$PLAYBOOKS_DIR/$bucket/$name.md" ]] && [[ ! -d "$PLAYBOOKS_DIR/$bucket/$name" ]]; then
+      emit BLOCKER missing-playbook "playbooks/skills/$bucket/$name.md" "manifest entry has no playbook"
+    fi
+  fi
+
+  if in_array "$name" "${PERSONALITY_NAMES[@]}"; then
+    emit BLOCKER personality-in-manifest ".claude-plugin/plugin.json" \
+      "$name is a personality and must not be exposed as a skill"
   fi
 done
 
 # ----------------------------------------------------------------------------
-# Check 2: orphans — every wrapper has a playbook (or is a known agent-only name)
+# Check 2: nothing on filesystem outside the manifest, and buckets are known
 # ----------------------------------------------------------------------------
 
-for name in "${CODEX_NAMES[@]}"; do
-  if [[ ! -f "$PLAYBOOKS_DIR/$name.md" ]] && ! in_array "$name" "${AGENT_ONLY_NAMES[@]}"; then
-    emit BLOCKER orphan-codex-wrapper \
-      "skills/$name/SKILL.md" \
-      "no matching playbooks/skills/$name.md"
-  fi
-done
+# Top-level under each skill tree must be a known bucket.
+check_top_level() {
+  local dir="$1" label="$2"
+  [[ -d "$dir" ]] || return 0
+  while IFS= read -r d; do
+    [[ -z "$d" ]] && continue
+    local bucket="$(basename "$d")"
+    if ! in_array "$bucket" "${BUCKETS[@]}"; then
+      emit BLOCKER unknown-bucket "$label/$bucket/" "expected one of: ${BUCKETS[*]}"
+    fi
+  done < <(find "$dir" -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
+}
 
-for name in "${CLAUDE_NAMES[@]}"; do
-  if [[ ! -f "$PLAYBOOKS_DIR/$name.md" ]] && ! in_array "$name" "${AGENT_ONLY_NAMES[@]}"; then
-    emit BLOCKER orphan-claude-wrapper \
-      ".claude/skills/$name/SKILL.md" \
-      "no matching playbooks/skills/$name.md"
+check_top_level "$CODEX_SKILLS_DIR"  "skills"
+check_top_level "$CLAUDE_SKILLS_DIR" ".claude/skills"
+check_top_level "$PLAYBOOKS_DIR"     "playbooks/skills"
+
+# Wrapper dirs (skills/<bucket>/<name>/, .claude/skills/<bucket>/<name>/)
+scan_wrapper_dirs() {
+  local dir="$1" label="$2"
+  [[ -d "$dir" ]] || return 0
+  while IFS= read -r d; do
+    [[ -z "$d" ]] && continue
+    local bucket="$(basename "$(dirname "$d")")"
+    local name="$(basename "$d")"
+    if [[ -z "${NAME_TO_BUCKET[$name]+x}" ]]; then
+      emit BLOCKER orphan-on-disk "$label/$bucket/$name/" "not listed in manifest"
+    elif [[ "${NAME_TO_BUCKET[$name]}" != "$bucket" ]]; then
+      emit BLOCKER bucket-mismatch "$label/$bucket/$name/" \
+        "manifest places it in ${NAME_TO_BUCKET[$name]}"
+    fi
+  done < <(find "$dir" -mindepth 2 -maxdepth 2 -type d 2>/dev/null)
+}
+
+scan_wrapper_dirs "$CODEX_SKILLS_DIR"  "skills"
+scan_wrapper_dirs "$CLAUDE_SKILLS_DIR" ".claude/skills"
+
+# Playbook files at the bucket level (playbooks/skills/<bucket>/<name>.md)
+while IFS= read -r f; do
+  [[ -z "$f" ]] && continue
+  bucket="$(basename "$(dirname "$f")")"
+  name="$(basename "$f" .md)"
+  if [[ -z "${NAME_TO_BUCKET[$name]+x}" ]]; then
+    emit BLOCKER orphan-on-disk "playbooks/skills/$bucket/$name.md" "not listed in manifest"
+  elif [[ "${NAME_TO_BUCKET[$name]}" != "$bucket" ]]; then
+    emit BLOCKER bucket-mismatch "playbooks/skills/$bucket/$name.md" \
+      "manifest places it in ${NAME_TO_BUCKET[$name]}"
   fi
-done
+done < <(find "$PLAYBOOKS_DIR" -mindepth 2 -maxdepth 2 -type f -name '*.md' 2>/dev/null)
+
+# Stray files at the top level of playbooks/skills/ (legacy flat layout)
+while IFS= read -r f; do
+  [[ -z "$f" ]] && continue
+  rel="${f#$REPO_ROOT/}"
+  emit BLOCKER unbucketed-playbook "$rel" \
+    "playbooks must live under a bucket dir (${BUCKETS[*]})"
+done < <(find "$PLAYBOOKS_DIR" -mindepth 1 -maxdepth 1 -type f -name '*.md' 2>/dev/null)
 
 # ----------------------------------------------------------------------------
-# Check 3: personalities not exposed as skill wrappers
+# Check 3: personality wrappers (still enforced, now bucket-aware)
 # ----------------------------------------------------------------------------
 
 for name in "${PERSONALITY_NAMES[@]}"; do
-  if [[ -d "$CODEX_SKILLS_DIR/$name" ]]; then
-    emit BLOCKER personality-exposed-as-skill \
-      "skills/$name/" \
-      "personality cards must not be slash-invokable"
-  fi
-  if [[ -d "$CLAUDE_SKILLS_DIR/$name" ]]; then
-    emit BLOCKER personality-exposed-as-skill \
-      ".claude/skills/$name/" \
-      "personality cards must not be slash-invokable"
-  fi
+  for bucket in "${BUCKETS[@]}"; do
+    if [[ -d "$CODEX_SKILLS_DIR/$bucket/$name" ]]; then
+      emit BLOCKER personality-exposed-as-skill \
+        "skills/$bucket/$name/" "personality cards must not be slash-invokable"
+    fi
+    if [[ -d "$CLAUDE_SKILLS_DIR/$bucket/$name" ]]; then
+      emit BLOCKER personality-exposed-as-skill \
+        ".claude/skills/$bucket/$name/" "personality cards must not be slash-invokable"
+    fi
+  done
 done
 
 # ----------------------------------------------------------------------------
-# Check 4: per-wrapper validations (name, description, references, thinness,
-#          claude-only fields)
+# Check 4: per-wrapper validations
 # ----------------------------------------------------------------------------
 
 check_wrapper() {
-  local runtime="$1" name="$2" wrapper="$3" expect_disable_model="$4"
+  local runtime="$1" name="$2" bucket="$3" wrapper="$4" expect_disable_model="$5"
   local pretty
   if [[ "$runtime" == "codex" ]]; then
-    pretty="skills/$name/SKILL.md"
+    pretty="skills/$bucket/$name/SKILL.md"
   else
-    pretty=".claude/skills/$name/SKILL.md"
+    pretty=".claude/skills/$bucket/$name/SKILL.md"
   fi
 
   [[ -f "$wrapper" ]] || return 0
@@ -235,32 +295,29 @@ check_wrapper() {
     emit STYLE wrapper-too-long "$pretty" "lines=$lines max=$WRAPPER_MAX_LINES"
   fi
 
-  # Reference check: wrapper should mention its playbook (skip for agent-only names).
+  # Reference check: wrapper should mention its playbook (skip for agent-only).
   if ! in_array "$name" "${AGENT_ONLY_NAMES[@]}"; then
-    if ! grep -qE "playbooks/skills/$name(\.md|/)" "$wrapper"; then
+    if ! grep -qE "playbooks/skills/$bucket/$name(\.md|/)" "$wrapper"; then
       emit DRIFT missing-playbook-reference "$pretty" \
-        "wrapper does not reference playbooks/skills/$name(.md|/)"
+        "wrapper does not reference playbooks/skills/$bucket/$name(.md|/)"
     fi
   fi
 }
 
-for name in "${CODEX_NAMES[@]}"; do
-  check_wrapper codex "$name" "$CODEX_SKILLS_DIR/$name/SKILL.md" no
-done
-
-for name in "${CLAUDE_NAMES[@]}"; do
-  check_wrapper claude "$name" "$CLAUDE_SKILLS_DIR/$name/SKILL.md" yes
+for name in "${MANIFEST_NAMES[@]}"; do
+  bucket="${NAME_TO_BUCKET[$name]}"
+  check_wrapper codex  "$name" "$bucket" "$CODEX_SKILLS_DIR/$bucket/$name/SKILL.md"   no
+  check_wrapper claude "$name" "$bucket" "$CLAUDE_SKILLS_DIR/$bucket/$name/SKILL.md"  yes
 done
 
 # ----------------------------------------------------------------------------
 # Check 5: description trigger-keyword drift between Codex and Claude wrappers
 # ----------------------------------------------------------------------------
-# Heuristic: extract quoted "..." phrases from each side, lowercase, compare
-# as sets. Any phrase present on one side but not the other is drift.
 
-for name in "${PLAYBOOK_NAMES[@]}"; do
-  codex_wrapper="$CODEX_SKILLS_DIR/$name/SKILL.md"
-  claude_wrapper="$CLAUDE_SKILLS_DIR/$name/SKILL.md"
+for name in "${MANIFEST_NAMES[@]}"; do
+  bucket="${NAME_TO_BUCKET[$name]}"
+  codex_wrapper="$CODEX_SKILLS_DIR/$bucket/$name/SKILL.md"
+  claude_wrapper="$CLAUDE_SKILLS_DIR/$bucket/$name/SKILL.md"
   [[ -f "$codex_wrapper" && -f "$claude_wrapper" ]] || continue
 
   codex_desc="$(fm_field "$codex_wrapper" description || true)"
@@ -270,19 +327,17 @@ for name in "${PLAYBOOK_NAMES[@]}"; do
   codex_trig="$(quoted_triggers "$codex_desc")"
   claude_trig="$(quoted_triggers "$claude_desc")"
 
-  # Phrases only in Claude
   only_claude="$(comm -23 <(printf '%s\n' "$claude_trig") <(printf '%s\n' "$codex_trig") | paste -sd ',' -)"
   if [[ -n "$only_claude" ]]; then
     emit DRIFT trigger-only-in-claude \
-      "skills/$name/SKILL.md" \
+      "skills/$bucket/$name/SKILL.md" \
       "Claude wrapper has trigger phrases not in Codex wrapper: [$only_claude]"
   fi
 
-  # Phrases only in Codex
   only_codex="$(comm -13 <(printf '%s\n' "$claude_trig") <(printf '%s\n' "$codex_trig") | paste -sd ',' -)"
   if [[ -n "$only_codex" ]]; then
     emit DRIFT trigger-only-in-codex \
-      ".claude/skills/$name/SKILL.md" \
+      ".claude/skills/$bucket/$name/SKILL.md" \
       "Codex wrapper has trigger phrases not in Claude wrapper: [$only_codex]"
   fi
 done
@@ -296,11 +351,6 @@ if [[ -x "$GEN_SCRIPT" ]]; then
   trap 'rm -f "$tmp_readme"' EXIT
   cp "$README" "$tmp_readme"
 
-  # Run the generator against a temp copy without modifying the real README.
-  # We do that by swapping the README path via a subshell trick: copy real → tmp,
-  # run generator with README pointed at tmp by sandboxing through a temp repo
-  # symlink is overkill. Instead: run the generator (it edits the real README
-  # in place), capture diff, then revert if dirty.
   pre_hash="$(sha256sum "$README" | awk '{print $1}')"
   if "$GEN_SCRIPT" >/dev/null 2>&1; then
     post_hash="$(sha256sum "$README" | awk '{print $1}')"
@@ -308,7 +358,6 @@ if [[ -x "$GEN_SCRIPT" ]]; then
       emit DRIFT skills-table-out-of-date \
         "_base/README.md" \
         "_base/scripts/gen-skills-table.sh produced changes — run it and commit"
-      # Restore so this check is non-destructive.
       cp "$tmp_readme" "$README"
     fi
   else
@@ -332,15 +381,24 @@ for f in "${FINDINGS[@]}"; do
 done
 
 if (( ${#FINDINGS[@]} > 0 )); then
-  # Sort by severity (BLOCKER < DRIFT < STYLE alphabetically — perfect), then by check_id.
   printf '%s\n' "${FINDINGS[@]}" | sort
   printf '\n'
 fi
 
 total=${#FINDINGS[@]}
 if (( total == 0 )); then
-  printf 'OK  skills/wrappers/table fully in sync (%d playbooks, %d codex, %d claude wrappers)\n' \
-    "${#PLAYBOOK_NAMES[@]}" "${#CODEX_NAMES[@]}" "${#CLAUDE_NAMES[@]}"
+  # Count per-bucket for the OK line
+  declare -A BUCKET_COUNTS
+  for n in "${MANIFEST_NAMES[@]}"; do
+    b="${NAME_TO_BUCKET[$n]}"
+    BUCKET_COUNTS[$b]=$((${BUCKET_COUNTS[$b]:-0}+1))
+  done
+  bucket_summary=""
+  for b in "${BUCKETS[@]}"; do
+    bucket_summary+="$b=${BUCKET_COUNTS[$b]:-0} "
+  done
+  printf 'OK  manifest has %d skills (%s)\n' \
+    "${#MANIFEST_NAMES[@]}" "${bucket_summary% }"
   exit 0
 fi
 

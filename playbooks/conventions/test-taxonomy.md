@@ -2,7 +2,7 @@
 
 ## Purpose
 
-A shared vocabulary for the layers of tests this template recognizes. Used by `playbooks/skills/tdd.md` (workflow) and any reviewer or test-writing role that needs to name what kind of test it is producing. On Claude Code, the `spec-validator` subagent (`.claude/agents/spec-validator.md`) is one such consumer — it writes the acceptance layer of this taxonomy. Codex sessions apply the taxonomy directly from the main thread when writing tests.
+A shared vocabulary for the layers of tests this template recognizes. Used by `playbooks/skills/engineering/tdd.md` (workflow) and any reviewer or test-writing role that needs to name what kind of test it is producing. On Claude Code, the `spec-validator` subagent (`.claude/agents/spec-validator.md`) is one such consumer — it writes the acceptance layer of this taxonomy. Codex sessions apply the taxonomy directly from the main thread when writing tests.
 
 This is a **convention**, not a workflow. It names the layers; `tdd.md` names the loop that produces them. A team can run TDD without referencing this taxonomy, and can name layers without running TDD.
 
