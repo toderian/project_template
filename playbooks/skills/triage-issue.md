@@ -2,7 +2,32 @@
 
 ## Purpose
 
-Investigate a reported problem, find its root cause, and create a GitHub issue with a TDD fix plan. This is a mostly hands-off workflow - minimize questions to the user.
+Investigate a reported problem, find its root cause, and create a GitHub issue with a TDD fix plan. This is a mostly hands-off workflow — minimize questions to the user.
+
+The output is an issue that has cleared triage: it carries a clear category label (`bug` or `enhancement`) and is in the `ready-for-agent` state, meaning a downstream agent (or human) can pick it up without further investigation.
+
+## Triage roles
+
+Two-role labelling. Every triaged issue should carry exactly one **category** role and one **state** role.
+
+Two **category** roles:
+
+- `bug` — something is broken
+- `enhancement` — new feature or improvement
+
+Five **state** roles:
+
+- `needs-triage` — maintainer needs to evaluate
+- `needs-info` — waiting on reporter for more information
+- `ready-for-agent` — fully specified, ready for an AFK agent to implement
+- `ready-for-human` — needs human implementation (judgment calls, external access, manual testing)
+- `wontfix` — will not be actioned
+
+These are canonical role names — the actual label strings used by the project's issue tracker may differ. If the project has a mapping doc (e.g. `docs/agents/triage-labels.md`), use it; otherwise propose the canonical names to the maintainer.
+
+State transitions: an unlabeled issue normally goes to `needs-triage` first; from there it moves to `needs-info`, `ready-for-agent`, `ready-for-human`, or `wontfix`. `needs-info` returns to `needs-triage` once the reporter replies.
+
+**Scope of this playbook.** The process below covers the `needs-triage → ready-for-agent` transition for `bug` and `enhancement` issues — explore, generate a TDD fix plan, post an agent-ready issue. The other transitions (moving to `needs-info`, `wontfix`, etc.) are state changes the maintainer drives directly; flag transitions that look unusual rather than executing them silently.
 
 ## Process
 
@@ -96,4 +121,4 @@ A numbered list of RED-GREEN cycles:
 
 </issue-template>
 
-After creating the issue, print the issue URL and a one-line summary of the root cause.
+After creating the issue, print the issue URL, a one-line summary of the root cause, and the assigned roles (category + state — typically `bug` + `ready-for-agent` or `enhancement` + `ready-for-agent`).
