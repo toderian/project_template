@@ -118,6 +118,20 @@ The default curated list is hard-coded at the top of that script under `PLUGINS=
 
 After the installer finishes, tell the user to **restart Claude Code** so the plugins are fetched and enabled.
 
+### 3c — Link skills globally (optional)
+
+By default, Claude Code only loads `.claude/skills/` from within this repo. If the user wants the skills available in Claude Code sessions opened from **any** directory, run the global linker:
+
+```bash
+./scripts/link-skills.sh
+```
+
+It reads `.claude-plugin/plugin.json` and symlinks each active skill from `.claude/skills/<bucket>/<name>/` into `~/.claude/skills/<name>/` (flat, like Codex). Re-running is idempotent. To unlink later, `rm ~/.claude/skills/<name>` for the specific skill or `rm -rf ~/.claude/skills` to remove all.
+
+**Check:** `ls ~/.claude/skills/ | wc -l` matches the active-skill count in the manifest (`python3 -c 'import json; print(len(json.load(open(".claude-plugin/plugin.json"))["skills"]))'`).
+
+Skip this step if the user only uses the skills inside this repo.
+
 ---
 
 ## Phase 4 — Codex setup (run **only if you are Codex**)
