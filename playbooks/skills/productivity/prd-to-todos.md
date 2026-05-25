@@ -60,16 +60,22 @@ Iterate until approved.
 
 ### 5. Create todo files
 
-For each approved item, create a file in `docs/_todos/` following the full format in `playbooks/conventions/todo-convention.md`, including:
+For each approved item, create a file in `docs/_todos/` named `T-NNN-<TYPE>_<short-desc>.md` following
+the full format in `playbooks/conventions/todo-convention.md`, including:
 
-- Metadata table with `Source: prd-to-todos`, `Source ref` pointing to the PRD, `Priority`, and `Blocked by` (referencing other todo filenames if dependent)
+- Metadata table with `Task ID` (next id per the convention's ID counters), `Type` (`F`/`D`/`C`/`R`),
+  `Area` (a slug from `docs/_areas.md`, defining a new one with the user if needed), `Source:
+  prd-to-todos`, `Source ref` pointing to the PRD, `Priority`, and `Blocked by` (referencing other
+  todo filenames if dependent)
 - Phases with per-phase checklists
 - Acceptance criteria
 - Related tests section (list known tests, mark unknown ones as TBD)
 - Empty execution log section (will be filled during execution)
 - Empty completion summary section
 
-Use the current datetime for both filename prefix and `Created` field. Space filenames a few seconds apart so they sort in dependency order.
+Assign consecutive Task IDs in dependency order so they sort naturally. Use the current datetime for the
+`Created` field. After creating the files, add their rows to `docs/_active.md` (or run
+`scripts/sync-todo-ledgers.sh`).
 
 ### 6. Report
 

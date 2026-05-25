@@ -193,7 +193,7 @@ When a task spans many sessions, add lightweight artifacts such as:
 Prefer structured files for task state when possible.
 If this template repo is used directly, start from the files in `playbooks/templates/`.
 
-For work that produces actionable deliverables (PRDs, triage, planning), use the todo convention in `playbooks/conventions/todo-convention.md`. Todos live in `docs/_todos/` and track phases, acceptance criteria, test results, and execution history. Run `/init` to set up the structure.
+For work that produces actionable deliverables (PRDs, triage, planning), use the todo convention in `playbooks/conventions/todo-convention.md`. Ideas flow through two layers: capture a raw idea into the **inbox** (`docs/_inbox/`, `I-NNN`) with `/capture-idea`, then **triage** it into a typed todo with `/triage-inbox`. Todos live in `docs/_todos/` named `T-NNN-<TYPE>_<desc>.md` — `T-NNN` is the stable id, `TYPE` is `F` feature / `D` debug / `C` chore / `R` research — and track phases, acceptance criteria, test results, and execution history. Each todo is classified by an `Area` from the registry in `docs/_areas.md` (areas are defined collaboratively, not from a fixed list). Two derived ledgers index the work: `docs/_active.md` (open + in_progress) and `docs/_done.md` (completed, newest-first); rebuild them any time with `scripts/sync-todo-ledgers.sh`. The naming/archiving rules are enforced for Claude by hooks in `.claude/hooks/`, but the conventions are the cross-tool source of truth — Codex (which has no hooks) follows the same playbooks. Run `/init` to set up the structure.
 
 ## Definition of done
 

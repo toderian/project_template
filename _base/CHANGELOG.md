@@ -13,6 +13,30 @@ For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
 
+### Add inbox capture layer + typed/indexed todos + ledgers
+
+Todos gained a capture layer and stable identity. Ideas now flow `inbox → triage → todo`:
+
+- **Inbox** (`docs/_inbox/`, archived to `docs/_inbox_archived/`) — frictionless idea capture, one
+  `I-NNN_<desc>.md` file per idea, via the new `/capture-idea` skill. The new `/triage-inbox` skill
+  promotes worthwhile ideas into full todos or drops them.
+- **Typed, indexed todos** — todo filenames changed from `<datetime>_<desc>.md` to
+  `T-NNN-<TYPE>_<desc>.md`, where `T-NNN` is a stable handle and `TYPE` is `F` feature / `D` debug /
+  `C` chore / `R` research. Three metadata fields added: `Task ID`, `Type`, `Area`.
+- **Areas registry** (`docs/_areas.md`) — todos/ideas are classified by an `Area` slug, defined
+  collaboratively rather than from a fixed list.
+- **Two ledgers** — `docs/_active.md` (open + in_progress) and `docs/_done.md` (completed, newest at
+  the top), each row linking to its source file. New tool-agnostic `scripts/sync-todo-ledgers.sh`
+  rebuilds both from the todo files (works for Codex, which has no hooks).
+- **Hooks** — `block-bad-todo-name.sh` now validates both `T-NNN-<TYPE>` and `I-NNN` names;
+  `remind-archive-done-todo.sh` now nudges archiving for both the todo and inbox layers.
+
+**Downstream impact:** the todo filename format changed — existing `<datetime>_<desc>.md` todos still
+work but won't match the new hook; rename them to `T-NNN-<TYPE>_<desc>.md` to silence it, or leave
+archived ones as-is. Run `/init` to create the new `docs/` files (`_inbox/`, `_inbox_archived/`,
+`_areas.md`, `_active.md`, `_done.md`). New skills `capture-idea` and `triage-inbox` are added to the
+plugin manifest — re-run `scripts/link-skills.sh` / `skills/install-codex-skills.sh` to install them.
+
 ### Fix dual-runtime wiring for the PROJECT.md / `/align` rollout
 
 Follow-up to the four preceding entries (block-write-sensitive hook, test-taxonomy convention, PROJECT.md template, `/align` skill). Validation against the repo's Codex/Claude dual-runtime ideology surfaced three issues:

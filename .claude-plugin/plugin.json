@@ -27,6 +27,7 @@
     "./skills/personal/edit-article",
     "./skills/personal/obsidian-vault",
     "./skills/productivity/align",
+    "./skills/productivity/capture-idea",
     "./skills/productivity/grill-me",
     "./skills/productivity/handoff",
     "./skills/productivity/planning-workflow",
@@ -35,6 +36,7 @@
     "./skills/productivity/prd-to-todos",
     "./skills/productivity/qa",
     "./skills/productivity/subagent-protocol",
+    "./skills/productivity/triage-inbox",
     "./skills/productivity/write-a-prd",
     "./skills/productivity/write-a-skill"
   ]
