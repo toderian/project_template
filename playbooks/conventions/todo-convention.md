@@ -15,6 +15,7 @@ todo here. Lifecycle: `Inbox idea (I-NNN) → triage → Todo (T-NNN, typed) →
 ```
 docs/
 ├── _areas.md            # Registry of feature/areas (slug + description)
+├── _roadmap.md          # Plan of execution: Now / Next / Later (see /roadmap)
 ├── _active.md           # Ledger of open + in_progress todos (the backlog view)
 ├── _done.md             # Ledger of completed/cancelled todos, newest-first
 ├── _inbox/              # Raw ideas (see inbox-convention.md)
@@ -299,6 +300,14 @@ Both carry a **File** column whose cell is a relative markdown link (e.g.
 the source. Keep them current as part of each status change (steps below). They are fully derivable
 from the todo files, so `scripts/sync-todo-ledgers.sh` can rebuild them at any time — run it if you
 suspect drift or after bulk edits. This works for Codex too, which has no hooks to catch mistakes.
+
+## Roadmap
+
+`docs/_roadmap.md` is the **plan of execution**: which todos/ideas happen Now, Next, and Later, in the
+order intended. Unlike the ledgers, it is *not* derived from status — the horizon placement is a
+deliberate human decision and is **not** rebuilt by `scripts/sync-todo-ledgers.sh`. Maintain it with the
+`/roadmap` skill, which renders each todo as a collapsible block (summary = the plan, expanded =
+phases). Promote inbox ideas with `/triage-inbox` before scheduling a `T-NNN` into `Now`.
 
 ## Updating todos during execution
 

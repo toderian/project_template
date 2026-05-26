@@ -17,6 +17,7 @@ creating those; only fill in what's missing.
 ```
 docs/
 ├── _areas.md            # areas registry (seed with header + empty table)
+├── _roadmap.md          # Now/Next/Later plan of execution (seed with empty horizons)
 ├── _active.md           # open + in_progress ledger (seed with header + table header)
 ├── _done.md             # completed/cancelled ledger (seed with header + table header)
 ├── _inbox/
@@ -40,6 +41,7 @@ Report what was created. Remind the user that:
 
 - `/capture-idea` records an idea into `docs/_inbox/` instantly (`I-NNN`)
 - `/triage-inbox` promotes inbox ideas into typed `T-NNN` todos
+- `/roadmap` maintains `docs/_roadmap.md` — the Now/Next/Later plan of execution
 - Any skill can produce todos following `playbooks/conventions/todo-convention.md` (`/write-a-prd`,
   `/prd-to-todos`, planning)
 - Todos are typed `F`/`D`/`C`/`R` and classified by `Area` (see `docs/_areas.md`)

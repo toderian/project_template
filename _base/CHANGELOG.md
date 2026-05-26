@@ -13,6 +13,27 @@ For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
 
+### Add describe-component, roadmap, and duplicate-aware capture
+
+Built on the inbox/todo system:
+
+- **`describe-component`** (engineering) — generates a structural `CONTEXT.md` for a system component
+  (responsibility, public interface, key files, in/out dependencies, data owned, invariants, tests,
+  links to domain terms). Distinct from the root domain-glossary `CONTEXT.md` (`grill-with-docs`).
+  Storage follows a per-repo rule: `CONTEXT_DOCS_DIR` in `project.env` (unset → co-located with the
+  component; set → written there, origin-encoded — for describing template-inherited/vendored repos
+  without polluting them).
+- **`roadmap`** (productivity) + **`docs/_roadmap.md`** — a Now/Next/Later plan of execution across all
+  todos/ideas. Horizon placement is human intent (not derived from status, not rebuilt by the ledger
+  script). Each todo renders as a collapsible `<details>` block (summary = plan, expanded = phases).
+- **Duplicate-aware capture** — `capture-idea` now scans inbox + active todos + all `CONTEXT.md` files
+  (the component "map") before recording, and offers to expand an existing item instead of creating a
+  near-duplicate. The fast path is preserved: it only interrupts on a plausible match.
+
+**Downstream impact:** `/init` now also scaffolds `docs/_roadmap.md`. Two skills added to the plugin
+manifest (`describe-component`, `roadmap`) — re-run the install scripts to pick them up. New optional
+`CONTEXT_DOCS_DIR` setting in `project.env`.
+
 ### Add inbox capture layer + typed/indexed todos + ledgers
 
 Todos gained a capture layer and stable identity. Ideas now flow `inbox → triage → todo`:
