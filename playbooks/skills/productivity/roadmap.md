@@ -14,12 +14,10 @@ the roadmap is the portfolio view that decides *which* changes happen and *when*
 - **Horizons** — `Now` (actively being worked or up next), `Next` (committed, not started), `Later`
   (someday / not yet detailed). Placement is a deliberate human decision, never auto-derived from status.
 - **Items** — each line references an area-prefixed task ID such as `AUTH-001` or `T-001`, or an
-  `I-NNN` idea not yet promoted. A task item is rendered as a collapsible `<details>` block so its
-  phases/subtasks are available on demand without cluttering the high-level view. A raw idea is a plain
-  one-liner.
-- **Source of truth** — the task files remain authoritative for *content* (phases, status). The roadmap
-  owns only *placement and ordering*. When you refresh, re-read the tasks to update the rendered detail,
-  but keep each item's horizon unless the user moves it.
+  `I-NNN` idea not yet promoted. Keep item lines short; the roadmap owns placement and ordering, not
+  task detail.
+- **Source of truth** — the task files remain authoritative for status, priority, phases, acceptance
+  criteria, and completion state. The roadmap owns only *placement and ordering*.
 
 ## Process
 
@@ -32,11 +30,12 @@ When the user wants to plan or re-sequence:
    actually intend to tackle next — don't infer the plan from priority alone.
 3. Write `docs/tasks_manager/_roadmap.md` (format below), preserving existing placements the user didn't change.
 
-### Refresh (keep detail current without re-planning)
+### Refresh (keep placement valid without re-planning)
 
-Re-read the task files for items already on the roadmap and update each collapsible block's
-status/phase checkboxes to match the source task. Do **not** move items between horizons. Drop items
-whose task is `done`/`cancelled` (they live in `docs/tasks_manager/_done.md` now) and mention them in the summary.
+Re-read the task files for items already on the roadmap. Do **not** copy status, phase checklists, or
+other detail into the roadmap. Do **not** move items between horizons unless the user asks. Drop items
+whose task is `done`/`cancelled` (they live in `docs/tasks_manager/_done.md` now) and mention them in
+the summary.
 
 ### Report
 
@@ -47,31 +46,20 @@ Summarize the plan: counts per horizon, what's at the top of Now, and any items 
 ````md
 ## Now
 
-<details><summary><b>AUTH-002 (D) fix slow login</b> - auth · in_progress</summary>
-
-- [x] Phase 1: profile
-- [x] Phase 2: optimize query
-- [ ] Phase 3: verify
-</details>
-
-<details><summary><b>UI-001 (F) dark mode toggle</b> - ui · open</summary>
-
-- [ ] Phase 1: add toggle
-- [ ] Phase 2: persist
-</details>
+- AUTH-002
+- UI-001
 
 ## Next
 
-- UI-002 (F) font-size control - ui
+- UI-002
 
 ## Later
 
-- I-007 weekly digest email (idea)
+- I-007
 ````
 
-The `<summary>` carries the at-a-glance plan: `<PREFIX>-NNN (TYPE) title - area · status`. Keep a blank
-line after `</summary>` so the checklist renders. Use a plain bullet (no `<details>`) for ideas and
-for tasks whose phases you do not want to surface.
+Optional notes are fine when they explain planning intent, but the stable part of the format is the ID.
+Do not duplicate task status, phase checklists, or acceptance detail here.
 
 ## Relationship to other files
 
@@ -85,6 +73,6 @@ for tasks whose phases you do not want to surface.
 
 - Horizons reflect the user's actual intent and ordering, not just priority sort.
 - Every referenced `<PREFIX>-NNN`/`I-NNN` exists; done/cancelled items are off the roadmap.
-- Collapsed summaries are readable as a standalone plan; expanded detail matches the source tasks.
-- Ambiguous or missing task references reported by `scripts/sync-todo-ledgers.sh` are reconciled rather
-  than guessed.
+- Roadmap lines are placement references, not copied task state.
+- Ambiguous or missing task references reported by `scripts/sync-todo-ledgers.sh --check` are
+  reconciled rather than guessed.

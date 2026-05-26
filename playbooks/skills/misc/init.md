@@ -4,8 +4,9 @@
 
 Initialize the project's `docs/` layout: the **task manager** (`docs/tasks_manager/` - inbox capture
 layer, committed tasks, areas registry, ledgers, and roadmap), **areas** (`docs/areas/` - generated
-area status plus human notes), **resources** (`docs/resources/` - project documentation), and
-**archive** (`docs/archive/` - frozen docs/resources). Seeded from the `_base/docs/` template.
+area status plus human notes), **plans** (`docs/_plans/` - durable implementation plans),
+**resources** (`docs/resources/` - project documentation), and **archive** (`docs/archive/` - frozen
+docs/resources). Seeded from the `_base/docs/` template.
 
 ## Process
 
@@ -22,17 +23,14 @@ hand-authoring the files — this keeps every project's structure identical and 
 upstream. Copy without clobbering anything already present:
 
 ```bash
-mkdir -p docs
-cp -rn _base/docs/tasks_manager docs/   # task manager: ledgers, registry, roadmap, inbox/task dirs
-cp -rn _base/docs/areas         docs/   # generated area overview + area page templates
-cp -rn _base/docs/resources     docs/   # durable project documentation
-cp -rn _base/docs/archive       docs/   # frozen docs/resources
+scripts/seed-docs.sh
 ```
 
 Resulting layout:
 
 ```
 docs/
+├── _plans/              # durable implementation plans
 ├── tasks_manager/        # seeded from _base/docs/tasks_manager/
 │   ├── _areas.md         #   area registry: Area | Prefix | Description | Page
 │   ├── _roadmap.md       #   Now/Next/Later plan of execution
@@ -52,8 +50,8 @@ The `.gitkeep` files come along with the copy so the empty dirs stay tracked by 
 run `scripts/sync-todo-ledgers.sh` to confirm the ledgers are valid.
 
 If `_base/docs/` is unavailable (e.g. a repo that vendored only part of the template), fall back to
-creating the dirs with `.gitkeep` and seeding `_areas.md`/`_active.md`/`_done.md`/`_roadmap.md` plus
-`docs/areas/_overview.md` by hand - see `playbooks/conventions/todo-convention.md` and
+creating the dirs with `.gitkeep` and seeding `_areas.md`/`_active.md`/`_done.md`/`_roadmap.md`,
+`docs/_plans/`, and `docs/areas/_overview.md` by hand - see `playbooks/conventions/todo-convention.md` and
 `playbooks/conventions/inbox-convention.md` for the exact shapes.
 
 ### 3. Confirm
@@ -66,7 +64,8 @@ Report what was created. Remind the user that:
 - `/roadmap` maintains `docs/tasks_manager/_roadmap.md` — the Now/Next/Later plan of execution
 - Any skill can produce tasks following `playbooks/conventions/todo-convention.md` (`/write-a-prd`,
   `/prd-to-todos`, planning)
+- Durable implementation plans live in `docs/_plans/`
 - Tasks are typed `F`/`D`/`C`/`R` and classified by `Area` + `Prefix` (see
   `docs/tasks_manager/_areas.md`)
 - Completed tasks move to `_todos_archived/` and get a row in `docs/tasks_manager/_done.md`;
-  `scripts/sync-todo-ledgers.sh` rebuilds ledgers and generated area status blocks
+  `/complete-task` performs the closeout, and `scripts/sync-todo-ledgers.sh --check` validates the result

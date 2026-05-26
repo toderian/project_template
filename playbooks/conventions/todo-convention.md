@@ -20,6 +20,7 @@ another task-producing skill when the work is clear enough to become a full task
 
 ```text
 docs/
+├── _plans/                 # Durable implementation plans that outlive a session
 ├── tasks_manager/
 │   ├── _areas.md            # Area registry: Area | Prefix | Description | Page
 │   ├── _roadmap.md          # Global Now / Next / Later execution plan
@@ -68,14 +69,18 @@ The creation datetime is not in the filename; it lives in `Created`.
 
 Task counters are monotonic per prefix and never reused. To assign the next ID:
 
-```text
-next <PREFIX> = highest <PREFIX>-NNN found across docs/tasks_manager/_todos/ and
-docs/tasks_manager/_todos_archived/, plus 1
+```bash
+scripts/reserve-work-item.sh task <PREFIX> <TYPE> <short-description>
 ```
 
-Scan both active and archived task directories so archived tasks still reserve their numbers. Inbox IDs
-use the separate `I-NNN` counter from `playbooks/conventions/inbox-convention.md`; promoting `I-007`
-assigns a fresh task ID and records `Source ref: I-007`.
+The helper atomically creates the empty placeholder file and prints its path, so parallel agents cannot
+claim the same ID. Fill the placeholder immediately with the full task template. If an agent is
+interrupted after reservation, `scripts/sync-todo-ledgers.sh --check` catches the malformed placeholder.
+
+Under the hood, the helper scans both active and archived task directories so archived tasks still
+reserve their numbers. Inbox IDs use the separate `I-NNN` counter from
+`playbooks/conventions/inbox-convention.md`; promoting `I-007` assigns a fresh task ID and records
+`Source ref: I-007`.
 
 ## Area registry
 
@@ -264,9 +269,10 @@ Creation steps:
 
 1. Read this convention.
 2. Pick or confirm an area from `docs/tasks_manager/_areas.md`.
-3. Assign the next task ID for that area's prefix. Use `T` only for global/cross-area/default work.
+3. Reserve the task filename with `scripts/reserve-work-item.sh task <PREFIX> <TYPE> <desc>`. Use `T`
+   only for global/cross-area/default work.
 4. Pick a type (`F`, `D`, `C`, or `R`) and priority (`high`, `medium`, or `low`).
-5. Create one file in `docs/tasks_manager/_todos/` named `<PREFIX>-NNN-<TYPE>_<desc>.md`.
+5. Fill the reserved file in `docs/tasks_manager/_todos/` named `<PREFIX>-NNN-<TYPE>_<desc>.md`.
 6. Fill the full template: brief, phases, acceptance criteria, related tests, follow-ups, execution log,
    completion harvest, and completion summary placeholders.
 7. Set `Source` and `Source ref`.
@@ -281,9 +287,10 @@ Keep tasks atomic: one clear deliverable per file.
 are deliberate human decisions, not derived from status or priority. Priority stays `high`, `medium`, or
 `low`; roadmap order decides the actual execution sequence.
 
-Roadmap items may reference task IDs like `AUTH-001` or raw inbox ideas like `I-007`. Ambiguous or
-missing references reported by `scripts/sync-todo-ledgers.sh` must be fixed by a human or agent; do not
-guess which task was meant.
+The roadmap is placement-only. It stores task IDs like `AUTH-001` and raw inbox ideas like `I-007` in
+the intended horizon and order; task files remain authoritative for status, phases, priority, and other
+detail. Ambiguous or missing references reported by `scripts/sync-todo-ledgers.sh --check` must be
+fixed by a human or agent; do not guess which task was meant.
 
 ## Ledgers and area sync
 
@@ -298,6 +305,11 @@ Task files remain the source of truth. `scripts/sync-todo-ledgers.sh` derives:
 The sync tooling edits only generated marker blocks inside area pages. Human-authored context outside
 those markers is preserved. Missing area pages are created from the standard template.
 
+Use `scripts/sync-todo-ledgers.sh` to regenerate. Use `scripts/sync-todo-ledgers.sh --check` in CI or
+agent handoff validation; it is read-only and fails on duplicate IDs, malformed metadata,
+status-directory mismatch, unregistered areas/prefixes, bad roadmap references, stale generated files,
+and archived tasks without an explicit completion harvest and summary.
+
 ## Completion and archive
 
 Status transitions:
@@ -308,7 +320,7 @@ open -> cancelled -> archive
 in_progress -> cancelled -> archive
 ```
 
-Before changing a task to `done` or `cancelled`:
+Prefer `/complete-task` for this workflow. Before changing a task to `done` or `cancelled`:
 
 1. Verify acceptance criteria and related tests.
 2. Append a final execution log entry.
@@ -321,6 +333,7 @@ Before changing a task to `done` or `cancelled`:
 5. Change `Status`.
 6. Move the file to `docs/tasks_manager/_todos_archived/`.
 7. Run `scripts/sync-todo-ledgers.sh`.
+8. Run `scripts/sync-todo-ledgers.sh --check`.
 
 Claude hooks may block or remind when a terminal task is missing a completion harvest or remains in the
 active `_todos/` directory. Codex has no hooks, so Codex agents must run the same validation manually.

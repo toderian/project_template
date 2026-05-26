@@ -41,13 +41,14 @@ The capture datetime is not in the filename — it lives in the `Captured` field
 
 ## ID counters
 
-```
-next I = (highest I-NNN found across docs/tasks_manager/_inbox/ AND docs/tasks_manager/_inbox_archived/) + 1
+```bash
+scripts/reserve-work-item.sh inbox <short-description>
 ```
 
-Scan both directories so archived ideas still reserve their numbers. Inbox IDs and task IDs are
-independent: promoting `I-007` to a task assigns a *fresh* area-prefixed task ID, and the task records
-`Source ref: I-007` to keep the trail.
+The helper atomically creates the empty placeholder file and prints its path. Fill the placeholder
+immediately with the inbox template. It scans both inbox directories so archived ideas still reserve
+their numbers. Inbox IDs and task IDs are independent: promoting `I-007` to a task assigns a *fresh*
+area-prefixed task ID, and the task records `Source ref: I-007` to keep the trail.
 
 ## File format
 
@@ -78,8 +79,8 @@ Field notes:
 
 When the user shares an idea to capture:
 
-1. Compute the next `I-NNN`.
-2. Write `docs/tasks_manager/_inbox/I-NNN_<short-desc>.md` with `Captured` = now and `Status: new`.
+1. Reserve the file with `scripts/reserve-work-item.sh inbox <short-desc>`.
+2. Fill the reserved `docs/tasks_manager/_inbox/I-NNN_<short-desc>.md` with `Captured` = now and `Status: new`.
 3. Best-guess the `Area` from `docs/tasks_manager/_areas.md`; use `global` rather than interrogating the user.
 4. Capture the idea text in one or two sentences. Confirm briefly; don't quiz.
 

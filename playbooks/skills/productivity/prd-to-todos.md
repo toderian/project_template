@@ -6,8 +6,7 @@ Extract actionable tasks from an existing PRD and create task files following th
 
 ## Prerequisites
 
-The project must have `docs/tasks_manager/_todos/` and `docs/tasks_manager/_areas.md` initialized. If
-they do not exist, run `/init` first.
+The project must have `docs/tasks_manager/` initialized. If it does not exist, run `/init` first.
 
 ## Process
 
@@ -63,8 +62,8 @@ Iterate until approved.
 
 ### 5. Create task files
 
-For each approved item, create a file in `docs/tasks_manager/_todos/` named
-`<PREFIX>-NNN-<TYPE>_<short-desc>.md` following the full format in
+For each approved item, reserve a file in `docs/tasks_manager/_todos/` named
+`<PREFIX>-NNN-<TYPE>_<short-desc>.md` and fill it following the full format in
 `playbooks/conventions/todo-convention.md`, including:
 
 - Metadata table with `Task ID` (next id for the area's prefix), `Type` (`F`/`D`/`C`/`R`),
@@ -77,10 +76,11 @@ For each approved item, create a file in `docs/tasks_manager/_todos/` named
 - Related tests section (list known tests, or `N/A - <reason>`)
 - Follow-ups section
 - Empty execution log section (will be filled during execution)
-- Empty completion harvest section
-- Empty completion summary section
+- Completion harvest placeholder with explicit `None` rows
+- Completion summary placeholder
 
-Assign consecutive IDs per prefix in dependency order so they sort naturally within each area. Use the
+Reserve each file with `scripts/reserve-work-item.sh task <PREFIX> <TYPE> <short-desc>` in dependency
+order so IDs sort naturally within each area. Fill each reserved placeholder immediately. Use the
 current datetime for the `Created` field. After creating the files, run `scripts/sync-todo-ledgers.sh`.
 If the user wants the PRD scheduled, place the new task IDs on `docs/tasks_manager/_roadmap.md` in Now,
 Next, or Later and run the sync again.

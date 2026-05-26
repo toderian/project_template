@@ -2,6 +2,12 @@
 #
 # Regenerate task ledgers and generated area status blocks from task files.
 #
+# Default mode is permissive: it regenerates generated files and prints
+# warnings for recoverable task-system drift.
+#
+# --check mode is strict and read-only: it validates metadata, references,
+# lifecycle placement, completion fields, and generated output freshness.
+#
 # Sources of truth:
 #   docs/tasks_manager/_areas.md
 #   docs/tasks_manager/_roadmap.md
@@ -14,9 +20,30 @@
 #   docs/areas/_overview.md
 #   marker-delimited blocks in docs/areas/<slug>.md
 #
-# Tool-agnostic: bash + awk + coreutils.
+# Portable prerequisites: bash, awk, sort, grep, cmp, python3.
 
 set -euo pipefail
+
+CHECK_MODE=0
+
+usage() {
+  cat <<'EOF'
+Usage: sync-todo-ledgers.sh [--check]
+
+Regenerate task ledgers and generated area status blocks.
+
+Options:
+  --check   Validate strictly without writing files.
+  --help    Show this message.
+EOF
+}
+
+case "${1:-}" in
+  "") ;;
+  --check) CHECK_MODE=1 ;;
+  --help) usage; exit 0 ;;
+  *) echo "unknown option: $1" >&2; usage >&2; exit 2 ;;
+esac
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
@@ -34,14 +61,62 @@ AREAS_DIR="${DOCS}/areas"
 AREAS_OVERVIEW="${AREAS_DIR}/_overview.md"
 
 if [[ ! -d "${TM}" ]]; then
-  echo "No docs/tasks_manager/ directory at ${TM} - nothing to sync. Run /init first." >&2
+  if [[ "${CHECK_MODE}" -eq 1 ]]; then
+    echo "No docs/tasks_manager/ directory at ${TM} - nothing to check. Run /init first." >&2
+  else
+    echo "No docs/tasks_manager/ directory at ${TM} - nothing to sync. Run /init first." >&2
+  fi
   exit 0
 fi
 
-mkdir -p "${TODOS}" "${ARCHIVED}" "${AREAS_DIR}"
+TMP_FILES=()
+CHECK_ERRORS=0
 
-declare -A AREA_PREFIX AREA_DESC AREA_PAGE PREFIX_AREA AREA_ORDER
-declare -a AREAS=()
+cleanup() {
+  if [[ ${#TMP_FILES[@]} -gt 0 ]]; then
+    rm -f "${TMP_FILES[@]}"
+  fi
+}
+trap cleanup EXIT
+
+new_tmp() {
+  local tmp
+  tmp="$(mktemp)"
+  TMP_FILES+=("$tmp")
+  printf '%s' "$tmp"
+}
+
+rel_repo() {
+  local path="$1"
+  if [[ "$path" == "${REPO_ROOT}/"* ]]; then
+    printf '%s' "${path#${REPO_ROOT}/}"
+  else
+    printf '%s' "$path"
+  fi
+}
+
+warn() {
+  echo "WARNING: $*" >&2
+}
+
+error() {
+  echo "ERROR: $*" >&2
+  CHECK_ERRORS=$((CHECK_ERRORS + 1))
+}
+
+validate_or_warn() {
+  if [[ "${CHECK_MODE}" -eq 1 ]]; then
+    error "$@"
+  else
+    warn "$@"
+  fi
+}
+
+check_only_error() {
+  if [[ "${CHECK_MODE}" -eq 1 ]]; then
+    error "$@"
+  fi
+}
 
 trim() {
   local s="$1"
@@ -56,19 +131,62 @@ md_escape() {
   printf '%s' "$s"
 }
 
+path_abs() {
+  python3 - "$1" <<'PY'
+from pathlib import Path
+import sys
+
+print(Path(sys.argv[1]).expanduser().resolve(strict=False))
+PY
+}
+
+path_rel() {
+  python3 - "$1" "$2" <<'PY'
+from pathlib import Path
+import os
+import sys
+
+target = Path(sys.argv[1]).expanduser().resolve(strict=False)
+start = Path(sys.argv[2]).expanduser().resolve(strict=False)
+print(os.path.relpath(target, start))
+PY
+}
+
 page_abs_for() {
   local page="$1"
   if [[ "$page" = /* ]]; then
-    realpath -m "$page"
+    path_abs "$page"
   else
-    realpath -m "${TM}/${page}"
+    path_abs "${TM}/${page}"
   fi
 }
 
 page_rel_from_areas() {
   local page_abs="$1"
-  realpath --relative-to="${AREAS_DIR}" "$page_abs"
+  path_rel "$page_abs" "${AREAS_DIR}"
 }
+
+ensure_check_structure() {
+  [[ -d "${TODOS}" ]] || check_only_error "missing task directory $(rel_repo "${TODOS}")"
+  [[ -d "${ARCHIVED}" ]] || check_only_error "missing archived task directory $(rel_repo "${ARCHIVED}")"
+  [[ -d "${INBOX}" ]] || check_only_error "missing inbox directory $(rel_repo "${INBOX}")"
+  [[ -d "${INBOX_ARCHIVED}" ]] || check_only_error "missing archived inbox directory $(rel_repo "${INBOX_ARCHIVED}")"
+  [[ -d "${AREAS_DIR}" ]] || check_only_error "missing areas directory $(rel_repo "${AREAS_DIR}")"
+  [[ -f "${AREAS_FILE}" ]] || check_only_error "missing area registry $(rel_repo "${AREAS_FILE}")"
+  [[ -f "${ROADMAP}" ]] || check_only_error "missing roadmap $(rel_repo "${ROADMAP}")"
+  [[ -f "${ACTIVE_LEDGER}" ]] || check_only_error "missing active ledger $(rel_repo "${ACTIVE_LEDGER}")"
+  [[ -f "${DONE_LEDGER}" ]] || check_only_error "missing done ledger $(rel_repo "${DONE_LEDGER}")"
+  [[ -f "${AREAS_OVERVIEW}" ]] || check_only_error "missing area overview $(rel_repo "${AREAS_OVERVIEW}")"
+}
+
+if [[ "${CHECK_MODE}" -eq 1 ]]; then
+  ensure_check_structure
+else
+  mkdir -p "${TODOS}" "${ARCHIVED}" "${INBOX}" "${INBOX_ARCHIVED}" "${AREAS_DIR}"
+fi
+
+declare -A AREA_PREFIX AREA_DESC AREA_PAGE PREFIX_AREA AREA_ORDER
+declare -a AREAS=()
 
 read_areas() {
   if [[ -f "${AREAS_FILE}" ]]; then
@@ -77,16 +195,25 @@ read_areas() {
       [[ "$area" == "Area" ]] && continue
       [[ "$area" == "---" ]] && continue
       if [[ -z "$prefix" || -z "$page" ]]; then
-        echo "WARNING: area row '${area}' is missing Prefix or Page in ${AREAS_FILE#${REPO_ROOT}/}" >&2
+        validate_or_warn "area row '${area}' is missing Prefix or Page in $(rel_repo "${AREAS_FILE}")"
         continue
       fi
+      if [[ ! "$area" =~ ^[a-z][a-z0-9-]*$ ]]; then
+        validate_or_warn "area row '${area}' has malformed Area slug in $(rel_repo "${AREAS_FILE}")"
+      fi
+      if [[ ! "$prefix" =~ ^[A-Z][A-Z0-9]*$ ]]; then
+        validate_or_warn "area row '${area}' has malformed Prefix '${prefix}'"
+      fi
       if [[ -n "${AREA_PREFIX[$area]+x}" ]]; then
-        echo "WARNING: duplicate area '${area}' in ${AREAS_FILE#${REPO_ROOT}/}" >&2
+        validate_or_warn "duplicate area '${area}' in $(rel_repo "${AREAS_FILE}")"
         continue
       fi
       if [[ -n "${PREFIX_AREA[$prefix]+x}" ]]; then
-        echo "WARNING: duplicate prefix '${prefix}' for areas '${PREFIX_AREA[$prefix]}' and '${area}'" >&2
+        validate_or_warn "duplicate prefix '${prefix}' for areas '${PREFIX_AREA[$prefix]}' and '${area}'"
         continue
+      fi
+      if [[ "$prefix" == "T" && "$area" != "global" ]]; then
+        validate_or_warn "prefix 'T' is reserved for area 'global' but is assigned to '${area}'"
       fi
       AREA_PREFIX["$area"]="$prefix"
       AREA_DESC["$area"]="$desc"
@@ -106,6 +233,9 @@ read_areas() {
   fi
 
   if [[ ${#AREAS[@]} -eq 0 ]]; then
+    if [[ "${CHECK_MODE}" -eq 1 && -f "${AREAS_FILE}" ]]; then
+      error "area registry $(rel_repo "${AREAS_FILE}") contains no valid areas"
+    fi
     AREA_PREFIX["global"]="T"
     AREA_DESC["global"]="Default, cross-area, and uncategorized work."
     AREA_PAGE["global"]="../areas/global.md"
@@ -116,19 +246,25 @@ read_areas() {
 }
 
 # Extract one task's fields as a unit-separated line:
-#   taskid type area status priority updated title phase_done phase_total
+# taskid type area created updated last_executed status priority owner blocked_by source source_ref title phase_done phase_total
 extract_task() {
   awk '
     function trim(s) { gsub(/^[[:space:]]+|[[:space:]]+$/, "", s); return s }
     BEGIN { FS="|"; OFS = sprintf("%c", 28) }
     /^\|/ {
       key = tolower(trim($2)); val = trim($3)
-      if (key == "task id")  taskid = val
-      if (key == "type")     type = val
-      if (key == "area")     area = val
-      if (key == "status")   status = val
-      if (key == "priority") priority = val
-      if (key == "updated")  updated = val
+      if (key == "task id")       taskid = val
+      if (key == "type")          type = val
+      if (key == "area")          area = val
+      if (key == "created")       created = val
+      if (key == "updated")       updated = val
+      if (key == "last executed") last_executed = val
+      if (key == "status")        status = val
+      if (key == "priority")      priority = val
+      if (key == "owner")         owner = val
+      if (key == "blocked by")    blocked_by = val
+      if (key == "source")        source = val
+      if (key == "source ref")    source_ref = val
       next
     }
     /^## / && title == "" { title = trim(substr($0, 4)) }
@@ -147,14 +283,121 @@ extract_task() {
     }
     END {
       finalize()
-      if (area == "")     area = "global"
-      if (status == "")   status = "open"
-      if (priority == "") priority = "medium"
-      if (updated == "")  updated = "N/A"
-      printf "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%d%s%d\n",
-        taskid, OFS, type, OFS, area, OFS, status, OFS, priority, OFS, updated, OFS, title, OFS, done, OFS, total
+      printf "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%d%s%d\n",
+        taskid, OFS, type, OFS, area, OFS, created, OFS, updated, OFS, last_executed, OFS,
+        status, OFS, priority, OFS, owner, OFS, blocked_by, OFS, source, OFS, source_ref, OFS,
+        title, OFS, done, OFS, total
     }
   ' "$1"
+}
+
+task_has_nonempty_section() {
+  local file="$1" heading="$2"
+  awk -v heading="$heading" '
+    $0 ~ "^##[[:space:]]+" heading "[[:space:]]*$" { in_section=1; next }
+    in_section && /^##[[:space:]]+/ { exit }
+    in_section && NF { found=1 }
+    END { exit found ? 0 : 1 }
+  ' "$file"
+}
+
+validate_completion_archive() {
+  local file="$1" taskid="$2" rel
+  rel="$(rel_repo "$file")"
+
+  if ! grep -qE '^##[[:space:]]+Completion harvest[[:space:]]*$' "$file"; then
+    validate_or_warn "archived task '${taskid}' in ${rel} is missing a Completion harvest section"
+    return
+  fi
+  if ! grep -qiE '^\|[[:space:]]*Resource updates[[:space:]]*\|[[:space:]]*(None|N/A|docs/resources/[^|]+)[[:space:]]*\|' "$file"; then
+    validate_or_warn "archived task '${taskid}' in ${rel} is missing explicit Completion harvest Resource updates"
+  fi
+  if ! grep -qiE '^\|[[:space:]]*Area updates[[:space:]]*\|[[:space:]]*(None|N/A|docs/areas/[^|]+)[[:space:]]*\|' "$file"; then
+    validate_or_warn "archived task '${taskid}' in ${rel} is missing explicit Completion harvest Area updates"
+  fi
+  if ! grep -qiE '^\|[[:space:]]*Follow-ups[[:space:]]*\|[[:space:]]*(None|N/A|I-[0-9]{3,}[^|]*)[[:space:]]*\|' "$file"; then
+    validate_or_warn "archived task '${taskid}' in ${rel} is missing explicit Completion harvest Follow-ups"
+  fi
+  if ! grep -qiE '^\|[[:space:]]*Notable decisions/deviations[[:space:]]*\|[[:space:]]*(None|N/A|[^|]*[[:alnum:]][^|]*)[[:space:]]*\|' "$file"; then
+    validate_or_warn "archived task '${taskid}' in ${rel} is missing explicit Completion harvest Notable decisions/deviations"
+  fi
+  if ! grep -qE '^##[[:space:]]+Completion summary[[:space:]]*$' "$file"; then
+    validate_or_warn "archived task '${taskid}' in ${rel} is missing a Completion summary section"
+  elif ! task_has_nonempty_section "$file" "Completion summary"; then
+    validate_or_warn "archived task '${taskid}' in ${rel} has an empty Completion summary section"
+  fi
+}
+
+validate_task_metadata() {
+  local file="$1" base="$2" taskid="$3" type="$4" area="$5" created="$6" updated="$7" last_executed="$8"
+  local status="$9" priority="${10}" owner="${11}" blocked_by="${12}" source="${13}" source_ref="${14}" title="${15}"
+  local required_missing=0 rel
+  rel="$(rel_repo "$file")"
+
+  if [[ -z "$taskid" ]]; then
+    validate_or_warn "task '${base}' is missing Task ID"
+    required_missing=1
+  fi
+  if [[ -z "$type" ]]; then
+    validate_or_warn "task '${base}' is missing Type"
+    required_missing=1
+  fi
+  if [[ -z "$area" ]]; then
+    validate_or_warn "task '${base}' is missing Area"
+    required_missing=1
+  fi
+  if [[ -z "$created" ]]; then
+    validate_or_warn "task '${base}' is missing Created"
+    required_missing=1
+  fi
+  if [[ -z "$updated" || "$updated" == "N/A" ]]; then
+    validate_or_warn "task '${base}' is missing Updated"
+    required_missing=1
+  fi
+  if [[ -z "$last_executed" ]]; then
+    validate_or_warn "task '${base}' is missing Last executed"
+    required_missing=1
+  fi
+  if [[ -z "$status" ]]; then
+    validate_or_warn "task '${base}' is missing Status"
+    required_missing=1
+  fi
+  if [[ -z "$priority" ]]; then
+    validate_or_warn "task '${base}' is missing Priority"
+    required_missing=1
+  fi
+  if [[ -z "$owner" ]]; then
+    validate_or_warn "task '${base}' is missing Owner"
+    required_missing=1
+  fi
+  if [[ -z "$blocked_by" ]]; then
+    validate_or_warn "task '${base}' is missing Blocked by"
+    required_missing=1
+  fi
+  if [[ -z "$source" ]]; then
+    validate_or_warn "task '${base}' is missing Source"
+    required_missing=1
+  fi
+  if [[ -z "$source_ref" ]]; then
+    validate_or_warn "task '${base}' is missing Source ref"
+    required_missing=1
+  fi
+  if [[ -z "$title" ]]; then
+    validate_or_warn "task '${base}' in ${rel} is missing a title heading"
+  fi
+
+  [[ "$type" =~ ^[FDCR]$ || -z "$type" ]] || validate_or_warn "task '${base}' has malformed Type '${type}'"
+  [[ "$status" =~ ^(open|in_progress|done|cancelled)$ || -z "$status" ]] || validate_or_warn "task '${base}' has malformed Status '${status}'"
+  [[ "$priority" =~ ^(high|medium|low)$ || -z "$priority" ]] || validate_or_warn "task '${base}' has malformed Priority '${priority}'"
+  [[ "$created" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})? || -z "$created" ]] || validate_or_warn "task '${base}' has malformed Created '${created}'"
+  [[ "$updated" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})? || -z "$updated" ]] || validate_or_warn "task '${base}' has malformed Updated '${updated}'"
+  [[ "$last_executed" == "N/A" || "$last_executed" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})? || -z "$last_executed" ]] || validate_or_warn "task '${base}' has malformed Last executed '${last_executed}'"
+
+  if [[ "$required_missing" -eq 0 && -n "$taskid" && -n "$type" ]]; then
+    if [[ ! "$base" =~ ^${taskid}-${type}_[a-z0-9]([a-z0-9-]*[a-z0-9])?\.md$ ]]; then
+      validate_or_warn "task '${base}' filename does not match metadata Task ID '${taskid}' and Type '${type}'"
+    fi
+  fi
 }
 
 declare -A TASK_COUNT TASK_FILE TASK_BASE TASK_DIR TASK_TYPE TASK_AREA TASK_STATUS TASK_PRIORITY TASK_UPDATED TASK_TITLE TASK_PHASE
@@ -163,19 +406,27 @@ declare -a TASK_IDS=()
 
 record_task() {
   local file="$1" dir_label="$2"
-  local taskid type area status priority updated title done total base prefix expected_area
+  local taskid type area created updated last_executed status priority owner blocked_by source source_ref title done total base prefix expected_area
   base="$(basename "$file")"
-  IFS=$'\034' read -r taskid type area status priority updated title done total < <(extract_task "$file")
+
+  IFS=$'\034' read -r taskid type area created updated last_executed status priority owner blocked_by source source_ref title done total < <(extract_task "$file")
+
+  validate_task_metadata "$file" "$base" "$taskid" "$type" "$area" "$created" "$updated" "$last_executed" "$status" "$priority" "$owner" "$blocked_by" "$source" "$source_ref" "$title"
+
   if [[ -z "$taskid" ]]; then
-    echo "WARNING: task '${base}' is missing Task ID; skipped" >&2
     return 0
   fi
+
+  [[ -n "$area" ]] || area="global"
+  [[ -n "$status" ]] || status="open"
+  [[ -n "$priority" ]] || priority="medium"
+  [[ -n "$updated" ]] || updated="N/A"
 
   TASK_COUNT["$taskid"]=$(( ${TASK_COUNT["$taskid"]:-0} + 1 ))
   if [[ ${TASK_COUNT["$taskid"]} -eq 1 ]]; then
     TASK_IDS+=("$taskid")
   else
-    echo "WARNING: ambiguous task id '${taskid}' appears in multiple task files" >&2
+    validate_or_warn "ambiguous task id '${taskid}' appears in multiple task files"
   fi
 
   TASK_FILE["$taskid"]="$file"
@@ -191,18 +442,32 @@ record_task() {
 
   prefix="${taskid%-*}"
   if [[ "$prefix" == "$taskid" || ! "$taskid" =~ ^[A-Z][A-Z0-9]*-[0-9]{3,}$ ]]; then
-    echo "WARNING: task '${base}' has malformed Task ID '${taskid}'" >&2
+    validate_or_warn "task '${base}' has malformed Task ID '${taskid}'"
   elif [[ -n "${PREFIX_AREA[$prefix]+x}" ]]; then
     expected_area="${PREFIX_AREA[$prefix]}"
     if [[ "$area" != "$expected_area" ]]; then
-      echo "WARNING: task '${taskid}' prefix '${prefix}' maps to area '${expected_area}' but metadata says '${area}'" >&2
+      validate_or_warn "task '${taskid}' prefix '${prefix}' maps to area '${expected_area}' but metadata says '${area}'"
     fi
   else
-    echo "WARNING: task '${taskid}' uses unregistered prefix '${prefix}'" >&2
+    validate_or_warn "task '${taskid}' uses unregistered prefix '${prefix}'"
   fi
 
   if [[ -z "${AREA_PREFIX[$area]+x}" ]]; then
-    echo "WARNING: task '${taskid}' uses unregistered area '${area}'" >&2
+    validate_or_warn "task '${taskid}' uses unregistered area '${area}'"
+  fi
+
+  case "$dir_label:$status" in
+    _todos:open|_todos:in_progress|_todos_archived:done|_todos_archived:cancelled) ;;
+    _todos:done|_todos:cancelled)
+      validate_or_warn "terminal task '${taskid}' has Status '${status}' but is still in docs/tasks_manager/_todos/"
+      ;;
+    _todos_archived:open|_todos_archived:in_progress)
+      validate_or_warn "active task '${taskid}' has Status '${status}' but is in docs/tasks_manager/_todos_archived/"
+      ;;
+  esac
+
+  if [[ "$dir_label" == "_todos_archived" ]]; then
+    validate_completion_archive "$file" "$taskid"
   fi
 
   case "$status" in
@@ -224,7 +489,23 @@ for f in "${ARCHIVED}"/*.md; do
   record_task "$f" "_todos_archived"
 done
 
-# ---- Rebuild _active.md ----
+write_or_check() {
+  local target="$1" source="$2" label="$3"
+  if [[ "${CHECK_MODE}" -eq 1 ]]; then
+    if [[ ! -f "$target" ]]; then
+      error "${label} is missing at $(rel_repo "$target")"
+      return
+    fi
+    if ! cmp -s "$source" "$target"; then
+      error "${label} is stale at $(rel_repo "$target"); run scripts/sync-todo-ledgers.sh"
+    fi
+  else
+    cp "$source" "$target"
+  fi
+}
+
+# ---- Render _active.md ----
+active_tmp="$(new_tmp)"
 active_header='# Active tasks
 
 Ledger of every `open` and `in_progress` task - the backlog view. Sorted in_progress first, then by
@@ -251,9 +532,11 @@ done
   if [[ -n "$active_rows" ]]; then
     printf '%b' "$active_rows" | sort -t$'\t' -k1,1n -k2,2n -k3,3 | cut -f4-
   fi
-} > "${ACTIVE_LEDGER}"
+} > "${active_tmp}"
+write_or_check "${ACTIVE_LEDGER}" "${active_tmp}" "active ledger"
 
-# ---- Rebuild _done.md ----
+# ---- Render _done.md ----
+done_tmp="$(new_tmp)"
 done_header='# Done tasks
 
 Ledger of completed and cancelled tasks. Newest row at the top. Rebuild any time with
@@ -277,7 +560,8 @@ done
   if [[ -n "$done_rows" ]]; then
     printf '%b' "$done_rows" | sort -t$'\t' -k1,1r -k2,2r | cut -f3-
   fi
-} > "${DONE_LEDGER}"
+} > "${done_tmp}"
+write_or_check "${DONE_LEDGER}" "${done_tmp}" "done ledger"
 
 # ---- Roadmap diagnostics and horizon assignment ----
 declare -A ROADMAP_TASK_COUNT ROADMAP_TASK_HORIZON ROADMAP_INBOX_COUNT
@@ -290,7 +574,17 @@ if [[ -f "${ROADMAP}" ]]; then
       "## Now"*) horizon="Now"; continue ;;
       "## Next"*) horizon="Next"; continue ;;
       "## Later"*) horizon="Later"; continue ;;
+      "## "*) horizon="__invalid__"; continue ;;
     esac
+
+    if [[ "$horizon" == "__invalid__" ]]; then
+      while IFS= read -r id; do
+        [[ -n "$id" ]] || continue
+        validate_or_warn "roadmap reference '${id}' appears outside a Now/Next/Later horizon"
+      done < <(printf '%s\n' "$line" | grep -Eo '([A-Z][A-Z0-9]*|I)-[0-9]{3,}' | sort -u || true)
+      continue
+    fi
+
     [[ -n "$horizon" ]] || continue
 
     while IFS= read -r id; do
@@ -315,15 +609,15 @@ fi
 
 for id in "${ROADMAP_TASK_IDS[@]}"; do
   if [[ ${ROADMAP_TASK_COUNT[$id]} -gt 1 ]]; then
-    echo "WARNING: ambiguous roadmap task reference '${id}' appears ${ROADMAP_TASK_COUNT[$id]} times" >&2
+    validate_or_warn "ambiguous roadmap task reference '${id}' appears ${ROADMAP_TASK_COUNT[$id]} times"
     continue
   fi
   if [[ -z "${TASK_COUNT[$id]+x}" ]]; then
-    echo "WARNING: missing roadmap task reference '${id}'" >&2
+    validate_or_warn "missing roadmap task reference '${id}'"
     continue
   fi
   if [[ ${TASK_COUNT[$id]} -gt 1 ]]; then
-    echo "WARNING: ambiguous roadmap task reference '${id}' matches multiple files" >&2
+    validate_or_warn "ambiguous roadmap task reference '${id}' matches multiple files"
     continue
   fi
   area="${TASK_AREA[$id]}"
@@ -336,11 +630,11 @@ done
 
 for id in "${ROADMAP_INBOX_IDS[@]}"; do
   if [[ ${ROADMAP_INBOX_COUNT[$id]} -gt 1 ]]; then
-    echo "WARNING: ambiguous roadmap inbox reference '${id}' appears ${ROADMAP_INBOX_COUNT[$id]} times" >&2
+    validate_or_warn "ambiguous roadmap inbox reference '${id}' appears ${ROADMAP_INBOX_COUNT[$id]} times"
     continue
   fi
   if ! compgen -G "${INBOX}/${id}_"'*.md' >/dev/null && ! compgen -G "${INBOX_ARCHIVED}/${id}_"'*.md' >/dev/null; then
-    echo "WARNING: missing roadmap inbox reference '${id}'" >&2
+    validate_or_warn "missing roadmap inbox reference '${id}'"
   fi
 done
 
@@ -396,7 +690,7 @@ section_for_area_unscheduled() {
 
 replace_block() {
   local file="$1" begin="$2" end="$3" block_file="$4" tmp
-  tmp="$(mktemp)"
+  tmp="$(new_tmp)"
   awk -v begin="$begin" -v end="$end" -v block_file="$block_file" '
     BEGIN {
       while ((getline line < block_file) > 0) block = block line ORS
@@ -445,14 +739,13 @@ ensure_area_page() {
     printf '## Unscheduled\n\n_No tasks._\n'
     printf '<!-- END generated-area-status -->\n'
   } > "$page_abs"
-  echo "created area page: ${page_abs#${REPO_ROOT}/}"
+  echo "created area page: $(rel_repo "$page_abs")"
 }
 
-# ---- Generate area pages ----
+# ---- Generate/check area pages ----
 for area in "${AREAS[@]}"; do
   page_abs="$(page_abs_for "${AREA_PAGE[$area]}")"
-  ensure_area_page "$area" "$page_abs"
-  block="$(mktemp)"
+  block="$(new_tmp)"
   {
     printf '_Generated by `scripts/sync-todo-ledgers.sh`. Do not edit this block by hand._\n\n'
     printf '## Now\n\n'
@@ -464,16 +757,24 @@ for area in "${AREAS[@]}"; do
     printf '\n## Unscheduled\n\n'
     section_for_area_unscheduled "$area"
   } > "$block"
-  replace_block "$page_abs" '<!-- BEGIN generated-area-status -->' '<!-- END generated-area-status -->' "$block"
-  rm -f "$block"
+
+  if [[ "${CHECK_MODE}" -eq 1 ]]; then
+    if [[ ! -f "$page_abs" ]]; then
+      error "area page for '${area}' is missing at $(rel_repo "$page_abs")"
+      continue
+    fi
+    expected_page="$(new_tmp)"
+    cp "$page_abs" "$expected_page"
+    replace_block "$expected_page" '<!-- BEGIN generated-area-status -->' '<!-- END generated-area-status -->' "$block"
+    write_or_check "$page_abs" "$expected_page" "generated area status block for '${area}'"
+  else
+    ensure_area_page "$area" "$page_abs"
+    replace_block "$page_abs" '<!-- BEGIN generated-area-status -->' '<!-- END generated-area-status -->' "$block"
+  fi
 done
 
-# ---- Generate area overview ----
-if [[ ! -f "${AREAS_OVERVIEW}" ]]; then
-  printf '# Areas Overview\n' > "${AREAS_OVERVIEW}"
-fi
-
-overview_block="$(mktemp)"
+# ---- Generate/check area overview ----
+overview_block="$(new_tmp)"
 {
   printf '_Generated by `scripts/sync-todo-ledgers.sh`. Do not edit this block by hand._\n\n'
   printf '| Area | Prefix | Description | Now | Next | Later | Open | In Progress | Done | Page |\n'
@@ -496,7 +797,28 @@ overview_block="$(mktemp)"
   done
 } > "$overview_block"
 
-replace_block "${AREAS_OVERVIEW}" '<!-- BEGIN generated-area-overview -->' '<!-- END generated-area-overview -->' "$overview_block"
-rm -f "$overview_block"
+if [[ "${CHECK_MODE}" -eq 1 ]]; then
+  if [[ ! -f "${AREAS_OVERVIEW}" ]]; then
+    error "area overview is missing at $(rel_repo "${AREAS_OVERVIEW}")"
+  else
+    expected_overview="$(new_tmp)"
+    cp "${AREAS_OVERVIEW}" "$expected_overview"
+    replace_block "$expected_overview" '<!-- BEGIN generated-area-overview -->' '<!-- END generated-area-overview -->' "$overview_block"
+    write_or_check "${AREAS_OVERVIEW}" "$expected_overview" "generated area overview block"
+  fi
+else
+  if [[ ! -f "${AREAS_OVERVIEW}" ]]; then
+    printf '# Areas Overview\n' > "${AREAS_OVERVIEW}"
+  fi
+  replace_block "${AREAS_OVERVIEW}" '<!-- BEGIN generated-area-overview -->' '<!-- END generated-area-overview -->' "$overview_block"
+fi
 
-echo "Ledgers synced: ${ACTIVE_LEDGER#${REPO_ROOT}/}, ${DONE_LEDGER#${REPO_ROOT}/}, ${AREAS_OVERVIEW#${REPO_ROOT}/}"
+if [[ "${CHECK_MODE}" -eq 1 ]]; then
+  if (( CHECK_ERRORS > 0 )); then
+    echo "Task ledger validation failed: ${CHECK_ERRORS} issue(s)." >&2
+    exit 1
+  fi
+  echo "OK task ledgers valid"
+else
+  echo "Ledgers synced: $(rel_repo "${ACTIVE_LEDGER}"), $(rel_repo "${DONE_LEDGER}"), $(rel_repo "${AREAS_OVERVIEW}")"
+fi

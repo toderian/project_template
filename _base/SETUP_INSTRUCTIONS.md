@@ -21,7 +21,7 @@ A different agent on the other runtime can run this file later to set up its sid
 | Tool | Required for | Check |
 |------|--------------|-------|
 | `bash` ≥ 4 | every installer in this template | `bash --version` returns a version |
-| `python3` | the Codex marketplace + Claude plugin installers | `python3 --version` |
+| `python3` | portable path/docs helpers, marketplace and plugin installers | `python3 --version` |
 | `git` | template remote and commits | `git --version` |
 | `jq` | Claude Code hooks | `jq --version` |
 | `gh` | optional; only if you want to operate on issues/PRs | `gh --version` |
@@ -123,21 +123,17 @@ If the project does not want alignment gating, skip this step — the rest of th
 If the project wants the template task system, run `/init` or seed the docs layout directly:
 
 ```bash
-mkdir -p docs
-cp -rn _base/docs/tasks_manager docs/
-cp -rn _base/docs/areas docs/
-cp -rn _base/docs/resources docs/
-cp -rn _base/docs/archive docs/
+scripts/seed-docs.sh
 scripts/sync-todo-ledgers.sh
 ```
 
 This creates the inbox, flat task directory, area registry with the reserved `T` prefix, global roadmap,
-generated area overview, `docs/resources/`, and `docs/archive/`. Re-running is safe because `cp -rn`
-does not overwrite downstream-owned task files or area pages.
+generated area overview, `docs/_plans/`, `docs/resources/`, and `docs/archive/`. Re-running is safe
+because `scripts/seed-docs.sh` never overwrites downstream-owned task files, area pages, or docs.
 
 **Check:** `docs/tasks_manager/_areas.md`, `docs/tasks_manager/_roadmap.md`,
-`docs/areas/_overview.md`, `docs/resources/README.md`, and `docs/archive/README.md` exist, and
-`scripts/sync-todo-ledgers.sh` exits 0.
+`docs/areas/_overview.md`, `docs/_plans/`, `docs/resources/README.md`, and `docs/archive/README.md`
+exist, and `scripts/sync-todo-ledgers.sh` exits 0.
 
 ---
 

@@ -9,6 +9,8 @@ placement immediately.
 
 Follow `playbooks/conventions/todo-convention.md` for the file format and lifecycle.
 
+Prerequisite: `docs/tasks_manager/` must already be initialized. If it is missing, run `/init` first.
+
 ## Process
 
 ### 1. Confirm this is a task, not an inbox idea
@@ -36,14 +38,13 @@ Scan:
 If the work appears already tracked, report the matching task ID and ask whether to append detail to the
 existing task or create a distinct task. Do not merge or cancel tasks without explicit user approval.
 
-### 3. Assign area, prefix, and ID
+### 3. Assign area and prefix
 
 Read `docs/tasks_manager/_areas.md`.
 
 - Pick the best existing area row.
 - Use `global` / prefix `T` for default, global, or cross-area work.
 - If no area fits, propose an `Area`, `Prefix`, `Description`, and `Page` row and ask before appending.
-- Assign the next `<PREFIX>-NNN` by scanning both `_todos/` and `_todos_archived/` for that prefix.
 
 ### 4. Shape the task
 
@@ -61,13 +62,16 @@ Create one atomic task. Fill:
 - completion summary placeholder
 
 Use `Source: add-task`. Set `Source ref` to an issue, PRD, inbox idea, conversation note, or `N/A`.
+After choosing the type and short description, reserve the task file with
+`scripts/reserve-work-item.sh task <PREFIX> <TYPE> <short-description>`. The helper creates the
+placeholder atomically so parallel agents cannot claim the same ID.
 
 ### 5. Write the file
 
-Create:
+Fill the reserved path printed by:
 
 ```text
-docs/tasks_manager/_todos/<PREFIX>-NNN-<TYPE>_<short-description>.md
+scripts/reserve-work-item.sh task <PREFIX> <TYPE> <short-description>
 ```
 
 Use the template shape from `todo-convention.md`. Keep the short description lowercase, hyphenated, and

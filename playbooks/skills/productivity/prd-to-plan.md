@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Break a PRD into a phased implementation plan using vertical slices (tracer bullets). Output is a Markdown file in `./plans/`.
+Break a PRD into a phased implementation plan using vertical slices (tracer bullets). Output is a Markdown file in `docs/_plans/`.
 
 ## Process
 
@@ -54,7 +54,7 @@ Iterate until the user approves the breakdown.
 
 ### 6. Write the plan file
 
-Create `./plans/` if it doesn't exist. Write the plan as a Markdown file named after the feature (e.g. `./plans/user-onboarding.md`). Use the template below.
+Create `docs/_plans/` if it doesn't exist. Write the plan as a Markdown file named after the feature (e.g. `docs/_plans/user-onboarding.md`). Use the template below.
 
 <plan-template>
 # Plan: <Feature Name>

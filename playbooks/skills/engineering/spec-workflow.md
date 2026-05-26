@@ -27,7 +27,7 @@ Input can be any of:
 
 - A PRD GitHub issue (`gh issue view N`).
 - A local PRD file.
-- An existing `./plans/<feature>.md` produced by `prd-to-plan`.
+- An existing `docs/_plans/<feature>.md` produced by `prd-to-plan`.
 - A rough intent the user types directly.
 
 This skill does **not** replace the PRD chain (`write-a-prd`, `prd-to-plan`, `prd-to-issues`, `prd-to-todos`). `spec.md` is per-work-item engineering intent, not a product PRD. If a PRD already exists, summarize it into `spec.md`; if not, start from intent.

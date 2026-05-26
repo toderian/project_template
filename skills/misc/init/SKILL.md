@@ -1,6 +1,6 @@
 ---
 name: init
-description: Initialize project idea/task tracking structure. Use when the user wants Codex to set up the docs/ inbox, tasks, areas, resources, archive, roadmap, and generated ledgers.
+description: Initialize project idea/task tracking structure. Use when the user wants Codex to set up docs/ with inbox, tasks, areas, durable plans, resources, archive, roadmap, and generated ledgers.
 ---
 
 # Init

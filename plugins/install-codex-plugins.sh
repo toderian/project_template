@@ -18,6 +18,15 @@ MARKETPLACE_PATH="${CODEX_MARKETPLACE_PATH:-${AGENTS_HOME}/plugins/marketplace.j
 MARKETPLACE_NAME="${CODEX_MARKETPLACE_NAME:-local-project-template}"
 MARKETPLACE_DISPLAY_NAME="${CODEX_MARKETPLACE_DISPLAY_NAME:-Local Project Template}"
 
+resolve_path() {
+  python3 - "$1" <<'PY'
+from pathlib import Path
+import sys
+
+print(Path(sys.argv[1]).expanduser().resolve(strict=False))
+PY
+}
+
 if [[ ! -d "${SOURCE_PLUGINS_DIR}" ]]; then
   echo "No repo plugins directory found at ${SOURCE_PLUGINS_DIR}" >&2
   exit 1
@@ -56,8 +65,8 @@ for plugin_dir in "${plugin_dirs[@]}"; do
   target_path="${TARGET_PLUGINS_DIR}/${plugin_name}"
 
   if [[ -L "${target_path}" ]]; then
-    current="$(readlink -f "${target_path}" || true)"
-    desired="$(readlink -f "${plugin_dir}")"
+    current="$(resolve_path "${target_path}" || true)"
+    desired="$(resolve_path "${plugin_dir}")"
     if [[ "${current}" == "${desired}" ]]; then
       skipped=$((skipped+1))
       continue

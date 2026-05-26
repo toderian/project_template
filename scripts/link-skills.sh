@@ -22,6 +22,15 @@ MANIFEST="${REPO_ROOT}/.claude-plugin/plugin.json"
 SOURCE_TREE="${REPO_ROOT}/.claude/skills"
 DEST="${HOME}/.claude/skills"
 
+resolve_path() {
+  python3 - "$1" <<'PY'
+from pathlib import Path
+import sys
+
+print(Path(sys.argv[1]).expanduser().resolve(strict=False))
+PY
+}
+
 if [[ ! -f "${MANIFEST}" ]]; then
   echo "error: ${MANIFEST} not found" >&2
   exit 1
@@ -32,7 +41,7 @@ fi
 # re-running would create symlinks under symlinks). Force the user to clear
 # it first.
 if [[ -L "${DEST}" ]]; then
-  resolved="$(readlink -f "${DEST}")"
+  resolved="$(resolve_path "${DEST}")"
   case "${resolved}" in
     "${REPO_ROOT}"|"${REPO_ROOT}"/*)
       cat >&2 <<EOF
@@ -64,8 +73,8 @@ while IFS=$'\t' read -r name bucket; do
 
   if [[ -L "${target}" ]]; then
     # Existing symlink — refresh in case the source moved (e.g. bucket change)
-    current="$(readlink -f "${target}" || true)"
-    desired="$(readlink -f "${src}")"
+    current="$(resolve_path "${target}" || true)"
+    desired="$(resolve_path "${src}")"
     if [[ "${current}" == "${desired}" ]]; then
       skipped=$((skipped+1))
       continue

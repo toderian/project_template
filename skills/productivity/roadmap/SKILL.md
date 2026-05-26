@@ -1,6 +1,6 @@
 ---
 name: roadmap
-description: Maintain docs/tasks_manager/_roadmap.md — the Now/Next/Later plan of execution across all tasks and ideas, with collapsible per-task subtasks. Use when the user wants to "plan the roadmap", "what's next", reprioritize/sequence work, schedule tasks, or refresh the roadmap. Distinct from per-change planning (planning-workflow / prd-to-plan).
+description: Maintain docs/tasks_manager/_roadmap.md — the placement-only Now/Next/Later ordering for tasks and inbox ideas. Use when the user wants to "plan the roadmap", "what's next", reprioritize/sequence work, schedule tasks, or refresh the roadmap. Distinct from per-change planning (planning-workflow / prd-to-plan).
 ---
 
 # Roadmap

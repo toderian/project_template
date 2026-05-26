@@ -21,6 +21,15 @@ CODEX_HOME="${CODEX_HOME:-${HOME}/.codex}"
 TARGET_SKILLS_DIR="${CODEX_HOME}/skills"
 MANIFEST="${REPO_ROOT}/.claude-plugin/plugin.json"
 
+resolve_path() {
+  python3 - "$1" <<'PY'
+from pathlib import Path
+import sys
+
+print(Path(sys.argv[1]).expanduser().resolve(strict=False))
+PY
+}
+
 if [[ ! -d "${SOURCE_SKILLS_DIR}" ]]; then
   echo "No repo skills directory found at ${SOURCE_SKILLS_DIR}" >&2
   exit 1
@@ -50,8 +59,8 @@ while IFS=$'\t' read -r name bucket; do
 
   if [[ -L "${target_path}" ]]; then
     # Existing symlink — refresh in case the source moved (e.g. bucket change)
-    current="$(readlink -f "${target_path}" || true)"
-    desired="$(readlink -f "${skill_dir}")"
+    current="$(resolve_path "${target_path}" || true)"
+    desired="$(resolve_path "${skill_dir}")"
     if [[ "${current}" == "${desired}" ]]; then
       skipped=$((skipped+1))
       continue

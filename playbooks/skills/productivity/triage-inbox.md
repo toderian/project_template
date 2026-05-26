@@ -10,6 +10,8 @@ priority, phases, acceptance criteria, related tests, and optional roadmap place
 Follow `playbooks/conventions/inbox-convention.md` (inbox side) and
 `playbooks/conventions/todo-convention.md` (task side).
 
+Prerequisite: `docs/tasks_manager/` must already be initialized. If it is missing, run `/init` first.
+
 ## Process
 
 ### 1. Gather
@@ -41,9 +43,8 @@ For each promoted idea, settle:
 
 ### 4. Create the task
 
-Assign the next `<PREFIX>-NNN` for the selected area (highest matching prefix across
-`docs/tasks_manager/_todos/` + `docs/tasks_manager/_todos_archived/`, +1). Create
-`docs/tasks_manager/_todos/<PREFIX>-NNN-<TYPE>_<short-desc>.md` per the task convention's full format:
+Reserve the task file with `scripts/reserve-work-item.sh task <PREFIX> <TYPE> <short-desc>`, then fill
+the printed path per the task convention's full format:
 
 - Metadata table including `Task ID`, `Type`, `Area`, `Source: inbox`, `Source ref: I-NNN`, and `Priority`.
 - A short human-readable title and a 2-4 sentence brief.

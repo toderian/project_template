@@ -13,6 +13,25 @@ For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
 
+### Harden idea-to-task validation and completion flow
+
+The task system keeps the permissive sync path for recovery, but now has strict read-only validation
+for CI and agent handoff:
+
+- `scripts/sync-todo-ledgers.sh --check` fails on duplicate IDs, malformed metadata, status/archive
+  mismatches, unregistered areas or prefixes, bad roadmap references, stale generated ledgers/area
+  blocks, and archived tasks without explicit completion harvest/summary.
+- `scripts/reserve-work-item.sh` atomically reserves inbox and task IDs before agents fill the file.
+- New `/complete-task` workflow closes out acceptance checks, final execution logs, harvest, summary,
+  archive move, sync, and strict validation.
+- Roadmap docs are now placement-only; task files remain authoritative for status and phase detail.
+- Durable implementation plans now live under `docs/_plans/`.
+- `scripts/seed-docs.sh` replaces GNU-specific no-clobber copy snippets for setup/init docs seeding.
+
+**Downstream impact:** projects using the task manager should run `/init` or `scripts/seed-docs.sh` to
+pick up `docs/_plans/`, re-run skill installers for `/complete-task`, and use
+`scripts/sync-todo-ledgers.sh --check` in CI or before handing tasks to another agent.
+
 ### Add Areas / Resources / Archive task system and `/add-task`
 
 The task system now supports area-specific task ID prefixes without adding a Projects layer:

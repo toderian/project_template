@@ -4,12 +4,8 @@ The plan of execution - what we're doing **Now**, **Next**, and **Later**. Items
 tasks (`AUTH-001`, `T-001`) and not-yet-promoted ideas (`I-NNN`). The horizon (placement) is a
 deliberate, human-set sequence; it is *not* auto-derived from task status.
 
-Each task is rendered as a collapsible block: the summary line is the general plan; expand it to see the
-phases/subtasks. Read it collapsed for the big picture, expanded for detail. Rebuild/refresh the
-subtask detail from the task files with the `/roadmap` skill (placement is preserved).
-
-> Format note: GitHub-flavored Markdown renders `<details>` as a collapsible section. Keep a blank line
-> after `</summary>` so the checklist inside renders.
+Keep this file placement-only: one bullet per task or inbox ID in the intended order. Task files remain
+authoritative for status, priority, phases, acceptance criteria, and completion state.
 
 ## Now
 
