@@ -2,7 +2,7 @@
 
 Current research snapshot for this template.
 
-Reviewed on: 2026-05-10.
+Reviewed on: 2026-05-26.
 
 ## What changed this iteration
 
@@ -13,6 +13,9 @@ The current template now leans harder into:
 - evaluation quality as a first-class concern
 - durable state and incremental progress for long-running work
 - stricter rules for when multi-agent parallelism is worth the coordination cost
+- an explicit branch/commit policy based on maintainer operating preference: default branch for
+  downstream template-maintenance repos, explicit task branches for working/product repos, and
+  coherent checkpoint commits
 
 ## Current conclusions
 
@@ -84,6 +87,7 @@ Template impact:
 
 | Date | Source | Why it mattered | Repo consequence |
 | --- | --- | --- | --- |
+| 2026-05-26 | Maintainer operating preference for this template | Branch policy is a project operating constraint rather than a model-behavior research finding | Added default-branch mode for downstream template-maintenance repos and explicit task-branch mode for working/product repos |
 | 2026-05-10 | [Claude Code Skills](https://code.claude.com/docs/en/skills), [Codex Skills](https://developers.openai.com/codex/skills), [Agent Skills Specification](https://agentskills.io/specification), [obra/superpowers Codex integration](https://deepwiki.com/obra/superpowers/5.2-codex-integration) | Mapped current dual-runtime conventions: expanded Claude SKILL.md frontmatter (`when_to_use`, `paths`, `allowed-tools`, `model`, `effort`, `hooks`), Codex hook arrival (v0.128, April 2026), Codex MultiAgentV2 (March 2026), `.agents/skills` discovery | Removed Claude-specific tool names from playbooks; left frontmatter expansion and CI lint as future work |
 | 2026-02-23 | [Why SWE-bench Verified no longer measures frontier coding capabilities](https://openai.com/index/why-we-no-longer-evaluate-swe-bench-verified/) | Strong warning on contamination and flawed tests in coding benchmarks | Added explicit benchmark skepticism and stronger evaluation rules |
 | 2026-01-09 | [Demystifying evals for AI agents](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents) | Concrete guidance on solvable tasks, reference solutions, balanced evals, and grader design | Tightened definition of done and testing guidance |

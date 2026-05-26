@@ -13,6 +13,22 @@ For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
 
+### Define branch and checkpoint-commit policy
+
+The base agent contract now distinguishes two repo modes:
+
+- downstream template-maintenance repos should work directly on the default branch (`main` or
+  `master`) and avoid ad hoc feature/subbranches;
+- working/product repos should use the explicit task branch named by the user, task file, issue, or
+  project convention at task start.
+
+Agents should commit each coherent, reviewable set of modifications, stage only related files, run
+relevant checks where possible, and still avoid pushing unless explicitly asked.
+
+**Downstream impact:** downstream projects pulling this in get a clearer default branch policy for
+agents. Product repos that want task branches should name the branch at task start or encode the branch
+convention in project-specific `AGENTS.md`.
+
 ### Add generic cross-repo area and feature-contract workflows
 
 The docs-primary knowledge base now has a generic cross-repo workflow family:

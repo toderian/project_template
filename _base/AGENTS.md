@@ -103,17 +103,42 @@ If changing the repo’s agent doctrine, workflows, role definitions, or evaluat
 - separate enduring principles from vendor-specific implementation details
 - update the dated research snapshot and examples
 
-### 8. Commit and push discipline
+### 8. Branch, commit, and push discipline
+
+Before code edits, determine the repo mode from the user request, project-specific `AGENTS.md`, task
+brief, or current repo convention.
+
+For **downstream template-maintenance repos**:
+
+- work directly on the default branch (`main` or `master`)
+- do not create feature branches or subbranches unless the user explicitly asks or the host/CI policy
+  requires it
+- if the session starts on a non-default branch, ask before continuing or switching
+
+For **working/product repos**:
+
+- work on the explicit task branch named by the user, task file, issue, or project convention at task
+  start
+- if no task branch is defined, ask for one or ask whether the current branch should be treated as the
+  task branch
+- do not create nested/subbranches unless the user explicitly asks
+
+In all modes, commit after each coherent, reviewable set of modifications: one task slice, one plan
+phase, one bug fix, or one documentation batch. Do not commit every tiny edit, and do not leave a large
+completed task as one uncommitted dump.
 
 If asked to commit:
 
 - use a concise conventional summary line with a prefix such as `feat:`, `fix:`, or `chore:`
 - always include a commit body, not only a one-line message
 - the body should explain what changed and why in a few high-signal lines
+- stage only files that belong to the completed slice; never include unrelated dirty changes
+- run relevant checks first, or state clearly in the commit/report why they could not be run
 
 If asked to push:
 
 - make sure the local commit message already follows the above format before pushing
+- never push unless the user explicitly asks
 
 Default format:
 
