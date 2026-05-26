@@ -92,6 +92,9 @@ Task files own status and detail, the roadmap owns placement, and ledgers/area p
 The primary knowledge base lives in `docs/resources/CONTEXT.md`, `docs/resources/<area>/summary.md`,
 `docs/resources/<area>/dependency-graph.md`, `docs/resources/<area>/contracts/<feature-slug>.md`, and
 `docs/resources/<area>/components/<component-slug>/CONTEXT.md`; root `CONTEXT.md` is a pointer/fallback.
+Raw source material waiting for extraction lives in `docs/resources/_inbox/`, and curated digests live
+under `docs/resources/_digests/<area-or-bucket>/` so distilled knowledge stays segregated by area
+before stable facts are promoted into canonical docs.
 See [`playbooks/conventions/task-system-quickstart.md`](../playbooks/conventions/task-system-quickstart.md)
 and [`playbooks/conventions/knowledge-base-quickstart.md`](../playbooks/conventions/knowledge-base-quickstart.md)
 for the full command map and source-of-truth split.
@@ -134,6 +137,7 @@ The table below lists the skills authored in this template (base tier). Downstre
 | describe-component | engineering | Generate or refresh a docs-primary component CONTEXT.md describing responsibility, public interface, dependencies, data owned, invariants, and tests. Use when the user wants to "describe a component", "document this module/service", map a subsystem's boundaries, or onboard to/hand off a part of the codebase. Distinct from docs/resources/CONTEXT.md domain glossary work (that's grill-with-docs). |
 | design-an-interface | misc | Generate multiple radically different interface designs for a module using parallel sub-agents when available. Use when user wants to design an API, explore interface options, compare module shapes, or mentions "design it twice". |
 | diagnose | engineering | Disciplined diagnosis loop for hard bugs and performance regressions. Reproduce → minimise → hypothesise → instrument → fix → regression-test. Use when user says "diagnose this" / "debug this", reports a bug, says something is broken/throwing/failing, or describes a performance regression. |
+| distill-knowledge | engineering | Distill raw documents, notes, exports, or pasted context into Markdown digests and durable docs/resources knowledge-base updates. Use when the user says "distill knowledge", "process raw docs", "summarize these docs", "ingest docs", or points to docs/resources/_inbox/ material. |
 | edit-article | personal | Edit and improve articles by restructuring sections, improving clarity, and tightening prose. Use when user wants to edit, revise, or improve an article draft. |
 | execute-plan | engineering | Execute an approved task or implementation plan phase-by-phase, committing each completed phase and running repeated independent reviews. Use when the user says "execute plan", "execute-plan", or "/execute-plan", or points to docs/tasks_manager/_todos/<TASK>.md or docs/_plans/<slug>.md and wants it implemented. |
 | frontend-design | misc | Create distinctive, production-grade frontend interfaces with high design quality. Use when the user asks to build web components, pages, or applications. Generates creative, polished code that avoids generic AI aesthetics. |
@@ -292,7 +296,7 @@ Copy these into the target project (then point an agent at `_base/SETUP_INSTRUCT
 |----------|--------------|-------|
 | `AGENTS.md` | Both | Auto-loaded entrypoint; downstream-owned (project-specific overrides go here) |
 | `_base/` | Both | Base operating contract, base README, base changelog, **base setup instructions**; upstream-owned (do not edit downstream) |
-| `_base/docs/` | Both (optional) | Seed layout for `docs/tasks_manager/`, `docs/areas/`, docs-primary knowledge resources, and `docs/archive/`; copy via `/init` |
+| `_base/docs/` | Both (optional) | Seed layout for `docs/tasks_manager/`, `docs/areas/`, docs-primary knowledge resources, raw knowledge inbox/digests, and `docs/archive/`; copy via `/init` |
 | `playbooks/` | Both | Authoritative workflow logic, role cards, templates |
 | `.claude/` | Claude Code | Skills, native subagents, hook scripts, settings |
 | `skills/` | Codex | Thin wrappers + `install-codex-skills.sh` |
@@ -415,7 +419,7 @@ Each repo file falls into one of three buckets:
 - `_base/SETUP_INSTRUCTIONS.md` — agent-readable numbered setup steps. Point an agent at this file to wire up a fresh project end-to-end (template remote, runtime installers, downstream-slot replacements, verification).
 - `_base/PROJECT.md.template` — alignment-doc scaffold; copy to `PROJECT.md` at the repo root if you want feature-level alignment gating via `/align`.
 - `_base/docs/` — seed docs layout for the task manager, generated area views, docs-primary
-  knowledge resources, and archive.
+  knowledge resources, raw knowledge inbox/digests, and archive.
 
 **Mixed** (manual merge required):
 

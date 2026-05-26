@@ -13,6 +13,23 @@ For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
 
+### Add raw knowledge inbox and distillation workflow
+
+The docs-primary knowledge base now has a raw-source ingestion lane:
+
+- `docs/resources/_inbox/` is the raw drop zone for documents, exports, notes, transcripts, and other
+  source material waiting to be processed.
+- `docs/resources/_digests/<area-or-bucket>/` stores curated Markdown digests segregated by area, with
+  `global/`, `_cross-area/`, and `_uncategorized/` seeded as default buckets.
+- New `/distill-knowledge` extracts the important source-backed facts into a digest, then promotes only
+  stable facts into canonical knowledge files such as `CONTEXT.md`, area summaries, dependency graphs,
+  contracts, or component contexts.
+- Non-Markdown raw inbox files are ignored by default so large, binary, proprietary, or sensitive
+  sources are not committed by accident.
+
+**Downstream impact:** run `/init` or `scripts/seed-docs.sh` to seed the raw knowledge inbox and digest
+folders. Re-run skill installers to pick up `/distill-knowledge`.
+
 ### Define branch and checkpoint-commit policy
 
 The base agent contract now distinguishes two repo modes:

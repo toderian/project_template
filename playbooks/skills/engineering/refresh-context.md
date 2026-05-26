@@ -22,6 +22,9 @@ Keep these locations distinct:
   pages when the ledger generator owns them.
 - Component contexts live at
   `docs/resources/<area>/components/<component-slug>/CONTEXT.md`.
+- Raw source drops live at `docs/resources/_inbox/` and curated source digests live under
+  `docs/resources/_digests/<area-or-bucket>/`. Refresh uses digests as evidence; raw inbox processing
+  belongs to `/distill-knowledge`.
 - `CONTEXT_DOCS_DIR` is an external-storage escape hatch for repos whose context docs cannot live in
   the source repo, and it may also point at a central docs repo for shared cross-repo area docs. When
   set for repo-specific context, use `$CONTEXT_DOCS_DIR/<source-repo>/` as the writable knowledge root
@@ -76,6 +79,7 @@ List the docs that can drift:
   `$CONTEXT_DOCS_DIR/resources/<area>/components/*/CONTEXT.md` for central area docs, or
   `$CONTEXT_DOCS_DIR/<source-repo>/resources/<area>/components/*/CONTEXT.md` for repo-specific
   external context
+- source digests under `docs/resources/_digests/**/*.md`
 - supporting resources under `docs/resources/`
 - task ledgers, active task files, done task files, execution logs, and completion harvests
 
@@ -122,6 +126,7 @@ For each affected area or component, gather evidence from the smallest useful se
 - current area summary, dependency graph, feature contracts, or component context
 - task logs and completion harvests that mention the behavior
 - nearby docs under `docs/resources/`
+- relevant source digests under `docs/resources/_digests/**/*.md`
 
 When a subagent runtime is available and the scope splits cleanly, dispatch read-only researcher
 subagents per area or component. Use the status vocabulary and report block from

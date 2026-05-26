@@ -45,6 +45,8 @@ docs/
 │   ├── _overview.md      #   generated from areas + tasks + roadmap
 │   └── global.md         #   generated global-area task status
 ├── resources/            # project docs (architecture, glossary, component contexts, runbooks)
+│   ├── _inbox/           #   raw knowledge drops waiting for /distill-knowledge
+│   ├── _digests/         #   curated Markdown summaries of raw sources, segregated by area
 │   ├── CONTEXT.md        #   primary domain glossary
 │   └── global/
 │       └── summary.md    #   durable global-area architecture notes
@@ -58,7 +60,8 @@ The root `CONTEXT.md`, if missing, is created as a pointer to `docs/resources/CO
 If `_base/docs/` is unavailable (e.g. a repo that vendored only part of the template), fall back to
 creating the dirs with `.gitkeep` and seeding `_areas.md`/`_active.md`/`_done.md`/`_roadmap.md`,
 `docs/_plans/`, `docs/areas/_overview.md`, `docs/resources/CONTEXT.md`,
-`docs/resources/global/summary.md`, and a root pointer by hand -
+`docs/resources/_inbox/`, `docs/resources/_digests/`, `docs/resources/global/summary.md`, and a root
+pointer by hand -
 see `playbooks/conventions/todo-convention.md`,
 `playbooks/conventions/inbox-convention.md`, and
 `playbooks/conventions/knowledge-base-quickstart.md` for the exact shapes.
@@ -75,6 +78,9 @@ Report what was created. Remind the user that:
   `/prd-to-todos`, planning)
 - Durable implementation plans live in `docs/_plans/`
 - The primary domain glossary lives in `docs/resources/CONTEXT.md`; root `CONTEXT.md` is only a pointer
+- Raw docs, notes, and exports can be dropped into `docs/resources/_inbox/`; `/distill-knowledge`
+  writes curated Markdown digests under `docs/resources/_digests/` and promotes stable facts into the
+  knowledge base
 - Durable area knowledge lives in `docs/resources/<area>/`; use `/define-area` to index real
   architecture before adding cross-repo feature contracts
 - Cross-repo feature contracts live in `docs/resources/<area>/contracts/<feature-slug>.md`

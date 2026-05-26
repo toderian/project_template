@@ -25,6 +25,13 @@ authoritative.
   and verification.
 - `docs/resources/<area>/components/<component-slug>/CONTEXT.md` owns component architecture:
   boundaries, public interfaces, dependencies, data ownership, tests, and invariants.
+- `docs/resources/_inbox/` is the raw knowledge drop zone for documents, exports, notes, and pasted
+  source material that has not been distilled yet. It is staging, not authoritative context.
+- `docs/resources/_digests/<area>/` stores curated Markdown summaries of raw sources, segregated by
+  owning area. Use `global/` for cross-cutting knowledge, `_cross-area/` for sources that materially
+  affect several areas, and `_uncategorized/` when ownership is not known yet. A digest preserves
+  source provenance and the important extracted facts before stable facts are promoted into canonical
+  glossary, area, dependency, contract, or component docs.
 - `CONTEXT_DOCS_DIR` is an external-storage escape hatch for describing a repo you should not write
   into. It is not the normal default for repos that use this template.
 
@@ -39,7 +46,11 @@ look in this order:
 4. `docs/resources/<area>/dependency-graph.md` for repo/package relationships and install modes
 5. `docs/resources/<area>/contracts/*.md` for feature-specific cross-repo agreements
 6. `docs/resources/<area>/components/*/CONTEXT.md` for known component boundaries
-7. Legacy component context files stored beside source only as fallback evidence
+7. `docs/resources/_digests/**/*.md` for source-backed summaries not yet promoted elsewhere
+8. Legacy component context files stored beside source only as fallback evidence
+
+Do not scan `docs/resources/_inbox/` as routine project context. Raw inbox files may be large,
+duplicative, sensitive, or stale. Use `/distill-knowledge` when the task is to process that material.
 
 When `CONTEXT_DOCS_DIR` is configured as a central docs repo, use
 `$CONTEXT_DOCS_DIR/resources/<area>/` as the canonical writable home for shared cross-repo area docs,
@@ -56,6 +67,28 @@ knowledge root.
 
 Do not treat generated ledgers or generated area status blocks as architecture documentation. They are
 evidence about work status, not durable knowledge.
+
+## Raw knowledge ingestion
+
+Use `docs/resources/_inbox/` as the drop zone for raw source material: PDFs, notes, exports, vendor
+docs, design drafts, screenshots with text, transcripts, and research. Non-Markdown files in the seeded
+folder are ignored by default so large or sensitive material is not committed accidentally; projects can
+relax that rule in their downstream `.gitignore` if they intentionally version raw sources.
+
+Run `/distill-knowledge` to process raw material. The workflow creates a digest at:
+
+```text
+docs/resources/_digests/<area-or-bucket>/YYYY-MM-DD-<source-slug>.md
+```
+
+Each digest should name the source, distillation date, digest bucket, affected areas, executive
+summary, key facts, decisions and constraints, domain terms, architecture notes, risks, suggested
+knowledge-base updates, and follow-ups. Promote only stable, source-backed facts from the digest into
+canonical docs under `docs/resources/`; keep uncertain or one-off details in the digest.
+
+If the raw source is sensitive, license-restricted, or too large to commit, keep it outside the repo or
+leave it ignored in `_inbox/`. The committed digest should retain only the information the project is
+allowed to keep.
 
 ## Area summaries
 

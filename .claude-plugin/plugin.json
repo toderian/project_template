@@ -6,6 +6,7 @@
     "./skills/engineering/define-area",
     "./skills/engineering/describe-component",
     "./skills/engineering/diagnose",
+    "./skills/engineering/distill-knowledge",
     "./skills/engineering/execute-plan",
     "./skills/engineering/grill-with-docs",
     "./skills/engineering/improve-codebase-architecture",
