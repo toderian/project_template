@@ -243,16 +243,22 @@ was captured for session expiry telemetry.
 
 ## Pre-implementation review gate
 
-Before starting implementation of any existing task, run two reviews and record both in the execution
-log before code edits:
+Before starting implementation of any existing task, run two bounded reviews and record both in the
+execution log before code edits. For routine tasks, each review can be a concise bullet list; use the
+full researcher or plan-critique workflow only when the task is large, stale, high-risk, or materially
+depends on current external facts.
 
 1. **Researcher current-state review** - inspect relevant code, docs, tests, ledgers, and area pages.
-   Record what already exists, likely conflicts, and current test coverage.
+   Record what already exists, likely conflicts, and current test coverage. Search externally only when
+   the task depends on third-party/current facts that the repo cannot answer.
 2. **Plan-critic freshness/applicability review** - challenge whether the task is still valid, sequenced
-   correctly, duplicated, stale, or overlapping later work. Use `playbooks/conventions/plan-critique.md`.
+   correctly, duplicated, stale, or overlapping later work. Use only the relevant axes from
+   `playbooks/conventions/plan-critique.md` for small tasks; run the full rubric for larger or riskier
+   work.
 
-Claude Code may dispatch `researcher` and `plan-critic` subagents. Codex must run equivalent
-main-thread passes using `playbooks/personalities/researcher.md` and the plan critique convention.
+Claude Code may dispatch `researcher` and `plan-critic` subagents when isolated context is useful.
+Codex should use multi-agent tools if available; otherwise run equivalent bounded main-thread passes
+using `playbooks/personalities/researcher.md` and the plan critique convention.
 
 If the reviews find stale assumptions, duplicate work, ordering issues, or overlapping later tasks,
 reconcile before implementation. Agents may update roadmap ordering, task notes, area status, and

@@ -18,9 +18,12 @@ Before designing, understand:
 
 Ask: "What does this module need to do? Who will use it?"
 
-### 2. Generate Designs (Parallel Sub-Agents)
+### 2. Generate Designs (Parallel Sub-Agents Where Available)
 
-Spawn 3+ sub-agents simultaneously using Task tool. Each must produce a **radically different** approach.
+Generate 3+ independent designs. Use the runtime's parallel subagent mechanism when available
+(`Task` tool on Claude Code, Codex multi-agent tools when present). If no subagent runtime is available,
+run three isolated main-thread passes and keep each pass blind to the others until comparison. Each pass
+must produce a **radically different** approach.
 
 ```
 Prompt template for each sub-agent:

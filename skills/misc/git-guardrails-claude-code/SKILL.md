@@ -11,6 +11,6 @@ Read and follow:
 
 - `playbooks/skills/misc/git-guardrails-claude-code.md`
 
-The hook script is bundled at `.claude/skills/git-guardrails-claude-code/scripts/block-dangerous-git.sh`.
+The hook script is bundled at `.claude/skills/misc/git-guardrails-claude-code/scripts/block-dangerous-git.sh`.
 
 Keep this skill thin. The playbook is the shared workflow and should be updated first when the process changes.

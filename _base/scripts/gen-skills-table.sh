@@ -30,15 +30,19 @@ skills listed in .claude-plugin/plugin.json.
 With no option, regenerate the table in place.
 
 Options:
+  --check      Validate that the table is current without writing files.
   --version    Print version and exit.
   --help       Show this message and exit.
 EOF
 }
 
+CHECK_MODE=0
 case "${1:-}" in
   --version) printf 'gen-skills-table.sh %s\n' "$VERSION"; exit 0 ;;
   --help)    usage; exit 0 ;;
-  *)         ;;
+  --check)   CHECK_MODE=1 ;;
+  "")        ;;
+  *)         printf 'unknown option: %s\n' "$1" >&2; usage >&2; exit 2 ;;
 esac
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -143,10 +147,10 @@ trap 'rm -f "$TMP"' EXIT
 } > "$TMP"
 
 # Splice the new block into _base/README.md in place.
-python3 - "$README" "$TMP" "$BEGIN_MARKER" "$END_MARKER" <<'PY'
+python3 - "$README" "$TMP" "$BEGIN_MARKER" "$END_MARKER" "$CHECK_MODE" <<'PY'
 import sys, pathlib
 
-readme_path, new_block_path, begin, end = sys.argv[1:5]
+readme_path, new_block_path, begin, end, check_mode = sys.argv[1:6]
 readme = pathlib.Path(readme_path).read_text()
 new_block = pathlib.Path(new_block_path).read_text().rstrip("\n")
 
@@ -155,6 +159,9 @@ stop = readme.index(end) + len(end)
 updated = readme[:start] + new_block + readme[stop:]
 
 if updated != readme:
+    if check_mode == "1":
+        print(f"out of date ({readme_path})")
+        sys.exit(1)
     pathlib.Path(readme_path).write_text(updated)
     print(f"updated {readme_path}")
 else:

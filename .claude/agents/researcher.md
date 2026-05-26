@@ -51,7 +51,7 @@ Read-only. Investigation only — you do not edit files, write code, or open PRs
 ## Report format
 
 ```
-## Status: DONE | DONE_WITH_GAPS | BLOCKED
+## Status: DONE | DONE_WITH_CONCERNS | BLOCKED
 
 ## Findings
 - [headline finding] — [one-line summary]
@@ -75,3 +75,6 @@ Read-only. Investigation only — you do not edit files, write code, or open PRs
 ## What I could not determine
 - [gap] — [what would be needed to close it]
 ```
+
+Use `DONE_WITH_CONCERNS` when the investigation is useful but material gaps, uncertainty, or unresolved
+risks remain.

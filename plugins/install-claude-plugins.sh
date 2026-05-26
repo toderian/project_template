@@ -7,18 +7,19 @@
 # Curated default list lives in the PLUGINS array below. Edit it to add or
 # remove entries; one line per plugin in the form:
 #
-#   "<marketplace-repo>|<plugin-name>"
+#   "<marketplace-repo>|<plugin-name>|<marketplace-key>"
 #
 # where <marketplace-repo> is a GitHub "owner/repo" the user trusts and
-# <plugin-name> is the plugin entry inside that marketplace (usually the same
-# as the repo name, but check the upstream).
+# <plugin-name> is the plugin entry inside that marketplace. <marketplace-key>
+# is the local Claude marketplace alias used in enabledPlugins. It is optional;
+# when omitted, the repo basename is used.
 #
 # How the install works:
 #
 #   1. ensure ~/.claude/settings.json exists (create empty {} if not)
 #   2. for each plugin in PLUGINS:
-#        - add "<repo>" under .extraKnownMarketplaces with a "github" source
-#        - add "<plugin-name>@<repo>" under .enabledPlugins set to true
+#        - add "<marketplace-key>" under .extraKnownMarketplaces with a "github" source
+#        - add "<plugin-name>@<marketplace-key>" under .enabledPlugins set to true
 #   3. report what changed; ask the user to restart Claude Code
 #
 # NOTHING is downloaded by this script — Claude Code resolves marketplaces on
@@ -26,7 +27,7 @@
 # Claude:
 #
 #   /plugin marketplace add <repo>
-#   /plugin install <plugin-name>@<repo>
+#   /plugin install <plugin-name>@<marketplace-key>
 
 set -euo pipefail
 
@@ -42,16 +43,20 @@ fi
 CLAUDE_HOME="${CLAUDE_HOME:-${HOME}/.claude}"
 SETTINGS_PATH="${CLAUDE_SETTINGS_PATH:-${CLAUDE_HOME}/settings.json}"
 
-# Curated default plugin list. Format: "<owner/repo>|<plugin-name>".
+# Curated default plugin list. Format:
+#   "<owner/repo>|<plugin-name>|<marketplace-key>"
+#
+# The third field is optional. Keep it explicit for entries whose official
+# marketplace alias differs from the GitHub repo.
 # Edit this list to fit the project. Comment lines out with a leading '#'.
 PLUGINS=(
   # Broad workflow plugin (TDD, debugging, planning, dispatching parallel agents).
   # Codex equivalent is vendored under plugins/superpowers/; this is the Claude variant.
-  "obra/superpowers|superpowers"
+  "obra/superpowers-marketplace|superpowers|superpowers-marketplace"
 
   # Cross-session memory for Claude. Ships .claude-plugin/ + .codex-plugin/;
   # bootstrap-third-party.sh prints the install hint, this installer makes it hands-off.
-  "thedotmack/claude-mem|claude-mem"
+  "thedotmack/claude-mem|claude-mem|claude-mem"
 )
 
 if ! command -v python3 >/dev/null 2>&1; then
@@ -64,9 +69,9 @@ if [[ ! -f "${SETTINGS_PATH}" ]]; then
   printf '{}\n' > "${SETTINGS_PATH}"
 fi
 
-# Build a flat list of repo / plugin-name pairs to pass as positional args to
-# the python merger. Lines whose first character is '#' or that are empty are
-# skipped (so users can leave commented examples in PLUGINS).
+# Build a flat list of repo / plugin-name / marketplace-key triples to pass as
+# positional args to the python merger. Lines whose first character is '#' or
+# that are empty are skipped (so users can leave commented examples in PLUGINS).
 plugin_args=()
 for entry in "${PLUGINS[@]}"; do
   trimmed="${entry#"${entry%%[![:space:]]*}"}"
@@ -77,15 +82,24 @@ for entry in "${PLUGINS[@]}"; do
     echo "Skipping malformed entry (no '|' delimiter): ${entry}" >&2
     continue
   fi
-
-  repo="${entry%%|*}"
-  plugin_name="${entry##*|}"
+  IFS='|' read -r repo plugin_name marketplace_key extra <<<"${entry}"
+  if [[ -n "${extra:-}" ]]; then
+    echo "Skipping malformed entry (too many '|' delimiters): ${entry}" >&2
+    continue
+  fi
   if [[ -z "${repo}" || -z "${plugin_name}" ]]; then
-    echo "Skipping malformed entry (empty field): ${entry}" >&2
+    echo "Skipping malformed entry (empty required field): ${entry}" >&2
+    continue
+  fi
+  if [[ -z "${marketplace_key:-}" ]]; then
+    marketplace_key="${repo##*/}"
+  fi
+  if [[ -z "${marketplace_key}" ]]; then
+    echo "Skipping malformed entry (empty marketplace key): ${entry}" >&2
     continue
   fi
 
-  plugin_args+=("${repo}" "${plugin_name}")
+  plugin_args+=("${repo}" "${plugin_name}" "${marketplace_key}")
 done
 
 if [[ ${#plugin_args[@]} -eq 0 ]]; then
@@ -108,14 +122,13 @@ added_plugins = []
 skipped_marketplaces = []
 skipped_plugins = []
 
-# sys.argv[2:] is a flat list of (repo, plugin_name) pairs.
+# sys.argv[2:] is a flat list of (repo, plugin_name, marketplace_key) triples.
 args = sys.argv[2:]
-if len(args) % 2 != 0:
-    sys.exit(f"internal error: expected even number of plugin args, got {len(args)}")
+if len(args) % 3 != 0:
+    sys.exit(f"internal error: expected triples of plugin args, got {len(args)}")
 
-for repo, plugin_name in zip(args[0::2], args[1::2]):
-    marketplace_key = repo
-    plugin_key = f"{plugin_name}@{repo}"
+for repo, plugin_name, marketplace_key in zip(args[0::3], args[1::3], args[2::3]):
+    plugin_key = f"{plugin_name}@{marketplace_key}"
 
     if marketplace_key in marketplaces:
         skipped_marketplaces.append(marketplace_key)

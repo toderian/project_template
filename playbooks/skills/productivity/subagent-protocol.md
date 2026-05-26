@@ -26,6 +26,10 @@ Every subagent must end its work with one of these statuses:
 - **NEEDS_CONTEXT**: subagent lacks information to continue — parent provides context and re-dispatches
 - **BLOCKED**: task cannot be completed as specified — parent must triage
 
+Specialized subagents may add a domain verdict line such as `## Verdict: PASS | FAIL` or
+`## Plan verdict: PROCEED | REVISE | BLOCKED`, but the top-level `## Status:` line must still use the
+shared vocabulary above so parent workflows can route escalation consistently.
+
 ## Report format
 
 Every subagent must end with a structured report block:

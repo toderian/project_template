@@ -27,7 +27,8 @@ This repo is designed to work with both **Claude Code** and **OpenAI Codex**. Co
 │   ├── docs/                              # Seed docs layout: tasks_manager, areas, resources, archive
 │   └── scripts/                           # Maintenance scripts (operate only on upstream content)
 │       ├── gen-skills-table.sh            # Regenerates the skills table in _base/README.md
-│       └── check-skills-sync.sh           # Validates skill/wrapper/table consistency
+│       ├── check-skills-sync.sh           # Validates skill/wrapper/table consistency
+│       └── check-codex-plugins.sh         # Validates bundled Codex plugin manifests/assets
 │
 │
 ├── playbooks/                             # Shared workflow logic (single source of truth)
@@ -57,8 +58,9 @@ This repo is designed to work with both **Claude Code** and **OpenAI Codex**. Co
     ├── skills/                            # Claude Code skill wrappers (thin)
     │   └── <bucket>/<skill-name>/SKILL.md
     ├── agents/                            # Claude Code subagent definitions
-    │   ├── implementer.md
-    │   └── reviewer.md
+    │   ├── implementer.md, reviewer.md, plan-critic.md
+    │   ├── spec-validator.md, security-auditor.md
+    │   └── researcher.md
     ├── hooks/                             # PreToolUse hook scripts
     └── settings.json                      # Hook configuration
 ```
@@ -124,7 +126,7 @@ The table below lists the skills authored in this template (base tier). Downstre
 | capture-idea | productivity | Capture an idea into the inbox (docs/tasks_manager/_inbox/) as an I-NNN file with near-zero friction. Use whenever the user says "capture", "add to inbox", "note this idea", "jot down", or shares a feature/bug/idea they want recorded for later — even if they don't explicitly ask to use a skill. |
 | complete-task | productivity | Complete or cancel a task, fill its completion harvest and summary, archive it, then sync and strictly validate task ledgers. Use when the user says "complete task", "finish task", "close task", "cancel task", or asks to archive a done task. |
 | describe-component | engineering | Generate or refresh a CONTEXT.md describing a system component's structure — responsibility, public interface, dependencies, data owned, invariants, and tests. Use when the user wants to "describe a component", "document this module/service", map a subsystem's boundaries, or onboard to/hand off a part of the codebase. Distinct from the root domain-glossary CONTEXT.md (that's grill-with-docs). |
-| design-an-interface | misc | Generate multiple radically different interface designs for a module using parallel sub-agents. Use when user wants to design an API, explore interface options, compare module shapes, or mentions "design it twice". |
+| design-an-interface | misc | Generate multiple radically different interface designs for a module using parallel sub-agents when available. Use when user wants to design an API, explore interface options, compare module shapes, or mentions "design it twice". |
 | diagnose | engineering | Disciplined diagnosis loop for hard bugs and performance regressions. Reproduce → minimise → hypothesise → instrument → fix → regression-test. Use when user says "diagnose this" / "debug this", reports a bug, says something is broken/throwing/failing, or describes a performance regression. |
 | edit-article | personal | Edit and improve articles by restructuring sections, improving clarity, and tightening prose. Use when user wants to edit, revise, or improve an article draft. |
 | frontend-design | misc | Create distinctive, production-grade frontend interfaces with high design quality. Use when the user asks to build web components, pages, or applications. Generates creative, polished code that avoids generic AI aesthetics. |
@@ -155,7 +157,7 @@ The table below lists the skills authored in this template (base tier). Downstre
 | subagent-protocol | productivity | Multi-agent coordination protocol with status vocabulary, dispatch format, and two-stage review. Use when dispatching subagents, coordinating multi-agent work, or reviewing implementation output. |
 | tdd | engineering | Test-driven development with red-green-refactor loop. Use when user wants to build features or fix bugs using TDD, mentions "red-green-refactor", wants integration tests, or asks for test-first development. |
 | tidy-repo | productivity | Inventory a messy repo's scattered TODOs, loose docs, and orphan files, then propose a non-destructive migration into the docs/tasks_manager + docs/resources structure. Use when the user says "tidy this repo", "systematize", "clean up the mess", "organize my tasks/docs", or describes an inherited repo with scattered TODOs, stray docs, and unrelated files. |
-| triage-inbox | productivity | Review captured inbox ideas (docs/tasks_manager/_inbox/) and promote worthwhile ones into full area-prefixed tasks, or drop them. Use when the user says "triage", "review the inbox", "process my ideas", "clear the inbox", or wants to turn captured ideas into actionable tasks. |
+| triage-inbox | productivity | Review captured inbox ideas (docs/tasks_manager/_inbox/) and promote worthwhile ones into full area-prefixed tasks, or drop them. Use when the user says "triage inbox", "review the inbox", "process my ideas", "clear the inbox", or wants to turn captured ideas into actionable tasks. |
 | triage-issue | misc | Triage a bug or issue through a two-role state machine (category + state) and produce a `ready-for-agent` GitHub issue with a TDD-based fix plan, by exploring the codebase to find the root cause. Use when the user wants to "triage" a bug, investigate an issue, file an issue, plan a fix, or move an issue toward `ready-for-agent`. |
 | ubiquitous-language | engineering | Extract a DDD-style ubiquitous language glossary from the current conversation, flagging ambiguities and proposing canonical terms. Saves to UBIQUITOUS_LANGUAGE.md. Use when user wants to define domain terms, build a glossary, harden terminology, create a ubiquitous language, or mentions "domain model" or "DDD". |
 | write-a-prd | productivity | Create a PRD through user interview, codebase exploration, and module design, then submit as a GitHub issue. Use when user wants to write a PRD, create a product requirements document, or plan a new feature. |
@@ -179,7 +181,7 @@ See `playbooks/skills/productivity/write-a-skill.md` for the full skill authorin
 
 ### Validating skill/wrapper consistency
 
-`_base/scripts/check-skills-sync.sh` verifies that every playbook has matching Codex + Claude wrappers, that frontmatter names/descriptions stay in sync, that the auto-generated skills table is up-to-date, and that personalities aren't accidentally exposed as slash commands. Designed to be called by an agent in a loop:
+`_base/scripts/check-skills-sync.sh` verifies that every playbook has matching Codex + Claude wrappers, that frontmatter names/descriptions stay in sync, that the auto-generated skills table is up-to-date, and that personalities aren't accidentally exposed as slash commands. It calls `gen-skills-table.sh --check`, so validation is read-only. Designed to be called by an agent in a loop:
 
 ```bash
 ./_base/scripts/check-skills-sync.sh
@@ -189,7 +191,9 @@ See `playbooks/skills/productivity/write-a-skill.md` for the full skill authorin
 
 Severities: **BLOCKER** (missing/orphan files, broken references), **DRIFT** (out-of-sync metadata, mechanically fixable), **STYLE** (advisory thin-wrapper / convention violations). The script exits non-zero on BLOCKER or DRIFT; STYLE alone is allowed.
 
-Both scripts live under `_base/scripts/` because they only operate on upstream-owned content (the auto-generated table in `_base/README.md`, the template's skill catalog). Downstream projects should not re-implement them; pull updates from the template and re-run.
+`_base/scripts/check-codex-plugins.sh` validates bundled Codex plugin manifests, referenced skill/app paths, plugin skill `SKILL.md` files, app JSON, optional MCP JSON, and declared interface assets. `plugins/install-codex-plugins.sh` runs it before changing local symlinks or marketplace entries.
+
+These scripts live under `_base/scripts/` because they only operate on upstream-owned content (the auto-generated table in `_base/README.md`, the template's skill catalog, and bundled plugin manifests). Downstream projects should not re-implement them; pull updates from the template and re-run.
 
 ## Platform support
 
@@ -197,8 +201,8 @@ Both scripts live under `_base/scripts/` because they only operate on upstream-o
 |---------|------------|-------|
 | AGENTS.md (+ _base/AGENTS.md) | Auto-loaded; loads `_base/AGENTS.md` by instruction | Auto-loaded; loads `_base/AGENTS.md` by instruction |
 | Skills (slash commands) | `.claude/skills/` auto-discovered | `skills/` via `install-codex-skills.sh` |
-| Plugins | Not applicable | `plugins/` via `install-codex-plugins.sh` and local marketplace entries |
-| Agent definitions | `.claude/agents/` native subagent dispatch (`implementer`, `reviewer`, `plan-critic`, `spec-validator`, `security-auditor`, `researcher`) | `skills/implementer/`, `skills/reviewer/` as behavioral skills; other subagents have no Codex equivalent and run on the main thread under their cited personality + skill/convention |
+| Plugins | `plugins/install-claude-plugins.sh` can enable curated Claude Code plugins in `~/.claude/settings.json` | `plugins/` via `install-codex-plugins.sh` and local marketplace entries |
+| Agent definitions | `.claude/agents/` native subagent dispatch (`implementer`, `reviewer`, `plan-critic`, `spec-validator`, `security-auditor`, `researcher`) | Use Codex multi-agent tools when available; otherwise `skills/misc/implementer` and `skills/misc/reviewer` install as flat behavioral skills, and other roles run on the main thread under their cited personality + skill/convention |
 | Hooks | `.claude/settings.json` PreToolUse | Codex approval policy (`suggest`/`auto-edit`/`full-auto`) |
 | Per-directory overrides | Nested `AGENTS.md` in subdirectories | Not supported — root `AGENTS.md` only |
 
@@ -236,7 +240,9 @@ manifest layout:
 ```
 
 The plugin installer symlinks repo plugins into `~/plugins/` by default and
-adds local marketplace entries to `~/.agents/plugins/marketplace.json`.
+adds local marketplace entries to `~/.agents/plugins/marketplace.json`. It first
+runs `_base/scripts/check-codex-plugins.sh` so malformed manifests or missing
+plugin assets fail before any local install state changes.
 
 Codex skill metadata:
 

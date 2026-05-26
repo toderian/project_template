@@ -13,6 +13,38 @@ For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
 
+### Tighten runtime setup docs and guardrail references
+
+Follow-up consistency fixes from a Claude/Codex parity review:
+
+- `_base/README.md` now reflects that Claude Code can use `plugins/install-claude-plugins.sh`, lists the
+  full Claude agent set in the repo tree, and points Codex implementer/reviewer behavioral skills at
+  their bucketed source paths.
+- `_base/SETUP_INSTRUCTIONS.md` now describes the bucketed Codex skill source layout, flat install
+  destination, idempotent installer summary, and `_base/README.md` as the skills catalog.
+- `/triage-inbox` trigger text now says `triage inbox` instead of generic `triage`, reducing overlap
+  with issue triage skills.
+- Git guardrails docs and wrappers now point at the real bucketed hook script path.
+- Claude subagent prompts now keep domain verdicts (`PASS`/`FAIL`, `PROCEED`/`REVISE`/`BLOCKED`) as
+  separate verdict lines while using the shared `DONE` / `DONE_WITH_CONCERNS` / `BLOCKED` status
+  vocabulary for parent routing.
+- Codex subagent guidance now accounts for environments that expose multi-agent tools while preserving
+  sequential behavioral-skill fallbacks when they do not.
+- The pre-implementation review gate is now explicitly bounded: routine tasks can log concise
+  codebase-first current-state and plan-freshness notes, while full researcher/plan-critique workflows
+  are reserved for larger, stale, high-risk, or externally current work.
+- `plugins/install-claude-plugins.sh` now distinguishes GitHub marketplace repos from local Claude
+  marketplace aliases, fixing Superpowers installation to use `superpowers@superpowers-marketplace`.
+- New `_base/scripts/check-codex-plugins.sh` validates bundled Codex plugin manifests, plugin skill
+  files, app JSON, optional MCP JSON, and declared interface assets. `plugins/install-codex-plugins.sh`
+  runs it before changing local install state.
+- `_base/scripts/gen-skills-table.sh --check` now supports read-only table validation, and
+  `_base/scripts/check-skills-sync.sh` uses that mode instead of regenerating and restoring files.
+
+**Downstream impact:** documentation and setup-validation changes only. Re-run skill installers if you
+want the refreshed `/triage-inbox` description in global Claude/Codex skill directories. Re-run
+`./plugins/install-claude-plugins.sh` if you installed the older Superpowers marketplace entry.
+
 ### Add task-system quickstart and triage discovery gate
 
 Documentation-only update to make the task system's golden path and triage expectations explicit:
@@ -28,10 +60,16 @@ Documentation-only update to make the task system's golden path and triage expec
   `_base/README.md`, and `_base/AGENTS.md` now point agents toward the same source-of-truth split: task
   files own detail/status, roadmap owns placement, raw inbox IDs only park in `Later`, and ledgers/area
   pages are generated.
+- `scripts/sync-todo-ledgers.sh --check` now enforces the same roadmap rule by rejecting raw inbox IDs
+  in `Now` or `Next`, validates inbox status/archive placement, and validates area registry pages
+  against `docs/areas/<area>.md`.
 
-**Downstream impact:** documentation-only; no migration, scripts, commands, metadata fields, or file
-formats changed. Agents should follow the new `/triage-inbox` discovery gate before promoting captured
-ideas into tasks.
+**Downstream impact:** no migration, commands, metadata fields, or file formats changed. Agents should
+follow the new `/triage-inbox` discovery gate before promoting captured ideas into tasks. Projects with
+raw `I-NNN` inbox IDs in roadmap `Now` or `Next` should either move them to `Later` or promote them
+with `/triage-inbox`. Projects with terminal inbox files still in `_inbox/`, live `new` inbox files in
+`_inbox_archived/`, or area pages outside `docs/areas/<area>.md` should reconcile those before relying
+on strict validation.
 
 ### Harden idea-to-task validation and completion flow
 
@@ -276,7 +314,7 @@ Four new Claude Code subagents in `.claude/agents/`, ported from the [autonomous
 
 Harness-specific bits from the source were dropped during the port: file-write verdict gates, checkpoint-tracker Python blocks, active-scanner library imports, pipeline-state JSON files, RFC 2119 MUST/SHOULD shouting, and HARD GATE / FORBIDDEN markers. The ported content references this template's existing personalities (`critic`, `reviewer`, `researcher`) and skills (`security-review-owasp`) rather than duplicating their content.
 
-**Downstream impact:** new files only; no conflicts expected. Claude Code users gain four additional subagents discoverable via `.claude/agents/` and the updated catalog in `_base/AGENTS.md`. Codex has no equivalent subagent runtime — `plan-critic`, `spec-validator`, `security-auditor`, and `researcher` must run on the main thread under the cited personality + skill/convention in Codex sessions; only the `planning-workflow` skill (shipped in the previous entry) has full Codex parity.
+**Downstream impact:** new files only; no conflicts expected. Claude Code users gain four additional subagents discoverable via `.claude/agents/` and the updated catalog in `_base/AGENTS.md`. Codex sessions without a multi-agent runtime should run `plan-critic`, `spec-validator`, `security-auditor`, and `researcher` on the main thread under the cited personality + skill/convention.
 
 ### Add `planning-workflow` skill and `plan-critique` convention
 
@@ -317,7 +355,7 @@ New maintenance script that validates skill / wrapper / table consistency: every
 
 Two related additions that close the dual-runtime setup story for downstream projects.
 
-- **`plugins/install-claude-plugins.sh`** — installs a curated set of Claude Code plugins by merging entries into `~/.claude/settings.json` (`extraKnownMarketplaces` + `enabledPlugins`). Idempotent: re-running reports `already present, left as-is` for entries that already exist; preserves unrelated keys in the user's settings. The curated default list is hard-coded at the top of the script under `PLUGINS=( … )` and is easy to edit. The list ships with two starters: `obra/superpowers` (Claude variant of the already-vendored Codex superpowers plugin) and `thedotmack/claude-mem` (cross-session memory). No umbrella `install-all.sh` — installers stay agent-scoped (Codex installers under `skills/` + `plugins/`; Claude installer under `plugins/`).
+- **`plugins/install-claude-plugins.sh`** — installs a curated set of Claude Code plugins by merging entries into `~/.claude/settings.json` (`extraKnownMarketplaces` + `enabledPlugins`). Idempotent: re-running reports `already present, left as-is` for entries that already exist; preserves unrelated keys in the user's settings. The curated default list is hard-coded at the top of the script under `PLUGINS=( … )` and is easy to edit. The list ships with two starters: `obra/superpowers-marketplace` (Claude variant of the already-vendored Codex superpowers plugin) and `thedotmack/claude-mem` (cross-session memory). No umbrella `install-all.sh` — installers stay agent-scoped (Codex installers under `skills/` + `plugins/`; Claude installer under `plugins/`).
 - **`_base/SETUP_INSTRUCTIONS.md`** — agent-readable numbered setup steps for wiring up a fresh project. **Each agent sets up only its own runtime**: Claude Code agents run Phases 0–2 + Phase 3 (Claude) + Phases 5–6; Codex agents run Phases 0–2 + Phase 4 (Codex) + Phases 5–6. Phases 0, 1, 2, 5, 6 are idempotent, so a second agent on the other runtime can re-run the file later to set up its side without re-doing or breaking the first agent's work. Each step has an explicit check; on any failure the agent stops and hands control back to the user. Pointed at like `Follow _base/SETUP_INSTRUCTIONS.md`.
 
 **Downstream impact:** none for existing projects; the new installer is opt-in. Newly-seeded projects benefit immediately — pointing an agent at `_base/SETUP_INSTRUCTIONS.md` is now the canonical setup path (`_base/README.md` § "Quick start" updated to reflect this). The file ownership matrix in both `_base/README.md` and `_base/AGENTS.md` now lists `_base/SETUP_INSTRUCTIONS.md` as upstream-owned.

@@ -203,7 +203,9 @@ Group tasks into parallel-safe sets (no shared files, no ordering dependency). F
    - Model hint per `playbooks/skills/productivity/subagent-protocol.md` § "Model selection".
 2. Dispatch the group. **Runtime parity, not runtime identity:**
    - **Claude Code:** use the `Task` tool with `subagent_type: implementer` to dispatch all tasks in the group in parallel.
-   - **Codex:** invoke the behavioral `/implementer` skill per task. Codex has no `Task`-tool equivalent for true parallelism, so tasks in a group execute in a recommended order; the grouping still encodes "safe to interleave" intent.
+   - **Codex:** use Codex multi-agent tools when available. If unavailable, invoke the behavioral
+     `/implementer` skill per task in a recommended order; the grouping still encodes "safe to
+     interleave" intent.
    - Both runtimes use the same brief shape and the same status vocabulary.
 3. Collect each subagent's structured report. Annotate the corresponding `tasks.md` line with its returned status (glyph + status text per § "File schemas").
 4. If any task returns `BLOCKED` or `NEEDS_CONTEXT`, follow `playbooks/skills/productivity/subagent-protocol.md` § "Escalation rules". Never re-dispatch with an identical prompt.

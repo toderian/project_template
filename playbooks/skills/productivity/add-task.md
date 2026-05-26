@@ -88,11 +88,12 @@ Run:
 
 ```bash
 scripts/sync-todo-ledgers.sh
+scripts/sync-todo-ledgers.sh --check
 ```
 
 If the user wants this scheduled, add the task ID to `docs/tasks_manager/_roadmap.md` under Now, Next,
-or Later in the intended order, then run the sync again so `docs/areas/_overview.md` and generated
-area blocks reflect the roadmap placement.
+or Later in the intended order, then run sync and `--check` again so `docs/areas/_overview.md` and
+generated area blocks reflect the roadmap placement.
 
 ### 7. Report
 
@@ -112,5 +113,5 @@ review gate in `todo-convention.md`.
 - The task has the complete template required by `todo-convention.md`.
 - The task ID uses the selected area's prefix and the next per-prefix counter.
 - New area rows are user-approved and include a page path.
-- Ledgers and area pages are synced.
+- Ledgers and area pages are synced and pass `scripts/sync-todo-ledgers.sh --check`.
 - Roadmap placement is explicit; the skill does not silently schedule work.

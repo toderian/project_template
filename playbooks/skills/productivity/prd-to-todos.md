@@ -96,10 +96,18 @@ Reserve each file with `scripts/reserve-work-item.sh task <PREFIX> <TYPE> <short
 order so IDs sort naturally within each area. Fill each reserved placeholder immediately. Use the
 current datetime for the `Created` field. After creating the files, run `scripts/sync-todo-ledgers.sh`.
 If the user wants the PRD scheduled, place the new task IDs on `docs/tasks_manager/_roadmap.md` in Now,
-Next, or Later and run the sync again.
+Next, or Later and run the sync again. After all task and roadmap changes are done, run
+`scripts/sync-todo-ledgers.sh --check`.
 
 ### 7. Report
 
 List all created files with their phase counts, dependency order, and roadmap placement. Remind the
 user that starting any existing task requires the pre-implementation review gate from
 `playbooks/conventions/todo-convention.md`.
+
+## Quality bar
+
+- Each task is atomic, independently completable, and verifiable.
+- Existing inbox ideas, tasks, docs, and code/tests were checked before task creation.
+- New area rows were confirmed with the user before use.
+- Ledgers and area pages are synced and pass `scripts/sync-todo-ledgers.sh --check`.

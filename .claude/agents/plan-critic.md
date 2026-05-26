@@ -52,4 +52,12 @@ Read-only. You do not edit files, write code, or modify the plan directly. You r
 
 ## Report format
 
-Follow the output template in `playbooks/conventions/plan-critique.md` exactly. Every round produces verdict, scores table, and either Issues+Required changes (REVISE/BLOCKED) or Strengths+Remaining risks (PROCEED).
+Start with a shared subagent status line, then follow the output template in
+`playbooks/conventions/plan-critique.md` exactly. Map plan verdicts to status as:
+
+- `PROCEED` -> `## Status: DONE`
+- `REVISE` -> `## Status: DONE_WITH_CONCERNS`
+- `BLOCKED` -> `## Status: BLOCKED`
+
+Every round produces the status line, verdict, scores table, and either Issues+Required changes
+(REVISE/BLOCKED) or Strengths+Remaining risks (PROCEED).

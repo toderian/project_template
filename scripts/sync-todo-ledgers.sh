@@ -189,6 +189,7 @@ declare -A AREA_PREFIX AREA_DESC AREA_PAGE PREFIX_AREA AREA_ORDER
 declare -a AREAS=()
 
 read_areas() {
+  local page_abs expected_page
   if [[ -f "${AREAS_FILE}" ]]; then
     while IFS=$'\t' read -r area prefix desc page; do
       [[ -n "$area" ]] || continue
@@ -214,6 +215,11 @@ read_areas() {
       fi
       if [[ "$prefix" == "T" && "$area" != "global" ]]; then
         validate_or_warn "prefix 'T' is reserved for area 'global' but is assigned to '${area}'"
+      fi
+      page_abs="$(page_abs_for "$page")"
+      expected_page="$(path_abs "${AREAS_DIR}/${area}.md")"
+      if [[ "$page_abs" != "$expected_page" ]]; then
+        validate_or_warn "area row '${area}' has Page '${page}', expected docs/areas/${area}.md"
       fi
       AREA_PREFIX["$area"]="$prefix"
       AREA_DESC["$area"]="$desc"
@@ -404,6 +410,91 @@ declare -A TASK_COUNT TASK_FILE TASK_BASE TASK_DIR TASK_TYPE TASK_AREA TASK_STAT
 declare -A AREA_OPEN AREA_INPROGRESS AREA_DONE AREA_NOW AREA_NEXT AREA_LATER
 declare -a TASK_IDS=()
 
+extract_inbox() {
+  awk '
+    function trim(s) { gsub(/^[[:space:]]+|[[:space:]]+$/, "", s); return s }
+    BEGIN { FS="|"; OFS = sprintf("%c", 28) }
+    /^\|/ {
+      key = tolower(trim($2)); val = trim($3)
+      if (key == "inbox id") inboxid = val
+      if (key == "captured") captured = val
+      if (key == "area") area = val
+      if (key == "status") status = val
+      next
+    }
+    END { printf "%s%s%s%s%s%s%s\n", inboxid, OFS, captured, OFS, area, OFS, status }
+  ' "$1"
+}
+
+declare -A INBOX_COUNT INBOX_FILE INBOX_BASE INBOX_DIR INBOX_STATUS
+declare -a INBOX_IDS=()
+
+record_inbox() {
+  local file="$1" dir_label="$2"
+  local inboxid captured area status base required_missing=0 rel
+  base="$(basename "$file")"
+  rel="$(rel_repo "$file")"
+
+  IFS=$'\034' read -r inboxid captured area status < <(extract_inbox "$file")
+
+  if [[ -z "$inboxid" ]]; then
+    validate_or_warn "inbox '${base}' is missing Inbox ID"
+    required_missing=1
+  fi
+  if [[ -z "$captured" ]]; then
+    validate_or_warn "inbox '${base}' is missing Captured"
+    required_missing=1
+  fi
+  if [[ -z "$area" ]]; then
+    validate_or_warn "inbox '${base}' is missing Area"
+    required_missing=1
+  fi
+  if [[ -z "$status" ]]; then
+    validate_or_warn "inbox '${base}' is missing Status"
+    required_missing=1
+  fi
+
+  [[ "$inboxid" =~ ^I-[0-9]{3,}$ || -z "$inboxid" ]] || validate_or_warn "inbox '${base}' has malformed Inbox ID '${inboxid}'"
+  [[ "$captured" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})? || -z "$captured" ]] || validate_or_warn "inbox '${base}' has malformed Captured '${captured}'"
+  [[ "$status" =~ ^(new|promoted|dropped)$ || -z "$status" ]] || validate_or_warn "inbox '${base}' has malformed Status '${status}'"
+
+  if [[ "$required_missing" -eq 0 && -n "$inboxid" ]]; then
+    if [[ ! "$base" =~ ^${inboxid}_[a-z0-9]([a-z0-9-]*[a-z0-9])?\.md$ ]]; then
+      validate_or_warn "inbox '${base}' filename does not match metadata Inbox ID '${inboxid}'"
+    fi
+  fi
+
+  if [[ -z "$inboxid" ]]; then
+    return 0
+  fi
+
+  INBOX_COUNT["$inboxid"]=$(( ${INBOX_COUNT["$inboxid"]:-0} + 1 ))
+  if [[ ${INBOX_COUNT["$inboxid"]} -eq 1 ]]; then
+    INBOX_IDS+=("$inboxid")
+  else
+    validate_or_warn "ambiguous inbox id '${inboxid}' appears in multiple inbox files"
+  fi
+
+  INBOX_FILE["$inboxid"]="$file"
+  INBOX_BASE["$inboxid"]="$base"
+  INBOX_DIR["$inboxid"]="$dir_label"
+  INBOX_STATUS["$inboxid"]="${status:-new}"
+
+  case "$dir_label:${status:-new}" in
+    _inbox:new|_inbox_archived:promoted|_inbox_archived:dropped) ;;
+    _inbox:promoted|_inbox:dropped)
+      validate_or_warn "terminal inbox '${inboxid}' has Status '${status}' but is still in docs/tasks_manager/_inbox/"
+      ;;
+    _inbox_archived:new)
+      validate_or_warn "live inbox '${inboxid}' has Status 'new' but is in docs/tasks_manager/_inbox_archived/"
+      ;;
+  esac
+
+  if [[ -n "$area" && -z "${AREA_PREFIX[$area]+x}" ]]; then
+    validate_or_warn "inbox '${inboxid}' in ${rel} uses unregistered area '${area}'"
+  fi
+}
+
 record_task() {
   local file="$1" dir_label="$2"
   local taskid type area created updated last_executed status priority owner blocked_by source source_ref title done total base prefix expected_area
@@ -489,6 +580,16 @@ for f in "${ARCHIVED}"/*.md; do
   record_task "$f" "_todos_archived"
 done
 
+for f in "${INBOX}"/*.md; do
+  [[ -e "$f" ]] || continue
+  record_inbox "$f" "_inbox"
+done
+
+for f in "${INBOX_ARCHIVED}"/*.md; do
+  [[ -e "$f" ]] || continue
+  record_inbox "$f" "_inbox_archived"
+done
+
 write_or_check() {
   local target="$1" source="$2" label="$3"
   if [[ "${CHECK_MODE}" -eq 1 ]]; then
@@ -564,7 +665,7 @@ done
 write_or_check "${DONE_LEDGER}" "${done_tmp}" "done ledger"
 
 # ---- Roadmap diagnostics and horizon assignment ----
-declare -A ROADMAP_TASK_COUNT ROADMAP_TASK_HORIZON ROADMAP_INBOX_COUNT
+declare -A ROADMAP_TASK_COUNT ROADMAP_TASK_HORIZON ROADMAP_INBOX_COUNT ROADMAP_INBOX_HORIZON
 declare -a ROADMAP_TASK_IDS ROADMAP_INBOX_IDS
 
 if [[ -f "${ROADMAP}" ]]; then
@@ -601,6 +702,7 @@ if [[ -f "${ROADMAP}" ]]; then
       [[ -n "$id" ]] || continue
       if [[ -z "${ROADMAP_INBOX_COUNT[$id]+x}" ]]; then
         ROADMAP_INBOX_IDS+=("$id")
+        ROADMAP_INBOX_HORIZON["$id"]="$horizon"
       fi
       ROADMAP_INBOX_COUNT["$id"]=$(( ${ROADMAP_INBOX_COUNT["$id"]:-0} + 1 ))
     done < <(printf '%s\n' "$line" | grep -Eo 'I-[0-9]{3,}' | sort -u || true)
@@ -633,8 +735,19 @@ for id in "${ROADMAP_INBOX_IDS[@]}"; do
     validate_or_warn "ambiguous roadmap inbox reference '${id}' appears ${ROADMAP_INBOX_COUNT[$id]} times"
     continue
   fi
-  if ! compgen -G "${INBOX}/${id}_"'*.md' >/dev/null && ! compgen -G "${INBOX_ARCHIVED}/${id}_"'*.md' >/dev/null; then
+  if [[ "${ROADMAP_INBOX_HORIZON[$id]:-}" != "Later" ]]; then
+    validate_or_warn "roadmap inbox reference '${id}' appears in ${ROADMAP_INBOX_HORIZON[$id]:-unknown} but inbox ideas may only appear in Later; promote with /triage-inbox before scheduling into Now or Next"
+  fi
+  if [[ -z "${INBOX_COUNT[$id]+x}" ]]; then
     validate_or_warn "missing roadmap inbox reference '${id}'"
+    continue
+  fi
+  if [[ ${INBOX_COUNT[$id]} -gt 1 ]]; then
+    validate_or_warn "ambiguous roadmap inbox reference '${id}' matches multiple files"
+    continue
+  fi
+  if [[ "${INBOX_DIR[$id]}" != "_inbox" || "${INBOX_STATUS[$id]}" != "new" ]]; then
+    validate_or_warn "roadmap inbox reference '${id}' is not a live new inbox idea; remove it or reference its promoted task"
   fi
 done
 

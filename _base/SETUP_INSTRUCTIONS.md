@@ -183,23 +183,28 @@ Skip this step if the user only uses the skills inside this repo.
 
 ### 4a — Skills
 
-Run the Codex skills installer. It symlinks `skills/<name>/` into `~/.codex/skills/`.
+Run the Codex skills installer. It symlinks active `skills/<bucket>/<name>/` entries into flat
+`~/.codex/skills/<name>/` entries.
 
 ```bash
 ./skills/install-codex-skills.sh
 ```
 
-**Check:** the installer prints `Installed <name> -> ~/.codex/skills/<name>` for each new skill. Exit code 0. Re-running is idempotent (`Skipping <name>: … already exists`).
+**Check:** the installer exits 0 and prints a final summary like `Installed N, refreshed N, skipped N,
+missing 0.` Re-running is idempotent; unchanged existing symlinks count as skipped.
 
 ### 4b — Plugins
 
-Run the Codex plugins installer. It symlinks `plugins/<name>/` into `~/plugins/` and adds entries to `~/.agents/plugins/marketplace.json`.
+Run the Codex plugins installer. It first validates bundled plugin manifests and referenced assets with
+`_base/scripts/check-codex-plugins.sh`, then symlinks `plugins/<name>/` into `~/plugins/` and adds
+entries to `~/.agents/plugins/marketplace.json`.
 
 ```bash
 ./plugins/install-codex-plugins.sh
 ```
 
-**Check:** the installer prints `Installed <name> -> ~/plugins/<name>` and `Added marketplace entry for <name>` for each new plugin. Exit code 0.
+**Check:** the installer prints `OK  Codex plugin manifests valid`, then either installs, refreshes, or
+skips each plugin and exits 0.
 
 After both installers finish, tell the user to **restart Codex** so the new skills and plugins are picked up.
 
@@ -237,7 +242,8 @@ Verify only the runtime you set up (the other one, if it gets set up later, will
 
 **If you are Codex:**
 
-- `ls ~/.codex/skills/` includes the skills shipped with this template (see `./README.md` § "Available skills" for the current set).
+- `ls ~/.codex/skills/` includes the skills shipped with this template (see `_base/README.md` § "Available skills" for the current set).
+- `./_base/scripts/check-codex-plugins.sh` prints `OK  Codex plugin manifests valid`.
 - `python3 -c 'import json; d=json.load(open("'"$HOME"'/.agents/plugins/marketplace.json")); print([p.get("name") for p in d.get("plugins", [])])'` includes everything vendored under `plugins/`.
 
 Report a structured summary to the user. Pick the line for your runtime; leave the other one unsaid (it is not your concern):

@@ -347,23 +347,19 @@ done
 # ----------------------------------------------------------------------------
 
 if [[ -x "$GEN_SCRIPT" ]]; then
-  tmp_readme="$(mktemp)"
-  trap 'rm -f "$tmp_readme"' EXIT
-  cp "$README" "$tmp_readme"
-
-  pre_hash="$(sha256sum "$README" | awk '{print $1}')"
-  if "$GEN_SCRIPT" >/dev/null 2>&1; then
-    post_hash="$(sha256sum "$README" | awk '{print $1}')"
-    if [[ "$pre_hash" != "$post_hash" ]]; then
+  if "$GEN_SCRIPT" --check >/dev/null 2>&1; then
+    :
+  else
+    status=$?
+    if [[ "$status" -eq 1 ]]; then
       emit DRIFT skills-table-out-of-date \
         "_base/README.md" \
-        "_base/scripts/gen-skills-table.sh produced changes — run it and commit"
-      cp "$tmp_readme" "$README"
+        "_base/scripts/gen-skills-table.sh --check reported drift — run generator and commit"
+    else
+      emit BLOCKER skills-table-generator-failed \
+        "_base/scripts/gen-skills-table.sh" \
+        "generator exited non-zero in --check mode"
     fi
-  else
-    emit BLOCKER skills-table-generator-failed \
-      "_base/scripts/gen-skills-table.sh" \
-      "generator exited non-zero"
   fi
 fi
 

@@ -52,7 +52,8 @@ Read-only. You do not edit code or rewrite tests.
 ## Report format
 
 ```
-## Status: PASS | FAIL
+## Status: DONE | DONE_WITH_CONCERNS | BLOCKED
+## Verdict: PASS | FAIL
 ## Categories checked: (list of OWASP categories applied)
 ## Findings:
   - [Severity] [Category] [Location] — [issue, attack vector, recommendation]
@@ -62,4 +63,6 @@ Read-only. You do not edit code or rewrite tests.
 ## Summary: one-line verdict
 ```
 
-A PASS verdict requires no Critical or High severity findings. Medium or Low findings are reported but do not block.
+A PASS verdict requires no Critical or High severity findings. Medium or Low findings are reported but
+do not block. Use `## Status: DONE` when the verdict is PASS, `## Status: DONE_WITH_CONCERNS` when the
+verdict is FAIL, and `## Status: BLOCKED` only when the audit cannot be completed as specified.

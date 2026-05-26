@@ -17,6 +17,7 @@ TARGET_PLUGINS_DIR="${CODEX_PLUGINS_DIR:-${HOME}/plugins}"
 MARKETPLACE_PATH="${CODEX_MARKETPLACE_PATH:-${AGENTS_HOME}/plugins/marketplace.json}"
 MARKETPLACE_NAME="${CODEX_MARKETPLACE_NAME:-local-project-template}"
 MARKETPLACE_DISPLAY_NAME="${CODEX_MARKETPLACE_DISPLAY_NAME:-Local Project Template}"
+PLUGIN_CHECK="${REPO_ROOT}/_base/scripts/check-codex-plugins.sh"
 
 resolve_path() {
   python3 - "$1" <<'PY'
@@ -31,6 +32,13 @@ if [[ ! -d "${SOURCE_PLUGINS_DIR}" ]]; then
   echo "No repo plugins directory found at ${SOURCE_PLUGINS_DIR}" >&2
   exit 1
 fi
+
+if [[ ! -f "${PLUGIN_CHECK}" ]]; then
+  echo "Missing Codex plugin validator: ${PLUGIN_CHECK}" >&2
+  exit 1
+fi
+
+bash "${PLUGIN_CHECK}"
 
 plugin_dirs=()
 

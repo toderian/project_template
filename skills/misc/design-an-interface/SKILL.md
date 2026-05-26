@@ -1,6 +1,6 @@
 ---
 name: design-an-interface
-description: Generate multiple radically different interface designs for a module using parallel sub-agents. Use when the user wants Codex to design an API, explore interface options, compare module shapes, or mentions "design it twice".
+description: Generate multiple radically different interface designs for a module using parallel sub-agents when available. Use when the user wants to design an API, explore interface options, compare module shapes, or mentions "design it twice".
 ---
 
 # Design an Interface
