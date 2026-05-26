@@ -1,6 +1,6 @@
 ---
 name: triage-inbox
-description: Review captured inbox ideas (docs/tasks_manager/_inbox/) and promote worthwhile ones into full area-prefixed tasks, or drop them. Use when the user says "triage", "review the inbox", "process my ideas", "clear the inbox", or wants to turn captured ideas into actionable todos.
+description: Review captured inbox ideas (docs/tasks_manager/_inbox/) and promote worthwhile ones into full area-prefixed tasks, or drop them. Use when the user says "triage", "review the inbox", "process my ideas", "clear the inbox", or wants to turn captured ideas into actionable tasks.
 disable-model-invocation: true
 ---
 

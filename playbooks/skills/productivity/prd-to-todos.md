@@ -1,4 +1,4 @@
-# PRD to Todos
+# PRD to Tasks
 
 ## Purpose
 
@@ -48,9 +48,9 @@ Present the proposed tasks as a numbered list. For each:
 - **Type**: `F` / `D` / `C` / `R`
 - **Priority**: high / medium / low
 - **Phases**: list of committable steps
-- **Acceptance criteria**: overall criteria for the todo to be done
+- **Acceptance criteria**: overall criteria for the task to be done
 - **Related tests**: known test files that will be affected or created, or `N/A - <reason>`
-- **Blocked by**: which other todos must complete first (if any)
+- **Blocked by**: which other tasks must complete first (if any)
 
 Ask the user:
 

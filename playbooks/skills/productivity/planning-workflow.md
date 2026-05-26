@@ -67,7 +67,7 @@ If the plan covers multiple independent slices, break them into trackable units.
 Write the plan to a durable location:
 
 - ephemeral / discussion-stage plans → keep in the conversation
-- plans that will outlive a session → `docs/_plans/<slug>.md`, or attach to a todo file under its `Phases` section per `todo-convention.md`
+- plans that will outlive a session → `docs/_plans/<slug>.md`, or attach to a task file under its `Phases` section per `todo-convention.md`
 
 ## Required plan sections
 
@@ -85,6 +85,6 @@ Skip the formal workflow for changes that are:
 
 - single-file, under ~50 lines
 - mechanical (rename, typo fix, dep bump)
-- already covered by an existing plan or todo
+- already covered by an existing plan or task
 
 Skipping is fine. Skipping silently when the change is non-trivial is not.

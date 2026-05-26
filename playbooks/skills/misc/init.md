@@ -23,7 +23,7 @@ upstream. Copy without clobbering anything already present:
 
 ```bash
 mkdir -p docs
-cp -rn _base/docs/tasks_manager docs/   # task manager: ledgers, registry, roadmap, inbox/todo dirs
+cp -rn _base/docs/tasks_manager docs/   # task manager: ledgers, registry, roadmap, inbox/task dirs
 cp -rn _base/docs/areas         docs/   # generated area overview + area page templates
 cp -rn _base/docs/resources     docs/   # durable project documentation
 cp -rn _base/docs/archive       docs/   # frozen docs/resources
@@ -64,7 +64,7 @@ Report what was created. Remind the user that:
 - `/add-task` creates a full task directly when the work is already clear
 - `/triage-inbox` promotes inbox ideas into typed, area-prefixed tasks
 - `/roadmap` maintains `docs/tasks_manager/_roadmap.md` — the Now/Next/Later plan of execution
-- Any skill can produce todos following `playbooks/conventions/todo-convention.md` (`/write-a-prd`,
+- Any skill can produce tasks following `playbooks/conventions/todo-convention.md` (`/write-a-prd`,
   `/prd-to-todos`, planning)
 - Tasks are typed `F`/`D`/`C`/`R` and classified by `Area` + `Prefix` (see
   `docs/tasks_manager/_areas.md`)

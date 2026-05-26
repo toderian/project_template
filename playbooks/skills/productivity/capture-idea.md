@@ -5,7 +5,7 @@
 Record an idea into the inbox the instant the user has it, with near-zero friction. The user gets an
 idea — a feature, a bug they noticed, something to look into — and it gets written down immediately as
 an `I-NNN` inbox file. No phases, no acceptance criteria, no commitment; triage (`triage-inbox`) turns
-the good ones into real todos later.
+the good ones into real tasks later.
 
 The single most important quality of this skill is **speed of capture**. An idea that takes a
 conversation to record is an idea lost. Don't interrogate the user — capture what they said, make a
@@ -33,7 +33,7 @@ Follow `playbooks/conventions/inbox-convention.md` for the format and ID rules.
 
    When there **is** a plausible match, stop and show it, then let the user decide:
    - **Same thing** → don't create a new file. If the match is an inbox idea, append the new detail to
-     its body and bump `Captured`'s companion note (e.g. add an "updated" line). If the match is a todo,
+     its body and bump `Captured`'s companion note (e.g. add an "updated" line). If the match is a task,
      append the detail to the task and tell the user it's already tracked by its task ID
      (for example `AUTH-001` or `T-001`). If it's already described in a `CONTEXT.md`, tell the user it
      appears to already exist in that component.

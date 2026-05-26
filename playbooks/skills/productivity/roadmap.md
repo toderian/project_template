@@ -18,7 +18,7 @@ the roadmap is the portfolio view that decides *which* changes happen and *when*
   phases/subtasks are available on demand without cluttering the high-level view. A raw idea is a plain
   one-liner.
 - **Source of truth** — the task files remain authoritative for *content* (phases, status). The roadmap
-  owns only *placement and ordering*. When you refresh, re-read the todos to update the rendered detail,
+  owns only *placement and ordering*. When you refresh, re-read the tasks to update the rendered detail,
   but keep each item's horizon unless the user moves it.
 
 ## Process
@@ -35,7 +35,7 @@ When the user wants to plan or re-sequence:
 ### Refresh (keep detail current without re-planning)
 
 Re-read the task files for items already on the roadmap and update each collapsible block's
-status/phase checkboxes to match the source todo. Do **not** move items between horizons. Drop items
+status/phase checkboxes to match the source task. Do **not** move items between horizons. Drop items
 whose task is `done`/`cancelled` (they live in `docs/tasks_manager/_done.md` now) and mention them in the summary.
 
 ### Report

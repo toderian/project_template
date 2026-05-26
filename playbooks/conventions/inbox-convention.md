@@ -2,16 +2,16 @@
 
 ## Purpose
 
-The inbox is the **frictionless capture layer** that sits before the todo layer. When you have an idea —
+The inbox is the **frictionless capture layer** that sits before the task layer. When you have an idea —
 a feature, a bug you noticed, a thing to look into — it goes into the inbox *immediately*, with near-zero
 ceremony. No phases, no acceptance criteria, no commitment. Triage later turns the good ones into full
-todos.
+tasks.
 
 The whole point is speed of capture: an idea half-written is an idea kept. Don't make the user answer
 questions to record a thought.
 
 Lifecycle: `Inbox idea (I-NNN) -> triage -> Task (<PREFIX>-NNN, typed)` - see
-`playbooks/conventions/todo-convention.md` for the todo layer.
+`playbooks/conventions/todo-convention.md` for the task layer.
 
 ## Directory structure
 
@@ -85,7 +85,7 @@ When the user shares an idea to capture:
 
 The `capture-idea` skill automates this.
 
-## Triaging (idea → todo)
+## Triaging (idea → task)
 
 Periodically review `docs/tasks_manager/_inbox/` (the `triage-inbox` skill drives this). For each `new` idea, decide:
 
@@ -101,6 +101,6 @@ inbox only ever shows live ideas.
 
 ## Why archive instead of delete
 
-Promoted/dropped ideas move to `_inbox_archived/` rather than being deleted, so the origin of a todo
-(and the reasoning behind dropped ideas) stays traceable. The promoted todo's `Source ref: I-NNN` points
+Promoted/dropped ideas move to `_inbox_archived/` rather than being deleted, so the origin of a task
+(and the reasoning behind dropped ideas) stays traceable. The promoted task's `Source ref: I-NNN` points
 straight back.

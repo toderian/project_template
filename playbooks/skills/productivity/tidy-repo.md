@@ -18,10 +18,10 @@ This skill orchestrates primitives that already exist rather than reinventing th
 - `/init` — ensures the canonical `docs/tasks_manager/`, `docs/areas/`, `docs/resources/`, and
   `docs/archive/` layout is present.
 - the **inbox** (`playbooks/conventions/inbox-convention.md`) — the frictionless holding pen for
-  anything that can't be classified confidently. Loose todos become `I-NNN` ideas, not forced into
+  anything that can't be classified confidently. Loose work becomes `I-NNN` ideas, not forced into
   full area-prefixed tasks.
 - `/triage-inbox` — the deliberate pass that later promotes the worthwhile swept-in ideas into typed
-  todos. Tidy-repo deliberately stops *before* triage; sorting quality is triage's job, not the
+  tasks. Tidy-repo deliberately stops *before* triage; sorting quality is triage's job, not the
   sweep's.
 - `scripts/sync-todo-ledgers.sh` — reconciles the ledgers after any file moves.
 
@@ -32,7 +32,7 @@ target shapes.
 
 | Pile | What it looks like | Destination | Why |
 |------|--------------------|-------------|-----|
-| **Loose work** | ad-hoc `TODO.md`, `NOTES.md`, inline `TODO:`/`FIXME:` clusters, half-finished task files not matching `<PREFIX>-NNN` | `docs/tasks_manager/_inbox/` as `I-NNN` ideas | The inbox is the cheap, reversible capture layer. Re-triaging later beats importing low-quality todos as first-class backlog. |
+| **Loose work** | ad-hoc `TODO.md`, `NOTES.md`, inline `TODO:`/`FIXME:` clusters, half-finished task files not matching `<PREFIX>-NNN` | `docs/tasks_manager/_inbox/` as `I-NNN` ideas | The inbox is the cheap, reversible capture layer. Re-triaging later beats importing low-quality work as first-class backlog. |
 | **Loose docs** | design notes, stray READMEs, architecture scribbles, `*.md` outside `docs/` that explain *how the system works* | `docs/resources/` | That's the home `/init` seeds for durable project documentation. |
 | **Orphans** | stale scripts, dead configs, abandoned scratch files, `*.bak`, commented-out experiments | **flagged list only** — never moved, never deleted | Only the user knows if these are truly dead. Surface them; let them decide. |
 
@@ -45,7 +45,7 @@ destination and triage will sort it.
 
 Confirm `docs/tasks_manager/`, `docs/areas/`, `docs/resources/`, and `docs/archive/` exist. If not, run `/init` (or its playbook
 `playbooks/skills/misc/init.md`) first. A tidy needs somewhere to tidy *into*. Never overwrite existing
-ledgers, areas registry, or todos.
+ledgers, areas registry, or tasks.
 
 ### Phase 1 — Audit (read-only, always first)
 
@@ -55,7 +55,7 @@ user sees the full picture before any change is proposed.
 Sources to sweep for the three piles:
 
 - **Loose work** — `find` for `TODO.md`, `TODOS.md`, `NOTES.md`, `BACKLOG.md`, `ideas*.md`, scratch
-  todo files; grep the tree for `TODO:`/`FIXME:`/`XXX:`/`HACK:` comment clusters (group by file, don't
+  task files; grep the tree for `TODO:`/`FIXME:`/`XXX:`/`HACK:` comment clusters (group by file, don't
   list every line). Also any `docs/tasks_manager/_todos/*.md` that fail the naming convention.
 - **Loose docs** — `*.md` and doc-like files living outside `docs/` (repo root, `notes/`, `wiki/`,
   scattered `design/` dirs), excluding `README.md`/`CHANGELOG.md`/`LICENSE`/`AGENTS.md`/`CLAUDE.md` at
@@ -106,7 +106,7 @@ For the approved items:
 
 - **Loose work → inbox.** Create each `docs/tasks_manager/_inbox/I-NNN_<short-desc>.md` per the inbox
   convention (one idea per file, `Captured` = now, `Status: new`, best-guess `Area`, one or two
-  sentences from the source). Where the source was a file dedicated to todos (e.g. a root `TODO.md`),
+  sentences from the source). Where the source was a file dedicated to TODOs (e.g. a root `TODO.md`),
   leave a one-line stub pointing at the inbox, or remove it if the user okayed that — your call follows
   their approval, not your own. For inline `TODO:` code comments, **capture the idea but leave the
   comment in place** unless the user says to strip it; rewriting source is beyond a tidy's remit.

@@ -1,11 +1,11 @@
 ---
 name: prd-to-todos
-description: Extract actionable todos from a PRD and create todo files. Use when the user wants Codex to convert a PRD into trackable todo items in docs/tasks_manager/_todos/.
+description: Extract actionable tasks from a PRD and create area-prefixed task files. Use when the user wants Codex to convert a PRD into trackable tasks in docs/tasks_manager/_todos/.
 ---
 
-# PRD to Todos
+# PRD to Tasks
 
-Use this skill to extract todos from a PRD.
+Use this skill to extract tasks from a PRD.
 
 Read and follow:
 

@@ -5,7 +5,7 @@ description: Initialize project idea/task tracking structure. Use when the user 
 
 # Init
 
-Use this skill to initialize project idea/todo tracking structure.
+Use this skill to initialize project idea/task tracking structure.
 
 Read and follow:
 

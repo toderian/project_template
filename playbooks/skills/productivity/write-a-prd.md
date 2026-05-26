@@ -76,10 +76,10 @@ Any further notes about the feature.
 
 </prd-template>
 
-6. After the PRD is complete, ask the user: **"Would you like me to generate todos from this PRD?"**
+6. After the PRD is complete, ask the user: **"Would you like me to generate tasks from this PRD?"**
 
    If yes, follow `playbooks/conventions/todo-convention.md` to create area-prefixed task files in
    `docs/tasks_manager/_todos/`. Create one task per vertical slice or major actionable item. Set
    `Source` to `write-a-prd` and `Source ref` to the PRD identifier (issue number, file path, etc.).
 
-   If the user declines, remind them they can run `/prd-to-todos` later to extract todos from the PRD.
+   If the user declines, remind them they can run `/prd-to-todos` later to extract tasks from the PRD.

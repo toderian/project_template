@@ -115,12 +115,12 @@ read_areas() {
   fi
 }
 
-# Extract one task's fields as a tab-separated line:
+# Extract one task's fields as a unit-separated line:
 #   taskid type area status priority updated title phase_done phase_total
 extract_task() {
   awk '
     function trim(s) { gsub(/^[[:space:]]+|[[:space:]]+$/, "", s); return s }
-    BEGIN { FS="|" }
+    BEGIN { FS="|"; OFS = sprintf("%c", 28) }
     /^\|/ {
       key = tolower(trim($2)); val = trim($3)
       if (key == "task id")  taskid = val
@@ -151,8 +151,8 @@ extract_task() {
       if (status == "")   status = "open"
       if (priority == "") priority = "medium"
       if (updated == "")  updated = "N/A"
-      printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%d\t%d\n",
-        taskid, type, area, status, priority, updated, title, done, total
+      printf "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%d%s%d\n",
+        taskid, OFS, type, OFS, area, OFS, status, OFS, priority, OFS, updated, OFS, title, OFS, done, OFS, total
     }
   ' "$1"
 }
@@ -164,10 +164,13 @@ declare -a TASK_IDS=()
 record_task() {
   local file="$1" dir_label="$2"
   local taskid type area status priority updated title done total base prefix expected_area
-  IFS=$'\t' read -r taskid type area status priority updated title done total < <(extract_task "$file")
-  [[ -n "$taskid" ]] || return 0
-
   base="$(basename "$file")"
+  IFS=$'\034' read -r taskid type area status priority updated title done total < <(extract_task "$file")
+  if [[ -z "$taskid" ]]; then
+    echo "WARNING: task '${base}' is missing Task ID; skipped" >&2
+    return 0
+  fi
+
   TASK_COUNT["$taskid"]=$(( ${TASK_COUNT["$taskid"]:-0} + 1 ))
   if [[ ${TASK_COUNT["$taskid"]} -eq 1 ]]; then
     TASK_IDS+=("$taskid")

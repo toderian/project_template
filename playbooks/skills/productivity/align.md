@@ -136,7 +136,7 @@ All three are valid. Silent drift (do the work without resolving the conflict) i
 
 ## When `/align` says ALIGNED
 
-Proceed to the next step. For non-trivial work that is the `planning-workflow` skill. For trivial work it is just implementation. The `/align` verdict travels with the work (mention it in the plan, the todo, or the commit body when useful) so reviewers can see the basis for the decision.
+Proceed to the next step. For non-trivial work that is the `planning-workflow` skill. For trivial work it is just implementation. The `/align` verdict travels with the work (mention it in the plan, the task, or the commit body when useful) so reviewers can see the basis for the decision.
 
 ## When `/align` says NEEDS_CLARIFICATION or OUT_OF_SCOPE
 

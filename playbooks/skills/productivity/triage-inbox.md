@@ -8,7 +8,7 @@ should be promoted into a full area-prefixed task or dropped. This is where type
 priority, phases, acceptance criteria, related tests, and optional roadmap placement get assigned.
 
 Follow `playbooks/conventions/inbox-convention.md` (inbox side) and
-`playbooks/conventions/todo-convention.md` (todo side).
+`playbooks/conventions/todo-convention.md` (task side).
 
 ## Process
 
@@ -39,11 +39,11 @@ For each promoted idea, settle:
 - **Priority** — high / medium / low.
 - **Roadmap placement** — leave unscheduled unless the user wants the new task in Now, Next, or Later.
 
-### 4. Create the todo
+### 4. Create the task
 
 Assign the next `<PREFIX>-NNN` for the selected area (highest matching prefix across
 `docs/tasks_manager/_todos/` + `docs/tasks_manager/_todos_archived/`, +1). Create
-`docs/tasks_manager/_todos/<PREFIX>-NNN-<TYPE>_<short-desc>.md` per the todo convention's full format:
+`docs/tasks_manager/_todos/<PREFIX>-NNN-<TYPE>_<short-desc>.md` per the task convention's full format:
 
 - Metadata table including `Task ID`, `Type`, `Area`, `Source: inbox`, `Source ref: I-NNN`, and `Priority`.
 - A short human-readable title and a 2-4 sentence brief.
@@ -57,7 +57,7 @@ placement, update `docs/tasks_manager/_roadmap.md` and run the sync again.
 ### 5. Close out the inbox file
 
 Set the inbox file's `Status` to `promoted` (or `dropped`) and move it to `docs/tasks_manager/_inbox_archived/`, so
-the inbox only ever shows live ideas. The promoted todo's `Source ref: I-NNN` preserves the trail back.
+the inbox only ever shows live ideas. The promoted task's `Source ref: I-NNN` preserves the trail back.
 
 ### 6. Report
 
