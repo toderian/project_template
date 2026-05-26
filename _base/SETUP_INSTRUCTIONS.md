@@ -118,6 +118,27 @@ If the project does not want alignment gating, skip this step — the rest of th
 
 **Check:** either `PROJECT.md` exists and the literal string `<Replace this paragraph` no longer appears in its Vision section, **or** the project intentionally has no `PROJECT.md` (in which case `/align` is unavailable and the user has been informed).
 
+### 2d — `docs/` task system (optional, enables inbox/tasks/areas/resources)
+
+If the project wants the template task system, run `/init` or seed the docs layout directly:
+
+```bash
+mkdir -p docs
+cp -rn _base/docs/tasks_manager docs/
+cp -rn _base/docs/areas docs/
+cp -rn _base/docs/resources docs/
+cp -rn _base/docs/archive docs/
+scripts/sync-todo-ledgers.sh
+```
+
+This creates the inbox, flat task directory, area registry with the reserved `T` prefix, global roadmap,
+generated area overview, `docs/resources/`, and `docs/archive/`. Re-running is safe because `cp -rn`
+does not overwrite downstream-owned task files or area pages.
+
+**Check:** `docs/tasks_manager/_areas.md`, `docs/tasks_manager/_roadmap.md`,
+`docs/areas/_overview.md`, `docs/resources/README.md`, and `docs/archive/README.md` exist, and
+`scripts/sync-todo-ledgers.sh` exits 0.
+
 ---
 
 ## Phase 3 — Claude Code setup (run **only if you are Claude Code**)

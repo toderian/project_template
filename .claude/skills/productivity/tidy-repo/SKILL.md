@@ -1,6 +1,6 @@
 ---
 name: tidy-repo
-description: Inventory a messy repo's scattered todos, loose docs, and orphan files, then propose a non-destructive migration into the docs/tasks_manager + docs/reference structure. Use when the user says "tidy this repo", "systematize", "clean up the mess", "organize my todos/docs", or describes an inherited repo with scattered todos, stray docs, and unrelated files.
+description: Inventory a messy repo's scattered todos, loose docs, and orphan files, then propose a non-destructive migration into the docs/tasks_manager + docs/resources structure. Use when the user says "tidy this repo", "systematize", "clean up the mess", "organize my todos/docs", or describes an inherited repo with scattered todos, stray docs, and unrelated files.
 disable-model-invocation: true
 ---
 

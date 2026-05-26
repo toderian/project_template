@@ -13,6 +13,34 @@ For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
 
+### Add Areas / Resources / Archive task system and `/add-task`
+
+The task system now supports area-specific task ID prefixes without adding a Projects layer:
+
+- `docs/tasks_manager/_areas.md` now uses `Area | Prefix | Description | Page`; `T` is reserved for
+  global/default/cross-area tasks.
+- Task filenames are now `<PREFIX>-NNN-<TYPE>_<desc>.md` with per-prefix counters. Inbox IDs remain
+  `I-NNN`, and tasks stay flat under `docs/tasks_manager/_todos/`.
+- `_base/docs/reference/` is replaced by `_base/docs/resources/`, and the seed layout now includes
+  `_base/docs/areas/` and `_base/docs/archive/`.
+- `scripts/sync-todo-ledgers.sh` now regenerates `_active.md`, `_done.md`, `docs/areas/_overview.md`,
+  and marker-delimited generated status blocks in `docs/areas/<slug>.md`; it also reports missing or
+  ambiguous roadmap references instead of guessing.
+- New `/add-task` productivity skill creates a full task directly with area/prefix/ID assignment,
+  priority, phases, acceptance criteria, related tests, completion harvest placeholders, sync, and
+  optional roadmap placement.
+- Starting an existing task now has a pre-implementation review gate: record a researcher current-state
+  review and a plan-critic freshness/applicability review in the task execution log before code edits.
+- Completion harvest is required before archive: resource updates or `None`, area updates or `None`,
+  follow-ups or `None`, and notable decisions/deviations or `None`. Claude hooks validate the archive
+  fields and area-prefixed filenames.
+
+**Downstream impact:** downstream projects using the task system should migrate existing task filenames
+from `T-NNN-...` only where area-specific prefixes are desired; `T` remains valid for global/default
+work. Rename `docs/reference/` to `docs/resources/` if present, run `/init` to seed `docs/areas/` and
+`docs/archive/`, then run `scripts/sync-todo-ledgers.sh`. Re-run skill installers to pick up
+`/add-task`.
+
 ### Tighten downstream setup checks and refresh Codex plugin symlinks
 
 Fixed a few template-hygiene issues that affected newly seeded projects and repeat installs:

@@ -22,13 +22,20 @@ if [ "$BASENAME" = ".gitkeep" ]; then
 fi
 
 if [ "$LAYER" = "todo" ]; then
-  # T-<NNN>-<TYPE>_<short-description>.md   (TYPE in F/D/C/R, NNN >= 3 digits)
-  if ! echo "$BASENAME" | grep -qE '^T-[0-9]{3,}-[FDCR]_[a-z0-9]([a-z0-9-]*[a-z0-9])?\.md$'; then
+  # <PREFIX>-<NNN>-<TYPE>_<short-description>.md
+  # TYPE in F/D/C/R, NNN >= 3 digits, PREFIX uppercase alphanumeric starting with a letter.
+  if ! echo "$BASENAME" | grep -qE '^[A-Z][A-Z0-9]*-[0-9]{3,}-[FDCR]_[a-z0-9]([a-z0-9-]*[a-z0-9])?\.md$'; then
     echo "BLOCKED: todo filename '$BASENAME' does not match the required convention." >&2
-    echo "Expected: T-<NNN>-<TYPE>_<short-description>.md" >&2
-    echo "Example:  T-042-F_dark-mode-toggle.md" >&2
-    echo "Rules: T- + zero-padded id, type F|D|C|R, underscore, lowercase hyphenated description, .md." >&2
+    echo "Expected: <PREFIX>-<NNN>-<TYPE>_<short-description>.md" >&2
+    echo "Example:  AUTH-001-F_login-session.md" >&2
+    echo "Rules: uppercase area prefix, zero-padded id, type F|D|C|R, underscore, lowercase hyphenated description, .md." >&2
     echo "See playbooks/conventions/todo-convention.md." >&2
+    exit 2
+  fi
+  PREFIX="${BASENAME%%-*}"
+  if [ "$PREFIX" = "I" ]; then
+    echo "BLOCKED: todo prefix 'I' is reserved for inbox IDs." >&2
+    echo "Use an area prefix from docs/tasks_manager/_areas.md, or T for global/default work." >&2
     exit 2
   fi
 else

@@ -1,6 +1,6 @@
 ---
 name: init
-description: Initialize project idea/todo tracking structure. Use when user wants to set up the docs/ inbox, todos, areas registry, and ledgers for task tracking.
+description: Initialize project idea/task tracking structure. Use when user wants to set up the docs/ inbox, tasks, areas, resources, archive, roadmap, and generated ledgers.
 disable-model-invocation: true
 ---
 

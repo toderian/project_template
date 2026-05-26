@@ -10,7 +10,7 @@ todos.
 The whole point is speed of capture: an idea half-written is an idea kept. Don't make the user answer
 questions to record a thought.
 
-Lifecycle: `Inbox idea (I-NNN) → triage → Todo (T-NNN, typed)` — see
+Lifecycle: `Inbox idea (I-NNN) -> triage -> Task (<PREFIX>-NNN, typed)` - see
 `playbooks/conventions/todo-convention.md` for the todo layer.
 
 ## Directory structure
@@ -30,7 +30,7 @@ I-<NNN>_<short-description>.md
 ```
 
 - `I-<NNN>` — the **Inbox ID**: zero-padded 3-digit handle (e.g. `I-007`). This is a *separate* counter
-  from the todo `T-NNN` sequence — see ID counters below.
+  from area-prefixed task sequences such as `AUTH-001` or `T-001` - see ID counters below.
 - `<short-description>` — lowercase, hyphenated, under 50 characters.
 
 ```
@@ -45,9 +45,9 @@ The capture datetime is not in the filename — it lives in the `Captured` field
 next I = (highest I-NNN found across docs/tasks_manager/_inbox/ AND docs/tasks_manager/_inbox_archived/) + 1
 ```
 
-Scan both directories so archived ideas still reserve their numbers. Inbox IDs and todo IDs are
-independent: promoting `I-007` to a todo assigns a *fresh* `T-NNN`, and the todo records `Source ref:
-I-007` to keep the trail.
+Scan both directories so archived ideas still reserve their numbers. Inbox IDs and task IDs are
+independent: promoting `I-007` to a task assigns a *fresh* area-prefixed task ID, and the task records
+`Source ref: I-007` to keep the trail.
 
 ## File format
 
@@ -70,7 +70,8 @@ time — not a spec.
 Field notes:
 
 - **Captured** — ISO 8601 datetime the idea was recorded.
-- **Area** — best-guess slug from `docs/tasks_manager/_areas.md`, or `—` if unclear. A guess is fine; triage confirms it.
+- **Area** — best-guess slug from `docs/tasks_manager/_areas.md`, or `global` if unclear. A guess is
+  fine; triage confirms it.
 - **Status** — `new` | `promoted` | `dropped`.
 
 ## Capturing (the fast path)
@@ -79,7 +80,7 @@ When the user shares an idea to capture:
 
 1. Compute the next `I-NNN`.
 2. Write `docs/tasks_manager/_inbox/I-NNN_<short-desc>.md` with `Captured` = now and `Status: new`.
-3. Best-guess the `Area` from `docs/tasks_manager/_areas.md`; use `—` rather than interrogating the user.
+3. Best-guess the `Area` from `docs/tasks_manager/_areas.md`; use `global` rather than interrogating the user.
 4. Capture the idea text in one or two sentences. Confirm briefly; don't quiz.
 
 The `capture-idea` skill automates this.
@@ -88,10 +89,11 @@ The `capture-idea` skill automates this.
 
 Periodically review `docs/tasks_manager/_inbox/` (the `triage-inbox` skill drives this). For each `new` idea, decide:
 
-- **Promote** — it's worth doing. Create a full todo per `todo-convention.md`: assign the next `T-NNN`,
-  set `Type` (`F`/`D`/`C`/`R`), confirm/assign `Area` (defining a new one with the user if needed), set
-  `Source: inbox` and `Source ref: I-NNN`, split into phases, add acceptance criteria, and add the row to
-  `docs/tasks_manager/_active.md`. Then set the inbox file's `Status: promoted`.
+- **Promote** — it's worth doing. Create a full task per `todo-convention.md`: assign the next
+  `<PREFIX>-NNN` for the chosen area, set `Type` (`F`/`D`/`C`/`R`), confirm/assign `Area` (defining a
+  new one with the user if needed), set `Source: inbox` and `Source ref: I-NNN`, split into phases, add
+  acceptance criteria and related tests, and run `scripts/sync-todo-ledgers.sh`. Then set the inbox
+  file's `Status: promoted`.
 - **Drop** — not worth doing. Set `Status: dropped` and note why in the body.
 
 Either way, move the inbox file to `docs/tasks_manager/_inbox_archived/` once it's `promoted` or `dropped`, so the

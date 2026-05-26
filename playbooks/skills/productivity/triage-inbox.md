@@ -3,10 +3,9 @@
 ## Purpose
 
 Turn captured ideas into committed work. Inbox capture is deliberately frictionless, so the inbox
-accumulates raw `I-NNN` ideas; triage is the periodic, deliberate pass that decides — for each idea —
-whether to **promote** it into a full `T-NNN` todo or **drop** it. This is where types, areas, phases,
-and acceptance criteria get assigned, because now there's a decision to make rather than a thought to
-catch.
+accumulates raw `I-NNN` ideas; triage is the periodic, deliberate pass that decides whether each idea
+should be promoted into a full area-prefixed task or dropped. This is where type, area prefix,
+priority, phases, acceptance criteria, related tests, and optional roadmap placement get assigned.
 
 Follow `playbooks/conventions/inbox-convention.md` (inbox side) and
 `playbooks/conventions/todo-convention.md` (todo side).
@@ -34,22 +33,26 @@ Let the user steer; don't unilaterally drop ideas. Batch the decisions in one ex
 For each promoted idea, settle:
 
 - **Type** — `F` feature, `D` debug/bug, `C` chore/refactor, `R` research/spike.
-- **Area** — pick a slug from `docs/tasks_manager/_areas.md`. If none fits, this is the moment to **define a new
-  area with the user**: propose a slug + one-line description, confirm, append it to `docs/tasks_manager/_areas.md`,
-  then use it. (This is the "areas defined with the agent" workflow.)
+- **Area and prefix** — pick a row from `docs/tasks_manager/_areas.md`. If none fits, this is the
+  moment to define a new area with the user: propose an area slug, uppercase prefix, one-line
+  description, and page path, confirm, append it to `_areas.md`, then use it.
 - **Priority** — high / medium / low.
+- **Roadmap placement** — leave unscheduled unless the user wants the new task in Now, Next, or Later.
 
 ### 4. Create the todo
 
-Assign the next `T-NNN` (highest across `docs/tasks_manager/_todos/` + `docs/tasks_manager/_todos_archived/`, +1). Create
-`docs/tasks_manager/_todos/T-NNN-<TYPE>_<short-desc>.md` per the todo convention's full format:
+Assign the next `<PREFIX>-NNN` for the selected area (highest matching prefix across
+`docs/tasks_manager/_todos/` + `docs/tasks_manager/_todos_archived/`, +1). Create
+`docs/tasks_manager/_todos/<PREFIX>-NNN-<TYPE>_<short-desc>.md` per the todo convention's full format:
 
-- Metadata table including `Task ID`, `Type`, `Area`, `Source: inbox`, `Source ref: I-NNN`, `Priority`.
-- Phases with per-phase checklists (think: where are the natural commit points?).
-- Acceptance criteria and a Related tests section.
-- Empty execution log and completion summary sections.
+- Metadata table including `Task ID`, `Type`, `Area`, `Source: inbox`, `Source ref: I-NNN`, and `Priority`.
+- A short human-readable title and a 2-4 sentence brief.
+- Phases with per-phase checklists.
+- Acceptance criteria and a Related tests section, or `N/A - <reason>`.
+- Follow-ups, execution log, completion harvest, and completion summary sections.
 
-Then add the new todo's row to `docs/tasks_manager/_active.md` (or run `scripts/sync-todo-ledgers.sh`).
+Then run `scripts/sync-todo-ledgers.sh` to update ledgers and area pages. If the user chose roadmap
+placement, update `docs/tasks_manager/_roadmap.md` and run the sync again.
 
 ### 5. Close out the inbox file
 
@@ -58,13 +61,14 @@ the inbox only ever shows live ideas. The promoted todo's `Source ref: I-NNN` pr
 
 ### 6. Report
 
-Summarize: how many promoted (with their new `T-NNN` ids, types, areas) and how many dropped. Run
-`scripts/sync-todo-ledgers.sh` at the end to ensure the ledgers reflect every change.
+Summarize how many ideas were promoted (with their new task IDs, types, areas, and roadmap placement)
+and how many were dropped. Run `scripts/sync-todo-ledgers.sh` at the end to ensure the ledgers and area
+pages reflect every change.
 
 ## Quality bar
 
-- Every promoted idea became a well-formed todo (passes `block-bad-todo-name.sh`) with `Source ref`
+- Every promoted idea became a well-formed task (passes `block-bad-todo-name.sh`) with `Source ref`
   pointing back to its `I-NNN`.
 - New areas were confirmed with the user before use and recorded in `docs/tasks_manager/_areas.md`.
 - The inbox contains only `new` ideas afterward; promoted/dropped ones are in `_inbox_archived/`.
-- `docs/tasks_manager/_active.md` lists the new todos; ledgers are in sync.
+- `docs/tasks_manager/_active.md`, `docs/areas/_overview.md`, and generated per-area blocks are in sync.

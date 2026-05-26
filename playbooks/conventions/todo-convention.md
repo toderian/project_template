@@ -2,355 +2,338 @@
 
 ## Purpose
 
-Shared format for todo files used across all skills. Any skill that produces actionable output can create todos by following this convention.
+Shared format for committed task files used across all skills. Raw thoughts still start in the inbox;
+tasks are the point where work becomes planned, typed, sequenced, and ready for agents to execute.
 
 ## Where this fits
 
-Todos are the *committed-work* layer. Raw ideas start one layer earlier, in the **inbox**
-(`playbooks/conventions/inbox-convention.md`): an idea is captured as `I-NNN`, then **triaged** into a
-todo here. Lifecycle: `Inbox idea (I-NNN) → triage → Todo (T-NNN, typed) → done (ledger + archive)`.
+Lifecycle:
+
+```text
+Inbox idea (I-NNN) -> triage or direct creation -> Task (<PREFIX>-NNN, typed) -> done/cancelled -> archive
+```
+
+Use `capture-idea` for vague ideas and follow-ups. Use `add-task`, `triage-inbox`, `prd-to-todos`, or
+another task-producing skill when the work is clear enough to become a full task immediately.
 
 ## Directory structure
 
-```
-docs/tasks_manager/
-├── _areas.md            # Registry of feature/areas (slug + description)
-├── _roadmap.md          # Plan of execution: Now / Next / Later (see /roadmap)
-├── _active.md           # Ledger of open + in_progress todos (the backlog view)
-├── _done.md             # Ledger of completed/cancelled todos, newest-first
-├── _inbox/              # Raw ideas (see inbox-convention.md)
-├── _inbox_archived/     # Promoted or dropped ideas
-├── _todos/              # Active todos
-└── _todos_archived/     # Completed or cancelled todos (full files)
+```text
+docs/
+├── tasks_manager/
+│   ├── _areas.md            # Area registry: Area | Prefix | Description | Page
+│   ├── _roadmap.md          # Global Now / Next / Later execution plan
+│   ├── _active.md           # Generated ledger of open + in_progress tasks
+│   ├── _done.md             # Generated ledger of completed/cancelled tasks
+│   ├── _inbox/              # Raw ideas (see inbox-convention.md)
+│   ├── _inbox_archived/     # Promoted or dropped ideas
+│   ├── _todos/              # Active task files
+│   └── _todos_archived/     # Completed or cancelled task files
+├── areas/
+│   ├── _overview.md         # Generated area/task overview
+│   └── <slug>.md            # Human area notes plus generated status blocks
+├── resources/               # Durable reference material, runbooks, decisions, component docs
+└── archive/                 # Frozen docs/resources that are no longer current
 ```
 
-The task manager lives under `docs/tasks_manager/` (project documentation lives beside it in
-`docs/reference/`). If these directories don't exist, run `/init` to seed them from `_base/docs/`, or
-create them by hand — each directory should contain a `.gitkeep` file so empty directories are tracked.
+The task manager remains the source of truth for work. `docs/resources/` replaces the older
+`docs/reference/` folder. Do not add a Projects layer; the global roadmap and area pages are enough.
+
+If these directories do not exist, run `/init` to seed them from `_base/docs/`.
 
 ## File naming
 
-```
-T-<NNN>-<TYPE>_<short-description>.md
-```
-
-- `T-<NNN>` — the **Task ID**: a stable, zero-padded 3-digit handle (e.g. `T-042`). This is how the
-  todo is referenced everywhere ("work on T-042"), so it never changes once assigned.
-- `<TYPE>` — one of `F` (feature), `D` (debug/bug), `C` (chore/refactor), `R` (research/spike).
-- `<short-description>` — lowercase, hyphenated, under 50 characters.
-
-```
-T-042-F_dark-mode-toggle.md
-T-051-D_fix-slow-login.md
+```text
+<PREFIX>-<NNN>-<TYPE>_<short-description>.md
 ```
 
-The creation datetime is **not** in the filename — it lives in the `Created` metadata field. The Task
-ID is the sort key and the stable reference.
+- `<PREFIX>-<NNN>` is the stable Task ID, for example `AUTH-001` or `T-042`.
+- `<PREFIX>` comes from `docs/tasks_manager/_areas.md`. `T` is reserved for default, global, or
+  cross-area work.
+- `<NNN>` is a zero-padded, per-prefix counter. Roll naturally to 4 digits after 999.
+- `<TYPE>` is one of `F` feature, `D` debug/bug, `C` chore/refactor, or `R` research/spike.
+- `<short-description>` is lowercase, hyphenated, and under 50 characters.
+
+Examples:
+
+```text
+AUTH-001-F_login-session.md
+DBM-001-C_clean-migrations.md
+T-001-R_evaluate-ci.md
+```
+
+The creation datetime is not in the filename; it lives in `Created`.
 
 ## ID counters
 
-Task IDs are monotonic and never reused. To assign the next one:
+Task counters are monotonic per prefix and never reused. To assign the next ID:
 
-```
-next T = (highest T-NNN found across docs/tasks_manager/_todos/ AND docs/tasks_manager/_todos_archived/) + 1
+```text
+next <PREFIX> = highest <PREFIX>-NNN found across docs/tasks_manager/_todos/ and
+docs/tasks_manager/_todos_archived/, plus 1
 ```
 
-Scan both directories so archived todos still reserve their numbers (no gaps, no collisions). Inbox
-ideas use a **separate** `I-NNN` counter (see inbox-convention.md) — promoting an idea to a todo
-assigns a fresh `T-NNN`; the two sequences are independent. Zero-pad to 3 digits; roll to 4 digits
-naturally if you ever pass `T-999`.
+Scan both active and archived task directories so archived tasks still reserve their numbers. Inbox IDs
+use the separate `I-NNN` counter from `playbooks/conventions/inbox-convention.md`; promoting `I-007`
+assigns a fresh task ID and records `Source ref: I-007`.
+
+## Area registry
+
+`docs/tasks_manager/_areas.md` is the registry for task prefixes and area pages.
+
+```markdown
+| Area | Prefix | Description | Page |
+|------|--------|-------------|------|
+| global | T | Default, cross-area, and uncategorized work. | ../areas/global.md |
+| auth | AUTH | Authentication and session management. | ../areas/auth.md |
+```
+
+Rules:
+
+- `Area` is a short lowercase slug.
+- `Prefix` is uppercase alphanumeric, starts with a letter, and is unique.
+- `T` is reserved for the `global` area and for work that genuinely crosses areas.
+- `Page` points at `docs/areas/<slug>.md`.
+- Areas are defined with the user when possible. If no existing area fits a clear task, propose a slug,
+  prefix, description, and page, then add it after confirmation.
+
+`scripts/sync-todo-ledgers.sh` uses this registry to create missing area pages, regenerate
+`docs/areas/_overview.md`, and refresh generated Now / Next / Later blocks in each area page. Human
+area notes outside generated markers are preserved.
 
 ## File format
 
-Every todo starts with a metadata table, then phases, acceptance criteria, related tests, an execution log, and (when done) a completion summary.
+Every task starts with a metadata table, then a short title, a brief, phases, acceptance criteria,
+related tests, follow-ups, execution log, completion harvest, and completion summary.
 
 ````markdown
 | Field         | Value                              |
 |---------------|------------------------------------|
-| Task ID       | T-042                              |
+| Task ID       | AUTH-001                           |
 | Type          | F                                  |
 | Area          | auth                               |
 | Created       | 2026-04-14T10:30:00                |
 | Updated       | 2026-04-14T10:30:00                |
-| Last executed | —                                  |
+| Last executed | N/A                                |
 | Status        | open                               |
 | Priority      | high                               |
-| Owner         | —                                  |
-| Blocked by    | —                                  |
-| Source        | write-a-prd                        |
-| Source ref    | #42                                |
+| Owner         | N/A                                |
+| Blocked by    | N/A                                |
+| Source        | add-task                           |
+| Source ref    | N/A                                |
 
-## Refactor auth middleware
+## Login session hardening
 
-Description of what needs to be done.
+### Brief
+
+Harden session handling so users stay signed in reliably without weakening token storage. The current
+implementation has several scattered checks, so this task consolidates the behavior behind one
+testable boundary. The first pass should preserve public behavior, then add the stricter validation.
 
 ### Phases
 
-Each phase is a logical, committable unit of work. Complete phases sequentially — commit after each one.
+#### Phase 1: Current-state review
 
-#### Phase 1: Extract session interface
+- [ ] Map current session creation and validation paths
+- [ ] Identify existing tests and missing coverage
 
-- [ ] Define SessionStore interface
-- [ ] Move existing implementation behind the interface
+#### Phase 2: Implementation
 
-#### Phase 2: Implement new token storage
-
-- [ ] Add encrypted token store
-- [ ] Wire up to SessionStore interface
-
-#### Phase 3: Migration and cleanup
-
-- [ ] Add migration script for existing sessions
-- [ ] Remove deprecated storage code
+- [ ] Add the validation boundary
+- [ ] Route existing session checks through it
 
 ### Acceptance criteria
 
-Overall criteria for the entire todo to be considered done:
-
-- [ ] All session tokens are stored encrypted at rest
-- [ ] Existing sessions migrate transparently
-- [ ] No breaking changes to public API
+- [ ] Existing valid sessions continue to work
+- [ ] Expired sessions are rejected consistently
+- [ ] Related tests cover valid, expired, and malformed sessions
 
 ### Related tests
 
-Tests that verify this todo's behavior. Updated as phases are completed.
+- `tests/auth/test_sessions.py` - session validation behavior
 
-- `tests/auth/test_session_store.py` — session interface contract
-- `tests/auth/test_token_encryption.py` — encryption round-trip
-- (list test files/descriptions as they are created or identified)
+### Follow-ups
+
+- None
 
 ---
 
 ## Execution log
 
-Append-only record of work performed. Each entry captures what was done, test results, and outcome. Keep entries concise — link to the commit for full details.
+Append-only record of actions taken, decisions made, test results, and outcome.
 
-### 2026-04-15T09:00:00 — Phase 1: Extract session interface
+### 2026-04-15T09:00:00 - Pre-implementation review gate
 
-**What was done:**
-- Extracted SessionStore interface from monolithic auth module
-- Moved FileSessionStore behind the new interface
+**Researcher current-state review:**
+- Current session validation is split across middleware and token helpers.
+- Existing coverage is limited to happy-path login.
+
+**Plan-critic freshness/applicability review:**
+- Verdict: PROCEED.
+- Risk accepted: malformed-token coverage needs to be added before implementation is marked done.
+
+**Outcome:** Gate passed. Scope unchanged.
+
+### 2026-04-15T14:30:00 - Phase 2: Implementation
+
+**Actions taken:**
+- Implemented SessionValidator.
+- Routed middleware validation through the new boundary.
+
+**Decisions made:**
+- Kept token parsing in the existing helper to avoid a wider refactor.
 
 **Test results:**
-```
-tests/auth/test_session_store.py — 4 passed, 0 failed
-```
-
-**Outcome:** Phase 1 complete. Committed as `feat: extract session store interface` (a1b2c3d).
-
-### 2026-04-15T14:30:00 — Phase 2: Implement new token storage
-
-**What was done:**
-- Implemented EncryptedTokenStore
-- Integrated with SessionStore interface
-
-**Test results:**
-```
-tests/auth/test_session_store.py — 4 passed, 0 failed
-tests/auth/test_token_encryption.py — 6 passed, 0 failed
+```text
+tests/auth/test_sessions.py - 8 passed, 0 failed
 ```
 
-**Outcome:** Phase 2 complete. Committed as `feat: add encrypted token storage` (d4e5f6a).
+**Outcome:** Phase 2 complete. Committed as `feat: harden session validation` (a1b2c3d).
 
 ---
 
+## Completion harvest
+
+| Item | Result |
+|------|--------|
+| Resource updates | docs/resources/auth/session-validation.md |
+| Area updates | docs/areas/auth.md |
+| Follow-ups | I-012 |
+| Notable decisions/deviations | Kept token parsing in the existing helper. |
+
 ## Completion summary
 
-Refactored auth middleware to use encrypted token storage behind a clean SessionStore interface. All 3 phases completed over 2 sessions. Final test state: 10 passed, 0 failed across 2 test files. No breaking changes to public API.
+Completed session validation hardening over 2 phases. Final validation: 8 tests passed. One follow-up
+was captured for session expiry telemetry.
 ````
 
 ### Field definitions
 
 | Field | Description |
 |-------|-------------|
-| Task ID | Stable `T-NNN` handle, assigned at creation, never changed or reused (see ID counters) |
+| Task ID | Stable `<PREFIX>-NNN` handle, assigned at creation, never changed or reused |
 | Type | `F` feature, `D` debug/bug, `C` chore/refactor, `R` research/spike |
-| Area | Feature/area slug from `docs/tasks_manager/_areas.md`, or `—` if none yet (see areas registry) |
+| Area | Area slug from `docs/tasks_manager/_areas.md` |
 | Created | ISO 8601 datetime when the file was created |
-| Updated | ISO 8601 datetime of the last modification |
-| Last executed | ISO 8601 datetime when work last happened on this todo, or `—` if never started |
-| Status | `open`, `in_progress`, `done`, `cancelled` |
-| Priority | `high`, `medium`, `low` — determines work order |
-| Owner | Who is working on this (agent name, user name, or `—` if unassigned) |
-| Blocked by | Filename of another todo this depends on, or `—` if none |
-| Source | Which skill or process created this todo (e.g. `write-a-prd`, `triage-issue`, `manual`) |
-| Source ref | Optional reference to the origin (issue number, PRD link, etc.) |
+| Updated | ISO 8601 datetime of the last metadata or content update |
+| Last executed | ISO 8601 datetime when implementation/research last happened, or `N/A` |
+| Status | `open`, `in_progress`, `done`, or `cancelled` |
+| Priority | `high`, `medium`, or `low`; roadmap order decides execution sequence |
+| Owner | Agent/user working the task, or `N/A` |
+| Blocked by | Task ID or filename this depends on, or `N/A` |
+| Source | Skill or process that created the task, for example `add-task`, `inbox`, `prd-to-todos`, `manual` |
+| Source ref | Origin reference, for example `I-007`, issue number, file path, or `N/A` |
 
-## Phases
+## Task body requirements
 
-Every todo should be split into phases — logical, committable steps that build on each other.
+- **Title:** the first `##` after metadata is the short human-readable title.
+- **Brief:** 2-4 sentences explaining the user outcome and relevant constraints.
+- **Phases:** one or more logical, committable phases with checklists.
+- **Acceptance criteria:** verifiable criteria for marking the whole task done.
+- **Related tests:** list known tests, or write `N/A - <reason>` when tests do not apply.
+- **Follow-ups:** use `None` if no follow-ups exist. Prefer `I-NNN` inbox captures for new ideas.
+- **Execution log:** append-only. Each entry records actions taken, decisions made, test results, and outcome.
+- **Completion harvest:** required before archiving; each row must name updates or explicitly say `None`.
+- **Completion summary:** required when archived, with the outcome and final validation state.
 
-Rules for phases:
+## Pre-implementation review gate
 
-- Each phase produces a working, committable state (no half-done code)
-- Phases are sequential — complete and commit one before starting the next
-- Each phase has its own checklist of concrete items
-- Keep phases small enough to reason about, large enough to be meaningful
-- A simple todo might have 1-2 phases; a complex one might have 5+
+Before starting implementation of any existing task, run two reviews and record both in the execution
+log before code edits:
 
-When creating a todo, think: "Where are the natural commit points?"
+1. **Researcher current-state review** - inspect relevant code, docs, tests, ledgers, and area pages.
+   Record what already exists, likely conflicts, and current test coverage.
+2. **Plan-critic freshness/applicability review** - challenge whether the task is still valid, sequenced
+   correctly, duplicated, stale, or overlapping later work. Use `playbooks/conventions/plan-critique.md`.
 
-### When a phase fails
+Claude Code may dispatch `researcher` and `plan-critic` subagents. Codex must run equivalent
+main-thread passes using `playbooks/personalities/researcher.md` and the plan critique convention.
 
-If a phase produces broken code or failing tests:
+If the reviews find stale assumptions, duplicate work, ordering issues, or overlapping later tasks,
+reconcile before implementation. Agents may update roadmap ordering, task notes, area status, and
+cross-links. Agents must ask before merging tasks, cancelling tasks, or materially changing scope.
 
-1. **Revert** to the last committed state (end of previous phase)
-2. **Log the failure** in the execution log with outcome `Phase N failed. <what went wrong>. Reverted to <commit>.`
-3. **Reassess** — decide whether to retry the phase with a different approach, split it into smaller phases, or escalate to the user
-4. Do not proceed to the next phase with broken code
+This gate applies to starting existing tasks. It does not apply to quick inbox capture.
 
-## Acceptance criteria
+## Creating tasks
 
-Overall criteria that define when the entire todo is done. These are separate from per-phase checklists — a todo is done when all phases are complete AND all acceptance criteria pass.
+Any skill that produces actionable work can create tasks. Prefer `/add-task` for direct creation from a
+clear user request, and `/capture-idea` for vague ideas.
 
-Write criteria that are:
+Creation steps:
 
-- Verifiable (can be checked by running code, reading output, or inspecting state)
-- Behavioral (describe what the system does, not how it's built)
-- Complete (cover the full scope, not just the happy path)
+1. Read this convention.
+2. Pick or confirm an area from `docs/tasks_manager/_areas.md`.
+3. Assign the next task ID for that area's prefix. Use `T` only for global/cross-area/default work.
+4. Pick a type (`F`, `D`, `C`, or `R`) and priority (`high`, `medium`, or `low`).
+5. Create one file in `docs/tasks_manager/_todos/` named `<PREFIX>-NNN-<TYPE>_<desc>.md`.
+6. Fill the full template: brief, phases, acceptance criteria, related tests, follow-ups, execution log,
+   completion harvest, and completion summary placeholders.
+7. Set `Source` and `Source ref`.
+8. Run `scripts/sync-todo-ledgers.sh`.
+9. Optionally place the task on `docs/tasks_manager/_roadmap.md` if the user wants it scheduled.
 
-## Related tests
-
-List test files and descriptions relevant to this todo. This section evolves as work progresses:
-
-- When creating the todo: list existing tests that might be affected
-- During execution: add new tests as they are written
-- When done: the final list serves as a test coverage record
-
-Format: `path/to/test_file.py` — brief description of what it covers
-
-## Execution log
-
-Append-only section at the bottom of the todo. **Never edit previous entries** — only append new ones.
-
-Each entry records:
-
-1. **Datetime and phase** — which phase was worked on
-2. **What was done** — concise summary of changes (1-3 bullet points, not a full diff)
-3. **Test results** — pass/fail counts from running tests
-4. **Outcome** — result and commit hash
-
-Keep entries brief. The commit itself is the detailed record — the log is for quick scanning. Include the short commit hash so readers can `git show` for full details.
-
-Possible outcomes:
-
-- `Phase N complete. Committed as '<message>' (<short-hash>).`
-- `Phase N partially complete. Blocked on <reason>.`
-- `Phase N failed. <what went wrong>. Reverted to <commit>.`
-
-## Completion summary
-
-When all phases are done and the todo is moved to `_todos_archived/`, add a `## Completion summary` section after the execution log. This is a one-paragraph recap:
-
-- What was accomplished (1-2 sentences)
-- Total phases completed and time span (e.g. "3 phases over 2 sessions")
-- Final test state (e.g. "12 passed, 0 failed across 3 test files")
-- Any notable decisions or deviations from the original plan
-
-This summary lets someone scanning the archive understand the outcome without reading the full execution log.
-
-## Status transitions
-
-```
-open → in_progress → done → (archive)
-open → cancelled → (archive)
-in_progress → cancelled → (archive)
-```
-
-When status changes to `done` or `cancelled`, move the file from `_todos/` to `_todos_archived/`.
-
-Always update the `Updated` field when changing any metadata.
-Always update `Last executed` when actual work is performed on the todo.
-
-## Creating todos from other skills
-
-Any skill that produces actionable output can create todos. To integrate:
-
-1. Reference this convention: `playbooks/conventions/todo-convention.md`
-2. Assign the next `Task ID` (see ID counters) and pick a `Type` (`F`/`D`/`C`/`R`)
-3. Pick an `Area` from `docs/tasks_manager/_areas.md` (define a new one with the user if none fit — see Areas)
-4. Create one file per actionable item in `docs/tasks_manager/_todos/` named `T-NNN-<TYPE>_<desc>.md`
-5. Set `Source` to the skill name
-6. Set `Source ref` to the origin (issue number, PRD title, etc.)
-7. Set `Priority` based on urgency and importance
-8. Set `Blocked by` if this todo depends on another
-9. Split the work into phases with clear commit points
-10. Define acceptance criteria and list any known related tests
-11. Add a row for the new todo to `docs/tasks_manager/_active.md` (or run `scripts/sync-todo-ledgers.sh`)
-
-Keep todos atomic — one clear deliverable per file. If a PRD produces 5 vertical slices, create 5 todo files.
-
-## Areas
-
-`docs/tasks_manager/_areas.md` is the registry of feature/areas. Each todo's `Area` field references a slug from it.
-Areas are **defined with the user**, not from a fixed list: when an idea or todo fits no existing area,
-propose a new slug + one-line description, confirm with the user, append it to `docs/tasks_manager/_areas.md`, then
-use it. Leave `Area` as `—` only when the work genuinely spans everything or is not yet classifiable.
-
-## Ledgers
-
-Two generated index files give an at-a-glance view; the todo files themselves remain the source of truth.
-
-- `docs/tasks_manager/_active.md` — every `open` + `in_progress` todo (the backlog). Sorted in_progress first, then
-  by priority, then Task ID. Each row links to its file under `_todos/`.
-- `docs/tasks_manager/_done.md` — every completed/cancelled todo, **newest row inserted at the top** so it reads
-  newest-first by completion date. Each row links to its file under `_todos_archived/`, and records the
-  commit hash.
-
-Both carry a **File** column whose cell is a relative markdown link (e.g.
-`[T-042-F_dark-mode-toggle.md](_todos/T-042-F_dark-mode-toggle.md)`) so editors can Ctrl/Cmd-click to
-the source. Keep them current as part of each status change (steps below). They are fully derivable
-from the todo files, so `scripts/sync-todo-ledgers.sh` can rebuild them at any time — run it if you
-suspect drift or after bulk edits. This works for Codex too, which has no hooks to catch mistakes.
+Keep tasks atomic: one clear deliverable per file.
 
 ## Roadmap
 
-`docs/tasks_manager/_roadmap.md` is the **plan of execution**: which todos/ideas happen Now, Next, and Later, in the
-order intended. Unlike the ledgers, it is *not* derived from status — the horizon placement is a
-deliberate human decision and is **not** rebuilt by `scripts/sync-todo-ledgers.sh`. Maintain it with the
-`/roadmap` skill, which renders each todo as a collapsible block (summary = the plan, expanded =
-phases). Promote inbox ideas with `/triage-inbox` before scheduling a `T-NNN` into `Now`.
+`docs/tasks_manager/_roadmap.md` is the global execution plan: Now, Next, and Later. Placement and order
+are deliberate human decisions, not derived from status or priority. Priority stays `high`, `medium`, or
+`low`; roadmap order decides the actual execution sequence.
 
-## Updating todos during execution
+Roadmap items may reference task IDs like `AUTH-001` or raw inbox ideas like `I-007`. Ambiguous or
+missing references reported by `scripts/sync-todo-ledgers.sh` must be fixed by a human or agent; do not
+guess which task was meant.
 
-When starting work on a todo:
+## Ledgers and area sync
 
-1. Set `Owner` to who is working on it
-2. Change Status to `in_progress`
-3. Update `Last executed` and `Updated` to now
-4. Update the todo's row in `docs/tasks_manager/_active.md` (status → in_progress)
+Task files remain the source of truth. `scripts/sync-todo-ledgers.sh` derives:
 
-After completing each phase:
+- `docs/tasks_manager/_active.md` - every `open` and `in_progress` task.
+- `docs/tasks_manager/_done.md` - every `done` and `cancelled` archived task.
+- `docs/areas/_overview.md` - generated overview from `_areas.md`, task metadata, and recognizable
+  roadmap IDs.
+- Generated Now / Next / Later status blocks in each `docs/areas/<slug>.md`.
 
-1. Check off the phase's checklist items
-2. Run related tests and record results
-3. Append an execution log entry with what was done, test results, and outcome
-4. Commit the code changes AND the updated todo file together
-5. Update `Last executed` and `Updated`
-6. Update the phase progress in the todo's `docs/tasks_manager/_active.md` row
+The sync tooling edits only generated marker blocks inside area pages. Human-authored context outside
+those markers is preserved. Missing area pages are created from the standard template.
 
-When all phases are done:
+## Completion and archive
 
-1. Verify all acceptance criteria pass — check them off
-2. Append a final execution log entry
-3. Write the completion summary
-4. Change Status to `done`
-5. Insert a row at the **top** of `docs/tasks_manager/_done.md` (Task ID, Type, Title, Area, completion datetime,
-   commit hash, link to the archived file), and remove the todo's row from `docs/tasks_manager/_active.md`
-6. Move file to `docs/tasks_manager/_todos_archived/`
+Status transitions:
 
-`cancelled` todos follow the same final steps (record them in `_done.md` with a cancelled note instead
-of a commit). If the ledgers ever look out of sync, run `scripts/sync-todo-ledgers.sh` to rebuild them.
+```text
+open -> in_progress -> done -> archive
+open -> cancelled -> archive
+in_progress -> cancelled -> archive
+```
 
-## Listing todos
+Before changing a task to `done` or `cancelled`:
 
-For a quick overview, read `docs/tasks_manager/_active.md` (open + in_progress) and `docs/tasks_manager/_done.md` (history) — they
-are maintained for exactly this. If they look stale, rebuild with `scripts/sync-todo-ledgers.sh`, then
-report:
+1. Verify acceptance criteria and related tests.
+2. Append a final execution log entry.
+3. Complete the harvest table:
+   - Resource updates in `docs/resources/`, or `None`
+   - Area updates in `docs/areas/`, or `None`
+   - Follow-ups, usually `I-NNN` inbox items, or `None`
+   - Notable decisions/deviations, or `None`
+4. Write the completion summary.
+5. Change `Status`.
+6. Move the file to `docs/tasks_manager/_todos_archived/`.
+7. Run `scripts/sync-todo-ledgers.sh`.
 
-- Total count by status
-- Breakdown by priority
-- Oldest open todos (by Created date)
-- Recently executed (by Last executed date)
-- Phase progress (e.g. "Phase 2/4 in progress")
-- Blocked todos and what they're waiting on
+Claude hooks may block or remind when a terminal task is missing a completion harvest or remains in the
+active `_todos/` directory. Codex has no hooks, so Codex agents must run the same validation manually.
+
+## Listing tasks
+
+For a quick overview, read `docs/tasks_manager/_roadmap.md`, `docs/tasks_manager/_active.md`,
+`docs/areas/_overview.md`, and `docs/tasks_manager/_done.md`. If they look stale, rebuild with
+`scripts/sync-todo-ledgers.sh`, then report:
+
+- Counts by status and area.
+- Breakdown by priority.
+- Items at the top of Now / Next / Later.
+- Oldest open tasks.
+- Recently executed tasks.
+- Blocked tasks and dependencies.

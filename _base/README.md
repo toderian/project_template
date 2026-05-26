@@ -24,6 +24,7 @@ This repo is designed to work with both **Claude Code** and **OpenAI Codex**. Co
 │   ├── SETUP_INSTRUCTIONS.md              # Numbered setup steps for an agent (or human) to execute
 │   ├── PROJECT.md.template                # Optional alignment-doc scaffold; copy to ./PROJECT.md to enable /align
 │   ├── project.env.example                # Reference env vars; copy to ./project.env at repo root
+│   ├── docs/                              # Seed docs layout: tasks_manager, areas, resources, archive
 │   └── scripts/                           # Maintenance scripts (operate only on upstream content)
 │       ├── gen-skills-table.sh            # Regenerates the skills table in _base/README.md
 │       └── check-skills-sync.sh           # Validates skill/wrapper/table consistency
@@ -31,9 +32,9 @@ This repo is designed to work with both **Claude Code** and **OpenAI Codex**. Co
 │
 ├── playbooks/                             # Shared workflow logic (single source of truth)
 │   ├── skills/                            # Skill playbooks
-│   │   ├── <skill-name>.md
-│   │   ├── tdd/                           # Complex skill subdirectories
-│   │   └── github-triage/
+│   │   ├── productivity/<skill-name>.md
+│   │   ├── engineering/<skill-name>.md
+│   │   └── misc/<skill-name>.md
 │   ├── personalities/                     # Role cards for multi-pass workflows
 │   │   ├── manager.md, builder.md, tester.md
 │   │   ├── critic.md, reviewer.md, researcher.md
@@ -46,7 +47,7 @@ This repo is designed to work with both **Claude Code** and **OpenAI Codex**. Co
 │       └── RESEARCH_SNAPSHOT.md
 │
 ├── skills/                                # Codex skill wrappers (thin)
-│   ├── <skill-name>/SKILL.md
+│   ├── <bucket>/<skill-name>/SKILL.md
 │   └── install-codex-skills.sh
 ├── plugins/                               # Optional Codex plugins
 │   ├── <plugin-name>/.codex-plugin/plugin.json
@@ -54,7 +55,7 @@ This repo is designed to work with both **Claude Code** and **OpenAI Codex**. Co
 │
 └── .claude/
     ├── skills/                            # Claude Code skill wrappers (thin)
-    │   └── <skill-name>/SKILL.md
+    │   └── <bucket>/<skill-name>/SKILL.md
     ├── agents/                            # Claude Code subagent definitions
     │   ├── implementer.md
     │   └── reviewer.md
@@ -100,6 +101,7 @@ The table below lists the skills authored in this template (base tier). Downstre
 
 | Skill | Bucket | Description |
 |-------|--------|-------------|
+| add-task | productivity | Create a full area-prefixed task in docs/tasks_manager/_todos/ with phases, acceptance criteria, related tests, priority, and optional roadmap placement. Use when the user says "add task", "create task", "file a task", "track this task", or gives clear actionable work that should skip inbox capture. |
 | align | productivity | Check a proposed feature or change against the project's PROJECT.md (vision, goals, scope, constraints) and report ALIGNED, NEEDS_CLARIFICATION, or OUT_OF_SCOPE. Use when starting non-trivial work, when scope feels uncertain, or before planning-workflow. Requires PROJECT.md at the repo root. |
 | capture-idea | productivity | Capture an idea into the inbox (docs/tasks_manager/_inbox/) as an I-NNN file with near-zero friction. Use whenever the user says "capture", "add to inbox", "note this idea", "jot down", or shares a feature/bug/idea they want recorded for later — even if they don't explicitly ask to use a skill. |
 | describe-component | engineering | Generate or refresh a CONTEXT.md describing a system component's structure — responsibility, public interface, dependencies, data owned, invariants, and tests. Use when the user wants to "describe a component", "document this module/service", map a subsystem's boundaries, or onboard to/hand off a part of the codebase. Distinct from the root domain-glossary CONTEXT.md (that's grill-with-docs). |
@@ -114,7 +116,7 @@ The table below lists the skills authored in this template (base tier). Downstre
 | handoff | productivity | Compact the current conversation into a handoff document so a fresh agent can pick up the work. Use when the user wants a session summary written to disk for later continuation, mentions "handing off", or is wrapping up a long session. |
 | implementer | misc | Act as an implementer for a single task slice. Use when implementing focused work from a plan, following the subagent protocol with scope fencing and structured reporting. |
 | improve-codebase-architecture | engineering | Explore a codebase to find opportunities for architectural improvement, focusing on making the codebase more testable by deepening shallow modules. Use when user wants to improve architecture, find refactoring opportunities, consolidate tightly-coupled modules, or make a codebase more AI-navigable. |
-| init | misc | Initialize project idea/todo tracking structure. Use when user wants to set up the docs/ inbox, todos, areas registry, and ledgers for task tracking. |
+| init | misc | Initialize project idea/task tracking structure. Use when user wants to set up the docs/ inbox, tasks, areas, resources, archive, roadmap, and generated ledgers. |
 | migrate-to-shoehorn | engineering | Migrate test files from `as` type assertions to @total-typescript/shoehorn. Use when user mentions shoehorn, wants to replace `as` in tests, or needs partial test data. |
 | migration-safety | engineering | Generate safe, reversible database schema migrations and review proposed ones for production hazards (table-rewrite locks, NOT-NULL-without-backfill, missing CONCURRENTLY, irreversible DROPs). Default focus PostgreSQL with Liquibase or Flyway; safety rules generalize to MySQL and SQLite. Use when the user mentions migration, schema change, alter table, add/drop column, add index, backfill, Liquibase, Flyway, or zero-downtime DDL. |
 | obsidian-vault | personal | Search, create, and manage notes in the Obsidian vault with wikilinks and index notes. Use when user wants to find, create, or organize notes in Obsidian. |
@@ -133,8 +135,8 @@ The table below lists the skills authored in this template (base tier). Downstre
 | spec-workflow | engineering | Heavyweight spec-driven development loop (plan → build → review → fix) for a single engineering item, with four artifacts under specs/<slug>/ (spec.md, design.md, tasks.md, review.md) and parallel implementer dispatch via the subagent-protocol. Use when the user asks to "spec it out", run a spec-driven workflow, plan + build + review a non-trivial feature, parallelize implementer subagents against a written design, or mentions "spec workflow" / "spec-driven". Do NOT use for one-file edits, typos, trivial bug fixes, exploratory spikes, or anything the default single-agent operating loop can handle in one pass — this skill is intentionally heavy. |
 | subagent-protocol | productivity | Multi-agent coordination protocol with status vocabulary, dispatch format, and two-stage review. Use when dispatching subagents, coordinating multi-agent work, or reviewing implementation output. |
 | tdd | engineering | Test-driven development with red-green-refactor loop. Use when user wants to build features or fix bugs using TDD, mentions "red-green-refactor", wants integration tests, or asks for test-first development. |
-| tidy-repo | productivity | Inventory a messy repo's scattered todos, loose docs, and orphan files, then propose a non-destructive migration into the docs/tasks_manager + docs/reference structure. Use when the user says "tidy this repo", "systematize", "clean up the mess", "organize my todos/docs", or describes an inherited repo with scattered todos, stray docs, and unrelated files. |
-| triage-inbox | productivity | Review captured inbox ideas (docs/tasks_manager/_inbox/) and promote the worthwhile ones into full T-NNN todos, or drop them. Use when the user says "triage", "review the inbox", "process my ideas", "clear the inbox", or wants to turn captured ideas into actionable todos. |
+| tidy-repo | productivity | Inventory a messy repo's scattered todos, loose docs, and orphan files, then propose a non-destructive migration into the docs/tasks_manager + docs/resources structure. Use when the user says "tidy this repo", "systematize", "clean up the mess", "organize my todos/docs", or describes an inherited repo with scattered todos, stray docs, and unrelated files. |
+| triage-inbox | productivity | Review captured inbox ideas (docs/tasks_manager/_inbox/) and promote worthwhile ones into full area-prefixed tasks, or drop them. Use when the user says "triage", "review the inbox", "process my ideas", "clear the inbox", or wants to turn captured ideas into actionable todos. |
 | triage-issue | misc | Triage a bug or issue through a two-role state machine (category + state) and produce a `ready-for-agent` GitHub issue with a TDD-based fix plan, by exploring the codebase to find the root cause. Use when the user wants to "triage" a bug, investigate an issue, file an issue, plan a fix, or move an issue toward `ready-for-agent`. |
 | ubiquitous-language | engineering | Extract a DDD-style ubiquitous language glossary from the current conversation, flagging ambiguities and proposing canonical terms. Saves to UBIQUITOUS_LANGUAGE.md. Use when user wants to define domain terms, build a glossary, harden terminology, create a ubiquitous language, or mentions "domain model" or "DDD". |
 | write-a-prd | productivity | Create a PRD through user interview, codebase exploration, and module design, then submit as a GitHub issue. Use when user wants to write a PRD, create a product requirements document, or plan a new feature. |
@@ -257,6 +259,7 @@ Copy these into the target project (then point an agent at `_base/SETUP_INSTRUCT
 |----------|--------------|-------|
 | `AGENTS.md` | Both | Auto-loaded entrypoint; downstream-owned (project-specific overrides go here) |
 | `_base/` | Both | Base operating contract, base README, base changelog, **base setup instructions**; upstream-owned (do not edit downstream) |
+| `_base/docs/` | Both (optional) | Seed layout for `docs/tasks_manager/`, `docs/areas/`, `docs/resources/`, and `docs/archive/`; copy via `/init` |
 | `playbooks/` | Both | Authoritative workflow logic, role cards, templates |
 | `.claude/` | Claude Code | Skills, native subagents, hook scripts, settings |
 | `skills/` | Codex | Thin wrappers + `install-codex-skills.sh` |
@@ -378,6 +381,7 @@ Each repo file falls into one of three buckets:
 - `_base/CHANGELOG.md` — base-template changelog; read this after `git fetch template` to know what's coming in. Downstream projects may keep their own root-level `CHANGELOG.md` for project-specific changes (downstream-owned, never collides).
 - `_base/SETUP_INSTRUCTIONS.md` — agent-readable numbered setup steps. Point an agent at this file to wire up a fresh project end-to-end (template remote, runtime installers, downstream-slot replacements, verification).
 - `_base/PROJECT.md.template` — alignment-doc scaffold; copy to `PROJECT.md` at the repo root if you want feature-level alignment gating via `/align`.
+- `_base/docs/` — seed docs layout for the task manager, generated area views, resources, and archive.
 
 **Mixed** (manual merge required):
 
