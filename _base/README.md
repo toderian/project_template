@@ -86,6 +86,9 @@ The task system's golden path is:
       -> /roadmap -> pre-implementation gate -> implement/execute
       -> /complete-task
       -> scripts/sync-todo-ledgers.sh --check
+
+# Periodic health check:
+/audit-todos          # report-only audit of active tasks against code/tests/docs
 ```
 
 Task files own status and detail, the roadmap owns placement, and ledgers/area pages are generated.
@@ -98,6 +101,11 @@ before stable facts are promoted into canonical docs.
 See [`playbooks/conventions/task-system-quickstart.md`](../playbooks/conventions/task-system-quickstart.md)
 and [`playbooks/conventions/knowledge-base-quickstart.md`](../playbooks/conventions/knowledge-base-quickstart.md)
 for the full command map and source-of-truth split.
+
+Use `/audit-todos` periodically to compare active tasks with current code, tests, docs, roadmap,
+ledgers, area pages, and resources. It is report-only by default and delegates any closeout, follow-up
+capture, task creation, or roadmap cleanup to `/complete-task`, `/capture-idea`, `/add-task`, or
+`/roadmap`.
 
 ## Skills and playbooks
 
@@ -130,6 +138,7 @@ The table below lists the skills authored in this template (base tier). Downstre
 |-------|--------|-------------|
 | add-task | productivity | Create a full area-prefixed task in docs/tasks_manager/_todos/ with phases, acceptance criteria, related tests, priority, and optional roadmap placement. Use when the user says "add task", "create task", "file a task", "track this task", or gives clear actionable work that should skip inbox capture. |
 | align | productivity | Check a proposed feature or change against the project's PROJECT.md (vision, goals, scope, constraints) and report ALIGNED, NEEDS_CLARIFICATION, or OUT_OF_SCOPE. Use when starting non-trivial work, when scope feels uncertain, or before planning-workflow. Requires PROJECT.md at the repo root. |
+| audit-todos | productivity | Audit active task files against current repo state to find outdated, completed, obsolete, duplicated, or follow-up-ready work. Use when the user says "audit todos", "audit tasks", "review active tasks", or asks for periodic task backlog health checks. |
 | capture-idea | productivity | Capture an idea into the inbox (docs/tasks_manager/_inbox/) as an I-NNN file with near-zero friction. Use whenever the user says "capture", "add to inbox", "note this idea", "jot down", or shares a feature/bug/idea they want recorded for later — even if they don't explicitly ask to use a skill. |
 | complete-task | productivity | Complete or cancel a task, fill its completion harvest and summary, archive it, then sync and strictly validate task ledgers. Use when the user says "complete task", "finish task", "close task", "cancel task", or asks to archive a done task. |
 | cross-repo-feature | engineering | Capture a concrete feature contract under docs/resources/<area>/contracts/<feature-slug>.md, including repo responsibilities, API/schema/event/env/CLI/Docker boundaries, compatibility, rollout order, and verification. Use when the user says "cross-repo feature", "feature contract", or asks to coordinate a change across repos. |

@@ -328,6 +328,18 @@ agent handoff validation; it is read-only and fails on duplicate IDs, malformed 
 status-directory mismatch, unregistered areas/prefixes, bad roadmap references, stale generated files,
 and archived tasks without an explicit completion harvest and summary.
 
+## Active-task audits
+
+Use `/audit-todos` for periodic active-task health checks. It audits files under
+`docs/tasks_manager/_todos/` against current code, tests, docs, roadmap placement, generated ledgers,
+area pages, archived task evidence, and `docs/resources/`.
+
+The audit is evidence-based and report-only by default. It may recommend `keep`, `needs-update`,
+`appears-done`, `cancel-or-close`, `split-follow-up`, or `needs-user-decision`, but it does not edit,
+archive, capture follow-ups, or reorder roadmap entries unless the user explicitly starts a follow-up
+workflow. Age alone is not enough to close or cancel work; each meaningful recommendation must cite
+current repo evidence.
+
 ## Completion and archive
 
 Status transitions:

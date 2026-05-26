@@ -13,6 +13,22 @@ For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
 
+### Add active-task audit workflow
+
+The task system now has a report-only active-task health check:
+
+- New `/audit-todos` audits `docs/tasks_manager/_todos/` against current code, tests, docs, roadmap,
+  generated ledgers, area pages, archived task evidence, and `docs/resources/`.
+- The audit classifies tasks as `keep`, `needs-update`, `appears-done`, `cancel-or-close`,
+  `split-follow-up`, or `needs-user-decision`.
+- Recommendations must be evidence-based; age alone is never enough to close or cancel work.
+- The audit does not mutate files by default. Closeout, cancellation, follow-up capture, task creation,
+  and sequencing cleanup stay delegated to `/complete-task`, `/capture-idea`, `/add-task`, and
+  `/roadmap`.
+
+**Downstream impact:** re-run skill installers to pick up `/audit-todos`. Use it periodically before
+large backlog or roadmap cleanup sessions.
+
 ### Add raw knowledge inbox and distillation workflow
 
 The docs-primary knowledge base now has a raw-source ingestion lane:

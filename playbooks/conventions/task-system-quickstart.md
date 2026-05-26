@@ -23,6 +23,9 @@ For full details, use:
 # implement / execute the task
 /complete-task <TASK-ID>
 scripts/sync-todo-ledgers.sh --check
+
+# Periodic health check:
+/audit-todos          # report-only audit of active tasks against code/tests/docs
 ```
 
 Direct creation is also valid when the work is already clear:
@@ -50,6 +53,17 @@ scripts/sync-todo-ledgers.sh --check
 - **Generated ledgers and area pages** (`docs/tasks_manager/_active.md`, `docs/tasks_manager/_done.md`,
   `docs/areas/_overview.md`, generated blocks in `docs/areas/<slug>.md`) are derived views. Rebuild
   them with `scripts/sync-todo-ledgers.sh`; validate them with `scripts/sync-todo-ledgers.sh --check`.
+
+## Active-task health checks
+
+Use `/audit-todos` as the periodic active-task health check. It reads `docs/tasks_manager/_todos/`,
+compares each task with current code, tests, docs, ledgers, roadmap placement, area pages, and
+`docs/resources/`, then reports whether tasks should be kept, updated, closed, cancelled, split into
+follow-ups, or escalated for a user decision.
+
+The audit is report-only by default. It does not edit task files, archive tasks, create follow-ups, or
+reorder the roadmap. Recommended mutations flow through `/complete-task`, `/capture-idea`, `/add-task`,
+or `/roadmap` after the user chooses a next step.
 
 ## Discovery gate
 
@@ -95,6 +109,9 @@ Present the classification, evidence, and recommendation before creating or chan
 - Use `/complete-task` when a task is done or intentionally cancelled. It verifies acceptance/tests,
   fills completion harvest and summary, archives the task, syncs generated views, and runs strict
   validation.
+- Use `/audit-todos` when reviewing active tasks for drift. It classifies active tasks with evidence
+  from code, tests, docs, roadmap, ledgers, and resources, then recommends follow-up workflows without
+  mutating files by default.
 
 ## Minimum validation
 

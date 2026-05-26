@@ -34,6 +34,7 @@
     "./skills/personal/obsidian-vault",
     "./skills/productivity/add-task",
     "./skills/productivity/align",
+    "./skills/productivity/audit-todos",
     "./skills/productivity/capture-idea",
     "./skills/productivity/complete-task",
     "./skills/productivity/grill-me",
