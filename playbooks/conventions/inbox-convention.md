@@ -88,14 +88,31 @@ The `capture-idea` skill automates this.
 
 ## Triaging (idea → task)
 
-Periodically review `docs/tasks_manager/_inbox/` (the `triage-inbox` skill drives this). For each `new` idea, decide:
+Periodically review `docs/tasks_manager/_inbox/` (the `triage-inbox` skill drives this). Capture stays
+fast and light; triage is the deliberate validation step before any inbox idea becomes a committed
+task.
+
+For each `new` idea, first run a discovery gate:
+
+1. Inspect related inbox ideas (live and archived), active tasks, archived tasks, the roadmap, ledgers,
+   area pages, resources, archived docs, root/component `CONTEXT.md`, and likely code/tests.
+2. Classify the idea as **duplicate inbox idea**, **already tracked task**, **already implemented**,
+   **obsolete/stale**, **related but distinct**, or **genuinely new**.
+3. Present the findings, evidence, and recommendation before creating a task.
+
+Then decide:
 
 - **Promote** — it's worth doing. Create a full task per `todo-convention.md`: assign the next
   `<PREFIX>-NNN` for the chosen area, set `Type` (`F`/`D`/`C`/`R`), confirm/assign `Area` (defining a
   new one with the user if needed), set `Source: inbox` and `Source ref: I-NNN`, split into phases, add
   acceptance criteria and related tests, and run `scripts/sync-todo-ledgers.sh`. Then set the inbox
   file's `Status: promoted`.
-- **Drop** — not worth doing. Set `Status: dropped` and note why in the body.
+- **Drop** — duplicate, obsolete, already implemented, stale, or not worth doing. Set
+  `Status: dropped` and note the one-line reason in the body.
+- **Append to existing** — if the idea is already tracked, append useful detail or a cross-link to the
+  existing inbox idea or task, then set the current inbox file's `Status: dropped` with a one-line reason
+  such as `Merged into AUTH-001`.
+- **Defer** — leave it as `new` for a later pass.
 
 Either way, move the inbox file to `docs/tasks_manager/_inbox_archived/` once it's `promoted` or `dropped`, so the
 inbox only ever shows live ideas.

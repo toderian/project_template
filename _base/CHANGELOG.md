@@ -13,6 +13,26 @@ For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
 
+### Add task-system quickstart and triage discovery gate
+
+Documentation-only update to make the task system's golden path and triage expectations explicit:
+
+- New `playbooks/conventions/task-system-quickstart.md` explains the `/init` -> `/capture-idea` ->
+  `/triage-inbox` discovery gate -> `/roadmap` -> pre-implementation gate -> implement/execute ->
+  `/complete-task` -> `scripts/sync-todo-ledgers.sh --check` flow.
+- `/triage-inbox` now requires a discovery gate before promotion decisions: inspect inbox ideas, active
+  and archived tasks, roadmap, area pages, resources, context docs, and likely code/tests; classify
+  duplicates, already tracked work, already implemented work, stale ideas, related work, and genuinely
+  new work before creating tasks.
+- `inbox-convention.md`, `todo-convention.md`, `/add-task`, `/prd-to-todos`, `/roadmap`,
+  `_base/README.md`, and `_base/AGENTS.md` now point agents toward the same source-of-truth split: task
+  files own detail/status, roadmap owns placement, raw inbox IDs only park in `Later`, and ledgers/area
+  pages are generated.
+
+**Downstream impact:** documentation-only; no migration, scripts, commands, metadata fields, or file
+formats changed. Agents should follow the new `/triage-inbox` discovery gate before promoting captured
+ideas into tasks.
+
 ### Harden idea-to-task validation and completion flow
 
 The task system keeps the permissive sync path for recovery, but now has strict read-only validation

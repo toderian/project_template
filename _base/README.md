@@ -75,6 +75,21 @@ The template encodes a few strong defaults:
 6. Review it.
 7. Repeat until the result is strong enough to ship.
 
+## Task System Quickstart
+
+The task system's golden path is:
+
+```text
+/init -> /capture-idea -> /triage-inbox discovery gate -> promote/drop/defer/append
+      -> /roadmap -> pre-implementation gate -> implement/execute
+      -> /complete-task
+      -> scripts/sync-todo-ledgers.sh --check
+```
+
+Task files own status and detail, the roadmap owns placement, and ledgers/area pages are generated.
+See [`playbooks/conventions/task-system-quickstart.md`](../playbooks/conventions/task-system-quickstart.md)
+for the full command map and source-of-truth split.
+
 ## Skills and playbooks
 
 Skills are reusable agent capabilities invoked by name (e.g. `/tdd`, `/qa`, `/grill-me`).

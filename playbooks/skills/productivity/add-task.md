@@ -30,13 +30,18 @@ Do not over-interview. Only ask when a required field cannot be inferred safely:
 
 Scan:
 
+- `docs/tasks_manager/_inbox/`
+- `docs/tasks_manager/_inbox_archived/`
 - `docs/tasks_manager/_todos/`
 - `docs/tasks_manager/_todos_archived/`
 - `docs/tasks_manager/_roadmap.md`
 - `docs/areas/_overview.md` and relevant `docs/areas/<slug>.md` pages, if they exist
+- `docs/resources/`, `docs/archive/`, root/component `CONTEXT.md`, and likely code/tests when the task
+  appears tied to existing behavior
 
-If the work appears already tracked, report the matching task ID and ask whether to append detail to the
-existing task or create a distinct task. Do not merge or cancel tasks without explicit user approval.
+If the work appears already captured, tracked, or implemented, report the matching `I-NNN`, task ID,
+doc, or code path and ask whether to append detail, link the existing item, or create a distinct task.
+Do not merge, cancel, or archive tasks without explicit user approval.
 
 ### 3. Assign area and prefix
 

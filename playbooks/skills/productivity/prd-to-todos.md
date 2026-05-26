@@ -38,7 +38,20 @@ Each phase should:
 - Be small enough to reason about
 - Build on the previous phase
 
-### 4. Quiz the user
+### 4. Check for existing work
+
+Before asking the user to approve task creation, compare the proposed slices against:
+
+- `docs/tasks_manager/_inbox/` and `docs/tasks_manager/_inbox_archived/`
+- `docs/tasks_manager/_todos/` and `docs/tasks_manager/_todos_archived/`
+- `docs/tasks_manager/_roadmap.md`, ledgers, and area pages
+- `docs/resources/`, `docs/archive/`, root/component `CONTEXT.md`, and likely code/tests
+
+If a slice is already captured, tracked, implemented, obsolete, or related-but-distinct, show the
+evidence with the proposed task list. Ask whether to skip it, append detail to the existing item, link
+it from the new task, or keep it as a distinct task. Do not create duplicate committed work silently.
+
+### 5. Quiz the user
 
 Present the proposed tasks as a numbered list. For each:
 
@@ -60,7 +73,7 @@ Ask the user:
 
 Iterate until approved.
 
-### 5. Create task files
+### 6. Create task files
 
 For each approved item, reserve a file in `docs/tasks_manager/_todos/` named
 `<PREFIX>-NNN-<TYPE>_<short-desc>.md` and fill it following the full format in
@@ -85,7 +98,7 @@ current datetime for the `Created` field. After creating the files, run `scripts
 If the user wants the PRD scheduled, place the new task IDs on `docs/tasks_manager/_roadmap.md` in Now,
 Next, or Later and run the sync again.
 
-### 6. Report
+### 7. Report
 
 List all created files with their phase counts, dependency order, and roadmap placement. Remind the
 user that starting any existing task requires the pre-implementation review gate from

@@ -287,10 +287,12 @@ Keep tasks atomic: one clear deliverable per file.
 are deliberate human decisions, not derived from status or priority. Priority stays `high`, `medium`, or
 `low`; roadmap order decides the actual execution sequence.
 
-The roadmap is placement-only. It stores task IDs like `AUTH-001` and raw inbox ideas like `I-007` in
-the intended horizon and order; task files remain authoritative for status, phases, priority, and other
-detail. Ambiguous or missing references reported by `scripts/sync-todo-ledgers.sh --check` must be
-fixed by a human or agent; do not guess which task was meant.
+The roadmap is placement-only. It stores task IDs like `AUTH-001` in the intended horizon and order;
+raw inbox ideas like `I-007` may appear in `Later` as parking-lot signals, but must be promoted through
+`/triage-inbox` before moving into `Now` or `Next`. Task files remain authoritative for status, phases,
+priority, and other detail. Ambiguous or missing references reported by
+`scripts/sync-todo-ledgers.sh --check` must be fixed by a human or agent; do not guess which task was
+meant.
 
 ## Ledgers and area sync
 
