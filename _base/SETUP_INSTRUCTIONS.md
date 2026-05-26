@@ -23,11 +23,12 @@ A different agent on the other runtime can run this file later to set up its sid
 | `bash` ≥ 4 | every installer in this template | `bash --version` returns a version |
 | `python3` | the Codex marketplace + Claude plugin installers | `python3 --version` |
 | `git` | template remote and commits | `git --version` |
+| `jq` | Claude Code hooks | `jq --version` |
 | `gh` | optional; only if you want to operate on issues/PRs | `gh --version` |
 
 The runtime CLI (`claude` or `codex`) is implicitly available — you, the agent reading this, are it. No separate check needed.
 
-**Check:** `bash`, `python3`, and `git` are all callable. If any is missing, stop and ask the user to install it.
+**Check:** `bash`, `python3`, and `git` are all callable. If you are Claude Code, `jq` is also callable. If any required tool is missing, stop and ask the user to install it.
 
 ---
 
@@ -76,7 +77,32 @@ This project extends the agents template — see [`_base/README.md`](./_base/REA
 
 The template ships a `AGENTS.md` that auto-loads `_base/AGENTS.md` and reserves a `## Project-specific overrides` slot that says `_None for the base template itself._` Replace the placeholder line under `## Project-specific overrides` with rules specific to this project — domain language, repo-specific test/lint/deploy commands, areas with non-obvious constraints, stakeholder routing rules. Do **not** edit anything else in `AGENTS.md` (the auto-load directive at the top must stay intact).
 
-**Check:** `grep -A3 '^## Project-specific overrides' AGENTS.md | tail -1` does **not** equal `_None for the base template itself._`. The literal string `_base/AGENTS.md` still appears at the top (the auto-load directive is intact).
+**Check:** this command exits 0, confirming the auto-load directive is intact and the placeholder was actually replaced:
+
+```bash
+python3 - <<'PY'
+from pathlib import Path
+
+text = Path("AGENTS.md").read_text()
+top = "\n".join(text.splitlines()[:20])
+if "_base/AGENTS.md" not in top:
+    raise SystemExit("AGENTS.md no longer loads _base/AGENTS.md near the top")
+
+marker = "## Project-specific overrides"
+if marker not in text:
+    raise SystemExit("AGENTS.md is missing the Project-specific overrides section")
+
+section = text.split(marker, 1)[1]
+next_section = section.find("\n## ")
+if next_section != -1:
+    section = section[:next_section]
+
+if "_None for the base template itself._" in section:
+    raise SystemExit("Project-specific overrides still contain the template placeholder")
+if not section.strip():
+    raise SystemExit("Project-specific overrides section is empty")
+PY
+```
 
 ### 2c — `PROJECT.md` (optional, enables `/align`)
 

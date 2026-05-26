@@ -47,17 +47,36 @@ fi
 mkdir -p "${TARGET_PLUGINS_DIR}"
 mkdir -p "$(dirname "${MARKETPLACE_PATH}")"
 
+installed=0
+refreshed=0
+skipped=0
+
 for plugin_dir in "${plugin_dirs[@]}"; do
   plugin_name="$(basename "${plugin_dir}")"
   target_path="${TARGET_PLUGINS_DIR}/${plugin_name}"
 
-  if [[ -e "${target_path}" || -L "${target_path}" ]]; then
-    echo "Skipping link for ${plugin_name}: ${target_path} already exists"
+  if [[ -L "${target_path}" ]]; then
+    current="$(readlink -f "${target_path}" || true)"
+    desired="$(readlink -f "${plugin_dir}")"
+    if [[ "${current}" == "${desired}" ]]; then
+      skipped=$((skipped+1))
+      continue
+    fi
+    ln -sfn "${plugin_dir}" "${target_path}"
+    echo "Refreshed ${plugin_name} -> ${target_path}"
+    refreshed=$((refreshed+1))
+    continue
+  fi
+
+  if [[ -e "${target_path}" ]]; then
+    echo "Skipping link for ${plugin_name}: ${target_path} exists and is not a symlink"
+    skipped=$((skipped+1))
     continue
   fi
 
   ln -s "${plugin_dir}" "${target_path}"
   echo "Installed ${plugin_name} -> ${target_path}"
+  installed=$((installed+1))
 done
 
 python3 - "${MARKETPLACE_PATH}" "${MARKETPLACE_NAME}" "${MARKETPLACE_DISPLAY_NAME}" "${plugin_dirs[@]}" <<'PY'
@@ -125,4 +144,6 @@ marketplace_path.write_text(json.dumps(data, indent=2) + "\n")
 print(f"Marketplace: {marketplace_path}")
 PY
 
+echo
+echo "Installed ${installed}, refreshed ${refreshed}, skipped ${skipped}."
 echo "Restart Codex to pick up newly installed plugins."

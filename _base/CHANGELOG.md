@@ -13,6 +13,22 @@ For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
 
+### Tighten downstream setup checks and refresh Codex plugin symlinks
+
+Fixed a few template-hygiene issues that affected newly seeded projects and repeat installs:
+
+- **`_base/SETUP_INSTRUCTIONS.md`** now lists `jq` as a Claude Code hook prerequisite, because the
+  shipped hooks parse tool input JSON with `jq`.
+- The downstream `AGENTS.md` check now verifies the `_base/AGENTS.md` auto-load directive and fails if
+  the `_None for the base template itself._` placeholder remains under Project-specific overrides.
+  The previous `grep -A3 ... | tail -1` check could pass on a blank line.
+- **`plugins/install-codex-plugins.sh`** now refreshes existing plugin symlinks when they point at stale
+  locations, while still preserving non-symlink targets. This mirrors the Codex skill installer.
+
+**Downstream impact:** re-running `./plugins/install-codex-plugins.sh` now repairs stale local plugin
+symlinks. Fresh setup agents should have `jq` available for Claude Code hook support. The active
+manifest and `project.env` behavior are unchanged.
+
 ### Route the domain glossary through `CONTEXT_DOCS_DIR` + document the knob
 
 `describe-component` already let you redirect component `CONTEXT.md` docs out of a repo you don't own
