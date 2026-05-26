@@ -11,6 +11,23 @@ instead of rediscovering repo relationships, package names, install modes, and r
 
 Use `/cross-repo-feature` after an area exists to capture one concrete feature contract inside it.
 
+## Agent Guidance
+
+When guiding the user, enforce these defaults:
+
+- Keep the area scoped to a durable capability. If the proposed area starts absorbing unrelated UI,
+  API, runtime, infrastructure, and operations concerns, split it or record an open boundary question.
+- Choose one canonical docs home before writing cross-repo docs. Prefer the central docs repo when it
+  already exists and is clearly shared; otherwise use the initiating repo. Do not split one area's
+  summary, dependency graph, and contracts across multiple repos.
+- Treat source paths, package names, install modes, env/config keys, API schemas, Docker images, and
+  generated artifacts as first-class area facts. They are common drift points, not incidental detail.
+- Use `unknown` for unproven ownership or dependency edges. Do not fill gaps with plausible guesses.
+- If the area supports independently deployed repos, record which repos can be upgraded separately and
+  which version combinations must remain compatible.
+- Add drift signals that tell future agents when to run `/refresh-context`, such as API schema files,
+  env/config definitions, package manifests, Dockerfiles, generated SDK outputs, and contract docs.
+
 ## Source of Truth
 
 The canonical in-repo area knowledge root is:
@@ -166,8 +183,11 @@ Use the shared status vocabulary:
 ## Quality Bar
 
 - The area boundary is confirmed when new or materially changed.
+- The area is narrow enough to be useful; broad catch-all areas are split or flagged as open questions.
+- The canonical docs home is explicit, especially when a central docs repo is available.
 - Every participant repo and dependency edge is backed by a file, manifest, command output, or existing
   doc.
 - The docs distinguish runtime dependencies from local development conveniences.
 - Unknown ownership is reported as uncertainty, not rewritten into certainty.
+- Version and deployment independence is recorded when participant repos can roll out separately.
 - Future agents can find the feature contract home without asking where cross-repo work belongs.

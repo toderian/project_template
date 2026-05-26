@@ -69,6 +69,10 @@ inside an existing registered area do not need a separate area-ownership questio
 Use `/define-area` when the area spans repos, packages, install modes, or runtime boundaries. Use
 `/cross-repo-feature` for one concrete feature contract inside an existing area.
 
+For cross-repo work, agents should guide users toward narrow area boundaries, one canonical docs home,
+explicit version compatibility, first-class env/auth/Docker/runtime boundaries, and a verification
+matrix that names missing checks instead of hiding them.
+
 ## Component contexts
 
 The component doc path is:

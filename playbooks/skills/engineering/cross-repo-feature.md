@@ -27,6 +27,23 @@ The contract links to `summary.md`, `dependency-graph.md`, and relevant componen
 area. It does not replace implementation tasks or PRDs; it defines the shared cross-repo boundary that
 those tasks must satisfy.
 
+## Agent Guidance
+
+When guiding the user, enforce these defaults:
+
+- Keep one contract to one concrete change. If the request mixes several independent outcomes, split it
+  into multiple feature contracts under the same area.
+- Make partial rollout explicit. Record expected behavior for old producer plus new consumer, new
+  producer plus old consumer, and mixed deployment states whenever repos can deploy independently.
+- Treat secrets, signing, auth headers, network IDs, API base URLs, env vars, config keys, Docker
+  images, CLI flags, and generated artifacts as boundary contract fields, not implementation trivia.
+- Every boundary needs a verification row. If no automated check exists, write `manual` or `missing`
+  in the verification matrix and capture the gap as a follow-up instead of leaving it implicit.
+- Prefer executable checks for high-risk boundaries. Docs-only contracts are acceptable for V1, but
+  API/schema/env/Docker compatibility should grow tests or CI checks when the risk justifies it.
+- Link implementation tasks and PRs back to the contract, and run `/refresh-context` during closeout
+  when code changes affect recorded boundaries.
+
 ## Process
 
 ### 1. Require an Area Context
@@ -111,6 +128,7 @@ Supported old/new version combinations, deprecation rules, and what must fail cl
 ## Verification matrix
 | Boundary | Repo/package | Check | Required before |
 |----------|--------------|-------|-----------------|
+| API/schema/env/CLI/Docker/etc. | Repo or package name | Automated command, `manual`, or `missing` | Merge, deploy, release, or rollout step |
 
 ## Evidence
 - `path-or-command` - what it proves
@@ -154,4 +172,7 @@ Use the shared status vocabulary:
 - Repo responsibilities are explicit enough that each implementation task can be assigned.
 - API/schema/event/message/env/CLI/Docker boundaries are either specified or explicitly marked `None`.
 - Compatibility and rollout order are stated, not left as implementation folklore.
-- Verification covers each participant repo and every boundary that can break independently.
+- Verification covers each participant repo and every boundary that can break independently; missing
+  checks are named explicitly.
+- Secrets, auth/signing, env/config, Docker/runtime, and generated artifacts are first-class contract
+  sections when they exist.

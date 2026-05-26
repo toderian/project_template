@@ -50,6 +50,7 @@ Supported old/new version combinations, deprecation rules, and what must fail cl
 
 | Boundary | Repo/package | Check | Required before |
 |----------|--------------|-------|-----------------|
+| API/schema/env/CLI/Docker/etc. | Repo or package name | Automated command, `manual`, or `missing` | Merge, deploy, release, or rollout step |
 
 ## Evidence
 
