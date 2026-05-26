@@ -78,6 +78,6 @@ Any further notes about the feature.
 
 6. After the PRD is complete, ask the user: **"Would you like me to generate todos from this PRD?"**
 
-   If yes, follow `playbooks/conventions/todo-convention.md` to create todo files in `docs/_todos/`. Create one todo per vertical slice or major actionable item. Set `Source` to `write-a-prd` and `Source ref` to the PRD identifier (issue number, file path, etc.).
+   If yes, follow `playbooks/conventions/todo-convention.md` to create todo files in `docs/tasks_manager/_todos/`. Create one todo per vertical slice or major actionable item. Set `Source` to `write-a-prd` and `Source ref` to the PRD identifier (issue number, file path, etc.).
 
    If the user declines, remind them they can run `/prd-to-todos` later to extract todos from the PRD.

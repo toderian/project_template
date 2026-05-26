@@ -15,7 +15,7 @@ Follow `playbooks/conventions/inbox-convention.md` (inbox side) and
 
 ### 1. Gather
 
-List the `new` ideas in `docs/_inbox/` (Status `new`, not yet archived). Read each one. If the inbox is
+List the `new` ideas in `docs/tasks_manager/_inbox/` (Status `new`, not yet archived). Read each one. If the inbox is
 empty, say so and stop.
 
 ### 2. Decide, per idea
@@ -34,26 +34,26 @@ Let the user steer; don't unilaterally drop ideas. Batch the decisions in one ex
 For each promoted idea, settle:
 
 - **Type** — `F` feature, `D` debug/bug, `C` chore/refactor, `R` research/spike.
-- **Area** — pick a slug from `docs/_areas.md`. If none fits, this is the moment to **define a new
-  area with the user**: propose a slug + one-line description, confirm, append it to `docs/_areas.md`,
+- **Area** — pick a slug from `docs/tasks_manager/_areas.md`. If none fits, this is the moment to **define a new
+  area with the user**: propose a slug + one-line description, confirm, append it to `docs/tasks_manager/_areas.md`,
   then use it. (This is the "areas defined with the agent" workflow.)
 - **Priority** — high / medium / low.
 
 ### 4. Create the todo
 
-Assign the next `T-NNN` (highest across `docs/_todos/` + `docs/_todos_archived/`, +1). Create
-`docs/_todos/T-NNN-<TYPE>_<short-desc>.md` per the todo convention's full format:
+Assign the next `T-NNN` (highest across `docs/tasks_manager/_todos/` + `docs/tasks_manager/_todos_archived/`, +1). Create
+`docs/tasks_manager/_todos/T-NNN-<TYPE>_<short-desc>.md` per the todo convention's full format:
 
 - Metadata table including `Task ID`, `Type`, `Area`, `Source: inbox`, `Source ref: I-NNN`, `Priority`.
 - Phases with per-phase checklists (think: where are the natural commit points?).
 - Acceptance criteria and a Related tests section.
 - Empty execution log and completion summary sections.
 
-Then add the new todo's row to `docs/_active.md` (or run `scripts/sync-todo-ledgers.sh`).
+Then add the new todo's row to `docs/tasks_manager/_active.md` (or run `scripts/sync-todo-ledgers.sh`).
 
 ### 5. Close out the inbox file
 
-Set the inbox file's `Status` to `promoted` (or `dropped`) and move it to `docs/_inbox_archived/`, so
+Set the inbox file's `Status` to `promoted` (or `dropped`) and move it to `docs/tasks_manager/_inbox_archived/`, so
 the inbox only ever shows live ideas. The promoted todo's `Source ref: I-NNN` preserves the trail back.
 
 ### 6. Report
@@ -65,6 +65,6 @@ Summarize: how many promoted (with their new `T-NNN` ids, types, areas) and how 
 
 - Every promoted idea became a well-formed todo (passes `block-bad-todo-name.sh`) with `Source ref`
   pointing back to its `I-NNN`.
-- New areas were confirmed with the user before use and recorded in `docs/_areas.md`.
+- New areas were confirmed with the user before use and recorded in `docs/tasks_manager/_areas.md`.
 - The inbox contains only `new` ideas afterward; promoted/dropped ones are in `_inbox_archived/`.
-- `docs/_active.md` lists the new todos; ledgers are in sync.
+- `docs/tasks_manager/_active.md` lists the new todos; ledgers are in sync.

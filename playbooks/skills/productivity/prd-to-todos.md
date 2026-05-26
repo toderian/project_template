@@ -6,7 +6,7 @@ Extract actionable todos from an existing PRD and create todo files following th
 
 ## Prerequisites
 
-The project must have `docs/_todos/` initialized. If it doesn't exist, run `/init` first or create it.
+The project must have `docs/tasks_manager/_todos/` initialized. If it doesn't exist, run `/init` first or create it.
 
 ## Process
 
@@ -60,11 +60,11 @@ Iterate until approved.
 
 ### 5. Create todo files
 
-For each approved item, create a file in `docs/_todos/` named `T-NNN-<TYPE>_<short-desc>.md` following
+For each approved item, create a file in `docs/tasks_manager/_todos/` named `T-NNN-<TYPE>_<short-desc>.md` following
 the full format in `playbooks/conventions/todo-convention.md`, including:
 
 - Metadata table with `Task ID` (next id per the convention's ID counters), `Type` (`F`/`D`/`C`/`R`),
-  `Area` (a slug from `docs/_areas.md`, defining a new one with the user if needed), `Source:
+  `Area` (a slug from `docs/tasks_manager/_areas.md`, defining a new one with the user if needed), `Source:
   prd-to-todos`, `Source ref` pointing to the PRD, `Priority`, and `Blocked by` (referencing other
   todo filenames if dependent)
 - Phases with per-phase checklists
@@ -74,7 +74,7 @@ the full format in `playbooks/conventions/todo-convention.md`, including:
 - Empty completion summary section
 
 Assign consecutive Task IDs in dependency order so they sort naturally. Use the current datetime for the
-`Created` field. After creating the files, add their rows to `docs/_active.md` (or run
+`Created` field. After creating the files, add their rows to `docs/tasks_manager/_active.md` (or run
 `scripts/sync-todo-ledgers.sh`).
 
 ### 6. Report

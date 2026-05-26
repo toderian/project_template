@@ -13,6 +13,28 @@ For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
 
+### Restructure docs/ — task manager under docs/tasks_manager/, templates in _base/docs/
+
+Separated the task-tracking machinery from project documentation, and made the structure a seeded
+template rather than live files in the framework repo:
+
+- **`docs/tasks_manager/`** now holds the whole task system (`_areas.md`, `_roadmap.md`, `_active.md`,
+  `_done.md`, `_inbox/`, `_inbox_archived/`, `_todos/`, `_todos_archived/`). Previously these sat
+  directly under `docs/`.
+- **`docs/reference/`** is the new home for project documentation (architecture, component
+  `CONTEXT.md` files, runbooks) — kept separate from queued work.
+- **`_base/docs/`** is the canonical template. `/init` now seeds the working repo by copying
+  `_base/docs/tasks_manager/` and `_base/docs/reference/` (like `PROJECT.md.template`), instead of
+  hand-authoring the files. The framework repo no longer carries a live `docs/tasks_manager/`.
+- Updated to the new paths: both todo hooks (`block-bad-todo-name`, `remind-archive-done-todo`),
+  `scripts/sync-todo-ledgers.sh`, the todo/inbox conventions, and the `capture-idea` / `triage-inbox`
+  / `roadmap` / `prd-to-todos` skills.
+
+**Downstream impact:** repos that already have a flat `docs/_todos/` (etc.) must migrate by moving the
+files under `docs/tasks_manager/`: `mkdir -p docs/tasks_manager && git mv docs/_* docs/tasks_manager/`.
+The hooks and sync script only recognize the new `docs/tasks_manager/…` paths. Run `/init` in a fresh
+repo to get the new layout. No skills added/removed; manifest unchanged.
+
 ### Add describe-component, roadmap, and duplicate-aware capture
 
 Built on the inbox/todo system:
@@ -23,14 +45,14 @@ Built on the inbox/todo system:
   Storage follows a per-repo rule: `CONTEXT_DOCS_DIR` in `project.env` (unset → co-located with the
   component; set → written there, origin-encoded — for describing template-inherited/vendored repos
   without polluting them).
-- **`roadmap`** (productivity) + **`docs/_roadmap.md`** — a Now/Next/Later plan of execution across all
+- **`roadmap`** (productivity) + **`docs/tasks_manager/_roadmap.md`** — a Now/Next/Later plan of execution across all
   todos/ideas. Horizon placement is human intent (not derived from status, not rebuilt by the ledger
   script). Each todo renders as a collapsible `<details>` block (summary = plan, expanded = phases).
 - **Duplicate-aware capture** — `capture-idea` now scans inbox + active todos + all `CONTEXT.md` files
   (the component "map") before recording, and offers to expand an existing item instead of creating a
   near-duplicate. The fast path is preserved: it only interrupts on a plausible match.
 
-**Downstream impact:** `/init` now also scaffolds `docs/_roadmap.md`. Two skills added to the plugin
+**Downstream impact:** `/init` now also scaffolds `docs/tasks_manager/_roadmap.md`. Two skills added to the plugin
 manifest (`describe-component`, `roadmap`) — re-run the install scripts to pick them up. New optional
 `CONTEXT_DOCS_DIR` setting in `project.env`.
 

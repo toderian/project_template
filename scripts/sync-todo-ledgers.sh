@@ -2,8 +2,8 @@
 #
 # Regenerate the todo ledgers from the todo files on disk.
 #
-#   docs/_active.md  <- fully rebuilt from docs/_todos/*.md  (open + in_progress)
-#   docs/_done.md    <- reconciled from docs/_todos_archived/*.md (missing rows appended)
+#   docs/tasks_manager/_active.md  <- fully rebuilt from docs/tasks_manager/_todos/*.md  (open + in_progress)
+#   docs/tasks_manager/_done.md    <- reconciled from docs/tasks_manager/_todos_archived/*.md (missing rows appended)
 #
 # The todo files are the source of truth; the ledgers are a derived index. Run this
 # any time you suspect drift, after bulk edits, or from a Codex session (which has no
@@ -15,14 +15,14 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-DOCS="${REPO_ROOT}/docs"
-TODOS="${DOCS}/_todos"
-ARCHIVED="${DOCS}/_todos_archived"
-ACTIVE_LEDGER="${DOCS}/_active.md"
-DONE_LEDGER="${DOCS}/_done.md"
+TM="${REPO_ROOT}/docs/tasks_manager"
+TODOS="${TM}/_todos"
+ARCHIVED="${TM}/_todos_archived"
+ACTIVE_LEDGER="${TM}/_active.md"
+DONE_LEDGER="${TM}/_done.md"
 
-if [[ ! -d "${DOCS}" ]]; then
-  echo "No docs/ directory at ${DOCS} — nothing to sync." >&2
+if [[ ! -d "${TM}" ]]; then
+  echo "No docs/tasks_manager/ directory at ${TM} — nothing to sync. Run /init first." >&2
   exit 0
 fi
 
@@ -77,7 +77,7 @@ active_header='# Active todos
 
 Ledger of every `open` and `in_progress` todo — the backlog view. Sorted in_progress first, then by
 priority, then Task ID. Rows are maintained as todos change status; rebuild any time with
-`scripts/sync-todo-ledgers.sh`. The todo files in `docs/_todos/` remain the source of truth.
+`scripts/sync-todo-ledgers.sh`. The todo files in `docs/tasks_manager/_todos/` remain the source of truth.
 
 | Task ID | Type | Title | Area | Status | Priority | Phase | Updated | File |
 |---------|------|-------|------|--------|----------|-------|---------|------|'

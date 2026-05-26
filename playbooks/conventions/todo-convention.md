@@ -13,7 +13,7 @@ todo here. Lifecycle: `Inbox idea (I-NNN) → triage → Todo (T-NNN, typed) →
 ## Directory structure
 
 ```
-docs/
+docs/tasks_manager/
 ├── _areas.md            # Registry of feature/areas (slug + description)
 ├── _roadmap.md          # Plan of execution: Now / Next / Later (see /roadmap)
 ├── _active.md           # Ledger of open + in_progress todos (the backlog view)
@@ -24,7 +24,9 @@ docs/
 └── _todos_archived/     # Completed or cancelled todos (full files)
 ```
 
-If these directories don't exist, create them. Each directory should contain a `.gitkeep` file so empty directories are tracked.
+The task manager lives under `docs/tasks_manager/` (project documentation lives beside it in
+`docs/reference/`). If these directories don't exist, run `/init` to seed them from `_base/docs/`, or
+create them by hand — each directory should contain a `.gitkeep` file so empty directories are tracked.
 
 ## File naming
 
@@ -50,7 +52,7 @@ ID is the sort key and the stable reference.
 Task IDs are monotonic and never reused. To assign the next one:
 
 ```
-next T = (highest T-NNN found across docs/_todos/ AND docs/_todos_archived/) + 1
+next T = (highest T-NNN found across docs/tasks_manager/_todos/ AND docs/tasks_manager/_todos_archived/) + 1
 ```
 
 Scan both directories so archived todos still reserve their numbers (no gaps, no collisions). Inbox
@@ -163,7 +165,7 @@ Refactored auth middleware to use encrypted token storage behind a clean Session
 |-------|-------------|
 | Task ID | Stable `T-NNN` handle, assigned at creation, never changed or reused (see ID counters) |
 | Type | `F` feature, `D` debug/bug, `C` chore/refactor, `R` research/spike |
-| Area | Feature/area slug from `docs/_areas.md`, or `—` if none yet (see areas registry) |
+| Area | Feature/area slug from `docs/tasks_manager/_areas.md`, or `—` if none yet (see areas registry) |
 | Created | ISO 8601 datetime when the file was created |
 | Updated | ISO 8601 datetime of the last modification |
 | Last executed | ISO 8601 datetime when work last happened on this todo, or `—` if never started |
@@ -266,32 +268,32 @@ Any skill that produces actionable output can create todos. To integrate:
 
 1. Reference this convention: `playbooks/conventions/todo-convention.md`
 2. Assign the next `Task ID` (see ID counters) and pick a `Type` (`F`/`D`/`C`/`R`)
-3. Pick an `Area` from `docs/_areas.md` (define a new one with the user if none fit — see Areas)
-4. Create one file per actionable item in `docs/_todos/` named `T-NNN-<TYPE>_<desc>.md`
+3. Pick an `Area` from `docs/tasks_manager/_areas.md` (define a new one with the user if none fit — see Areas)
+4. Create one file per actionable item in `docs/tasks_manager/_todos/` named `T-NNN-<TYPE>_<desc>.md`
 5. Set `Source` to the skill name
 6. Set `Source ref` to the origin (issue number, PRD title, etc.)
 7. Set `Priority` based on urgency and importance
 8. Set `Blocked by` if this todo depends on another
 9. Split the work into phases with clear commit points
 10. Define acceptance criteria and list any known related tests
-11. Add a row for the new todo to `docs/_active.md` (or run `scripts/sync-todo-ledgers.sh`)
+11. Add a row for the new todo to `docs/tasks_manager/_active.md` (or run `scripts/sync-todo-ledgers.sh`)
 
 Keep todos atomic — one clear deliverable per file. If a PRD produces 5 vertical slices, create 5 todo files.
 
 ## Areas
 
-`docs/_areas.md` is the registry of feature/areas. Each todo's `Area` field references a slug from it.
+`docs/tasks_manager/_areas.md` is the registry of feature/areas. Each todo's `Area` field references a slug from it.
 Areas are **defined with the user**, not from a fixed list: when an idea or todo fits no existing area,
-propose a new slug + one-line description, confirm with the user, append it to `docs/_areas.md`, then
+propose a new slug + one-line description, confirm with the user, append it to `docs/tasks_manager/_areas.md`, then
 use it. Leave `Area` as `—` only when the work genuinely spans everything or is not yet classifiable.
 
 ## Ledgers
 
 Two generated index files give an at-a-glance view; the todo files themselves remain the source of truth.
 
-- `docs/_active.md` — every `open` + `in_progress` todo (the backlog). Sorted in_progress first, then
+- `docs/tasks_manager/_active.md` — every `open` + `in_progress` todo (the backlog). Sorted in_progress first, then
   by priority, then Task ID. Each row links to its file under `_todos/`.
-- `docs/_done.md` — every completed/cancelled todo, **newest row inserted at the top** so it reads
+- `docs/tasks_manager/_done.md` — every completed/cancelled todo, **newest row inserted at the top** so it reads
   newest-first by completion date. Each row links to its file under `_todos_archived/`, and records the
   commit hash.
 
@@ -303,7 +305,7 @@ suspect drift or after bulk edits. This works for Codex too, which has no hooks 
 
 ## Roadmap
 
-`docs/_roadmap.md` is the **plan of execution**: which todos/ideas happen Now, Next, and Later, in the
+`docs/tasks_manager/_roadmap.md` is the **plan of execution**: which todos/ideas happen Now, Next, and Later, in the
 order intended. Unlike the ledgers, it is *not* derived from status — the horizon placement is a
 deliberate human decision and is **not** rebuilt by `scripts/sync-todo-ledgers.sh`. Maintain it with the
 `/roadmap` skill, which renders each todo as a collapsible block (summary = the plan, expanded =
@@ -316,7 +318,7 @@ When starting work on a todo:
 1. Set `Owner` to who is working on it
 2. Change Status to `in_progress`
 3. Update `Last executed` and `Updated` to now
-4. Update the todo's row in `docs/_active.md` (status → in_progress)
+4. Update the todo's row in `docs/tasks_manager/_active.md` (status → in_progress)
 
 After completing each phase:
 
@@ -325,7 +327,7 @@ After completing each phase:
 3. Append an execution log entry with what was done, test results, and outcome
 4. Commit the code changes AND the updated todo file together
 5. Update `Last executed` and `Updated`
-6. Update the phase progress in the todo's `docs/_active.md` row
+6. Update the phase progress in the todo's `docs/tasks_manager/_active.md` row
 
 When all phases are done:
 
@@ -333,16 +335,16 @@ When all phases are done:
 2. Append a final execution log entry
 3. Write the completion summary
 4. Change Status to `done`
-5. Insert a row at the **top** of `docs/_done.md` (Task ID, Type, Title, Area, completion datetime,
-   commit hash, link to the archived file), and remove the todo's row from `docs/_active.md`
-6. Move file to `docs/_todos_archived/`
+5. Insert a row at the **top** of `docs/tasks_manager/_done.md` (Task ID, Type, Title, Area, completion datetime,
+   commit hash, link to the archived file), and remove the todo's row from `docs/tasks_manager/_active.md`
+6. Move file to `docs/tasks_manager/_todos_archived/`
 
 `cancelled` todos follow the same final steps (record them in `_done.md` with a cancelled note instead
 of a commit). If the ledgers ever look out of sync, run `scripts/sync-todo-ledgers.sh` to rebuild them.
 
 ## Listing todos
 
-For a quick overview, read `docs/_active.md` (open + in_progress) and `docs/_done.md` (history) — they
+For a quick overview, read `docs/tasks_manager/_active.md` (open + in_progress) and `docs/tasks_manager/_done.md` (history) — they
 are maintained for exactly this. If they look stale, rebuild with `scripts/sync-todo-ledgers.sh`, then
 report:
 

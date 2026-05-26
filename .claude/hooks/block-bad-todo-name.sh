@@ -10,8 +10,8 @@ fi
 # Determine which layer (if any) this path belongs to, and pick the matching rule.
 LAYER=""
 case "$FILE_PATH" in
-  */docs/_todos/*|docs/_todos/*|*/docs/_todos_archived/*|docs/_todos_archived/*) LAYER="todo" ;;
-  */docs/_inbox/*|docs/_inbox/*|*/docs/_inbox_archived/*|docs/_inbox_archived/*) LAYER="inbox" ;;
+  */docs/tasks_manager/_todos/*|docs/tasks_manager/_todos/*|*/docs/tasks_manager/_todos_archived/*|docs/tasks_manager/_todos_archived/*) LAYER="todo" ;;
+  */docs/tasks_manager/_inbox/*|docs/tasks_manager/_inbox/*|*/docs/tasks_manager/_inbox_archived/*|docs/tasks_manager/_inbox_archived/*) LAYER="inbox" ;;
   *) exit 0 ;;
 esac
 

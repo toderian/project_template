@@ -16,7 +16,7 @@ Lifecycle: `Inbox idea (I-NNN) → triage → Todo (T-NNN, typed)` — see
 ## Directory structure
 
 ```
-docs/
+docs/tasks_manager/
 ├── _inbox/              # Raw ideas, one file per idea
 └── _inbox_archived/     # Promoted or dropped ideas
 ```
@@ -42,7 +42,7 @@ The capture datetime is not in the filename — it lives in the `Captured` field
 ## ID counters
 
 ```
-next I = (highest I-NNN found across docs/_inbox/ AND docs/_inbox_archived/) + 1
+next I = (highest I-NNN found across docs/tasks_manager/_inbox/ AND docs/tasks_manager/_inbox_archived/) + 1
 ```
 
 Scan both directories so archived ideas still reserve their numbers. Inbox IDs and todo IDs are
@@ -70,7 +70,7 @@ time — not a spec.
 Field notes:
 
 - **Captured** — ISO 8601 datetime the idea was recorded.
-- **Area** — best-guess slug from `docs/_areas.md`, or `—` if unclear. A guess is fine; triage confirms it.
+- **Area** — best-guess slug from `docs/tasks_manager/_areas.md`, or `—` if unclear. A guess is fine; triage confirms it.
 - **Status** — `new` | `promoted` | `dropped`.
 
 ## Capturing (the fast path)
@@ -78,23 +78,23 @@ Field notes:
 When the user shares an idea to capture:
 
 1. Compute the next `I-NNN`.
-2. Write `docs/_inbox/I-NNN_<short-desc>.md` with `Captured` = now and `Status: new`.
-3. Best-guess the `Area` from `docs/_areas.md`; use `—` rather than interrogating the user.
+2. Write `docs/tasks_manager/_inbox/I-NNN_<short-desc>.md` with `Captured` = now and `Status: new`.
+3. Best-guess the `Area` from `docs/tasks_manager/_areas.md`; use `—` rather than interrogating the user.
 4. Capture the idea text in one or two sentences. Confirm briefly; don't quiz.
 
 The `capture-idea` skill automates this.
 
 ## Triaging (idea → todo)
 
-Periodically review `docs/_inbox/` (the `triage-inbox` skill drives this). For each `new` idea, decide:
+Periodically review `docs/tasks_manager/_inbox/` (the `triage-inbox` skill drives this). For each `new` idea, decide:
 
 - **Promote** — it's worth doing. Create a full todo per `todo-convention.md`: assign the next `T-NNN`,
   set `Type` (`F`/`D`/`C`/`R`), confirm/assign `Area` (defining a new one with the user if needed), set
   `Source: inbox` and `Source ref: I-NNN`, split into phases, add acceptance criteria, and add the row to
-  `docs/_active.md`. Then set the inbox file's `Status: promoted`.
+  `docs/tasks_manager/_active.md`. Then set the inbox file's `Status: promoted`.
 - **Drop** — not worth doing. Set `Status: dropped` and note why in the body.
 
-Either way, move the inbox file to `docs/_inbox_archived/` once it's `promoted` or `dropped`, so the
+Either way, move the inbox file to `docs/tasks_manager/_inbox_archived/` once it's `promoted` or `dropped`, so the
 inbox only ever shows live ideas.
 
 ## Why archive instead of delete

@@ -21,8 +21,8 @@ Follow `playbooks/conventions/inbox-convention.md` for the format and ID rules.
 
 2. **Check for a duplicate (the fast path stays fast).** Before creating anything, scan for an existing
    match so the same idea isn't recorded twice and so you can flag when it already exists:
-   - **Inbox** (`docs/_inbox/`) — other un-triaged ideas.
-   - **Active todos** (`docs/_todos/`, status open/in_progress) — already on the backlog.
+   - **Inbox** (`docs/tasks_manager/_inbox/`) — other un-triaged ideas.
+   - **Active todos** (`docs/tasks_manager/_todos/`, status open/in_progress) — already on the backlog.
    - **CONTEXT.md map** — the root `CONTEXT.md` (domain) and any component `CONTEXT.md` files (co-located
      under the repo, plus the directory in `CONTEXT_DOCS_DIR` if set). These describe what already
      *exists*, so a match here means the idea may already be built.
@@ -38,13 +38,13 @@ Follow `playbooks/conventions/inbox-convention.md` for the format and ID rules.
      described in a `CONTEXT.md`, tell the user it appears to already exist in that component.
    - **Different thing** → proceed to create a new idea (steps 3–5).
 
-3. **Compute the next Inbox ID.** Scan `docs/_inbox/` and `docs/_inbox_archived/` for the highest
-   `I-NNN` and add 1 (zero-padded, 3 digits). Create `docs/_inbox/` (with `.gitkeep`) if missing.
+3. **Compute the next Inbox ID.** Scan `docs/tasks_manager/_inbox/` and `docs/tasks_manager/_inbox_archived/` for the highest
+   `I-NNN` and add 1 (zero-padded, 3 digits). Create `docs/tasks_manager/_inbox/` (with `.gitkeep`) if missing.
 
-4. **Best-guess the area.** Glance at `docs/_areas.md` and pick the slug that fits. If nothing fits,
+4. **Best-guess the area.** Glance at `docs/tasks_manager/_areas.md` and pick the slug that fits. If nothing fits,
    use `—` — do **not** stop to define a new area here; that's triage's job. A wrong guess is cheap.
 
-5. **Write the file** `docs/_inbox/I-NNN_<short-desc>.md` using the inbox format: a tiny header
+5. **Write the file** `docs/tasks_manager/_inbox/I-NNN_<short-desc>.md` using the inbox format: a tiny header
    (`Inbox ID`, `Captured` = now in ISO 8601, `Area`, `Status: new`) and one or two sentences of the
    idea in the user's own framing.
 
@@ -62,4 +62,4 @@ each atomic — one idea per file — so triage can promote or drop them indepen
 - A quick duplicate scan ran; the user was interrupted only on a genuine, plausible match.
 - Capture took no unnecessary questions.
 - The idea text is enough to remember the intent at triage time — not a spec.
-- `Status` is `new`; the file is in `docs/_inbox/` (not archived).
+- `Status` is `new`; the file is in `docs/tasks_manager/_inbox/` (not archived).
