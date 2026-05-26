@@ -32,9 +32,10 @@ For each idea, inspect likely matches in:
 - `docs/tasks_manager/_roadmap.md`, `docs/tasks_manager/_active.md`, and `docs/tasks_manager/_done.md`
 - `docs/areas/_overview.md` and relevant `docs/areas/<slug>.md` pages
 - `docs/resources/` and `docs/archive/`
-- `docs/resources/CONTEXT.md`, area summaries under `docs/areas/<area>/summary.md`, component
-  contexts under `docs/resources/<area>/components/*/CONTEXT.md`, and `CONTEXT_DOCS_DIR` only if
-  configured
+- `docs/resources/CONTEXT.md`, area summaries under `docs/resources/<area>/summary.md`, dependency
+  graphs under `docs/resources/<area>/dependency-graph.md`, feature contracts under
+  `docs/resources/<area>/contracts/*.md`, component contexts under
+  `docs/resources/<area>/components/*/CONTEXT.md`, and `CONTEXT_DOCS_DIR` only if configured
 - likely code and tests found by searching for the idea's domain terms, filenames, commands, or symbols
 
 Classify each idea as one of:

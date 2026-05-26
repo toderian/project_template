@@ -88,9 +88,14 @@ Every component doc must record the exact source path in its header:
 ```
 
 Read `CONTEXT_DOCS_DIR` from `project.env` at the repo root and follow it silently only when it is set.
-This is an external-storage escape hatch for describing a repo you should not write into. In that case,
-store docs under `$CONTEXT_DOCS_DIR/<source-repo>/...` with the same area/component shape and keep the
-same source-path header. Do not use `CONTEXT_DOCS_DIR` as the normal default for this template.
+This is an external-storage escape hatch for describing a repo you should not write into, and it may
+also point at a central docs repo for shared cross-repo area docs. If the central docs repo is the
+canonical home for the area, store component docs under
+`$CONTEXT_DOCS_DIR/resources/<area>/components/<component-slug>/CONTEXT.md`. For repo-specific external
+context, store docs under
+`$CONTEXT_DOCS_DIR/<source-repo>/resources/<area>/components/<component-slug>/CONTEXT.md`. Keep the
+same source-path header either way. Do not use `CONTEXT_DOCS_DIR` as the normal default for this
+template.
 
 ### 6. Draft, confirm, write
 

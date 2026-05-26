@@ -89,7 +89,8 @@ The task system's golden path is:
 ```
 
 Task files own status and detail, the roadmap owns placement, and ledgers/area pages are generated.
-The primary knowledge base lives in `docs/resources/CONTEXT.md`, `docs/areas/<area>/summary.md`, and
+The primary knowledge base lives in `docs/resources/CONTEXT.md`, `docs/resources/<area>/summary.md`,
+`docs/resources/<area>/dependency-graph.md`, `docs/resources/<area>/contracts/<feature-slug>.md`, and
 `docs/resources/<area>/components/<component-slug>/CONTEXT.md`; root `CONTEXT.md` is a pointer/fallback.
 See [`playbooks/conventions/task-system-quickstart.md`](../playbooks/conventions/task-system-quickstart.md)
 and [`playbooks/conventions/knowledge-base-quickstart.md`](../playbooks/conventions/knowledge-base-quickstart.md)
@@ -128,6 +129,8 @@ The table below lists the skills authored in this template (base tier). Downstre
 | align | productivity | Check a proposed feature or change against the project's PROJECT.md (vision, goals, scope, constraints) and report ALIGNED, NEEDS_CLARIFICATION, or OUT_OF_SCOPE. Use when starting non-trivial work, when scope feels uncertain, or before planning-workflow. Requires PROJECT.md at the repo root. |
 | capture-idea | productivity | Capture an idea into the inbox (docs/tasks_manager/_inbox/) as an I-NNN file with near-zero friction. Use whenever the user says "capture", "add to inbox", "note this idea", "jot down", or shares a feature/bug/idea they want recorded for later — even if they don't explicitly ask to use a skill. |
 | complete-task | productivity | Complete or cancel a task, fill its completion harvest and summary, archive it, then sync and strictly validate task ledgers. Use when the user says "complete task", "finish task", "close task", "cancel task", or asks to archive a done task. |
+| cross-repo-feature | engineering | Capture a concrete feature contract under docs/resources/<area>/contracts/<feature-slug>.md, including repo responsibilities, API/schema/event/env/CLI/Docker boundaries, compatibility, rollout order, and verification. Use when the user says "cross-repo feature", "feature contract", or asks to coordinate a change across repos. |
+| define-area | engineering | Define or refresh a durable docs/resources/<area>/ context for a domain or product capability, including participant repos, dependency graph, install modes, runtime dependencies, and known docs. Use when the user says "define area", "index area", "map area", or asks to establish cross-repo area knowledge. |
 | describe-component | engineering | Generate or refresh a docs-primary component CONTEXT.md describing responsibility, public interface, dependencies, data owned, invariants, and tests. Use when the user wants to "describe a component", "document this module/service", map a subsystem's boundaries, or onboard to/hand off a part of the codebase. Distinct from docs/resources/CONTEXT.md domain glossary work (that's grill-with-docs). |
 | design-an-interface | misc | Generate multiple radically different interface designs for a module using parallel sub-agents when available. Use when user wants to design an API, explore interface options, compare module shapes, or mentions "design it twice". |
 | diagnose | engineering | Disciplined diagnosis loop for hard bugs and performance regressions. Reproduce → minimise → hypothesise → instrument → fix → regression-test. Use when user says "diagnose this" / "debug this", reports a bug, says something is broken/throwing/failing, or describes a performance regression. |

@@ -2,6 +2,8 @@
   "name": "project-template-skills",
   "description": "Skills shared across Claude Code and Codex by this project template. The script tooling (check-skills-sync, gen-skills-table, install-codex-skills, link-skills) reads this file as the active-skill allowlist; skills not listed here are treated as inactive even if they exist on disk.",
   "skills": [
+    "./skills/engineering/cross-repo-feature",
+    "./skills/engineering/define-area",
     "./skills/engineering/describe-component",
     "./skills/engineering/diagnose",
     "./skills/engineering/grill-with-docs",
@@ -30,8 +32,8 @@
     "./skills/personal/obsidian-vault",
     "./skills/productivity/add-task",
     "./skills/productivity/align",
-    "./skills/productivity/complete-task",
     "./skills/productivity/capture-idea",
+    "./skills/productivity/complete-task",
     "./skills/productivity/grill-me",
     "./skills/productivity/handoff",
     "./skills/productivity/planning-workflow",

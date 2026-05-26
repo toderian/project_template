@@ -128,12 +128,13 @@ scripts/sync-todo-ledgers.sh
 ```
 
 This creates the inbox, flat task directory, area registry with the reserved `T` prefix, global roadmap,
-generated area overview, `docs/_plans/`, `docs/resources/CONTEXT.md`, global area summary,
-`docs/archive/`, and a root `CONTEXT.md` pointer if one does not already exist. Re-running is safe
-because `scripts/seed-docs.sh` never overwrites downstream-owned task files, area pages, or docs.
+generated area overview, `docs/_plans/`, `docs/resources/CONTEXT.md`,
+`docs/resources/global/summary.md`, `docs/archive/`, and a root `CONTEXT.md` pointer if one does not
+already exist. Re-running is safe because `scripts/seed-docs.sh` never overwrites downstream-owned task
+files, area pages, or docs.
 
 **Check:** `docs/tasks_manager/_areas.md`, `docs/tasks_manager/_roadmap.md`,
-`docs/areas/_overview.md`, `docs/areas/global/summary.md`, `docs/_plans/`,
+`docs/areas/_overview.md`, `docs/resources/global/summary.md`, `docs/_plans/`,
 `docs/resources/README.md`, `docs/resources/CONTEXT.md`, and `docs/archive/README.md` exist, and
 `scripts/sync-todo-ledgers.sh` exits 0.
 

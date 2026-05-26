@@ -32,11 +32,14 @@ docs/
 │   └── _todos_archived/     # Completed or cancelled task files
 ├── areas/
 │   ├── _overview.md         # Generated area/task overview
-│   ├── <slug>.md            # Human area notes plus generated status blocks
-│   └── <slug>/summary.md    # Durable area architecture summary
+│   └── <slug>.md            # Generated area task-status page plus context pointer
 ├── resources/               # Durable reference material, glossary, runbooks, component docs
 │   ├── CONTEXT.md           # Primary domain glossary
-│   └── <area>/components/<component-slug>/CONTEXT.md
+│   └── <area>/
+│       ├── summary.md       # Durable area architecture summary
+│       ├── dependency-graph.md
+│       ├── contracts/<feature-slug>.md
+│       └── components/<component-slug>/CONTEXT.md
 └── archive/                 # Frozen docs/resources that are no longer current
 ```
 
@@ -103,14 +106,14 @@ Rules:
 - `Area` is a short lowercase slug.
 - `Prefix` is uppercase alphanumeric, starts with a letter, and is unique.
 - `T` is reserved for the `global` area and for work that genuinely crosses areas.
-- `Page` points at `docs/areas/<slug>.md`; durable architecture notes for the area live next to it at
-  `docs/areas/<slug>/summary.md`.
+- `Page` points at `docs/areas/<slug>.md`; durable architecture notes for the area live in
+  `docs/resources/<slug>/summary.md`.
 - Areas are defined with the user when possible. If no existing area fits a clear task, propose a slug,
   prefix, description, and page, then add it after confirmation.
 
 `scripts/sync-todo-ledgers.sh` uses this registry to create missing area pages, regenerate
-`docs/areas/_overview.md`, and refresh generated Now / Next / Later blocks in each area page. Human
-area notes outside generated markers are preserved.
+`docs/areas/_overview.md`, and refresh generated Now / Next / Later blocks in each area page. Do not
+add durable architecture notes to area pages; write them under `docs/resources/<area>/`.
 
 ## File format
 
@@ -316,8 +319,9 @@ Task files remain the source of truth. `scripts/sync-todo-ledgers.sh` derives:
   roadmap IDs.
 - Generated Now / Next / Later status blocks in each `docs/areas/<slug>.md`.
 
-The sync tooling edits only generated marker blocks inside area pages. Human-authored context outside
-those markers is preserved. Missing area pages are created from the standard template.
+The sync tooling edits only generated marker blocks inside area pages and creates missing area pages
+from the standard template. Existing content outside those markers is preserved for compatibility, but
+new durable context belongs under `docs/resources/<area>/`.
 
 Use `scripts/sync-todo-ledgers.sh` to regenerate. Use `scripts/sync-todo-ledgers.sh --check` in CI or
 agent handoff validation; it is read-only and fails on duplicate IDs, malformed metadata,

@@ -13,9 +13,16 @@ authoritative.
 - The top-level `CONTEXT.md` is a pointer to `docs/resources/CONTEXT.md`. Treat an existing
   substantive root glossary as a legacy fallback and prefer moving future edits to `docs/resources/`.
 - `docs/areas/<area>.md` remains the generated task-status page from `scripts/sync-todo-ledgers.sh`.
-  Human notes outside generated markers are allowed, but it is not the durable architecture summary.
-- `docs/areas/<area>/summary.md` owns area-level architecture knowledge: responsibilities, important
-  flows, decisions, open questions, and links to component contexts.
+  It may include a generated pointer to the durable area context, but agents should not add durable
+  architecture notes there.
+- `docs/resources/<area>/summary.md` owns area-level architecture knowledge: responsibilities,
+  important flows, decisions, open questions, and links to dependency graphs, contracts, and component
+  contexts.
+- `docs/resources/<area>/dependency-graph.md` owns cross-repo or cross-package dependency knowledge:
+  repo/package relationships, runtime dependencies, install modes, and drift signals.
+- `docs/resources/<area>/contracts/<feature-slug>.md` owns concrete cross-repo feature contracts:
+  participant responsibilities, API/schema/event/env/CLI/Docker boundaries, compatibility, rollout,
+  and verification.
 - `docs/resources/<area>/components/<component-slug>/CONTEXT.md` owns component architecture:
   boundaries, public interfaces, dependencies, data ownership, tests, and invariants.
 - `CONTEXT_DOCS_DIR` is an external-storage escape hatch for describing a repo you should not write
@@ -28,19 +35,23 @@ look in this order:
 
 1. `docs/resources/CONTEXT.md`
 2. Root `CONTEXT.md` if it points to the docs-primary glossary or if no docs-primary glossary exists
-3. `docs/areas/<area>/summary.md` for the relevant area
-4. `docs/resources/<area>/components/*/CONTEXT.md` for known component boundaries
-5. Legacy component context files stored beside source only as fallback evidence
+3. `docs/resources/<area>/summary.md` for the relevant area
+4. `docs/resources/<area>/dependency-graph.md` for repo/package relationships and install modes
+5. `docs/resources/<area>/contracts/*.md` for feature-specific cross-repo agreements
+6. `docs/resources/<area>/components/*/CONTEXT.md` for known component boundaries
+7. Legacy component context files stored beside source only as fallback evidence
 
-When `CONTEXT_DOCS_DIR` is configured, use `$CONTEXT_DOCS_DIR/<source-repo>/` as the writable
-knowledge root for that source repo:
+When `CONTEXT_DOCS_DIR` is configured as a central docs repo, use
+`$CONTEXT_DOCS_DIR/resources/<area>/` as the canonical writable home for shared cross-repo area docs,
+including area summaries, dependency graphs, feature contracts, and component contexts. For
+repo-specific external context, use `$CONTEXT_DOCS_DIR/<source-repo>/` as the writable knowledge root
+for that source repo:
 
 - `$CONTEXT_DOCS_DIR/<source-repo>/CONTEXT.md` for the domain glossary
-- `$CONTEXT_DOCS_DIR/<source-repo>/areas/<area>/summary.md` for area summaries
 - `$CONTEXT_DOCS_DIR/<source-repo>/resources/<area>/components/<component-slug>/CONTEXT.md` for
   component contexts
 
-In-repo docs may still be read as fallback evidence, but routine updates go to the configured external
+In-repo docs may still be read as fallback evidence, but routine updates go to the configured canonical
 knowledge root.
 
 Do not treat generated ledgers or generated area status blocks as architecture documentation. They are
@@ -48,12 +59,15 @@ evidence about work status, not durable knowledge.
 
 ## Area summaries
 
-Create `docs/areas/<area>/summary.md` when an area has durable architecture knowledge worth preserving.
-Keep it concise and evidence-backed. Link to task IDs, resources, ADRs, and component context docs
-instead of duplicating their contents.
+Create `docs/resources/<area>/summary.md` when an area has durable architecture knowledge worth
+preserving. Keep it concise and evidence-backed. Link to task IDs, resources, ADRs, dependency graphs,
+feature contracts, and component context docs instead of duplicating their contents.
 
 Ask before creating a new area or materially changing which area owns a subsystem. Routine updates
 inside an existing registered area do not need a separate area-ownership question.
+
+Use `/define-area` when the area spans repos, packages, install modes, or runtime boundaries. Use
+`/cross-repo-feature` for one concrete feature contract inside an existing area.
 
 ## Component contexts
 
@@ -63,8 +77,15 @@ The component doc path is:
 docs/resources/<area>/components/<component-slug>/CONTEXT.md
 ```
 
-When `CONTEXT_DOCS_DIR` is configured, replace the repo-relative prefix with the external knowledge
-root:
+When `CONTEXT_DOCS_DIR` is configured as the central docs repo for the area, replace the repo-relative
+prefix with the shared area root:
+
+```text
+$CONTEXT_DOCS_DIR/resources/<area>/components/<component-slug>/CONTEXT.md
+```
+
+When `CONTEXT_DOCS_DIR` is configured only for repo-specific external context, keep the source repo
+namespace:
 
 ```text
 $CONTEXT_DOCS_DIR/<source-repo>/resources/<area>/components/<component-slug>/CONTEXT.md

@@ -13,6 +13,26 @@ For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
 
+### Add generic cross-repo area and feature-contract workflows
+
+The docs-primary knowledge base now has a generic cross-repo workflow family:
+
+- `/define-area` creates or refreshes durable area knowledge under `docs/resources/<area>/`, including
+  participant repos, dependency graphs, install modes, runtime dependencies, and known docs.
+- `/cross-repo-feature` writes concrete feature contracts under
+  `docs/resources/<area>/contracts/<feature-slug>.md`, covering repo responsibilities, boundaries,
+  compatibility, rollout order, and verification.
+- `/refresh-context` now treats area summaries, dependency graphs, feature contracts, and component
+  contexts as one refreshable area knowledge set.
+- `/init` seeds `docs/resources/global/summary.md`; generated task-status pages remain under
+  `docs/areas/`.
+- The seeded `docs/resources/CONTEXT.md` glossary now uses placeholders only, so downstream projects do
+  not inherit example domain language.
+
+**Downstream impact:** re-run skill installers to pick up `/define-area` and `/cross-repo-feature`.
+Run `/init` or `scripts/seed-docs.sh` to seed the generic global area summary without overwriting
+existing docs.
+
 ### Make docs/ the primary knowledge-base home and add `/refresh-context`
 
 Knowledge-base docs now default to the seeded `docs/` layout instead of scattered glossary/component
@@ -20,7 +40,7 @@ files:
 
 - `docs/resources/CONTEXT.md` is the primary domain glossary. The top-level `CONTEXT.md` template is
   now a small pointer/fallback.
-- Area architecture summaries live at `docs/areas/<area>/summary.md`; generated task status stays in
+- Area architecture summaries live at `docs/resources/<area>/summary.md`; generated task status stays in
   `docs/areas/<area>.md`.
 - Component contexts live under `docs/resources/<area>/components/<component-slug>/CONTEXT.md`, with
   exact source paths recorded in their headers.

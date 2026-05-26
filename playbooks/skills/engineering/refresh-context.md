@@ -15,15 +15,19 @@ Keep these locations distinct:
 
 - `docs/resources/CONTEXT.md` is the primary domain glossary.
 - Root `CONTEXT.md` is only a pointer or fallback for older repos.
-- Area architecture summaries live at `docs/areas/<area>/summary.md`.
+- Area architecture summaries live at `docs/resources/<area>/summary.md`.
+- Cross-repo dependency graphs live at `docs/resources/<area>/dependency-graph.md`.
+- Cross-repo feature contracts live at `docs/resources/<area>/contracts/<feature-slug>.md`.
 - Generated area status pages remain at `docs/areas/<area>.md`; do not hand-edit generated status
   pages when the ledger generator owns them.
 - Component contexts live at
   `docs/resources/<area>/components/<component-slug>/CONTEXT.md`.
-- `CONTEXT_DOCS_DIR` is only an external-storage escape hatch for repos whose context docs cannot live
-  in the source repo. When set, use `$CONTEXT_DOCS_DIR/<source-repo>/` as the writable knowledge root
-  for glossary, area summary, and component context updates. Do not use it as the default layout for
-  this template's docs-primary workflow.
+- `CONTEXT_DOCS_DIR` is an external-storage escape hatch for repos whose context docs cannot live in
+  the source repo, and it may also point at a central docs repo for shared cross-repo area docs. When
+  set for repo-specific context, use `$CONTEXT_DOCS_DIR/<source-repo>/` as the writable knowledge root
+  for glossary and component context updates. When set as the canonical central docs home for an area,
+  use `$CONTEXT_DOCS_DIR/resources/<area>/` for area summaries, dependency graphs, contracts, and
+  component contexts.
 
 ## Component Slugs
 
@@ -41,8 +45,9 @@ The component doc header must preserve the exact source path, not the slug:
 ```
 
 For cross-area or default components, write under `docs/resources/global/components/...` unless a
-registered area clearly owns the component. If `CONTEXT_DOCS_DIR` is configured, write the same
-area/component shape under `$CONTEXT_DOCS_DIR/<source-repo>/resources/...`.
+registered area clearly owns the component. If `CONTEXT_DOCS_DIR` is configured as the canonical area
+docs home, write the same area/component shape under `$CONTEXT_DOCS_DIR/resources/...`; for
+repo-specific external context, write under `$CONTEXT_DOCS_DIR/<source-repo>/resources/...`.
 
 ## Process
 
@@ -51,23 +56,32 @@ area/component shape under `$CONTEXT_DOCS_DIR/<source-repo>/resources/...`.
 First determine the writable knowledge root:
 
 - If `CONTEXT_DOCS_DIR` is unset, use the repo's docs-primary paths.
-- If `CONTEXT_DOCS_DIR` is set, use `$CONTEXT_DOCS_DIR/<source-repo>/` for context docs and treat
-  in-repo docs as fallback evidence.
+- If `CONTEXT_DOCS_DIR` is set as the canonical central docs repo for the area, use
+  `$CONTEXT_DOCS_DIR/resources/<area>/` for area docs and treat in-repo docs as fallback evidence.
+- If `CONTEXT_DOCS_DIR` is set only for repo-specific external context, use
+  `$CONTEXT_DOCS_DIR/<source-repo>/` for that repo's context docs and treat in-repo docs as fallback
+  evidence.
 
 List the docs that can drift:
 
 - domain glossary: `docs/resources/CONTEXT.md`, or `$CONTEXT_DOCS_DIR/<source-repo>/CONTEXT.md` when
   external storage is configured
-- area summaries: `docs/areas/<area>/summary.md`, or
-  `$CONTEXT_DOCS_DIR/<source-repo>/areas/<area>/summary.md` when external storage is configured
+- area summaries: `docs/resources/<area>/summary.md`, or
+  `$CONTEXT_DOCS_DIR/resources/<area>/summary.md` when central docs storage is configured
+- dependency graphs: `docs/resources/<area>/dependency-graph.md`, or
+  `$CONTEXT_DOCS_DIR/resources/<area>/dependency-graph.md` when central docs storage is configured
+- feature contracts: `docs/resources/<area>/contracts/*.md`, or
+  `$CONTEXT_DOCS_DIR/resources/<area>/contracts/*.md` when central docs storage is configured
 - component contexts: `docs/resources/<area>/components/*/CONTEXT.md`, or
-  `$CONTEXT_DOCS_DIR/<source-repo>/resources/<area>/components/*/CONTEXT.md` when external storage is
-  configured
+  `$CONTEXT_DOCS_DIR/resources/<area>/components/*/CONTEXT.md` for central area docs, or
+  `$CONTEXT_DOCS_DIR/<source-repo>/resources/<area>/components/*/CONTEXT.md` for repo-specific
+  external context
 - supporting resources under `docs/resources/`
 - task ledgers, active task files, done task files, execution logs, and completion harvests
 
-Record each context doc's explicit review date if it has one. For component docs, also capture source
-paths from headers matching `Architectural context for <repo>:<source-path>`.
+Record each context doc's explicit review date if it has one. For area docs, capture participant repos
+and source paths from area summaries, dependency graphs, and feature contracts. For component docs,
+also capture source paths from headers matching `Architectural context for <repo>:<source-path>`.
 
 ### 2. Discover the Changed Scope
 
@@ -78,6 +92,8 @@ Build a candidate change set from multiple signals:
 - `git log --name-only --since=<last-reviewed-date>` for context docs that record a review date.
 - `git log --name-only -20` when a relevant context doc has no review date.
 - Active and done task logs, especially completion harvest sections.
+- Participant repos and source paths recorded in area summaries, dependency graphs, and feature
+  contracts.
 - Source paths recorded in component context headers.
 
 Deduplicate the paths and separate code, docs, tasks, tests, generated ledgers, and deleted or moved
@@ -88,7 +104,10 @@ the change.
 
 Map changed files to registered areas and known component docs before editing:
 
-- Use the area registry and existing `docs/areas/<area>/summary.md` files to identify area ownership.
+- Use the area registry and existing `docs/resources/<area>/summary.md` files to identify area
+  ownership.
+- Use existing `docs/resources/<area>/dependency-graph.md` and
+  `docs/resources/<area>/contracts/*.md` to identify cross-repo participants and boundaries.
 - Match component docs by their recorded source path first, then by slug only as a fallback.
 - Prefer `global` for cross-area infrastructure, shared conventions, and default components.
 - Ask the user before creating a new area or materially changing which area owns a component.
@@ -100,7 +119,7 @@ If ownership is ambiguous, skip the doc and report the uncertainty instead of in
 For each affected area or component, gather evidence from the smallest useful set of files:
 
 - changed source and test files
-- current area summary or component context
+- current area summary, dependency graph, feature contracts, or component context
 - task logs and completion harvests that mention the behavior
 - nearby docs under `docs/resources/`
 
@@ -115,12 +134,17 @@ Edit a doc only when the evidence shows it is stale, incomplete, or pointing at 
 to the configured knowledge root:
 
 - Update `docs/resources/CONTEXT.md` for domain vocabulary, relationships, and resolved ambiguities.
-- Update `docs/areas/<area>/summary.md` for durable area architecture, boundaries, dependencies, and
-  invariants.
+- Update `docs/resources/<area>/summary.md` for durable area architecture, responsibilities,
+  boundaries, and invariants.
+- Update `docs/resources/<area>/dependency-graph.md` for participant repos, package/import names,
+  runtime dependencies, install modes, and drift signals.
+- Update `docs/resources/<area>/contracts/<feature-slug>.md` when an existing cross-repo feature
+  contract's responsibilities, boundaries, compatibility expectations, rollout order, or verification
+  matrix drifted.
 - Update component `CONTEXT.md` files for public interface, ownership, dependencies, source path moves,
   tests, or important gotchas.
 - When `CONTEXT_DOCS_DIR` is set, apply the corresponding updates under
-  `$CONTEXT_DOCS_DIR/<source-repo>/...` rather than the source repo's in-repo docs.
+  the configured central area root or repo-specific root rather than the source repo's in-repo docs.
 - Leave generated `docs/areas/<area>.md` pages to the generator unless the user explicitly asks for a
   generator or ledger fix.
 
@@ -148,10 +172,11 @@ Use the shared status vocabulary:
 
 ## Quality Bar
 
-- The refresh is docs-primary: durable docs under `docs/resources/` and `docs/areas/` are the target,
-  not ad hoc notes.
+- The refresh is docs-primary: durable docs under `docs/resources/` are the target, while
+  `docs/areas/` remains generated task-status output.
 - Every changed sentence is backed by code, task history, or existing docs.
 - Root `CONTEXT.md` is not treated as the primary glossary when `docs/resources/CONTEXT.md` exists.
 - Component paths remain traceable through exact `Architectural context for <repo>:<source-path>`
   headers.
+- Cross-repo area docs remain traceable through participant repos, source paths, and evidence rows.
 - Ambiguous area ownership is escalated to the user instead of silently changed.

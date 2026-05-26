@@ -17,18 +17,17 @@ bounded context, keep the primary glossary here. If it has multiple bounded cont
 > The vocabulary unique to this project. Define what each term IS, not what it does. Be opinionated
 > about the canonical name; list aliases under `_Avoid_` so the team and the agent stop using them.
 
-**Order**:
-A customer-placed request for one or more items, tracked through fulfilment and billing.
-_Avoid_: Purchase, transaction.
+**<Canonical Term>**:
+One-sentence definition of what this concept is in the project domain.
+_Avoid_: <ambiguous synonym>, <legacy name>.
 
-**Invoice**:
-A request for payment sent to a customer after a fulfilment is confirmed.
-_Avoid_: Bill, payment request.
+**<Related Term>**:
+One-sentence definition of a related concept, especially where teams often blur the boundary.
+_Avoid_: <overloaded word>.
 
-**Customer**:
-A person or organisation that places orders. Distinct from a **User**, who is an authenticated
-identity in the application; a Customer may have zero or many Users acting on their behalf.
-_Avoid_: Client, buyer, account.
+**<Actor or Owner Term>**:
+One-sentence definition of the person, system, team, or role that owns or triggers the concept.
+_Avoid_: <imprecise role name>.
 
 (Add more terms below as they crystallise. `grill-with-docs` writes here when domain words come up
 during planning.)
@@ -38,11 +37,11 @@ during planning.)
 ## Relationships
 
 > How the terms connect, with cardinality where it is not obvious. Useful for ruling out
-> misunderstandings ("wait, does an Order have one Invoice or many?").
+> misunderstandings ("wait, does one thing produce one related thing or many?").
 
-- An **Order** produces one or more **Invoices**
-- An **Invoice** belongs to exactly one **Customer**
-- A **Customer** may have many **Users** acting on its behalf
+- A **<Canonical Term>** produces one or more **<Related Terms>**
+- A **<Related Term>** belongs to exactly one **<Actor or Owner Term>**
+- A **<Actor or Owner Term>** may own many **<Canonical Terms>**
 
 ---
 
@@ -51,9 +50,11 @@ during planning.)
 > A short, realistic conversation between two team members, or a dev and a domain expert, that
 > demonstrates how the terms interact. This catches subtle boundary errors that flat definitions miss.
 
-> **Dev:** "When a **Customer** places an **Order**, do we create the **Invoice** immediately?"
+> **Dev:** "When a **<Actor or Owner Term>** creates a **<Canonical Term>**, do we create the
+> **<Related Term>** immediately?"
 >
-> **Domain expert:** "No; an **Invoice** is only generated once a **Fulfillment** is confirmed."
+> **Domain expert:** "No; the **<Related Term>** is only created once the **<Canonical Term>** reaches
+> the agreed lifecycle state."
 
 ---
 
@@ -62,7 +63,8 @@ during planning.)
 > Words the team used to mean multiple things, with the resolution. Keeps the team from re-litigating
 > the same overloaded term every quarter.
 
-- "account" was used to mean both **Customer** and **User**; resolved: these are distinct concepts.
+- "<overloaded word>" was used to mean both **<Canonical Term>** and **<Related Term>**; resolved:
+  these are distinct concepts.
 
 ---
 

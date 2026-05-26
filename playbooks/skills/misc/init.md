@@ -4,9 +4,10 @@
 
 Initialize the project's `docs/` layout: the **task manager** (`docs/tasks_manager/` - inbox capture
 layer, committed tasks, areas registry, ledgers, and roadmap), **areas** (`docs/areas/` - generated
-area status plus human notes), **plans** (`docs/_plans/` - durable implementation plans),
-**resources** (`docs/resources/` - project documentation and the primary domain glossary), and
-**archive** (`docs/archive/` - frozen docs/resources). Seeded from the `_base/docs/` template.
+area task-status pages), **plans** (`docs/_plans/` - durable implementation plans), **resources**
+(`docs/resources/` - project documentation, the primary domain glossary, durable area contexts,
+feature contracts, and component contexts), and **archive** (`docs/archive/` - frozen docs/resources).
+Seeded from the `_base/docs/` template.
 
 ## Process
 
@@ -42,11 +43,11 @@ docs/
 │   └── _todos_archived/
 ├── areas/
 │   ├── _overview.md      #   generated from areas + tasks + roadmap
-│   ├── global.md         #   generated global-area task status
+│   └── global.md         #   generated global-area task status
+├── resources/            # project docs (architecture, glossary, component contexts, runbooks)
+│   ├── CONTEXT.md        #   primary domain glossary
 │   └── global/
 │       └── summary.md    #   durable global-area architecture notes
-├── resources/            # project docs (architecture, glossary, component contexts, runbooks)
-│   └── CONTEXT.md        #   primary domain glossary
 └── archive/              # frozen docs/resources
 ```
 
@@ -56,7 +57,8 @@ The root `CONTEXT.md`, if missing, is created as a pointer to `docs/resources/CO
 
 If `_base/docs/` is unavailable (e.g. a repo that vendored only part of the template), fall back to
 creating the dirs with `.gitkeep` and seeding `_areas.md`/`_active.md`/`_done.md`/`_roadmap.md`,
-`docs/_plans/`, `docs/areas/_overview.md`, `docs/resources/CONTEXT.md`, and a root pointer by hand -
+`docs/_plans/`, `docs/areas/_overview.md`, `docs/resources/CONTEXT.md`,
+`docs/resources/global/summary.md`, and a root pointer by hand -
 see `playbooks/conventions/todo-convention.md`,
 `playbooks/conventions/inbox-convention.md`, and
 `playbooks/conventions/knowledge-base-quickstart.md` for the exact shapes.
@@ -73,6 +75,9 @@ Report what was created. Remind the user that:
   `/prd-to-todos`, planning)
 - Durable implementation plans live in `docs/_plans/`
 - The primary domain glossary lives in `docs/resources/CONTEXT.md`; root `CONTEXT.md` is only a pointer
+- Durable area knowledge lives in `docs/resources/<area>/`; use `/define-area` to index real
+  architecture before adding cross-repo feature contracts
+- Cross-repo feature contracts live in `docs/resources/<area>/contracts/<feature-slug>.md`
 - Tasks are typed `F`/`D`/`C`/`R` and classified by `Area` + `Prefix` (see
   `docs/tasks_manager/_areas.md`)
 - Completed tasks move to `_todos_archived/` and get a row in `docs/tasks_manager/_done.md`;
