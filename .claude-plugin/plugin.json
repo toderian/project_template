@@ -38,6 +38,7 @@
     "./skills/productivity/qa",
     "./skills/productivity/roadmap",
     "./skills/productivity/subagent-protocol",
+    "./skills/productivity/tidy-repo",
     "./skills/productivity/triage-inbox",
     "./skills/productivity/write-a-prd",
     "./skills/productivity/write-a-skill"

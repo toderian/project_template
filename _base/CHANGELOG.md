@@ -13,6 +13,20 @@ For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
 
+### Add `/tidy-repo` — systematize a messy inherited repo
+
+New `productivity` skill (playbook + Codex/Claude wrappers) for repos that have drifted: scattered
+todos, stray docs, and orphan files. It audits the repo read-only, writes a migration report to
+`docs/reference/_tidy-report.md`, and only applies moves after you approve them.
+
+- **Non-destructive by design**: loose work → `docs/tasks_manager/_inbox/` as `I-NNN` ideas (re-triage
+  later with `/triage-inbox`), loose docs → `docs/reference/` (via `git mv`), orphan files **flagged
+  only — never moved, never deleted**.
+- Orchestrates existing primitives (`/init`, the inbox, `/triage-inbox`, `sync-todo-ledgers.sh`) rather
+  than adding new machinery.
+- **Downstream impact**: additive only — a new skill installed by `link-skills.sh` / the manifest. No
+  changes to existing conventions or hooks. Run `/tidy-repo` in a messy project to use it.
+
 ### Restructure docs/ — task manager under docs/tasks_manager/, templates in _base/docs/
 
 Separated the task-tracking machinery from project documentation, and made the structure a seeded
