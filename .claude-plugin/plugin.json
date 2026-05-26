@@ -2,6 +2,7 @@
   "name": "project-template-skills",
   "description": "Skills shared across Claude Code and Codex by this project template. The script tooling (check-skills-sync, gen-skills-table, install-codex-skills, link-skills) reads this file as the active-skill allowlist; skills not listed here are treated as inactive even if they exist on disk.",
   "skills": [
+    "./skills/engineering/describe-component",
     "./skills/engineering/diagnose",
     "./skills/engineering/grill-with-docs",
     "./skills/engineering/improve-codebase-architecture",
