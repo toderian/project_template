@@ -7,6 +7,13 @@ if [ -z "$FILE_PATH" ]; then
   exit 0
 fi
 
+# Example/sample/template scaffolds are committed, non-secret docs by convention
+# (e.g. .env.example, project.env.template). Never block these — a real secret
+# file never carries one of these suffixes.
+case "$FILE_PATH" in
+  *.example|*.sample|*.template) exit 0 ;;
+esac
+
 SENSITIVE_PATTERNS=(
   '\.env$'
   '\.env\..+'

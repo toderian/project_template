@@ -18,6 +18,26 @@ If a question can be answered by exploring the codebase, explore the codebase in
 
 During codebase exploration, also look for existing documentation:
 
+### Where the glossary lives (per-repo rule)
+
+By default the domain `CONTEXT.md` lives at the **repo root** (and `CONTEXT-MAP.md` there too for
+multi-context repos) — see the file structures below. But the same `CONTEXT_DOCS_DIR` setting that
+`describe-component` reads from the repo's `project.env` redirects it, and for the same reason: when the
+repo you're grilling is **template-inherited, vendored, or otherwise not yours to commit to**, you don't
+want to pollute its tree with a glossary. Pointing `CONTEXT_DOCS_DIR` at *your own* repo keeps the
+domain language under your control.
+
+Read `CONTEXT_DOCS_DIR` from `project.env` at the repo root and follow it silently — don't re-ask each
+run:
+
+- **Unset → repo root (the default):** `CONTEXT.md` / `CONTEXT-MAP.md` at the root, as shown below.
+- **Set to a directory →** store the glossary under `$CONTEXT_DOCS_DIR/<source-repo>/CONTEXT.md` (and
+  `$CONTEXT_DOCS_DIR/<source-repo>/CONTEXT-MAP.md` for multi-context), namespaced by source repo so one
+  docs dir can hold several projects' glossaries without collision. Record the origin in the file header
+  (`> Domain glossary for {repo}`) since its location no longer says it. Look here first when checking
+  for an existing glossary, and create it here rather than at the root. This is the same location
+  `describe-component` links its component docs' domain terms to, so the two stay co-located.
+
 ### File structure
 
 Most repos have a single context:
@@ -48,7 +68,7 @@ If a `CONTEXT-MAP.md` exists at the root, the repo has multiple contexts. The ma
 │       └── docs/adr/
 ```
 
-Create files lazily — only when you have something to write. If no `CONTEXT.md` exists, create one when the first term is resolved (use `_base/CONTEXT.md.template` as the starting structure). If no `docs/adr/` exists, create it when the first ADR is needed.
+Create files lazily — only when you have something to write. If no `CONTEXT.md` exists, create one when the first term is resolved (use `_base/CONTEXT.md.template` as the starting structure), at the location the per-repo rule above dictates — repo root by default, or under `$CONTEXT_DOCS_DIR/<source-repo>/` if set. If no `docs/adr/` exists, create it when the first ADR is needed.
 
 ## During the session
 

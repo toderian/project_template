@@ -83,8 +83,10 @@ different choice into `project.env` (so it sticks for next time). Honor it there
 stays traceable: name the file to identify the source (e.g. `<source-repo>__<component>-CONTEXT.md`, or
 nest under `$CONTEXT_DOCS_DIR/<source-repo>/<component>/CONTEXT.md`), and make sure the header records
 the full source (`> Architectural context for {repo}:{path}`). Co-located docs don't need this — their
-location says it. When stored externally, link domain terms to the source repo's root `CONTEXT.md` with
-a repo-qualified reference, since the glossary lives in the other repo.
+location says it. When stored externally, link domain terms to the domain glossary with a
+repo-qualified reference. The glossary lives wherever `grill-with-docs` put it under the same rule: at
+`$CONTEXT_DOCS_DIR/<source-repo>/CONTEXT.md` when the dir is set (co-located with these component docs),
+or the source repo's root `CONTEXT.md` when it isn't.
 
 ### 6. Draft, confirm, write
 

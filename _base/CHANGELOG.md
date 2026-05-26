@@ -13,6 +13,26 @@ For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
 
+### Route the domain glossary through `CONTEXT_DOCS_DIR` + document the knob
+
+`describe-component` already let you redirect component `CONTEXT.md` docs out of a repo you don't own
+(via `CONTEXT_DOCS_DIR` in `project.env`). `grill-with-docs` did not — the domain glossary always landed
+at the working repo's root. Now both honor the same setting, so all `CONTEXT.md` docs for a
+template-inherited / vendored repo can live in *your* repo instead of polluting someone else's tree.
+
+- **`grill-with-docs`** now reads `CONTEXT_DOCS_DIR`: unset → repo root (unchanged default); set →
+  glossary at `$CONTEXT_DOCS_DIR/<source-repo>/CONTEXT.md` (and `CONTEXT-MAP.md`), namespaced by source
+  repo, with origin recorded in the header. Discovery looks there first. `describe-component` updated to
+  link domain terms to wherever the glossary actually lives.
+- **`_base/project.env.example`** now documents `CONTEXT_DOCS_DIR` (previously referenced by skills but
+  defined nowhere) under a new "Context docs" section.
+- **`block-write-sensitive.sh`** now exempts `*.example` / `*.sample` / `*.template` scaffolds, fixing a
+  false positive where `project.env.example` (and similar committed, secret-free templates) were blocked.
+  Real `.env` / credentials / key files are unaffected.
+- **Downstream impact**: default behavior unchanged (glossary still at repo root unless you opt in). To
+  use it, set `CONTEXT_DOCS_DIR` in your `project.env`. The hook change is a strict relaxation for
+  template files only.
+
 ### Add `/tidy-repo` — systematize a messy inherited repo
 
 New `productivity` skill (playbook + Codex/Claude wrappers) for repos that have drifted: scattered

@@ -72,6 +72,10 @@ The skill infers which structure applies:
 
 - If `CONTEXT-MAP.md` exists, read it to find contexts
 - If only a root `CONTEXT.md` exists, single context
-- If neither exists, create a root `CONTEXT.md` lazily when the first term is resolved (use `_base/CONTEXT.md.template` as the starting structure)
+- If neither exists, create a `CONTEXT.md` lazily when the first term is resolved (use `_base/CONTEXT.md.template` as the starting structure)
+
+The discovery and create locations above mean the **repo root by default**, but follow the
+`CONTEXT_DOCS_DIR` redirect when set — see "Where the glossary lives" in the skill playbook. A redirected
+glossary lives at `$CONTEXT_DOCS_DIR/<source-repo>/CONTEXT.md`; look there before assuming none exists.
 
 When multiple contexts exist, infer which one the current topic relates to. If unclear, ask.
