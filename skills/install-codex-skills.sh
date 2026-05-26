@@ -34,6 +34,7 @@ fi
 mkdir -p "${TARGET_SKILLS_DIR}"
 
 installed=0
+refreshed=0
 skipped=0
 missing=0
 
@@ -47,8 +48,22 @@ while IFS=$'\t' read -r name bucket; do
     continue
   fi
 
-  if [[ -e "${target_path}" || -L "${target_path}" ]]; then
-    echo "Skipping ${name}: ${target_path} already exists"
+  if [[ -L "${target_path}" ]]; then
+    # Existing symlink — refresh in case the source moved (e.g. bucket change)
+    current="$(readlink -f "${target_path}" || true)"
+    desired="$(readlink -f "${skill_dir}")"
+    if [[ "${current}" == "${desired}" ]]; then
+      skipped=$((skipped+1))
+      continue
+    fi
+    ln -sfn "${skill_dir}" "${target_path}"
+    echo "Refreshed ${name} -> ${target_path}"
+    refreshed=$((refreshed+1))
+    continue
+  fi
+
+  if [[ -e "${target_path}" ]]; then
+    echo "Skipping ${name}: ${target_path} exists and is not a symlink"
     skipped=$((skipped+1))
     continue
   fi
@@ -69,7 +84,7 @@ PY
 )
 
 echo
-echo "Installed ${installed}, skipped ${skipped}, missing ${missing}."
+echo "Installed ${installed}, refreshed ${refreshed}, skipped ${skipped}, missing ${missing}."
 echo "Restart Codex to pick up newly installed skills."
 
 if (( missing > 0 )); then
