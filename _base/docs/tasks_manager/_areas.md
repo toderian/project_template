@@ -11,7 +11,8 @@ Rules:
 
 - `T` is reserved for the `global` area and default/cross-area work.
 - Prefixes must be unique, uppercase alphanumeric, and start with a letter.
-- Pages should live under `../areas/<area>.md`.
+- Pages should live under `../areas/<area>.md`; durable architecture summaries live beside them at
+  `../areas/<area>/summary.md`.
 
 See `playbooks/conventions/todo-convention.md` and `playbooks/conventions/inbox-convention.md`.
 

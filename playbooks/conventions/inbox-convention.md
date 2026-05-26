@@ -95,7 +95,8 @@ task.
 For each `new` idea, first run a discovery gate:
 
 1. Inspect related inbox ideas (live and archived), active tasks, archived tasks, the roadmap, ledgers,
-   area pages, resources, archived docs, root/component `CONTEXT.md`, and likely code/tests.
+   area pages, resources, archived docs, `docs/resources/CONTEXT.md`, area summaries, component
+   contexts, and likely code/tests.
 2. Classify the idea as **duplicate inbox idea**, **already tracked task**, **already implemented**,
    **obsolete/stale**, **related but distinct**, or **genuinely new**.
 3. Present the findings, evidence, and recommendation before creating a task.

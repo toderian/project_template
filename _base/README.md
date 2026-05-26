@@ -24,7 +24,7 @@ This repo is designed to work with both **Claude Code** and **OpenAI Codex**. Co
 │   ├── SETUP_INSTRUCTIONS.md              # Numbered setup steps for an agent (or human) to execute
 │   ├── PROJECT.md.template                # Optional alignment-doc scaffold; copy to ./PROJECT.md to enable /align
 │   ├── project.env.example                # Reference env vars; copy to ./project.env at repo root
-│   ├── docs/                              # Seed docs layout: tasks_manager, areas, resources, archive
+│   ├── docs/                              # Seed docs layout: tasks, areas, knowledge resources, archive
 │   └── scripts/                           # Maintenance scripts (operate only on upstream content)
 │       ├── gen-skills-table.sh            # Regenerates the skills table in _base/README.md
 │       ├── check-skills-sync.sh           # Validates skill/wrapper/table consistency
@@ -89,7 +89,10 @@ The task system's golden path is:
 ```
 
 Task files own status and detail, the roadmap owns placement, and ledgers/area pages are generated.
+The primary knowledge base lives in `docs/resources/CONTEXT.md`, `docs/areas/<area>/summary.md`, and
+`docs/resources/<area>/components/<component-slug>/CONTEXT.md`; root `CONTEXT.md` is a pointer/fallback.
 See [`playbooks/conventions/task-system-quickstart.md`](../playbooks/conventions/task-system-quickstart.md)
+and [`playbooks/conventions/knowledge-base-quickstart.md`](../playbooks/conventions/knowledge-base-quickstart.md)
 for the full command map and source-of-truth split.
 
 ## Skills and playbooks
@@ -125,7 +128,7 @@ The table below lists the skills authored in this template (base tier). Downstre
 | align | productivity | Check a proposed feature or change against the project's PROJECT.md (vision, goals, scope, constraints) and report ALIGNED, NEEDS_CLARIFICATION, or OUT_OF_SCOPE. Use when starting non-trivial work, when scope feels uncertain, or before planning-workflow. Requires PROJECT.md at the repo root. |
 | capture-idea | productivity | Capture an idea into the inbox (docs/tasks_manager/_inbox/) as an I-NNN file with near-zero friction. Use whenever the user says "capture", "add to inbox", "note this idea", "jot down", or shares a feature/bug/idea they want recorded for later — even if they don't explicitly ask to use a skill. |
 | complete-task | productivity | Complete or cancel a task, fill its completion harvest and summary, archive it, then sync and strictly validate task ledgers. Use when the user says "complete task", "finish task", "close task", "cancel task", or asks to archive a done task. |
-| describe-component | engineering | Generate or refresh a CONTEXT.md describing a system component's structure — responsibility, public interface, dependencies, data owned, invariants, and tests. Use when the user wants to "describe a component", "document this module/service", map a subsystem's boundaries, or onboard to/hand off a part of the codebase. Distinct from the root domain-glossary CONTEXT.md (that's grill-with-docs). |
+| describe-component | engineering | Generate or refresh a docs-primary component CONTEXT.md describing responsibility, public interface, dependencies, data owned, invariants, and tests. Use when the user wants to "describe a component", "document this module/service", map a subsystem's boundaries, or onboard to/hand off a part of the codebase. Distinct from docs/resources/CONTEXT.md domain glossary work (that's grill-with-docs). |
 | design-an-interface | misc | Generate multiple radically different interface designs for a module using parallel sub-agents when available. Use when user wants to design an API, explore interface options, compare module shapes, or mentions "design it twice". |
 | diagnose | engineering | Disciplined diagnosis loop for hard bugs and performance regressions. Reproduce → minimise → hypothesise → instrument → fix → regression-test. Use when user says "diagnose this" / "debug this", reports a bug, says something is broken/throwing/failing, or describes a performance regression. |
 | edit-article | personal | Edit and improve articles by restructuring sections, improving clarity, and tightening prose. Use when user wants to edit, revise, or improve an article draft. |
@@ -133,7 +136,7 @@ The table below lists the skills authored in this template (base tier). Downstre
 | git-guardrails-claude-code | misc | Set up Claude Code hooks to block dangerous git commands (push, reset --hard, clean, branch -D, etc.) before they execute. Use when user wants to prevent destructive git operations, add git safety hooks, or block git push/reset in Claude Code. |
 | github-triage | misc | Triage GitHub issues through a label-based state machine with interactive grilling sessions. Use when user wants to triage issues, review incoming bugs or feature requests, prepare issues for an AFK agent, or manage issue workflow. |
 | grill-me | productivity | Interview the user relentlessly about a plan or design until reaching shared understanding, resolving each branch of the decision tree. Use when user wants to stress-test a plan, get grilled on their design, or mentions "grill me". |
-| grill-with-docs | engineering | Grilling session that challenges a plan against the existing domain model, sharpens terminology, and updates documentation (CONTEXT.md, ADRs) inline as decisions crystallise. Use when the user wants to stress-test a plan against the project's language and documented decisions, when a CONTEXT.md or ADR log exists, or when starting one. |
+| grill-with-docs | engineering | Grilling session that challenges a plan against the existing domain model, sharpens terminology, and updates docs/resources/CONTEXT.md plus ADRs inline as decisions crystallise. Use when the user wants to stress-test a plan against the project's language and documented decisions, when a CONTEXT.md or ADR log exists, or when starting one. |
 | handoff | productivity | Compact the current conversation into a handoff document so a fresh agent can pick up the work. Use when the user wants a session summary written to disk for later continuation, mentions "handing off", or is wrapping up a long session. |
 | implementer | misc | Act as an implementer for a single task slice. Use when implementing focused work from a plan, following the subagent protocol with scope fencing and structured reporting. |
 | improve-codebase-architecture | engineering | Explore a codebase to find opportunities for architectural improvement, focusing on making the codebase more testable by deepening shallow modules. Use when user wants to improve architecture, find refactoring opportunities, consolidate tightly-coupled modules, or make a codebase more AI-navigable. |
@@ -147,6 +150,7 @@ The table below lists the skills authored in this template (base tier). Downstre
 | prd-to-todos | productivity | Extract actionable tasks from a PRD and create area-prefixed task files. Use when user wants to convert a PRD into trackable tasks in docs/tasks_manager/_todos/. |
 | prototype | engineering | Build a throwaway prototype to flesh out a design before committing to it. Routes between two branches — a runnable terminal app for state/business-logic questions, or several radically different UI variations toggleable from one route. Use when the user wants to prototype, sanity-check a data model or state machine, mock up a UI, explore design options, or says "prototype this", "let me play with it", "try a few designs". |
 | qa | productivity | Interactive QA session where user reports bugs or issues conversationally, and the agent files GitHub issues. Explores the codebase in the background for context and domain language. Use when user wants to report bugs, do QA, file issues conversationally, or mentions "QA session". |
+| refresh-context | engineering | Refresh the docs-primary knowledge base and detect stale architecture or domain context. Use when the user asks to "refresh context", "reindex context", "update knowledge base", or "check context drift". |
 | request-refactor-plan | engineering | Create a detailed refactor plan with tiny commits via user interview, then file it as a GitHub issue. Use when user wants to plan a refactor, create a refactoring RFC, or break a refactor into safe incremental steps. |
 | reviewer | misc | Two-stage review of implementation work. Use when reviewing completed task output for spec compliance and code quality. |
 | roadmap | productivity | Maintain docs/tasks_manager/_roadmap.md — the placement-only Now/Next/Later ordering for tasks and inbox ideas. Use when the user wants to "plan the roadmap", "what's next", reprioritize/sequence work, schedule tasks, or refresh the roadmap. Distinct from per-change planning (planning-workflow / prd-to-plan). |
@@ -284,7 +288,7 @@ Copy these into the target project (then point an agent at `_base/SETUP_INSTRUCT
 |----------|--------------|-------|
 | `AGENTS.md` | Both | Auto-loaded entrypoint; downstream-owned (project-specific overrides go here) |
 | `_base/` | Both | Base operating contract, base README, base changelog, **base setup instructions**; upstream-owned (do not edit downstream) |
-| `_base/docs/` | Both (optional) | Seed layout for `docs/tasks_manager/`, `docs/areas/`, `docs/resources/`, and `docs/archive/`; copy via `/init` |
+| `_base/docs/` | Both (optional) | Seed layout for `docs/tasks_manager/`, `docs/areas/`, docs-primary knowledge resources, and `docs/archive/`; copy via `/init` |
 | `playbooks/` | Both | Authoritative workflow logic, role cards, templates |
 | `.claude/` | Claude Code | Skills, native subagents, hook scripts, settings |
 | `skills/` | Codex | Thin wrappers + `install-codex-skills.sh` |
@@ -406,7 +410,8 @@ Each repo file falls into one of three buckets:
 - `_base/CHANGELOG.md` — base-template changelog; read this after `git fetch template` to know what's coming in. Downstream projects may keep their own root-level `CHANGELOG.md` for project-specific changes (downstream-owned, never collides).
 - `_base/SETUP_INSTRUCTIONS.md` — agent-readable numbered setup steps. Point an agent at this file to wire up a fresh project end-to-end (template remote, runtime installers, downstream-slot replacements, verification).
 - `_base/PROJECT.md.template` — alignment-doc scaffold; copy to `PROJECT.md` at the repo root if you want feature-level alignment gating via `/align`.
-- `_base/docs/` — seed docs layout for the task manager, generated area views, resources, and archive.
+- `_base/docs/` — seed docs layout for the task manager, generated area views, docs-primary
+  knowledge resources, and archive.
 
 **Mixed** (manual merge required):
 

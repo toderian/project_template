@@ -62,7 +62,8 @@ For each idea, inspect likely matches in:
 - active and archived tasks
 - `docs/tasks_manager/_roadmap.md`, ledgers, and area pages
 - `docs/resources/` and `docs/archive/`
-- root and component `CONTEXT.md` files, including `CONTEXT_DOCS_DIR` if configured
+- `docs/resources/CONTEXT.md`, area summaries under `docs/areas/<area>/summary.md`, component contexts
+  under `docs/resources/<area>/components/*/CONTEXT.md`, and `CONTEXT_DOCS_DIR` only if configured
 - likely implementation files and tests
 
 Classify the idea before asking for a decision:

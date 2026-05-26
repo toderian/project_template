@@ -13,6 +13,29 @@ For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
 
+### Make docs/ the primary knowledge-base home and add `/refresh-context`
+
+Knowledge-base docs now default to the seeded `docs/` layout instead of scattered glossary/component
+files:
+
+- `docs/resources/CONTEXT.md` is the primary domain glossary. The top-level `CONTEXT.md` template is
+  now a small pointer/fallback.
+- Area architecture summaries live at `docs/areas/<area>/summary.md`; generated task status stays in
+  `docs/areas/<area>.md`.
+- Component contexts live under `docs/resources/<area>/components/<component-slug>/CONTEXT.md`, with
+  exact source paths recorded in their headers.
+- `CONTEXT_DOCS_DIR` is now documented as an external-storage escape hatch for repos that should not
+  receive local docs, not as the normal template layout.
+- New `/refresh-context` checks code, task logs, completion harvests, and recent changes for drift,
+  then updates stale glossary, area, and component docs only when evidence supports the change.
+- `/init` and `scripts/seed-docs.sh` now seed the docs-primary glossary, a global area summary, and a
+  top-level pointer when one is missing.
+
+**Downstream impact:** run `/init` or `scripts/seed-docs.sh` to pick up the new seeded docs without
+overwriting existing project files. Move future glossary edits to `docs/resources/CONTEXT.md` and
+future component context to the docs-primary component path. Re-run skill installers to pick up
+`/refresh-context` and refreshed descriptions.
+
 ### Tighten runtime setup docs and guardrail references
 
 Follow-up consistency fixes from a Claude/Codex parity review:
@@ -98,7 +121,7 @@ The task system now supports area-specific task ID prefixes without adding a Pro
   global/default/cross-area tasks.
 - Task filenames are now `<PREFIX>-NNN-<TYPE>_<desc>.md` with per-prefix counters. Inbox IDs remain
   `I-NNN`, and tasks stay flat under `docs/tasks_manager/_todos/`.
-- `_base/docs/reference/` is replaced by `_base/docs/resources/`, and the seed layout now includes
+- The legacy reference seed folder is replaced by `_base/docs/resources/`, and the seed layout now includes
   `_base/docs/areas/` and `_base/docs/archive/`.
 - `scripts/sync-todo-ledgers.sh` now regenerates `_active.md`, `_done.md`, `docs/areas/_overview.md`,
   and marker-delimited generated status blocks in `docs/areas/<slug>.md`; it also reports missing or
@@ -114,7 +137,7 @@ The task system now supports area-specific task ID prefixes without adding a Pro
 
 **Downstream impact:** downstream projects using the task system should migrate existing task filenames
 from `T-NNN-...` only where area-specific prefixes are desired; `T` remains valid for global/default
-work. Rename `docs/reference/` to `docs/resources/` if present, run `/init` to seed `docs/areas/` and
+work. Rename any legacy project reference folder to `docs/resources/` if present, run `/init` to seed `docs/areas/` and
 `docs/archive/`, then run `scripts/sync-todo-ledgers.sh`. Re-run skill installers to pick up
 `/add-task`.
 
@@ -137,31 +160,31 @@ manifest and `project.env` behavior are unchanged.
 ### Route the domain glossary through `CONTEXT_DOCS_DIR` + document the knob
 
 `describe-component` already let you redirect component `CONTEXT.md` docs out of a repo you don't own
-(via `CONTEXT_DOCS_DIR` in `project.env`). `grill-with-docs` did not — the domain glossary always landed
-at the working repo's root. Now both honor the same setting, so all `CONTEXT.md` docs for a
-template-inherited / vendored repo can live in *your* repo instead of polluting someone else's tree.
+(via `CONTEXT_DOCS_DIR` in `project.env`). `grill-with-docs` did not. Now both honor the same escape
+hatch, while the normal template layout remains docs-primary.
 
-- **`grill-with-docs`** now reads `CONTEXT_DOCS_DIR`: unset → repo root (unchanged default); set →
-  glossary at `$CONTEXT_DOCS_DIR/<source-repo>/CONTEXT.md` (and `CONTEXT-MAP.md`), namespaced by source
-  repo, with origin recorded in the header. Discovery looks there first. `describe-component` updated to
-  link domain terms to wherever the glossary actually lives.
+- **`grill-with-docs`** reads `CONTEXT_DOCS_DIR` only when set; otherwise it uses the docs-primary
+  glossary at `docs/resources/CONTEXT.md`. When set, it writes the glossary at
+  `$CONTEXT_DOCS_DIR/<source-repo>/CONTEXT.md` (and `CONTEXT-MAP.md`), namespaced by source repo, with
+  origin recorded in the header. `describe-component` links domain terms to wherever the glossary
+  actually lives.
 - **`_base/project.env.example`** now documents `CONTEXT_DOCS_DIR` (previously referenced by skills but
   defined nowhere) under a new "Context docs" section.
 - **`block-write-sensitive.sh`** now exempts `*.example` / `*.sample` / `*.template` scaffolds, fixing a
   false positive where `project.env.example` (and similar committed, secret-free templates) were blocked.
   Real `.env` / credentials / key files are unaffected.
-- **Downstream impact**: default behavior unchanged (glossary still at repo root unless you opt in). To
-  use it, set `CONTEXT_DOCS_DIR` in your `project.env`. The hook change is a strict relaxation for
-  template files only.
+- **Downstream impact**: use `docs/resources/CONTEXT.md` for normal glossary edits. Set
+  `CONTEXT_DOCS_DIR` in `project.env` only for external storage. The hook change is a strict relaxation
+  for template files only.
 
 ### Add `/tidy-repo` — systematize a messy inherited repo
 
 New `productivity` skill (playbook + Codex/Claude wrappers) for repos that have drifted: scattered
 todos, stray docs, and orphan files. It audits the repo read-only, writes a migration report to
-`docs/reference/_tidy-report.md`, and only applies moves after you approve them.
+`docs/resources/_tidy-report.md`, and only applies moves after you approve them.
 
 - **Non-destructive by design**: loose work → `docs/tasks_manager/_inbox/` as `I-NNN` ideas (re-triage
-  later with `/triage-inbox`), loose docs → `docs/reference/` (via `git mv`), orphan files **flagged
+  later with `/triage-inbox`), loose docs → `docs/resources/` (via `git mv`), orphan files **flagged
   only — never moved, never deleted**.
 - Orchestrates existing primitives (`/init`, the inbox, `/triage-inbox`, `sync-todo-ledgers.sh`) rather
   than adding new machinery.
@@ -176,10 +199,10 @@ template rather than live files in the framework repo:
 - **`docs/tasks_manager/`** now holds the whole task system (`_areas.md`, `_roadmap.md`, `_active.md`,
   `_done.md`, `_inbox/`, `_inbox_archived/`, `_todos/`, `_todos_archived/`). Previously these sat
   directly under `docs/`.
-- **`docs/reference/`** is the new home for project documentation (architecture, component
+- **`docs/resources/`** is the home for project documentation (architecture, component
   `CONTEXT.md` files, runbooks) — kept separate from queued work.
 - **`_base/docs/`** is the canonical template. `/init` now seeds the working repo by copying
-  `_base/docs/tasks_manager/` and `_base/docs/reference/` (like `PROJECT.md.template`), instead of
+  `_base/docs/tasks_manager/` and `_base/docs/resources/` (like `PROJECT.md.template`), instead of
   hand-authoring the files. The framework repo no longer carries a live `docs/tasks_manager/`.
 - Updated to the new paths: both todo hooks (`block-bad-todo-name`, `remind-archive-done-todo`),
   `scripts/sync-todo-ledgers.sh`, the todo/inbox conventions, and the `capture-idea` / `triage-inbox`
@@ -196,20 +219,20 @@ Built on the inbox/todo system:
 
 - **`describe-component`** (engineering) — generates a structural `CONTEXT.md` for a system component
   (responsibility, public interface, key files, in/out dependencies, data owned, invariants, tests,
-  links to domain terms). Distinct from the root domain-glossary `CONTEXT.md` (`grill-with-docs`).
-  Storage follows a per-repo rule: `CONTEXT_DOCS_DIR` in `project.env` (unset → co-located with the
-  component; set → written there, origin-encoded — for describing template-inherited/vendored repos
-  without polluting them).
+  links to domain terms). Distinct from the docs-primary domain glossary at
+  `docs/resources/CONTEXT.md` (`grill-with-docs`). Component docs now live under
+  `docs/resources/<area>/components/<component-slug>/CONTEXT.md`, with `CONTEXT_DOCS_DIR` reserved for
+  external storage when the source repo should not receive docs.
 - **`roadmap`** (productivity) + **`docs/tasks_manager/_roadmap.md`** — a Now/Next/Later plan of execution across all
   todos/ideas. Horizon placement is human intent (not derived from status, not rebuilt by the ledger
   script). Each todo renders as a collapsible `<details>` block (summary = plan, expanded = phases).
-- **Duplicate-aware capture** — `capture-idea` now scans inbox + active todos + all `CONTEXT.md` files
-  (the component "map") before recording, and offers to expand an existing item instead of creating a
-  near-duplicate. The fast path is preserved: it only interrupts on a plausible match.
+- **Duplicate-aware capture** — `capture-idea` now scans inbox + active todos + knowledge-base docs
+  before recording, and offers to expand an existing item instead of creating a near-duplicate. The fast
+  path is preserved: it only interrupts on a plausible match.
 
 **Downstream impact:** `/init` now also scaffolds `docs/tasks_manager/_roadmap.md`. Two skills added to the plugin
-manifest (`describe-component`, `roadmap`) — re-run the install scripts to pick them up. New optional
-`CONTEXT_DOCS_DIR` setting in `project.env`.
+manifest (`describe-component`, `roadmap`) — re-run the install scripts to pick them up. Optional
+`CONTEXT_DOCS_DIR` setting in `project.env` remains for external storage.
 
 ### Add inbox capture layer + typed/indexed todos + ledgers
 

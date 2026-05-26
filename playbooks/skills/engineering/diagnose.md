@@ -4,7 +4,9 @@
 
 A disciplined loop for hard bugs and performance regressions: reproduce → minimise → hypothesise → instrument → fix → regression-test. Skip phases only when explicitly justified.
 
-When exploring the codebase, use the project's domain glossary (`CONTEXT.md` at the repo root, if present) to get a clear mental model of the relevant modules, and check ADRs in the area you're touching.
+When exploring the codebase, use the project's domain glossary (`docs/resources/CONTEXT.md`, if
+present; root `CONTEXT.md` only as pointer/fallback) to get a clear mental model of the relevant
+modules, and check ADRs or area summaries in the area you're touching.
 
 ## Phase 1 — Build a feedback loop
 

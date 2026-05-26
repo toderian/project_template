@@ -2,7 +2,9 @@
 
 ## Purpose
 
-Extended grilling session that stress-tests a plan against the project's existing domain model and recorded decisions. Sharpens terminology and updates documentation (`CONTEXT.md`, ADRs) inline as decisions crystallise.
+Extended grilling session that stress-tests a plan against the project's existing domain model and
+recorded decisions. Sharpens terminology and updates documentation (`docs/resources/CONTEXT.md`, ADRs)
+inline as decisions crystallise.
 
 Use this instead of plain `grill-me` when the project already has — or is starting to grow — a domain glossary and an ADR log. If the project has neither yet, plain `grill-me` is fine; this skill is what graduates a project from "we have a plan" to "we have a plan _and_ the language to keep talking about it precisely."
 
@@ -18,25 +20,19 @@ If a question can be answered by exploring the codebase, explore the codebase in
 
 During codebase exploration, also look for existing documentation:
 
-### Where the glossary lives (per-repo rule)
+### Where the glossary lives
 
-By default the domain `CONTEXT.md` lives at the **repo root** (and `CONTEXT-MAP.md` there too for
-multi-context repos) — see the file structures below. But the same `CONTEXT_DOCS_DIR` setting that
-`describe-component` reads from the repo's `project.env` redirects it, and for the same reason: when the
-repo you're grilling is **template-inherited, vendored, or otherwise not yours to commit to**, you don't
-want to pollute its tree with a glossary. Pointing `CONTEXT_DOCS_DIR` at *your own* repo keeps the
-domain language under your control.
+In template-inherited repos, the primary glossary lives at `docs/resources/CONTEXT.md`. A root
+`CONTEXT.md` is only a pointer for quick discovery and legacy tooling. If you find an older substantive
+root glossary, treat it as fallback evidence and prefer moving future edits to `docs/resources/`.
 
-Read `CONTEXT_DOCS_DIR` from `project.env` at the repo root and follow it silently — don't re-ask each
-run:
+Read `CONTEXT_DOCS_DIR` from `project.env` at the repo root and follow it silently. This setting is an
+external-storage escape hatch for a repo you should not write into; it is not the normal default:
 
-- **Unset → repo root (the default):** `CONTEXT.md` / `CONTEXT-MAP.md` at the root, as shown below.
-- **Set to a directory →** store the glossary under `$CONTEXT_DOCS_DIR/<source-repo>/CONTEXT.md` (and
-  `$CONTEXT_DOCS_DIR/<source-repo>/CONTEXT-MAP.md` for multi-context), namespaced by source repo so one
-  docs dir can hold several projects' glossaries without collision. Record the origin in the file header
-  (`> Domain glossary for {repo}`) since its location no longer says it. Look here first when checking
-  for an existing glossary, and create it here rather than at the root. This is the same location
-  `describe-component` links its component docs' domain terms to, so the two stay co-located.
+- **Unset (normal):** read and update `docs/resources/CONTEXT.md`.
+- **Set to a directory:** read and update `$CONTEXT_DOCS_DIR/<source-repo>/CONTEXT.md`, namespaced by
+  source repo. Record the origin in the file header (`> Domain glossary for {repo}`) because the
+  location no longer identifies the source by itself.
 
 ### File structure
 
@@ -44,37 +40,49 @@ Most repos have a single context:
 
 ```
 /
-├── CONTEXT.md
 ├── docs/
+│   ├── resources/
+│   │   └── CONTEXT.md
 │   └── adr/
 │       ├── 0001-event-sourced-orders.md
 │       └── 0002-postgres-for-write-model.md
+├── CONTEXT.md          # pointer to docs/resources/CONTEXT.md
 └── src/
 ```
 
-If a `CONTEXT-MAP.md` exists at the root, the repo has multiple contexts. The map points to where each one lives:
+If `docs/resources/CONTEXT-MAP.md` exists, the repo has multiple contexts. The map points to where each
+one lives:
 
 ```
 /
-├── CONTEXT-MAP.md
 ├── docs/
-│   └── adr/                          ← system-wide decisions
+│   ├── resources/
+│   │   ├── CONTEXT-MAP.md
+│   │   ├── ordering/
+│   │   │   └── CONTEXT.md
+│   │   └── billing/
+│   │       └── CONTEXT.md
+│   └── adr/                          # system-wide decisions
 ├── src/
 │   ├── ordering/
-│   │   ├── CONTEXT.md
-│   │   └── docs/adr/                 ← context-specific decisions
+│   │   └── docs/adr/                 # context-specific decisions
 │   └── billing/
-│       ├── CONTEXT.md
 │       └── docs/adr/
+└── CONTEXT.md                        # pointer
 ```
 
-Create files lazily — only when you have something to write. If no `CONTEXT.md` exists, create one when the first term is resolved (use `_base/CONTEXT.md.template` as the starting structure), at the location the per-repo rule above dictates — repo root by default, or under `$CONTEXT_DOCS_DIR/<source-repo>/` if set. If no `docs/adr/` exists, create it when the first ADR is needed.
+Create files lazily - only when you have something to write. If no primary glossary exists, create it
+when the first term is resolved (use `_base/docs/resources/CONTEXT.md` as the starting structure). If
+root `CONTEXT.md` is missing, create the small pointer from `_base/CONTEXT.md.template`. If no
+`docs/adr/` exists, create it when the first ADR is needed.
 
 ## During the session
 
 ### Challenge against the glossary
 
-When the user uses a term that conflicts with the existing language in `CONTEXT.md`, call it out immediately. "Your glossary defines 'cancellation' as X, but you seem to mean Y — which is it?"
+When the user uses a term that conflicts with the existing language in `docs/resources/CONTEXT.md`,
+call it out immediately. "Your glossary defines 'cancellation' as X, but you seem to mean Y - which is
+it?"
 
 ### Sharpen fuzzy language
 
@@ -90,9 +98,11 @@ When the user states how something works, check whether the code agrees. If you 
 
 ### Update CONTEXT.md inline
 
-When a term is resolved, update `CONTEXT.md` right there. Don't batch these up — capture them as they happen. Use the format in [CONTEXT-FORMAT.md](grill-with-docs/CONTEXT-FORMAT.md).
+When a term is resolved, update `docs/resources/CONTEXT.md` right there. Don't batch these up - capture
+them as they happen. Use the format in [CONTEXT-FORMAT.md](grill-with-docs/CONTEXT-FORMAT.md).
 
-`CONTEXT.md` should be totally devoid of implementation details. Do not treat `CONTEXT.md` as a spec, a scratch pad, or a repository for implementation decisions. It is a glossary and nothing else.
+`docs/resources/CONTEXT.md` should be totally devoid of implementation details. Do not treat it as a
+spec, a scratch pad, or a repository for implementation decisions. It is a glossary and nothing else.
 
 ### Offer ADRs sparingly
 
@@ -115,7 +125,7 @@ Stop grilling when:
 Then produce a brief summary:
 
 - **Decisions made** — concrete answers that were locked in
-- **Glossary changes** — terms added to or sharpened in `CONTEXT.md`
+- **Glossary changes** — terms added to or sharpened in `docs/resources/CONTEXT.md`
 - **ADRs created** — new files under `docs/adr/`
 - **Open questions** — anything that was deferred or unresolved
 - **Risks identified** — concerns that surfaced during grilling

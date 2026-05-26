@@ -9,6 +9,7 @@
     "./skills/engineering/migrate-to-shoehorn",
     "./skills/engineering/migration-safety",
     "./skills/engineering/prototype",
+    "./skills/engineering/refresh-context",
     "./skills/engineering/request-refactor-plan",
     "./skills/engineering/security-review-owasp",
     "./skills/engineering/setup-pre-commit",

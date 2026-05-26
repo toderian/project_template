@@ -48,18 +48,20 @@ _Avoid_: Client, buyer, account
 
 ## Single vs multi-context repos
 
-**Single context (most repos):** One `CONTEXT.md` at the repo root.
+**Single context (most repos):** One primary glossary at `docs/resources/CONTEXT.md`, with root
+`CONTEXT.md` kept as a small pointer/fallback only.
 
-**Multiple contexts:** A `CONTEXT-MAP.md` at the repo root lists the contexts, where they live, and how they relate to each other:
+**Multiple contexts:** `docs/resources/CONTEXT-MAP.md` lists the contexts, where they live, and how
+they relate to each other:
 
 ```md
 # Context Map
 
 ## Contexts
 
-- [Ordering](./src/ordering/CONTEXT.md) — receives and tracks customer orders
-- [Billing](./src/billing/CONTEXT.md) — generates invoices and processes payments
-- [Fulfillment](./src/fulfillment/CONTEXT.md) — manages warehouse picking and shipping
+- [Ordering](./ordering/CONTEXT.md) — receives and tracks customer orders
+- [Billing](./billing/CONTEXT.md) — generates invoices and processes payments
+- [Fulfillment](./fulfillment/CONTEXT.md) — manages warehouse picking and shipping
 
 ## Relationships
 
@@ -70,12 +72,15 @@ _Avoid_: Client, buyer, account
 
 The skill infers which structure applies:
 
-- If `CONTEXT-MAP.md` exists, read it to find contexts
-- If only a root `CONTEXT.md` exists, single context
-- If neither exists, create a `CONTEXT.md` lazily when the first term is resolved (use `_base/CONTEXT.md.template` as the starting structure)
+- If `docs/resources/CONTEXT-MAP.md` exists, read it to find contexts
+- If `docs/resources/CONTEXT.md` exists, single context
+- If only root `CONTEXT.md` exists, treat it as a legacy fallback or pointer
+- If neither exists, create `docs/resources/CONTEXT.md` lazily when the first term is resolved (use
+  `_base/docs/resources/CONTEXT.md` as the starting structure)
 
-The discovery and create locations above mean the **repo root by default**, but follow the
-`CONTEXT_DOCS_DIR` redirect when set — see "Where the glossary lives" in the skill playbook. A redirected
-glossary lives at `$CONTEXT_DOCS_DIR/<source-repo>/CONTEXT.md`; look there before assuming none exists.
+The discovery and create locations above mean **docs-primary by default**, but follow the
+`CONTEXT_DOCS_DIR` redirect when set - see "Where the glossary lives" in the skill playbook. A
+redirected glossary lives at `$CONTEXT_DOCS_DIR/<source-repo>/CONTEXT.md`; look there before assuming
+none exists.
 
 When multiple contexts exist, infer which one the current topic relates to. If unclear, ask.

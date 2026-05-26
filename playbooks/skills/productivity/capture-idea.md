@@ -25,9 +25,10 @@ Prerequisite: `docs/tasks_manager/` must already be initialized. If it is missin
    match so the same idea isn't recorded twice and so you can flag when it already exists:
    - **Inbox** (`docs/tasks_manager/_inbox/`) — other un-triaged ideas.
    - **Active tasks** (`docs/tasks_manager/_todos/`, status open/in_progress) — already on the backlog.
-   - **CONTEXT.md map** — the root `CONTEXT.md` (domain) and any component `CONTEXT.md` files (co-located
-     under the repo, plus the directory in `CONTEXT_DOCS_DIR` if set). These describe what already
-     *exists*, so a match here means the idea may already be built.
+   - **Knowledge-base docs** — `docs/resources/CONTEXT.md`, area summaries under
+     `docs/areas/<area>/summary.md`, and component contexts under
+     `docs/resources/<area>/components/*/CONTEXT.md` (plus `CONTEXT_DOCS_DIR` only if configured).
+     These describe what already *exists*, so a match here means the idea may already be built.
 
    Compare by meaning, not exact words — scan titles/headings first, then read the bodies of plausible
    hits. If nothing plausibly matches, say nothing and continue to step 3 — don't interrupt capture with
@@ -37,8 +38,8 @@ Prerequisite: `docs/tasks_manager/` must already be initialized. If it is missin
    - **Same thing** → don't create a new file. If the match is an inbox idea, append the new detail to
      its body and bump `Captured`'s companion note (e.g. add an "updated" line). If the match is a task,
      append the detail to the task and tell the user it's already tracked by its task ID
-     (for example `AUTH-001` or `T-001`). If it's already described in a `CONTEXT.md`, tell the user it
-     appears to already exist in that component.
+     (for example `AUTH-001` or `T-001`). If it's already described in the knowledge base, tell the
+     user it appears to already exist and cite the relevant doc.
    - **Different thing** → proceed to create a new idea (steps 3–5).
 
 3. **Reserve the Inbox ID.** Run `scripts/reserve-work-item.sh inbox <short-desc>` and use the path it

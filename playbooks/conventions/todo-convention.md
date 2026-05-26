@@ -32,13 +32,18 @@ docs/
 │   └── _todos_archived/     # Completed or cancelled task files
 ├── areas/
 │   ├── _overview.md         # Generated area/task overview
-│   └── <slug>.md            # Human area notes plus generated status blocks
-├── resources/               # Durable reference material, runbooks, decisions, component docs
+│   ├── <slug>.md            # Human area notes plus generated status blocks
+│   └── <slug>/summary.md    # Durable area architecture summary
+├── resources/               # Durable reference material, glossary, runbooks, component docs
+│   ├── CONTEXT.md           # Primary domain glossary
+│   └── <area>/components/<component-slug>/CONTEXT.md
 └── archive/                 # Frozen docs/resources that are no longer current
 ```
 
 The task manager remains the source of truth for work. `docs/resources/` replaces the older
-`docs/reference/` folder. Do not add a Projects layer; the global roadmap and area pages are enough.
+reference folder. `docs/resources/CONTEXT.md` is the primary domain glossary; root
+`CONTEXT.md` is only a pointer or legacy fallback. Do not add a Projects layer; the global roadmap and
+area pages are enough.
 
 If these directories do not exist, run `/init` to seed them from `_base/docs/`.
 
@@ -98,7 +103,8 @@ Rules:
 - `Area` is a short lowercase slug.
 - `Prefix` is uppercase alphanumeric, starts with a letter, and is unique.
 - `T` is reserved for the `global` area and for work that genuinely crosses areas.
-- `Page` points at `docs/areas/<slug>.md`.
+- `Page` points at `docs/areas/<slug>.md`; durable architecture notes for the area live next to it at
+  `docs/areas/<slug>/summary.md`.
 - Areas are defined with the user when possible. If no existing area fits a clear task, propose a slug,
   prefix, description, and page, then add it after confirmation.
 

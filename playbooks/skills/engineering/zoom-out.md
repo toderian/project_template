@@ -12,7 +12,10 @@ State the area of code under inspection — typically a file, a module, or a fea
 
 ### 2. Read the glossary first
 
-Before reading code, read `CONTEXT.md` at the repo root (or the relevant context-local `CONTEXT.md` if the repo has a `CONTEXT-MAP.md`). The glossary fixes the canonical names — using them keeps the map legible.
+Before reading code, read `docs/resources/CONTEXT.md` (or the relevant glossary from
+`docs/resources/CONTEXT-MAP.md` if the repo has multiple contexts). If only root `CONTEXT.md` exists,
+treat it as a pointer or legacy fallback. The glossary fixes the canonical names — using them keeps the
+map legible.
 
 ### 3. Produce the map
 
@@ -27,7 +30,9 @@ Output a structured summary, not a tour:
 
 ### 4. Use the glossary in the map
 
-Every term that appears in `CONTEXT.md` should appear in **bold** the first time it's used in the map. If the code uses a different word than the glossary canonicalises, note the alias (e.g. "`Account` in code = **Customer** in the glossary").
+Every term that appears in `docs/resources/CONTEXT.md` should appear in **bold** the first time it's
+used in the map. If the code uses a different word than the glossary canonicalises, note the alias
+(e.g. "`Account` in code = **Customer** in the glossary").
 
 ### 5. Stop at the map
 

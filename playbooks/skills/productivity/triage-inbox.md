@@ -32,7 +32,9 @@ For each idea, inspect likely matches in:
 - `docs/tasks_manager/_roadmap.md`, `docs/tasks_manager/_active.md`, and `docs/tasks_manager/_done.md`
 - `docs/areas/_overview.md` and relevant `docs/areas/<slug>.md` pages
 - `docs/resources/` and `docs/archive/`
-- root and component `CONTEXT.md` files, including `CONTEXT_DOCS_DIR` if configured
+- `docs/resources/CONTEXT.md`, area summaries under `docs/areas/<area>/summary.md`, component
+  contexts under `docs/resources/<area>/components/*/CONTEXT.md`, and `CONTEXT_DOCS_DIR` only if
+  configured
 - likely code and tests found by searching for the idea's domain terms, filenames, commands, or symbols
 
 Classify each idea as one of:

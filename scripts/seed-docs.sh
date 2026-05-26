@@ -43,5 +43,17 @@ for src in sorted(src_root.rglob("*")):
     created += 1
     print(f"+ {dst.relative_to(root)}")
 
+primary_context = dst_root / "resources" / "CONTEXT.md"
+root_context = root / "CONTEXT.md"
+root_context_template = root / "_base" / "CONTEXT.md.template"
+if primary_context.exists():
+    if root_context.exists():
+        skipped += 1
+        print(f"= {root_context.relative_to(root)}")
+    else:
+        shutil.copy2(root_context_template, root_context)
+        created += 1
+        print(f"+ {root_context.relative_to(root)}")
+
 print(f"Seeded docs: created {created}, skipped {skipped}.")
 PY
