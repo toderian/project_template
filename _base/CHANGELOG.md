@@ -13,6 +13,20 @@ For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
 
+### Add one-command agent setup
+
+Setup after pulling template updates now has a single default command:
+
+- New `scripts/setup-agents.sh` validates the skill catalog, installs or refreshes Codex skills,
+  installs or refreshes Codex plugins, links Claude Code skills globally, and installs or refreshes
+  Claude Code plugins. It defaults to both runtimes, supports `--codex-only` and `--claude-only`, and
+  checks selected agent CLIs before changing runtime install state.
+- `_base/README.md`, `_base/SETUP_INSTRUCTIONS.md`, and plugin docs now point users at the one-command
+  setup path first, with lower-level installers kept as manual/debugging escape hatches.
+
+**Downstream impact:** after pulling template updates, run `./scripts/setup-agents.sh` and restart
+Codex and Claude Code instead of remembering separate skill/plugin installer commands.
+
 ### Add active-task audit workflow
 
 The task system now has a report-only active-task health check:

@@ -24,7 +24,15 @@ plugins/
 Only `.codex-plugin/plugin.json` is required. Optional folders and files depend on what
 the plugin provides.
 
-Install local plugins with:
+Normal setup should use the one-command installer from the repo root:
+
+```bash
+./scripts/setup-agents.sh
+```
+
+Use `./scripts/setup-agents.sh --codex-only` for a Codex-only refresh.
+
+To install only the local Codex plugins, run:
 
 ```bash
 ./plugins/install-codex-plugins.sh

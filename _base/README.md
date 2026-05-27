@@ -50,6 +50,8 @@ This repo is designed to work with both **Claude Code** and **OpenAI Codex**. Co
 ├── skills/                                # Codex skill wrappers (thin)
 │   ├── <bucket>/<skill-name>/SKILL.md
 │   └── install-codex-skills.sh
+├── scripts/
+│   └── setup-agents.sh                    # One-command Claude + Codex skill/plugin refresh
 ├── plugins/                               # Optional Codex plugins
 │   ├── <plugin-name>/.codex-plugin/plugin.json
 │   └── install-codex-plugins.sh
@@ -232,6 +234,12 @@ All workflow logic lives in `playbooks/` (shared). Platform-specific features in
 ## Using with Claude Code
 
 Claude Code discovers skills automatically from `.claude/skills/`. No installation needed — open the project and skills are available as slash commands.
+For global skill symlinks and curated plugin entries, run the shared setup command:
+
+```bash
+./scripts/setup-agents.sh
+# Then restart Claude Code
+```
 
 Claude-specific skill metadata:
 
@@ -245,19 +253,20 @@ disable-model-invocation: true   # hand off to playbook, don't generate
 
 ## Using with Codex
 
-Codex skills live in `skills/` and must be symlinked into `~/.codex/skills/`:
+Codex skills and plugins are installed by the shared setup command:
 
 ```bash
-./skills/install-codex-skills.sh
+./scripts/setup-agents.sh
 # Then restart Codex
 ```
 
-Codex plugins live in `plugins/` and use the `.codex-plugin/plugin.json`
+For manual/debugging use, Codex skills live in `skills/` and are symlinked into `~/.codex/skills/` by
+`./skills/install-codex-skills.sh`. Codex plugins live in `plugins/` and use the `.codex-plugin/plugin.json`
 manifest layout:
 
 ```bash
+./skills/install-codex-skills.sh
 ./plugins/install-codex-plugins.sh
-# Then restart Codex
 ```
 
 The plugin installer symlinks repo plugins into `~/plugins/` by default and
@@ -309,30 +318,22 @@ Copy these into the target project (then point an agent at `_base/SETUP_INSTRUCT
 | `playbooks/` | Both | Authoritative workflow logic, role cards, templates |
 | `.claude/` | Claude Code | Skills, native subagents, hook scripts, settings |
 | `skills/` | Codex | Thin wrappers + `install-codex-skills.sh` |
+| `scripts/setup-agents.sh` | Both | One-command skill/plugin validation and install/refresh for Claude Code and Codex |
 | `plugins/` | Both | Vendored plugins, `install-codex-plugins.sh`, `install-claude-plugins.sh`, `bootstrap-third-party.sh` |
 | `_base/project.env.example` | Both (optional) | Copy to `project.env` at the repo root (`cp _base/project.env.example project.env`) to override default install paths |
 | `_base/PROJECT.md.template` | Both (optional) | Copy to `PROJECT.md` at the repo root (`cp _base/PROJECT.md.template PROJECT.md`) and fill in to enable the `/align` skill for feature-level alignment gating |
 
-After copying, run the appropriate installers — or just point an agent at `_base/SETUP_INSTRUCTIONS.md` and let it do this for you.
-
-Claude Code:
+After copying or pulling template updates, run the one-command setup:
 
 ```bash
-./plugins/install-claude-plugins.sh   # merges into ~/.claude/settings.json
-./plugins/bootstrap-third-party.sh    # optional shared third-party stack
-# Restart Claude Code
+./scripts/setup-agents.sh
 ```
 
-Codex:
-
-```bash
-./skills/install-codex-skills.sh
-./plugins/install-codex-plugins.sh
-./plugins/bootstrap-third-party.sh    # optional shared third-party stack
-# Restart Codex
-```
-
-`.claude/skills/` is auto-discovered by Claude Code, so there is no Claude skills installer.
+It validates the skill catalog, installs or refreshes Codex skills and plugins, links Claude Code skills
+globally, and installs or refreshes Claude Code plugins. The command is idempotent; run it again after
+each template update. Restart Codex and Claude Code afterwards so they reload skills and plugins. The
+lower-level installers remain available for advanced/manual use. To set up only one runtime, use
+`./scripts/setup-agents.sh --codex-only` or `./scripts/setup-agents.sh --claude-only`.
 
 ### Option 2: use as a submodule
 

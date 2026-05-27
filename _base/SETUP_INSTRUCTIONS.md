@@ -5,14 +5,16 @@
 
 The agent invoking this file should announce at the start: "Following `_base/SETUP_INSTRUCTIONS.md`. I will run the steps for my runtime and stop on any failed check."
 
-## Each agent sets up its own runtime
+## Normal setup covers both runtimes
 
-This file is **not** a "set up both Claude and Codex" guide. Each agent reading it sets up **only its own runtime**:
+This file's normal path sets up both Claude Code and Codex integration with one command:
 
-- If you are **Claude Code**, run Phases 0 → 2, **Phase 3 (Claude only)**, Phase 5 (optional), Phase 6.
-- If you are **Codex**, run Phases 0 → 2, **Phase 4 (Codex only)**, Phase 5 (optional), Phase 6.
+- Run Phases 0 → 2, then Phase 3 one-command setup, then Phases 5 → 6.
+- Use the runtime-specific manual phases only when debugging the installer or intentionally doing a
+  partial setup.
 
-A different agent on the other runtime can run this file later to set up its side. Phases 0, 1, 2, 5, 6 are idempotent — running them again on the same project is safe and reports "already done" for each step that was completed before.
+Phases 0, 1, 2, 3, 5, and 6 are idempotent — running them again on the same project is safe and reports
+"already done" or "skipped" for each step that was completed before.
 
 ---
 
@@ -142,17 +144,36 @@ files, area pages, or docs.
 
 ---
 
-## Phase 3 — Claude Code setup (run **only if you are Claude Code**)
+## Phase 3 — One-command agent setup
 
-> Codex agents: skip to Phase 5. Do not run this phase.
+Run the shared setup command. It validates the skill catalog, installs or refreshes Codex skills and
+plugins, links Claude Code skills globally, and installs or refreshes Claude Code plugins. The command
+is idempotent; run it again after each template update. By default it sets up both runtimes; use
+`--codex-only` or `--claude-only` for a narrower refresh. It checks that the selected agent CLIs are on
+`PATH` before changing runtime install state; use `--force` only when intentionally preinstalling config
+before the CLI exists.
 
-### 3a — Skills
+```bash
+./scripts/setup-agents.sh
+```
+
+**Check:** the script exits 0 and each section prints a success summary. Restart Codex and Claude Code
+afterwards so they reload skills and plugins.
+
+---
+
+## Phase 4A — Claude Code manual setup (advanced)
+
+Skip this phase when `./scripts/setup-agents.sh` succeeds. Use it only when debugging Claude-specific
+setup or intentionally doing a partial install.
+
+### 4A-a — Skills
 
 Claude Code auto-discovers `.claude/skills/`. No installer.
 
 **Check:** `ls .claude/skills/ | wc -l` ≥ 1.
 
-### 3b — Plugins
+### 4A-b — Plugins
 
 Run the Claude plugins installer. It merges into `~/.claude/settings.json` without touching unrelated keys.
 
@@ -166,7 +187,7 @@ The default curated list is hard-coded at the top of that script under `PLUGINS=
 
 After the installer finishes, tell the user to **restart Claude Code** so the plugins are fetched and enabled.
 
-### 3c — Link skills globally (optional)
+### 4A-c — Link skills globally
 
 By default, Claude Code only loads `.claude/skills/` from within this repo. If the user wants the skills available in Claude Code sessions opened from **any** directory, run the global linker:
 
@@ -182,9 +203,10 @@ Skip this step if the user only uses the skills inside this repo.
 
 ---
 
-## Phase 4 — Codex setup (run **only if you are Codex**)
+## Phase 4B — Codex manual setup (advanced)
 
-> Claude Code agents: skip to Phase 5. Do not run this phase.
+Skip this phase when `./scripts/setup-agents.sh` succeeds. Use it only when debugging Codex-specific
+setup or intentionally doing a partial install.
 
 ### 4a — Skills
 
