@@ -111,7 +111,10 @@ capture, task creation, or roadmap cleanup to `/complete-task`, `/capture-idea`,
 
 ## Skills and playbooks
 
-Skills are reusable agent capabilities invoked by name (e.g. `/tdd`, `/qa`, `/grill-me`).
+Skills are reusable agent capabilities invoked by name. Claude Code exposes repo skills as slash-style
+commands such as `/tdd`, `/qa`, and `/grill-me`. Codex loads skills into the model context instead; in
+Codex, use natural language ("tidy this repo") or name the skill explicitly (`$tidy-repo`) rather than
+typing `/tidy-repo` as a TUI command.
 
 ### Architecture
 
@@ -223,7 +226,7 @@ These scripts live under `_base/scripts/` because they only operate on upstream-
 | Feature | Claude Code | Codex |
 |---------|------------|-------|
 | AGENTS.md (+ _base/AGENTS.md) | Auto-loaded; loads `_base/AGENTS.md` by instruction | Auto-loaded; loads `_base/AGENTS.md` by instruction |
-| Skills (slash commands) | `.claude/skills/` auto-discovered | `skills/` via `install-codex-skills.sh` |
+| Skills | `.claude/skills/` auto-discovered as slash-style commands | `skills/` via `install-codex-skills.sh`; invoke by natural language or `$skill-name`, not TUI slash commands |
 | Plugins | `plugins/install-claude-plugins.sh` can enable curated Claude Code plugins in `~/.claude/settings.json` | `plugins/` via `install-codex-plugins.sh` and local marketplace entries |
 | Agent definitions | `.claude/agents/` native subagent dispatch (`implementer`, `reviewer`, `plan-critic`, `spec-validator`, `security-auditor`, `researcher`) | Use Codex multi-agent tools when available; otherwise `skills/misc/implementer` and `skills/misc/reviewer` install as flat behavioral skills, and other roles run on the main thread under their cited personality + skill/convention |
 | Hooks | `.claude/settings.json` PreToolUse | Codex approval policy (`suggest`/`auto-edit`/`full-auto`) |
@@ -259,6 +262,9 @@ Codex skills and plugins are installed by the shared setup command:
 ./scripts/setup-agents.sh
 # Then restart Codex
 ```
+
+Codex skills are not TUI slash commands. After restart, say what you want in plain language, for
+example `tidy this repo`, or name the skill explicitly as `$tidy-repo`.
 
 For manual/debugging use, Codex skills live in `skills/` and are symlinked into `~/.codex/skills/` by
 `./skills/install-codex-skills.sh`. Codex plugins live in `plugins/` and use the `.codex-plugin/plugin.json`

@@ -239,6 +239,10 @@ Work is done when:
 
 This repo includes reusable agent skills shared across Claude Code and Codex.
 
+When docs use slash-style names such as `/tidy-repo`, treat them as skill shorthand. Claude Code may
+expose these as slash commands. Codex loads skills into model context; Codex users should invoke them
+with natural language or `$skill-name`, not as TUI slash commands.
+
 ### How skills work
 
 - `playbooks/` contains the authoritative workflow logic

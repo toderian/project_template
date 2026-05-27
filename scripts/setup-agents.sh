@@ -146,4 +146,7 @@ Agent setup complete.
 
 This command is idempotent; run it again after each template update to refresh links and plugin entries.
 Restart any agent CLI whose setup ran so it reloads skills and plugins.
+
+Codex note: installed skills are model-visible skills, not TUI slash commands.
+Invoke them by describing the task ("tidy this repo") or by naming the skill ("$tidy-repo").
 EOF

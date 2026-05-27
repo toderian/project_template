@@ -160,6 +160,9 @@ before the CLI exists.
 **Check:** the script exits 0 and each section prints a success summary. Restart Codex and Claude Code
 afterwards so they reload skills and plugins.
 
+Codex invocation note: installed skills are not Codex TUI slash commands. In Codex, invoke a skill with
+natural language such as `tidy this repo`, or name it explicitly as `$tidy-repo`.
+
 ---
 
 ## Phase 4A — Claude Code manual setup (advanced)

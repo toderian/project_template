@@ -13,6 +13,18 @@ For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
 
+### Clarify Codex skill invocation
+
+Codex setup was working but users could still reasonably try `/tidy-repo` and hit an "Unrecognized
+command" error because Codex skills are model-visible skills, not TUI slash commands.
+
+- `scripts/setup-agents.sh` now prints a Codex invocation note after setup.
+- `_base/README.md`, `_base/SETUP_INSTRUCTIONS.md`, and `_base/AGENTS.md` now explain that Codex users
+  should use natural language or `$skill-name` (for example `$tidy-repo`) instead of `/skill-name`.
+
+**Downstream impact:** after running `./scripts/setup-agents.sh` and restarting Codex, invoke template
+skills with prompts like `tidy this repo` or `$tidy-repo`, not `/tidy-repo`.
+
 ### Add one-command agent setup
 
 Setup after pulling template updates now has a single default command:
