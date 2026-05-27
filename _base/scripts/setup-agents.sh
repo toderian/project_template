@@ -8,7 +8,8 @@
 
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 # Source project.env if it exists so users can override CLI names or setup modes
 # in the same place they override install paths for the lower-level scripts.
@@ -25,7 +26,7 @@ FORCE_SETUP=0
 
 usage() {
   cat <<'EOF'
-Usage: scripts/setup-agents.sh [OPTION]
+Usage: _base/scripts/setup-agents.sh [OPTION]
 
 Validate and refresh agent integrations after pulling template updates.
 
@@ -134,7 +135,7 @@ fi
 
 if [[ "${TARGET_CLAUDE}" -eq 1 ]]; then
   run_step "Link Claude Code skills globally" \
-    "${REPO_ROOT}/scripts/link-skills.sh"
+    "${REPO_ROOT}/_base/scripts/link-skills.sh"
 
   run_step "Install or refresh Claude Code plugins" \
     "${REPO_ROOT}/plugins/install-claude-plugins.sh"

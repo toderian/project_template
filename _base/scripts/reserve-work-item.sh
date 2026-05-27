@@ -3,8 +3,8 @@
 # Atomically reserve an inbox idea or task filename.
 #
 # Usage:
-#   scripts/reserve-work-item.sh inbox <slug>
-#   scripts/reserve-work-item.sh task <PREFIX> <TYPE> <slug>
+#   _base/scripts/reserve-work-item.sh inbox <slug>
+#   _base/scripts/reserve-work-item.sh task <PREFIX> <TYPE> <slug>
 #
 # The script creates the reserved file as an empty placeholder and prints its
 # repo-relative path. Fill the placeholder immediately using the appropriate
@@ -14,7 +14,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 TM="${REPO_ROOT}/docs/tasks_manager"
 TODOS="${TM}/_todos"
 ARCHIVED="${TM}/_todos_archived"
@@ -26,12 +26,12 @@ LOCK_DIR="${TM}/.reserve-work-item.lock"
 usage() {
   cat <<'EOF'
 Usage:
-  reserve-work-item.sh inbox <slug>
-  reserve-work-item.sh task <PREFIX> <TYPE> <slug>
+  _base/scripts/reserve-work-item.sh inbox <slug>
+  _base/scripts/reserve-work-item.sh task <PREFIX> <TYPE> <slug>
 
 Examples:
-  reserve-work-item.sh inbox dark-mode-toggle
-  reserve-work-item.sh task AUTH F login-session
+  _base/scripts/reserve-work-item.sh inbox dark-mode-toggle
+  _base/scripts/reserve-work-item.sh task AUTH F login-session
 
 The task manager must already be initialized. Run /init first if
 docs/tasks_manager/ is missing.

@@ -24,7 +24,7 @@ hand-authoring the files — this keeps every project's structure identical and 
 upstream. Copy without clobbering anything already present:
 
 ```bash
-scripts/seed-docs.sh
+_base/scripts/seed-docs.sh
 ```
 
 Resulting layout:
@@ -55,7 +55,7 @@ docs/
 
 The root `CONTEXT.md`, if missing, is created as a pointer to `docs/resources/CONTEXT.md`. The
 `.gitkeep` files come along with the copy so the empty dirs stay tracked by git. After seeding, run
-`scripts/sync-todo-ledgers.sh` to confirm the ledgers are valid.
+`_base/scripts/sync-todo-ledgers.sh` to confirm the ledgers are valid.
 
 If `_base/docs/` is unavailable (e.g. a repo that vendored only part of the template), fall back to
 creating the dirs with `.gitkeep` and seeding `_areas.md`/`_active.md`/`_done.md`/`_roadmap.md`,
@@ -87,4 +87,4 @@ Report what was created. Remind the user that:
 - Tasks are typed `F`/`D`/`C`/`R` and classified by `Area` + `Prefix` (see
   `docs/tasks_manager/_areas.md`)
 - Completed tasks move to `_todos_archived/` and get a row in `docs/tasks_manager/_done.md`;
-  `/complete-task` performs the closeout, and `scripts/sync-todo-ledgers.sh --check` validates the result
+  `/complete-task` performs the closeout, and `_base/scripts/sync-todo-ledgers.sh --check` validates the result

@@ -25,7 +25,12 @@ This repo is designed to work with both **Claude Code** and **OpenAI Codex**. Co
 │   ├── PROJECT.md.template                # Optional alignment-doc scaffold; copy to ./PROJECT.md to enable /align
 │   ├── project.env.example                # Reference env vars; copy to ./project.env at repo root
 │   ├── docs/                              # Seed docs layout: tasks, areas, knowledge resources, archive
-│   └── scripts/                           # Maintenance scripts (operate only on upstream content)
+│   └── scripts/                           # Template-owned setup, task-system, and validation scripts
+│       ├── setup-agents.sh                # One-command Claude + Codex skill/plugin refresh
+│       ├── link-skills.sh                 # Links Claude Code skills into ~/.claude/skills
+│       ├── seed-docs.sh                   # Seeds docs/ from _base/docs/ without overwriting
+│       ├── reserve-work-item.sh           # Atomically reserves task/inbox filenames
+│       ├── sync-todo-ledgers.sh           # Regenerates task ledgers and generated area blocks
 │       ├── gen-skills-table.sh            # Regenerates the skills table in _base/README.md
 │       ├── check-skills-sync.sh           # Validates skill/wrapper/table consistency
 │       └── check-codex-plugins.sh         # Validates bundled Codex plugin manifests/assets
@@ -50,8 +55,6 @@ This repo is designed to work with both **Claude Code** and **OpenAI Codex**. Co
 ├── skills/                                # Codex skill wrappers (thin)
 │   ├── <bucket>/<skill-name>/SKILL.md
 │   └── install-codex-skills.sh
-├── scripts/
-│   └── setup-agents.sh                    # One-command Claude + Codex skill/plugin refresh
 ├── plugins/                               # Optional Codex plugins
 │   ├── <plugin-name>/.codex-plugin/plugin.json
 │   └── install-codex-plugins.sh
@@ -87,7 +90,7 @@ The task system's golden path is:
 /init -> /capture-idea -> /triage-inbox discovery gate -> promote/drop/defer/append
       -> /roadmap -> pre-implementation gate -> implement/execute
       -> /complete-task
-      -> scripts/sync-todo-ledgers.sh --check
+      -> _base/scripts/sync-todo-ledgers.sh --check
 
 # Periodic health check:
 /audit-todos          # report-only audit of active tasks against code/tests/docs
@@ -219,7 +222,7 @@ Severities: **BLOCKER** (missing/orphan files, broken references), **DRIFT** (ou
 
 `_base/scripts/check-codex-plugins.sh` validates bundled Codex plugin manifests, referenced skill/app paths, plugin skill `SKILL.md` files, app JSON, optional MCP JSON, and declared interface assets. `plugins/install-codex-plugins.sh` runs it before changing local symlinks or marketplace entries.
 
-These scripts live under `_base/scripts/` because they only operate on upstream-owned content (the auto-generated table in `_base/README.md`, the template's skill catalog, and bundled plugin manifests). Downstream projects should not re-implement them; pull updates from the template and re-run.
+Template-owned scripts live under `_base/scripts/` so the root `scripts/` directory remains available for downstream project tooling. Some scripts validate upstream-owned content, while task-system and setup helpers intentionally operate on the downstream repo state from their upstream-owned location. Downstream projects should not re-implement them; pull updates from the template and re-run.
 
 ## Platform support
 
@@ -240,7 +243,7 @@ Claude Code discovers skills automatically from `.claude/skills/`. No installati
 For global skill symlinks and curated plugin entries, run the shared setup command:
 
 ```bash
-./scripts/setup-agents.sh
+./_base/scripts/setup-agents.sh
 # Then restart Claude Code
 ```
 
@@ -259,7 +262,7 @@ disable-model-invocation: true   # hand off to playbook, don't generate
 Codex skills and plugins are installed by the shared setup command:
 
 ```bash
-./scripts/setup-agents.sh
+./_base/scripts/setup-agents.sh
 # Then restart Codex
 ```
 
@@ -324,7 +327,7 @@ Copy these into the target project (then point an agent at `_base/SETUP_INSTRUCT
 | `playbooks/` | Both | Authoritative workflow logic, role cards, templates |
 | `.claude/` | Claude Code | Skills, native subagents, hook scripts, settings |
 | `skills/` | Codex | Thin wrappers + `install-codex-skills.sh` |
-| `scripts/setup-agents.sh` | Both | One-command skill/plugin validation and install/refresh for Claude Code and Codex |
+| `_base/scripts/setup-agents.sh` | Both | One-command skill/plugin validation and install/refresh for Claude Code and Codex |
 | `plugins/` | Both | Vendored plugins, `install-codex-plugins.sh`, `install-claude-plugins.sh`, `bootstrap-third-party.sh` |
 | `_base/project.env.example` | Both (optional) | Copy to `project.env` at the repo root (`cp _base/project.env.example project.env`) to override default install paths |
 | `_base/PROJECT.md.template` | Both (optional) | Copy to `PROJECT.md` at the repo root (`cp _base/PROJECT.md.template PROJECT.md`) and fill in to enable the `/align` skill for feature-level alignment gating |
@@ -332,14 +335,14 @@ Copy these into the target project (then point an agent at `_base/SETUP_INSTRUCT
 After copying or pulling template updates, run the one-command setup:
 
 ```bash
-./scripts/setup-agents.sh
+./_base/scripts/setup-agents.sh
 ```
 
 It validates the skill catalog, installs or refreshes Codex skills and plugins, links Claude Code skills
 globally, and installs or refreshes Claude Code plugins. The command is idempotent; run it again after
 each template update. Restart Codex and Claude Code afterwards so they reload skills and plugins. The
 lower-level installers remain available for advanced/manual use. To set up only one runtime, use
-`./scripts/setup-agents.sh --codex-only` or `./scripts/setup-agents.sh --claude-only`.
+`./_base/scripts/setup-agents.sh --codex-only` or `./_base/scripts/setup-agents.sh --claude-only`.
 
 ### Option 2: use as a submodule
 

@@ -125,22 +125,22 @@ If the project does not want alignment gating, skip this step — the rest of th
 If the project wants the template task system, run `/init` or seed the docs layout directly:
 
 ```bash
-scripts/seed-docs.sh
-scripts/sync-todo-ledgers.sh
+_base/scripts/seed-docs.sh
+_base/scripts/sync-todo-ledgers.sh
 ```
 
 This creates the inbox, flat task directory, area registry with the reserved `T` prefix, global roadmap,
 generated area overview, `docs/_plans/`, `docs/resources/CONTEXT.md`,
 `docs/resources/_inbox/`, area-segregated `docs/resources/_digests/`,
 `docs/resources/global/summary.md`, `docs/archive/`, and a root `CONTEXT.md` pointer if one does not
-already exist. Re-running is safe because `scripts/seed-docs.sh` never overwrites downstream-owned task
+already exist. Re-running is safe because `_base/scripts/seed-docs.sh` never overwrites downstream-owned task
 files, area pages, or docs.
 
 **Check:** `docs/tasks_manager/_areas.md`, `docs/tasks_manager/_roadmap.md`,
 `docs/areas/_overview.md`, `docs/resources/global/summary.md`, `docs/_plans/`,
 `docs/resources/README.md`, `docs/resources/CONTEXT.md`, `docs/resources/_inbox/README.md`,
 `docs/resources/_digests/README.md`, and `docs/archive/README.md` exist, and
-`scripts/sync-todo-ledgers.sh` exits 0.
+`_base/scripts/sync-todo-ledgers.sh` exits 0.
 
 ---
 
@@ -154,7 +154,7 @@ is idempotent; run it again after each template update. By default it sets up bo
 before the CLI exists.
 
 ```bash
-./scripts/setup-agents.sh
+./_base/scripts/setup-agents.sh
 ```
 
 **Check:** the script exits 0 and each section prints a success summary. Restart Codex and Claude Code
@@ -167,7 +167,7 @@ natural language such as `tidy this repo`, or name it explicitly as `$tidy-repo`
 
 ## Phase 4A — Claude Code manual setup (advanced)
 
-Skip this phase when `./scripts/setup-agents.sh` succeeds. Use it only when debugging Claude-specific
+Skip this phase when `./_base/scripts/setup-agents.sh` succeeds. Use it only when debugging Claude-specific
 setup or intentionally doing a partial install.
 
 ### 4A-a — Skills
@@ -195,7 +195,7 @@ After the installer finishes, tell the user to **restart Claude Code** so the pl
 By default, Claude Code only loads `.claude/skills/` from within this repo. If the user wants the skills available in Claude Code sessions opened from **any** directory, run the global linker:
 
 ```bash
-./scripts/link-skills.sh
+./_base/scripts/link-skills.sh
 ```
 
 It reads `.claude-plugin/plugin.json` and symlinks each active skill from `.claude/skills/<bucket>/<name>/` into `~/.claude/skills/<name>/` (flat, like Codex). Re-running is idempotent. To unlink later, `rm ~/.claude/skills/<name>` for the specific skill or `rm -rf ~/.claude/skills` to remove all.
@@ -208,7 +208,7 @@ Skip this step if the user only uses the skills inside this repo.
 
 ## Phase 4B — Codex manual setup (advanced)
 
-Skip this phase when `./scripts/setup-agents.sh` succeeds. Use it only when debugging Codex-specific
+Skip this phase when `./_base/scripts/setup-agents.sh` succeeds. Use it only when debugging Codex-specific
 setup or intentionally doing a partial install.
 
 ### 4a — Skills

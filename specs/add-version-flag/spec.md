@@ -1,14 +1,15 @@
-# Add `--version` flag to `scripts/gen-skills-table.sh`
+# Add `--version` flag to `_base/scripts/gen-skills-table.sh`
 
 ## Source
 
-Rough intent supplied directly by the user via `/spec-workflow`, captured 2026-05-12. Verbatim:
+Rough intent supplied directly by the user via `/spec-workflow`, captured 2026-05-12. The script later
+moved under `_base/scripts/`, so the path below reflects the current template layout:
 
-> Add a --version flag to scripts/gen-skills-table.sh that prints a semver and exits 0; default version 0.1.0; --help should mention --version.
+> Add a --version flag to _base/scripts/gen-skills-table.sh that prints a semver and exits 0; default version 0.1.0; --help should mention --version.
 
 ## Problem
 
-`scripts/gen-skills-table.sh` currently has no introspection surface. There is no `--help`, no `--version`, no way for an operator or another script to interrogate the tool. As the script grows (new flags, alternative output paths) it becomes harder to remember the current capabilities or to detect which copy is checked out in a downstream project that pulled an old template version.
+`_base/scripts/gen-skills-table.sh` currently has no introspection surface. There is no `--help`, no `--version`, no way for an operator or another script to interrogate the tool. As the script grows (new flags, alternative output paths) it becomes harder to remember the current capabilities or to detect which copy is checked out in a downstream project that pulled an old template version.
 
 ## Goal
 
@@ -16,8 +17,8 @@ The script accepts `--version` and `--help`, both exit 0 cleanly without perform
 
 ## Success criteria
 
-- [ ] SC1: `./scripts/gen-skills-table.sh --version` prints `gen-skills-table.sh 0.1.0` (a single line, trailing newline) and exits 0.
-- [ ] SC2: `./scripts/gen-skills-table.sh --help` prints a usage block that includes the line `--version` (and a short description of what it does) and exits 0.
+- [ ] SC1: `./_base/scripts/gen-skills-table.sh --version` prints `gen-skills-table.sh 0.1.0` (a single line, trailing newline) and exits 0.
+- [ ] SC2: `./_base/scripts/gen-skills-table.sh --help` prints a usage block that includes the line `--version` (and a short description of what it does) and exits 0.
 - [ ] SC3: Invoking the script with no arguments still regenerates `_base/README.md` as it does today — running it twice with no arguments is still idempotent (second run prints `no changes`).
 - [ ] SC4: The `VERSION` constant lives at the top of the script as a `readonly` shell variable so future bumps are a one-line change.
 

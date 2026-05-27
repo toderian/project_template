@@ -68,7 +68,7 @@ Create one atomic task. Fill:
 
 Use `Source: add-task`. Set `Source ref` to an issue, PRD, inbox idea, conversation note, or `N/A`.
 After choosing the type and short description, reserve the task file with
-`scripts/reserve-work-item.sh task <PREFIX> <TYPE> <short-description>`. The helper creates the
+`_base/scripts/reserve-work-item.sh task <PREFIX> <TYPE> <short-description>`. The helper creates the
 placeholder atomically so parallel agents cannot claim the same ID.
 
 ### 5. Write the file
@@ -76,7 +76,7 @@ placeholder atomically so parallel agents cannot claim the same ID.
 Fill the reserved path printed by:
 
 ```text
-scripts/reserve-work-item.sh task <PREFIX> <TYPE> <short-description>
+_base/scripts/reserve-work-item.sh task <PREFIX> <TYPE> <short-description>
 ```
 
 Use the template shape from `todo-convention.md`. Keep the short description lowercase, hyphenated, and
@@ -87,8 +87,8 @@ under 50 characters.
 Run:
 
 ```bash
-scripts/sync-todo-ledgers.sh
-scripts/sync-todo-ledgers.sh --check
+_base/scripts/sync-todo-ledgers.sh
+_base/scripts/sync-todo-ledgers.sh --check
 ```
 
 If the user wants this scheduled, add the task ID to `docs/tasks_manager/_roadmap.md` under Now, Next,
@@ -113,5 +113,5 @@ review gate in `todo-convention.md`.
 - The task has the complete template required by `todo-convention.md`.
 - The task ID uses the selected area's prefix and the next per-prefix counter.
 - New area rows are user-approved and include a page path.
-- Ledgers and area pages are synced and pass `scripts/sync-todo-ledgers.sh --check`.
+- Ledgers and area pages are synced and pass `_base/scripts/sync-todo-ledgers.sh --check`.
 - Roadmap placement is explicit; the skill does not silently schedule work.

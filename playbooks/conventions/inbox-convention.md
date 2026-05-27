@@ -42,7 +42,7 @@ The capture datetime is not in the filename — it lives in the `Captured` field
 ## ID counters
 
 ```bash
-scripts/reserve-work-item.sh inbox <short-description>
+_base/scripts/reserve-work-item.sh inbox <short-description>
 ```
 
 The helper atomically creates the empty placeholder file and prints its path. Fill the placeholder
@@ -79,7 +79,7 @@ Field notes:
 
 When the user shares an idea to capture:
 
-1. Reserve the file with `scripts/reserve-work-item.sh inbox <short-desc>`.
+1. Reserve the file with `_base/scripts/reserve-work-item.sh inbox <short-desc>`.
 2. Fill the reserved `docs/tasks_manager/_inbox/I-NNN_<short-desc>.md` with `Captured` = now and `Status: new`.
 3. Best-guess the `Area` from `docs/tasks_manager/_areas.md`; use `global` rather than interrogating the user.
 4. Capture the idea text in one or two sentences. Confirm briefly; don't quiz.
@@ -106,7 +106,7 @@ Then decide:
 - **Promote** — it's worth doing. Create a full task per `todo-convention.md`: assign the next
   `<PREFIX>-NNN` for the chosen area, set `Type` (`F`/`D`/`C`/`R`), confirm/assign `Area` (defining a
   new one with the user if needed), set `Source: inbox` and `Source ref: I-NNN`, split into phases, add
-  acceptance criteria and related tests, and run `scripts/sync-todo-ledgers.sh`. Then set the inbox
+  acceptance criteria and related tests, and run `_base/scripts/sync-todo-ledgers.sh`. Then set the inbox
   file's `Status: promoted`.
 - **Drop** — duplicate, obsolete, already implemented, stale, or not worth doing. Set
   `Status: dropped` and note the one-line reason in the body.

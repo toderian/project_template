@@ -1,8 +1,8 @@
-# Add `--version` flag to `scripts/gen-skills-table.sh` — Design
+# Add `--version` flag to `_base/scripts/gen-skills-table.sh` — Design
 
 ## Approach summary
 
-Insert a small argument-handling block at the top of `scripts/gen-skills-table.sh`, immediately after `set -euo pipefail` and before `REPO_ROOT` is resolved. The block defines a `readonly VERSION="0.1.0"` constant, a `usage()` function, and a `case` statement over `${1:-}` that handles `--version` and `--help` by printing and exiting 0; anything else (including no argument) falls through to the existing flow unchanged.
+Insert a small argument-handling block at the top of `_base/scripts/gen-skills-table.sh`, immediately after `set -euo pipefail` and before `REPO_ROOT` is resolved. The block defines a `readonly VERSION="0.1.0"` constant, a `usage()` function, and a `case` statement over `${1:-}` that handles `--version` and `--help` by printing and exiting 0; anything else (including no argument) falls through to the existing flow unchanged.
 
 ## Architecture decisions
 
@@ -23,7 +23,7 @@ Insert a small argument-handling block at the top of `scripts/gen-skills-table.s
 
 ## Components touched
 
-- `scripts/gen-skills-table.sh` — the only file modified. Insert lines after the existing line 18 (`set -euo pipefail`) and before line 20 (`REPO_ROOT="$(cd ...)"`).
+- `_base/scripts/gen-skills-table.sh` — the only file modified. Insert lines after the existing line 18 (`set -euo pipefail`) and before line 20 (`REPO_ROOT="$(cd ...)"`).
 
 No other files change. No documentation in `_base/README.md` needs updating — the script's `--help` is now self-documenting.
 
@@ -43,10 +43,10 @@ No other interface changes. The regeneration behaviour, exit codes for the regen
 
 Inline shell assertions (no test framework). The task brief asks the implementer to run each of the following after the edit and capture the output:
 
-- **SC1:** `./scripts/gen-skills-table.sh --version` → stdout is exactly `gen-skills-table.sh 0.1.0` (one line, trailing newline); exit code 0.
-- **SC2:** `./scripts/gen-skills-table.sh --help` → stdout contains the substring `--version` and the script exits 0.
-- **SC3:** `./scripts/gen-skills-table.sh` (no args, twice) — first run says either `updated …` or `no changes …`; second run says `no changes …`. Idempotent.
-- **SC4:** `grep -n '^readonly VERSION=' scripts/gen-skills-table.sh` returns exactly one line, at the top of the script.
+- **SC1:** `./_base/scripts/gen-skills-table.sh --version` → stdout is exactly `gen-skills-table.sh 0.1.0` (one line, trailing newline); exit code 0.
+- **SC2:** `./_base/scripts/gen-skills-table.sh --help` → stdout contains the substring `--version` and the script exits 0.
+- **SC3:** `./_base/scripts/gen-skills-table.sh` (no args, twice) — first run says either `updated …` or `no changes …`; second run says `no changes …`. Idempotent.
+- **SC4:** `grep -n '^readonly VERSION=' _base/scripts/gen-skills-table.sh` returns exactly one line, at the top of the script.
 
 No CI hook is added — the script is run on-demand by humans; these are post-edit sanity checks.
 

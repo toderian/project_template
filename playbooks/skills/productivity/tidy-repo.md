@@ -23,7 +23,7 @@ This skill orchestrates primitives that already exist rather than reinventing th
 - `/triage-inbox` — the deliberate pass that later promotes the worthwhile swept-in ideas into typed
   tasks. Tidy-repo deliberately stops *before* triage; sorting quality is triage's job, not the
   sweep's.
-- `scripts/sync-todo-ledgers.sh` — reconciles the ledgers after any file moves.
+- `_base/scripts/sync-todo-ledgers.sh` — reconciles the ledgers after any file moves.
 
 Read `playbooks/conventions/todo-convention.md` and `playbooks/conventions/inbox-convention.md` for the
 target shapes.
@@ -115,7 +115,7 @@ For the approved items:
 - **Orphans.** Do nothing. They stay flagged in the report. If the user explicitly rules on some,
   carry out only what they directed (and prefer moving to an `_archive/` over deleting).
 
-After moves, run `scripts/sync-todo-ledgers.sh` so the ledgers reflect reality.
+After moves, run `_base/scripts/sync-todo-ledgers.sh` so the ledgers reflect reality.
 
 ### Phase 4 — Report and hand off to triage
 
@@ -132,6 +132,6 @@ decides what's worth doing.
 - Loose docs moved with `git mv` (history preserved); the migration report records any links left dangling.
 - The report (`docs/resources/_tidy-report.md`) is self-contained — a reader can see what was found,
   what moved, and what still needs a human decision.
-- Ledgers are in sync (`scripts/sync-todo-ledgers.sh` run after moves).
+- Ledgers are in sync (`_base/scripts/sync-todo-ledgers.sh` run after moves).
 - A Codex agent (no hooks) following this playbook produces correctly-named `I-NNN` files and the same
   report — the rules here don't depend on the Claude-only hooks.

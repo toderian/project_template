@@ -17,7 +17,8 @@
 
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 MANIFEST="${REPO_ROOT}/.claude-plugin/plugin.json"
 SOURCE_TREE="${REPO_ROOT}/.claude/skills"
 DEST="${HOME}/.claude/skills"

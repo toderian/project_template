@@ -1,4 +1,4 @@
-# Add `--version` flag to `scripts/gen-skills-table.sh` — Tasks
+# Add `--version` flag to `_base/scripts/gen-skills-table.sh` — Tasks
 
 ## Parallel groups
 
@@ -6,7 +6,7 @@ The change is confined to a single file; there is no opportunity for file-disjoi
 
 ### Group 1
 
-- [x] T1.1 Insert version + help handling in `scripts/gen-skills-table.sh` — scope: `scripts/gen-skills-table.sh` — verifies: SC1, SC2, SC3, SC4 — DONE (all four SCs passed; see implementer report)
+- [x] T1.1 Insert version + help handling in `_base/scripts/gen-skills-table.sh` — scope: `_base/scripts/gen-skills-table.sh` — verifies: SC1, SC2, SC3, SC4 — DONE (all four SCs passed; see implementer report)
 
   Add, immediately after `set -euo pipefail` (existing line 18) and before the `REPO_ROOT="$(cd ...)"` declaration (existing line 20):
 

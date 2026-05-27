@@ -12,7 +12,7 @@ authoritative.
   resolved ambiguities, and example dialogue.
 - The top-level `CONTEXT.md` is a pointer to `docs/resources/CONTEXT.md`. Treat an existing
   substantive root glossary as a legacy fallback and prefer moving future edits to `docs/resources/`.
-- `docs/areas/<area>.md` remains the generated task-status page from `scripts/sync-todo-ledgers.sh`.
+- `docs/areas/<area>.md` remains the generated task-status page from `_base/scripts/sync-todo-ledgers.sh`.
   It may include a generated pointer to the durable area context, but agents should not add durable
   architecture notes there.
 - `docs/resources/<area>/summary.md` owns area-level architecture knowledge: responsibilities,

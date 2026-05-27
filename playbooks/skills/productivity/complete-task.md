@@ -80,8 +80,8 @@ Move the file to `docs/tasks_manager/_todos_archived/` without changing its base
 Run:
 
 ```bash
-scripts/sync-todo-ledgers.sh
-scripts/sync-todo-ledgers.sh --check
+_base/scripts/sync-todo-ledgers.sh
+_base/scripts/sync-todo-ledgers.sh --check
 ```
 
 If `--check` reports completion-harvest, status-directory, roadmap, or stale-ledger errors, fix them
@@ -101,4 +101,4 @@ Return:
 - Terminal tasks never remain in `_todos/`.
 - Open or in-progress tasks never move to `_todos_archived/`.
 - Archived tasks have explicit completion harvest rows and a non-empty completion summary.
-- Generated ledgers and area blocks are synced and pass `scripts/sync-todo-ledgers.sh --check`.
+- Generated ledgers and area blocks are synced and pass `_base/scripts/sync-todo-ledgers.sh --check`.

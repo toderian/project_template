@@ -78,7 +78,7 @@ For each promoted idea, settle:
 
 ### 5. Create the task
 
-Reserve the task file with `scripts/reserve-work-item.sh task <PREFIX> <TYPE> <short-desc>`, then fill
+Reserve the task file with `_base/scripts/reserve-work-item.sh task <PREFIX> <TYPE> <short-desc>`, then fill
 the printed path per the task convention's full format:
 
 - Metadata table including `Task ID`, `Type`, `Area`, `Source: inbox`, `Source ref: I-NNN`, and `Priority`.
@@ -87,9 +87,9 @@ the printed path per the task convention's full format:
 - Acceptance criteria and a Related tests section, or `N/A - <reason>`.
 - Follow-ups, execution log, completion harvest, and completion summary sections.
 
-Then run `scripts/sync-todo-ledgers.sh` to update ledgers and area pages. If the user chose roadmap
+Then run `_base/scripts/sync-todo-ledgers.sh` to update ledgers and area pages. If the user chose roadmap
 placement, update `docs/tasks_manager/_roadmap.md` and run the sync again. After all task, inbox, and
-roadmap changes are done, run `scripts/sync-todo-ledgers.sh --check`.
+roadmap changes are done, run `_base/scripts/sync-todo-ledgers.sh --check`.
 
 ### 6. Close out the inbox file
 
@@ -102,9 +102,9 @@ the archived inbox file. For appended ideas, mention the file that received the 
 ### 7. Report
 
 Summarize how many ideas were promoted (with their new task IDs, types, areas, and roadmap placement)
-and how many were dropped, deferred, or appended to existing work. Run `scripts/sync-todo-ledgers.sh` at
+and how many were dropped, deferred, or appended to existing work. Run `_base/scripts/sync-todo-ledgers.sh` at
 the end to ensure the ledgers and area pages reflect every change, then run
-`scripts/sync-todo-ledgers.sh --check`.
+`_base/scripts/sync-todo-ledgers.sh --check`.
 
 ## Quality bar
 
@@ -113,6 +113,6 @@ the end to ensure the ledgers and area pages reflect every change, then run
 - New areas were confirmed with the user before use and recorded in `docs/tasks_manager/_areas.md`.
 - The inbox contains only `new` ideas afterward; promoted/dropped ones are in `_inbox_archived/`.
 - `docs/tasks_manager/_active.md`, `docs/areas/_overview.md`, and generated per-area blocks are in sync
-  and pass `scripts/sync-todo-ledgers.sh --check`.
+  and pass `_base/scripts/sync-todo-ledgers.sh --check`.
 - The discovery gate ran before task creation, and each promoted idea was checked for duplicates,
   existing tasks, already implemented behavior, stale context, related work, and relevant docs/code/tests.

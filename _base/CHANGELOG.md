@@ -13,30 +13,44 @@ For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
 
+### Move template scripts under `_base/scripts`
+
+Template-owned operational scripts no longer live in the root `scripts/` directory.
+
+- Moved agent setup, Claude skill linking, docs seeding, work-item reservation, and task-ledger sync
+  scripts under `_base/scripts/`.
+- Updated playbooks, setup docs, generated seed docs, and agent instructions to use the new paths.
+- Root `scripts/` is left for downstream project-owned scripts.
+
+**Downstream impact:** after pulling template updates, use `./_base/scripts/setup-agents.sh` for the
+agent refresh and `_base/scripts/sync-todo-ledgers.sh` / `_base/scripts/reserve-work-item.sh` for task
+system operations. Existing downstream-owned files under `scripts/` are no longer in the template's
+namespace.
+
 ### Clarify Codex skill invocation
 
 Codex setup was working but users could still reasonably try `/tidy-repo` and hit an "Unrecognized
 command" error because Codex skills are model-visible skills, not TUI slash commands.
 
-- `scripts/setup-agents.sh` now prints a Codex invocation note after setup.
+- `_base/scripts/setup-agents.sh` now prints a Codex invocation note after setup.
 - `_base/README.md`, `_base/SETUP_INSTRUCTIONS.md`, and `_base/AGENTS.md` now explain that Codex users
   should use natural language or `$skill-name` (for example `$tidy-repo`) instead of `/skill-name`.
 
-**Downstream impact:** after running `./scripts/setup-agents.sh` and restarting Codex, invoke template
+**Downstream impact:** after running `./_base/scripts/setup-agents.sh` and restarting Codex, invoke template
 skills with prompts like `tidy this repo` or `$tidy-repo`, not `/tidy-repo`.
 
 ### Add one-command agent setup
 
 Setup after pulling template updates now has a single default command:
 
-- New `scripts/setup-agents.sh` validates the skill catalog, installs or refreshes Codex skills,
+- New `_base/scripts/setup-agents.sh` validates the skill catalog, installs or refreshes Codex skills,
   installs or refreshes Codex plugins, links Claude Code skills globally, and installs or refreshes
   Claude Code plugins. It defaults to both runtimes, supports `--codex-only` and `--claude-only`, and
   checks selected agent CLIs before changing runtime install state.
 - `_base/README.md`, `_base/SETUP_INSTRUCTIONS.md`, and plugin docs now point users at the one-command
   setup path first, with lower-level installers kept as manual/debugging escape hatches.
 
-**Downstream impact:** after pulling template updates, run `./scripts/setup-agents.sh` and restart
+**Downstream impact:** after pulling template updates, run `./_base/scripts/setup-agents.sh` and restart
 Codex and Claude Code instead of remembering separate skill/plugin installer commands.
 
 ### Add active-task audit workflow
@@ -69,7 +83,7 @@ The docs-primary knowledge base now has a raw-source ingestion lane:
 - Non-Markdown raw inbox files are ignored by default so large, binary, proprietary, or sensitive
   sources are not committed by accident.
 
-**Downstream impact:** run `/init` or `scripts/seed-docs.sh` to seed the raw knowledge inbox and digest
+**Downstream impact:** run `/init` or `_base/scripts/seed-docs.sh` to seed the raw knowledge inbox and digest
 folders. Re-run skill installers to pick up `/distill-knowledge`.
 
 ### Define branch and checkpoint-commit policy
@@ -105,7 +119,7 @@ The docs-primary knowledge base now has a generic cross-repo workflow family:
   not inherit example domain language.
 
 **Downstream impact:** re-run skill installers to pick up `/define-area` and `/cross-repo-feature`.
-Run `/init` or `scripts/seed-docs.sh` to seed the generic global area summary without overwriting
+Run `/init` or `_base/scripts/seed-docs.sh` to seed the generic global area summary without overwriting
 existing docs.
 
 ### Make docs/ the primary knowledge-base home and add `/refresh-context`
@@ -123,10 +137,10 @@ files:
   receive local docs, not as the normal template layout.
 - New `/refresh-context` checks code, task logs, completion harvests, and recent changes for drift,
   then updates stale glossary, area, and component docs only when evidence supports the change.
-- `/init` and `scripts/seed-docs.sh` now seed the docs-primary glossary, a global area summary, and a
+- `/init` and `_base/scripts/seed-docs.sh` now seed the docs-primary glossary, a global area summary, and a
   top-level pointer when one is missing.
 
-**Downstream impact:** run `/init` or `scripts/seed-docs.sh` to pick up the new seeded docs without
+**Downstream impact:** run `/init` or `_base/scripts/seed-docs.sh` to pick up the new seeded docs without
 overwriting existing project files. Move future glossary edits to `docs/resources/CONTEXT.md` and
 future component context to the docs-primary component path. Re-run skill installers to pick up
 `/refresh-context` and refreshed descriptions.
@@ -169,7 +183,7 @@ Documentation-only update to make the task system's golden path and triage expec
 
 - New `playbooks/conventions/task-system-quickstart.md` explains the `/init` -> `/capture-idea` ->
   `/triage-inbox` discovery gate -> `/roadmap` -> pre-implementation gate -> implement/execute ->
-  `/complete-task` -> `scripts/sync-todo-ledgers.sh --check` flow.
+  `/complete-task` -> `_base/scripts/sync-todo-ledgers.sh --check` flow.
 - `/triage-inbox` now requires a discovery gate before promotion decisions: inspect inbox ideas, active
   and archived tasks, roadmap, area pages, resources, context docs, and likely code/tests; classify
   duplicates, already tracked work, already implemented work, stale ideas, related work, and genuinely
@@ -178,7 +192,7 @@ Documentation-only update to make the task system's golden path and triage expec
   `_base/README.md`, and `_base/AGENTS.md` now point agents toward the same source-of-truth split: task
   files own detail/status, roadmap owns placement, raw inbox IDs only park in `Later`, and ledgers/area
   pages are generated.
-- `scripts/sync-todo-ledgers.sh --check` now enforces the same roadmap rule by rejecting raw inbox IDs
+- `_base/scripts/sync-todo-ledgers.sh --check` now enforces the same roadmap rule by rejecting raw inbox IDs
   in `Now` or `Next`, validates inbox status/archive placement, and validates area registry pages
   against `docs/areas/<area>.md`.
 
@@ -194,19 +208,19 @@ on strict validation.
 The task system keeps the permissive sync path for recovery, but now has strict read-only validation
 for CI and agent handoff:
 
-- `scripts/sync-todo-ledgers.sh --check` fails on duplicate IDs, malformed metadata, status/archive
+- `_base/scripts/sync-todo-ledgers.sh --check` fails on duplicate IDs, malformed metadata, status/archive
   mismatches, unregistered areas or prefixes, bad roadmap references, stale generated ledgers/area
   blocks, and archived tasks without explicit completion harvest/summary.
-- `scripts/reserve-work-item.sh` atomically reserves inbox and task IDs before agents fill the file.
+- `_base/scripts/reserve-work-item.sh` atomically reserves inbox and task IDs before agents fill the file.
 - New `/complete-task` workflow closes out acceptance checks, final execution logs, harvest, summary,
   archive move, sync, and strict validation.
 - Roadmap docs are now placement-only; task files remain authoritative for status and phase detail.
 - Durable implementation plans now live under `docs/_plans/`.
-- `scripts/seed-docs.sh` replaces GNU-specific no-clobber copy snippets for setup/init docs seeding.
+- `_base/scripts/seed-docs.sh` replaces GNU-specific no-clobber copy snippets for setup/init docs seeding.
 
-**Downstream impact:** projects using the task manager should run `/init` or `scripts/seed-docs.sh` to
+**Downstream impact:** projects using the task manager should run `/init` or `_base/scripts/seed-docs.sh` to
 pick up `docs/_plans/`, re-run skill installers for `/complete-task`, and use
-`scripts/sync-todo-ledgers.sh --check` in CI or before handing tasks to another agent.
+`_base/scripts/sync-todo-ledgers.sh --check` in CI or before handing tasks to another agent.
 
 ### Add Areas / Resources / Archive task system and `/add-task`
 
@@ -218,7 +232,7 @@ The task system now supports area-specific task ID prefixes without adding a Pro
   `I-NNN`, and tasks stay flat under `docs/tasks_manager/_todos/`.
 - The legacy reference seed folder is replaced by `_base/docs/resources/`, and the seed layout now includes
   `_base/docs/areas/` and `_base/docs/archive/`.
-- `scripts/sync-todo-ledgers.sh` now regenerates `_active.md`, `_done.md`, `docs/areas/_overview.md`,
+- `_base/scripts/sync-todo-ledgers.sh` now regenerates `_active.md`, `_done.md`, `docs/areas/_overview.md`,
   and marker-delimited generated status blocks in `docs/areas/<slug>.md`; it also reports missing or
   ambiguous roadmap references instead of guessing.
 - New `/add-task` productivity skill creates a full task directly with area/prefix/ID assignment,
@@ -233,7 +247,7 @@ The task system now supports area-specific task ID prefixes without adding a Pro
 **Downstream impact:** downstream projects using the task system should migrate existing task filenames
 from `T-NNN-...` only where area-specific prefixes are desired; `T` remains valid for global/default
 work. Rename any legacy project reference folder to `docs/resources/` if present, run `/init` to seed `docs/areas/` and
-`docs/archive/`, then run `scripts/sync-todo-ledgers.sh`. Re-run skill installers to pick up
+`docs/archive/`, then run `_base/scripts/sync-todo-ledgers.sh`. Re-run skill installers to pick up
 `/add-task`.
 
 ### Tighten downstream setup checks and refresh Codex plugin symlinks
@@ -300,7 +314,7 @@ template rather than live files in the framework repo:
   `_base/docs/tasks_manager/` and `_base/docs/resources/` (like `PROJECT.md.template`), instead of
   hand-authoring the files. The framework repo no longer carries a live `docs/tasks_manager/`.
 - Updated to the new paths: both todo hooks (`block-bad-todo-name`, `remind-archive-done-todo`),
-  `scripts/sync-todo-ledgers.sh`, the todo/inbox conventions, and the `capture-idea` / `triage-inbox`
+  `_base/scripts/sync-todo-ledgers.sh`, the todo/inbox conventions, and the `capture-idea` / `triage-inbox`
   / `roadmap` / `prd-to-todos` skills.
 
 **Downstream impact:** repos that already have a flat `docs/_todos/` (etc.) must migrate by moving the
@@ -342,7 +356,7 @@ Todos gained a capture layer and stable identity. Ideas now flow `inbox → tria
 - **Areas registry** (`docs/_areas.md`) — todos/ideas are classified by an `Area` slug, defined
   collaboratively rather than from a fixed list.
 - **Two ledgers** — `docs/_active.md` (open + in_progress) and `docs/_done.md` (completed, newest at
-  the top), each row linking to its source file. New tool-agnostic `scripts/sync-todo-ledgers.sh`
+  the top), each row linking to its source file. New tool-agnostic `_base/scripts/sync-todo-ledgers.sh`
   rebuilds both from the todo files (works for Codex, which has no hooks).
 - **Hooks** — `block-bad-todo-name.sh` now validates both `T-NNN-<TYPE>` and `I-NNN` names;
   `remind-archive-done-todo.sh` now nudges archiving for both the todo and inbox layers.
@@ -351,7 +365,7 @@ Todos gained a capture layer and stable identity. Ideas now flow `inbox → tria
 work but won't match the new hook; rename them to `T-NNN-<TYPE>_<desc>.md` to silence it, or leave
 archived ones as-is. Run `/init` to create the new `docs/` files (`_inbox/`, `_inbox_archived/`,
 `_areas.md`, `_active.md`, `_done.md`). New skills `capture-idea` and `triage-inbox` are added to the
-plugin manifest — re-run `scripts/link-skills.sh` / `skills/install-codex-skills.sh` to install them.
+plugin manifest — re-run `_base/scripts/link-skills.sh` / `skills/install-codex-skills.sh` to install them.
 
 ### Fix dual-runtime wiring for the PROJECT.md / `/align` rollout
 
@@ -486,9 +500,9 @@ New heavyweight skill that drives a plan → build → review → fix loop for a
 
 ## 2026-05-11
 
-### Add `scripts/gen-skills-table.sh` and `_base/CHANGELOG.md`
+### Add skills table generator and `_base/CHANGELOG.md`
 
-The "Available skills" table in `_base/README.md` is now auto-generated from `playbooks/skills/*.md` between `<!-- BEGIN skills-table -->` / `<!-- END skills-table -->` markers. Run `./scripts/gen-skills-table.sh` after adding, renaming, or removing a skill. Descriptions are pulled from the matching Claude wrapper's `description:` frontmatter (falls back to the playbook's `## Purpose` paragraph).
+The "Available skills" table in `_base/README.md` is now auto-generated from `playbooks/skills/*.md` between `<!-- BEGIN skills-table -->` / `<!-- END skills-table -->` markers. Run `./_base/scripts/gen-skills-table.sh` after adding, renaming, or removing a skill. Descriptions are pulled from the matching Claude wrapper's `description:` frontmatter (falls back to the playbook's `## Purpose` paragraph).
 
 This base-changelog file (`_base/CHANGELOG.md`) was added. It lives under `_base/` alongside the other upstream-owned files, so a downstream project can keep its own root-level `CHANGELOG.md` without collision.
 

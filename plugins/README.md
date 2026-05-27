@@ -27,10 +27,10 @@ the plugin provides.
 Normal setup should use the one-command installer from the repo root:
 
 ```bash
-./scripts/setup-agents.sh
+./_base/scripts/setup-agents.sh
 ```
 
-Use `./scripts/setup-agents.sh --codex-only` for a Codex-only refresh.
+Use `./_base/scripts/setup-agents.sh --codex-only` for a Codex-only refresh.
 
 To install only the local Codex plugins, run:
 

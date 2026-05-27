@@ -60,7 +60,7 @@ For each active task, read:
 - completion harvest and summary placeholders, if present
 
 Also read the roadmap, active/done ledgers, relevant area pages, and resource docs. If generated views
-look stale, run `scripts/sync-todo-ledgers.sh --check` when available because it is read-only; otherwise
+look stale, run `_base/scripts/sync-todo-ledgers.sh --check` when available because it is read-only; otherwise
 record the stale-view concern in the report.
 
 ### 3. Check repo evidence

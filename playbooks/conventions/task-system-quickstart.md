@@ -22,7 +22,7 @@ For full details, use:
 # run the pre-implementation review gate from todo-convention.md
 # implement / execute the task
 /complete-task <TASK-ID>
-scripts/sync-todo-ledgers.sh --check
+_base/scripts/sync-todo-ledgers.sh --check
 
 # Periodic health check:
 /audit-todos          # report-only audit of active tasks against code/tests/docs
@@ -37,7 +37,7 @@ Direct creation is also valid when the work is already clear:
 # pre-implementation review gate
 # implement / execute the task
 /complete-task <TASK-ID>
-scripts/sync-todo-ledgers.sh --check
+_base/scripts/sync-todo-ledgers.sh --check
 ```
 
 ## Source of truth split
@@ -52,7 +52,7 @@ scripts/sync-todo-ledgers.sh --check
   `/triage-inbox` promotes or drops them. It does not duplicate task status or phase detail.
 - **Generated ledgers and area pages** (`docs/tasks_manager/_active.md`, `docs/tasks_manager/_done.md`,
   `docs/areas/_overview.md`, generated blocks in `docs/areas/<slug>.md`) are derived views. Rebuild
-  them with `scripts/sync-todo-ledgers.sh`; validate them with `scripts/sync-todo-ledgers.sh --check`.
+  them with `_base/scripts/sync-todo-ledgers.sh`; validate them with `_base/scripts/sync-todo-ledgers.sh --check`.
 
 ## Active-task health checks
 
@@ -118,8 +118,8 @@ Present the classification, evidence, and recommendation before creating or chan
 After task-system changes, run:
 
 ```bash
-scripts/sync-todo-ledgers.sh
-scripts/sync-todo-ledgers.sh --check
+_base/scripts/sync-todo-ledgers.sh
+_base/scripts/sync-todo-ledgers.sh --check
 ```
 
 For template maintenance, also run:

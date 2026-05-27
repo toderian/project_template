@@ -44,7 +44,7 @@ Prerequisite: `docs/tasks_manager/` must already be initialized. If it is missin
      user it appears to already exist and cite the relevant doc.
    - **Different thing** → proceed to create a new idea (steps 3–5).
 
-3. **Reserve the Inbox ID.** Run `scripts/reserve-work-item.sh inbox <short-desc>` and use the path it
+3. **Reserve the Inbox ID.** Run `_base/scripts/reserve-work-item.sh inbox <short-desc>` and use the path it
    prints. The helper creates the placeholder atomically so parallel agents cannot claim the same
    `I-NNN`.
 

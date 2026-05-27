@@ -154,7 +154,7 @@ Prefer explicit "unknown" or "not found" entries over confident filler.
 ### 5. Align Task Areas When Needed
 
 If the area should receive tracked tasks, register it in `docs/tasks_manager/_areas.md` only after
-confirmation. Pick a unique uppercase prefix and let `scripts/sync-todo-ledgers.sh` create or refresh
+confirmation. Pick a unique uppercase prefix and let `_base/scripts/sync-todo-ledgers.sh` create or refresh
 the generated `docs/areas/<area>.md` page.
 
 Task-area registration is useful but not required for read-only architecture indexing. The durable

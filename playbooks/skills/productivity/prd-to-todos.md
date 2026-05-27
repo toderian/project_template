@@ -93,12 +93,12 @@ For each approved item, reserve a file in `docs/tasks_manager/_todos/` named
 - Completion harvest placeholder with explicit `None` rows
 - Completion summary placeholder
 
-Reserve each file with `scripts/reserve-work-item.sh task <PREFIX> <TYPE> <short-desc>` in dependency
+Reserve each file with `_base/scripts/reserve-work-item.sh task <PREFIX> <TYPE> <short-desc>` in dependency
 order so IDs sort naturally within each area. Fill each reserved placeholder immediately. Use the
-current datetime for the `Created` field. After creating the files, run `scripts/sync-todo-ledgers.sh`.
+current datetime for the `Created` field. After creating the files, run `_base/scripts/sync-todo-ledgers.sh`.
 If the user wants the PRD scheduled, place the new task IDs on `docs/tasks_manager/_roadmap.md` in Now,
 Next, or Later and run the sync again. After all task and roadmap changes are done, run
-`scripts/sync-todo-ledgers.sh --check`.
+`_base/scripts/sync-todo-ledgers.sh --check`.
 
 ### 7. Report
 
@@ -111,4 +111,4 @@ user that starting any existing task requires the pre-implementation review gate
 - Each task is atomic, independently completable, and verifiable.
 - Existing inbox ideas, tasks, docs, and code/tests were checked before task creation.
 - New area rows were confirmed with the user before use.
-- Ledgers and area pages are synced and pass `scripts/sync-todo-ledgers.sh --check`.
+- Ledgers and area pages are synced and pass `_base/scripts/sync-todo-ledgers.sh --check`.
