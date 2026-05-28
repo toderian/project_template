@@ -51,12 +51,18 @@ Read `docs/tasks_manager/_areas.md`.
 - Use `global` / prefix `T` for default, global, or cross-area work.
 - If no area fits, propose an `Area`, `Prefix`, `Description`, and `Page` row and ask before appending.
 
+If `repos.project` exists, also infer the relevant repo slugs from the request, nearby docs, code
+paths, or area ownership. Fill the optional `Repos` metadata row with comma-separated slugs when the
+scope is clear. If repo scope is unclear, omit the row rather than guessing. Do not encode repo slugs
+into the task ID, filename, prefix, or area.
+
 ### 4. Shape the task
 
 Create one atomic task. Fill:
 
 - type (`F`, `D`, `C`, `R`)
 - priority (`high`, `medium`, `low`)
+- optional `Repos` metadata when inferable from `repos.project`
 - 2-4 sentence brief
 - phases with checklists
 - acceptance criteria
@@ -65,6 +71,7 @@ Create one atomic task. Fill:
 - execution log placeholder
 - completion harvest placeholder with explicit `None` entries
 - completion summary placeholder
+- optional `### Repo scope` section for cross-repo tasks when repo responsibilities need explanation
 
 Use `Source: add-task`. Set `Source ref` to an issue, PRD, inbox idea, conversation note, or `N/A`.
 After choosing the type and short description, reserve the task file with
@@ -89,11 +96,13 @@ Run:
 ```bash
 _base/scripts/sync-todo-ledgers.sh
 _base/scripts/sync-todo-ledgers.sh --check
+_base/scripts/check-repos-config.sh
 ```
 
 If the user wants this scheduled, add the task ID to `docs/tasks_manager/_roadmap.md` under Now, Next,
 or Later in the intended order, then run sync and `--check` again so `docs/areas/_overview.md` and
-generated area blocks reflect the roadmap placement.
+generated area blocks reflect the roadmap placement. Run `_base/scripts/check-repos-config.sh` again
+after any task metadata changes.
 
 ### 7. Report
 
@@ -112,6 +121,9 @@ review gate in `todo-convention.md`.
 - The filename passes `block-bad-todo-name.sh`.
 - The task has the complete template required by `todo-convention.md`.
 - The task ID uses the selected area's prefix and the next per-prefix counter.
+- Optional `Repos` metadata uses slugs from `repos.project`; repo slugs are not encoded into task IDs,
+  filenames, prefixes, or areas.
 - New area rows are user-approved and include a page path.
 - Ledgers and area pages are synced and pass `_base/scripts/sync-todo-ledgers.sh --check`.
+- Repo registry and task `Repos` metadata pass `_base/scripts/check-repos-config.sh`.
 - Roadmap placement is explicit; the skill does not silently schedule work.

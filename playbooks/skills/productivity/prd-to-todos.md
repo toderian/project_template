@@ -58,6 +58,8 @@ Present the proposed tasks as a numbered list. For each:
 
 - **Title**: short descriptive name
 - **Area / prefix**: existing area row from `_areas.md`, or a proposed new area
+- **Repos**: if `repos.project` exists, comma-separated repo slugs when inferable, or omitted when not
+  clear
 - **Type**: `F` / `D` / `C` / `R`
 - **Priority**: high / medium / low
 - **Phases**: list of committable steps
@@ -82,9 +84,11 @@ For each approved item, reserve a file in `docs/tasks_manager/_todos/` named
 
 - Metadata table with `Task ID` (next id for the area's prefix), `Type` (`F`/`D`/`C`/`R`),
   `Area` (a slug from `docs/tasks_manager/_areas.md`, defining a new row with the user if needed),
+  optional `Repos` when inferable from `repos.project`,
   `Source: prd-to-todos`, `Source ref` pointing to the PRD, `Priority`, and `Blocked by` (referencing
   other task IDs or filenames if dependent)
 - Short human-readable title and 2-4 sentence brief
+- Optional `### Repo scope` section for cross-repo tasks when repo responsibilities need explanation
 - Phases with per-phase checklists
 - Acceptance criteria
 - Related tests section (list known tests, or `N/A - <reason>`)
@@ -98,7 +102,7 @@ order so IDs sort naturally within each area. Fill each reserved placeholder imm
 current datetime for the `Created` field. After creating the files, run `_base/scripts/sync-todo-ledgers.sh`.
 If the user wants the PRD scheduled, place the new task IDs on `docs/tasks_manager/_roadmap.md` in Now,
 Next, or Later and run the sync again. After all task and roadmap changes are done, run
-`_base/scripts/sync-todo-ledgers.sh --check`.
+`_base/scripts/sync-todo-ledgers.sh --check` and `_base/scripts/check-repos-config.sh`.
 
 ### 7. Report
 
@@ -111,4 +115,7 @@ user that starting any existing task requires the pre-implementation review gate
 - Each task is atomic, independently completable, and verifiable.
 - Existing inbox ideas, tasks, docs, and code/tests were checked before task creation.
 - New area rows were confirmed with the user before use.
+- Optional `Repos` metadata uses slugs from `repos.project`; repo slugs are not encoded into task IDs,
+  filenames, prefixes, or areas.
 - Ledgers and area pages are synced and pass `_base/scripts/sync-todo-ledgers.sh --check`.
+- Repo registry and task `Repos` metadata pass `_base/scripts/check-repos-config.sh`.

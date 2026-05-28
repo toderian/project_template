@@ -73,6 +73,9 @@ For each promoted idea, settle:
 - **Area and prefix** — pick a row from `docs/tasks_manager/_areas.md`. If none fits, this is the
   moment to define a new area with the user: propose an area slug, uppercase prefix, one-line
   description, and page path, confirm, append it to `_areas.md`, then use it.
+- **Repos** — if `repos.project` exists and the relevant repo slugs are inferable, fill optional
+  `Repos` metadata with comma-separated slugs. If not inferable, omit the row. Do not encode repo
+  slugs into task IDs, filenames, prefixes, or areas.
 - **Priority** — high / medium / low.
 - **Roadmap placement** — leave unscheduled unless the user wants the new task in Now, Next, or Later.
 
@@ -82,14 +85,17 @@ Reserve the task file with `_base/scripts/reserve-work-item.sh task <PREFIX> <TY
 the printed path per the task convention's full format:
 
 - Metadata table including `Task ID`, `Type`, `Area`, `Source: inbox`, `Source ref: I-NNN`, and `Priority`.
+- Optional `Repos` metadata when inferable from `repos.project`.
 - A short human-readable title and a 2-4 sentence brief.
+- Optional `### Repo scope` section for cross-repo tasks when repo responsibilities need explanation.
 - Phases with per-phase checklists.
 - Acceptance criteria and a Related tests section, or `N/A - <reason>`.
 - Follow-ups, execution log, completion harvest, and completion summary sections.
 
 Then run `_base/scripts/sync-todo-ledgers.sh` to update ledgers and area pages. If the user chose roadmap
 placement, update `docs/tasks_manager/_roadmap.md` and run the sync again. After all task, inbox, and
-roadmap changes are done, run `_base/scripts/sync-todo-ledgers.sh --check`.
+roadmap changes are done, run `_base/scripts/sync-todo-ledgers.sh --check` and
+`_base/scripts/check-repos-config.sh`.
 
 ### 6. Close out the inbox file
 
@@ -104,15 +110,18 @@ the archived inbox file. For appended ideas, mention the file that received the 
 Summarize how many ideas were promoted (with their new task IDs, types, areas, and roadmap placement)
 and how many were dropped, deferred, or appended to existing work. Run `_base/scripts/sync-todo-ledgers.sh` at
 the end to ensure the ledgers and area pages reflect every change, then run
-`_base/scripts/sync-todo-ledgers.sh --check`.
+`_base/scripts/sync-todo-ledgers.sh --check` and `_base/scripts/check-repos-config.sh`.
 
 ## Quality bar
 
 - Every promoted idea became a well-formed task (passes `block-bad-todo-name.sh`) with `Source ref`
   pointing back to its `I-NNN`.
+- Optional `Repos` metadata uses slugs from `repos.project`; repo slugs are not encoded into task IDs,
+  filenames, prefixes, or areas.
 - New areas were confirmed with the user before use and recorded in `docs/tasks_manager/_areas.md`.
 - The inbox contains only `new` ideas afterward; promoted/dropped ones are in `_inbox_archived/`.
 - `docs/tasks_manager/_active.md`, `docs/areas/_overview.md`, and generated per-area blocks are in sync
   and pass `_base/scripts/sync-todo-ledgers.sh --check`.
+- Repo registry and task `Repos` metadata pass `_base/scripts/check-repos-config.sh`.
 - The discovery gate ran before task creation, and each promoted idea was checked for duplicates,
   existing tasks, already implemented behavior, stale context, related work, and relevant docs/code/tests.

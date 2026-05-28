@@ -20,6 +20,10 @@ When guiding the user, enforce these defaults:
 - Choose one canonical docs home before writing cross-repo docs. Prefer the central docs repo when it
   already exists and is clearly shared; otherwise use the initiating repo. Do not split one area's
   summary, dependency graph, and contracts across multiple repos.
+- Use repo slugs from `repos.project` when that registry exists. If it is missing, propose creating it
+  from `_base/repos.project.example` before committing cross-repo docs that need stable repo names.
+- Record source paths as `<repo-slug>:<repo-relative-path>`, never as absolute local checkout paths
+  from `.local/repos.map`.
 - Treat source paths, package names, install modes, env/config keys, API schemas, Docker images, and
   generated artifacts as first-class area facts. They are common drift points, not incidental detail.
 - Use `unknown` for unproven ownership or dependency edges. Do not fill gaps with plausible guesses.
@@ -72,8 +76,8 @@ area name implies a multi-repo capability.
 
 Gather evidence, not guesses:
 
-- repo roots, remotes, current branches, and whether each checkout is independent, a submodule, or a
-  vendored copy
+- repo roots, remotes, current branches, `repos.project` rows when present, and whether each checkout
+  is independent, a submodule, or a vendored copy
 - `.gitmodules`, lockfiles, workspace files, Dockerfiles, compose files, CI files, and packaging files
 - package names and import names from `package.json`, `pyproject.toml`, `setup.cfg`, `go.mod`,
   `Cargo.toml`, Gradle/Maven files, or equivalent local manifests
@@ -185,8 +189,10 @@ Use the shared status vocabulary:
 - The area boundary is confirmed when new or materially changed.
 - The area is narrow enough to be useful; broad catch-all areas are split or flagged as open questions.
 - The canonical docs home is explicit, especially when a central docs repo is available.
-- Every participant repo and dependency edge is backed by a file, manifest, command output, or existing
-  doc.
+- Every participant repo and dependency edge is backed by a file, manifest, command output, registry
+  row, or existing doc.
+- Participant repo names are stable slugs from `repos.project` when the project has opted into the
+  registry; source paths use `<repo-slug>:<repo-relative-path>`.
 - The docs distinguish runtime dependencies from local development conveniences.
 - Unknown ownership is reported as uncertainty, not rewritten into certainty.
 - Version and deployment independence is recorded when participant repos can roll out separately.

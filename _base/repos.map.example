@@ -1,0 +1,9 @@
+# Format: <repo-slug>: <absolute-path>
+# Blank lines and # comment lines are allowed.
+# Entries split on the first ':' and trim whitespace around slug and path.
+# Repo slugs must match ^[a-z][a-z0-9-]*$.
+# Paths must be absolute local paths to existing directories.
+# Duplicate slugs are invalid.
+# No shell expansion is performed; this is not dotenv.
+project-template: /home/you/repos/project_template
+naeural-core: /home/you/repos/naeural_core

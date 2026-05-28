@@ -10,6 +10,9 @@ One to three sentences describing the user-visible or platform outcome.
 
 ## Participant responsibilities
 
+Use repo slugs from `repos.project` when this project has a registry. Source paths should use
+`<repo-slug>:<repo-relative-path>`, not absolute local checkout paths.
+
 | Repo/package | Responsibility | Source paths | Owner/unknown |
 |--------------|----------------|--------------|---------------|
 

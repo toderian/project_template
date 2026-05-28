@@ -12,6 +12,10 @@ promote stable facts into the canonical knowledge files.
 Rerunnable agent reports, audits, inventories, and migration proposals belong in `_reports/` with
 timestamped filenames, one file per run. Stable project docs do not belong there.
 
+For cross-repo docs, use repo slugs from the root `repos.project` registry when that project has one.
+Reference source paths as `<repo-slug>:<repo-relative-path>`. Do not commit absolute local checkout
+paths from `.local/repos.map`.
+
 Queued work belongs in `../tasks_manager/`. Area status belongs in `../areas/`. Frozen or obsolete
 docs/resources belong in `../archive/`.
 

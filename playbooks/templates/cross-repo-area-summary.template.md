@@ -9,6 +9,9 @@ What this area owns and what it deliberately does not own.
 
 ## Participant repos
 
+Use repo slugs from `repos.project` when this project has a registry. Source paths should use
+`<repo-slug>:<repo-relative-path>`, not absolute local checkout paths.
+
 | Repo | Role | Package/import | Source paths | Install modes |
 |------|------|----------------|--------------|---------------|
 

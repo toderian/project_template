@@ -58,6 +58,12 @@ The root `CONTEXT.md`, if missing, is created as a pointer to `docs/resources/CO
 `.gitkeep` files come along with the copy so the empty dirs stay tracked by git. After seeding, run
 `_base/scripts/sync-todo-ledgers.sh` to confirm the ledgers are valid.
 
+Stable repo slugs are normally set up earlier in `_base/SETUP_INSTRUCTIONS.md` Phase 2c, before docs
+and tasks are created. If `/init` is the first moment a multi-repo need is discovered, copy
+`_base/repos.project.example` to `repos.project`, edit it for the downstream project, and commit it.
+For local checkout paths, copy `_base/repos.map.example` to `.local/repos.map` and edit it locally;
+`.local/` is gitignored and should not be committed.
+
 If `_base/docs/` is unavailable (e.g. a repo that vendored only part of the template), fall back to
 creating the dirs with `.gitkeep` and seeding `_areas.md`/`_active.md`/`_done.md`/`_roadmap.md`,
 `docs/_plans/`, `docs/areas/_overview.md`, `docs/resources/CONTEXT.md`,
@@ -87,6 +93,8 @@ Report what was created. Remind the user that:
 - Durable area knowledge lives in `docs/resources/<area>/`; use `/define-area` to index real
   architecture before adding cross-repo feature contracts
 - Cross-repo feature contracts live in `docs/resources/<area>/contracts/<feature-slug>.md`
+- Optional repo scope lives in committed `repos.project`; local checkout paths live in ignored
+  `.local/repos.map`
 - Tasks are typed `F`/`D`/`C`/`R` and classified by `Area` + `Prefix` (see
   `docs/tasks_manager/_areas.md`)
 - Completed tasks move to `_todos_archived/` and get a row in `docs/tasks_manager/_done.md`;

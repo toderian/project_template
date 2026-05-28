@@ -45,8 +45,8 @@ docs/
 
 The task manager remains the source of truth for work. `docs/resources/` replaces the older
 reference folder. `docs/resources/CONTEXT.md` is the primary domain glossary; root
-`CONTEXT.md` is only a pointer or legacy fallback. Do not add a Projects layer; the global roadmap and
-area pages are enough.
+`CONTEXT.md` is only a pointer or legacy fallback. Do not add repo slugs to task IDs, filenames,
+prefixes, or areas; use the optional `Repos` metadata row for repo scope.
 
 If these directories do not exist, run `/init` to seed them from `_base/docs/`.
 
@@ -115,6 +115,66 @@ Rules:
 `docs/areas/_overview.md`, and refresh generated Now / Next / Later blocks in each area page. Do not
 add durable architecture notes to area pages; write them under `docs/resources/<area>/`.
 
+## Repo registry and local checkout map
+
+Cross-repo projects use a two-layer repo convention:
+
+- `repos.project` is created and committed by each downstream project that opts into this convention.
+  It defines stable repo slugs, whether each repo is required, branch defaults, work mode, and related
+  areas.
+- `.local/repos.map` is a local-only, gitignored map from repo slug to absolute checkout path. It is
+  machine-specific and must never be referenced from committed docs.
+- `_base/repos.project.example` and `_base/repos.map.example` are upstream-owned examples for setup.
+
+Set this up during downstream project setup, after project-specific `README.md` and `AGENTS.md` are in
+place and before running `/init`, `/define-area`, `/cross-repo-feature`, `/add-task`, `/triage-inbox`,
+or `/prd-to-todos` for multi-repo work. Single-repo projects can skip it until they need repo-scope
+tasks or cross-repo docs.
+
+Repo slugs must match `^[a-z][a-z0-9-]*$`. If no `repos.project` exists, omit `Repos` metadata from
+task files. Cross-repo docs should reference source paths as `<repo-slug>:<repo-relative-path>`, never
+as absolute local paths. The branch/work policy in `repos.project` is a default; explicit user
+instructions, task files, or repo-specific `AGENTS.md` instructions override it.
+
+`repos.project` is Markdown with one required table:
+
+```md
+| Repo | Required | Role | Default branch | Integration branch | Work mode | Areas | Notes |
+|------|----------|------|----------------|--------------------|-----------|-------|-------|
+| project-template | yes | Agent template | main | main | default-branch | global | Work directly on main |
+```
+
+Allowed values:
+
+- `Required`: `yes` or `no`
+- branch fields: a branch name, `N/A`, or `unknown`
+- `Work mode`: `default-branch`, `task-branch`, `same-branch`, `read-only`, or `ask`
+- `Areas`: comma-separated area slugs or `N/A`
+
+`.local/repos.map` is line-oriented:
+
+```text
+# Format: <repo-slug>: <absolute-path>
+project-template: /home/you/repos/project_template
+naeural-core: /home/you/repos/naeural_core
+```
+
+Blank lines and `#` comment lines are allowed. Entries split on the first `:`, with whitespace trimmed
+around slug and path. Duplicate slugs are invalid. Paths must be absolute local paths to existing
+directories. No shell expansion is performed; this is not dotenv.
+
+Validate committed repo config when present with:
+
+```bash
+_base/scripts/check-repos-config.sh
+```
+
+Validate local checkout mappings too with:
+
+```bash
+_base/scripts/check-repos-config.sh --local
+```
+
 ## File format
 
 Every task starts with a metadata table, then a short title, a brief, phases, acceptance criteria,
@@ -143,6 +203,12 @@ related tests, follow-ups, execution log, completion harvest, and completion sum
 Harden session handling so users stay signed in reliably without weakening token storage. The current
 implementation has several scattered checks, so this task consolidates the behavior behind one
 testable boundary. The first pass should preserve public behavior, then add the stricter validation.
+
+When `repos.project` exists and repo scope is inferable, add the optional row near `Area`:
+
+```md
+| Repos | auth-service, web-app |
+```
 
 ### Phases
 
@@ -228,6 +294,7 @@ was captured for session expiry telemetry.
 | Task ID | Stable `<PREFIX>-NNN` handle, assigned at creation, never changed or reused |
 | Type | `F` feature, `D` debug/bug, `C` chore/refactor, `R` research/spike |
 | Area | Area slug from `docs/tasks_manager/_areas.md` |
+| Repos | Optional comma-separated repo slugs from `repos.project`, or `N/A`; existing tasks without this row remain valid |
 | Created | ISO 8601 datetime when the file was created |
 | Updated | ISO 8601 datetime of the last metadata or content update |
 | Last executed | ISO 8601 datetime when implementation/research last happened, or `N/A` |
@@ -245,6 +312,8 @@ was captured for session expiry telemetry.
 - **Phases:** one or more logical, committable phases with checklists.
 - **Acceptance criteria:** verifiable criteria for marking the whole task done.
 - **Related tests:** list known tests, or write `N/A - <reason>` when tests do not apply.
+- **Repo scope:** optional `### Repo scope` section for cross-repo tasks when metadata alone is not
+  enough; explain why each repo is involved and use `<repo-slug>:<repo-relative-path>` references.
 - **Follow-ups:** use `None` if no follow-ups exist. Prefer `I-NNN` inbox captures for new ideas.
 - **Execution log:** append-only. Each entry records actions taken, decisions made, test results, and outcome.
 - **Completion harvest:** required before archiving; each row must name updates or explicitly say `None`.
@@ -289,10 +358,12 @@ Creation steps:
 4. Pick a type (`F`, `D`, `C`, or `R`) and priority (`high`, `medium`, or `low`).
 5. Fill the reserved file in `docs/tasks_manager/_todos/` named `<PREFIX>-NNN-<TYPE>_<desc>.md`.
 6. Fill the full template: brief, phases, acceptance criteria, related tests, follow-ups, execution log,
-   completion harvest, and completion summary placeholders.
+   completion harvest, and completion summary placeholders. Add a `Repos` metadata row when repo scope
+   is inferable from `repos.project`; omit it when it is not.
 7. Set `Source` and `Source ref`.
 8. Run `_base/scripts/sync-todo-ledgers.sh`.
-9. Optionally place the task on `docs/tasks_manager/_roadmap.md` if the user wants it scheduled.
+9. Run `_base/scripts/check-repos-config.sh` to validate optional task `Repos` metadata.
+10. Optionally place the task on `docs/tasks_manager/_roadmap.md` if the user wants it scheduled.
 
 Keep tasks atomic: one clear deliverable per file.
 

@@ -54,9 +54,10 @@ If the check fails, the most likely cause is missing SSH access to the upstream 
 
 ---
 
-## Phase 2 — Replace the downstream-owned slot files
+## Phase 2 — Replace downstream-owned slot files and optional registries
 
-The template ships placeholder versions of two files that the downstream project must own:
+The template ships placeholder versions of required downstream-owned files and examples for optional
+downstream-owned registries:
 
 ### 2a — `README.md`
 
@@ -106,7 +107,33 @@ if not section.strip():
 PY
 ```
 
-### 2c — `PROJECT.md` (optional, enables `/align`)
+### 2c — `repos.project` (optional, enables stable repo slugs)
+
+Do this step during downstream setup if the project spans multiple repos or expects agents to write
+cross-repo docs, repo-scoped tasks, or branch/work policy from stable repo names. Set it up before
+running `/init`, `/define-area`, `/cross-repo-feature`, `/add-task`, `/triage-inbox`, or
+`/prd-to-todos` for multi-repo work so those skills can use the registry from the start.
+
+Create a committed repo registry and a local checkout map:
+
+```bash
+[[ -f repos.project ]] && echo "repos.project already exists, not overwriting" || cp _base/repos.project.example repos.project
+mkdir -p .local
+[[ -f .local/repos.map ]] && echo ".local/repos.map already exists, not overwriting" || cp _base/repos.map.example .local/repos.map
+```
+
+Then edit `repos.project` so each row names a real project repo, and edit `.local/repos.map` with
+absolute checkout directory paths on this machine. Commit `repos.project`; do not commit
+`.local/repos.map`.
+
+If the project is single-repo or does not need repo-scope task metadata, skip this step. Tasks without
+a `Repos` metadata row remain valid.
+
+**Check:** if `repos.project` exists, `_base/scripts/check-repos-config.sh` exits 0. If
+`.local/repos.map` was configured for this machine, `_base/scripts/check-repos-config.sh --local` exits
+0.
+
+### 2d — `PROJECT.md` (optional, enables `/align`)
 
 If the project wants feature-level alignment gating via the `/align` skill, copy the template (only if `PROJECT.md` does not already exist) and fill in at least Vision, Goals, and Out of scope:
 
@@ -120,7 +147,7 @@ If the project does not want alignment gating, skip this step — the rest of th
 
 **Check:** either `PROJECT.md` exists and the literal string `<Replace this paragraph` no longer appears in its Vision section, **or** the project intentionally has no `PROJECT.md` (in which case `/align` is unavailable and the user has been informed).
 
-### 2d — `docs/` task system (optional, enables inbox/tasks/areas/resources)
+### 2e — `docs/` task system (optional, enables inbox/tasks/areas/resources)
 
 If the project wants the template task system, run `/init` or seed the docs layout directly:
 
@@ -262,6 +289,8 @@ Verify only the runtime you set up (the other one, if it gets set up later, will
 
 1. **Template remote is reachable.** `git ls-remote template HEAD` returns a hash.
 2. **Downstream slot files are project-specific.** Re-run the Phase 2 checks.
+3. **Repo registry is valid when present.** If `repos.project` exists, `_base/scripts/check-repos-config.sh`
+   exits 0. If `.local/repos.map` is configured, `_base/scripts/check-repos-config.sh --local` exits 0.
 
 **If you are Claude Code:**
 

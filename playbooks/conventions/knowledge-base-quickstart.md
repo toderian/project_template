@@ -23,6 +23,9 @@ authoritative.
 - `docs/resources/<area>/contracts/<feature-slug>.md` owns concrete cross-repo feature contracts:
   participant responsibilities, API/schema/event/env/CLI/Docker boundaries, compatibility, rollout,
   and verification.
+- `repos.project`, when present, owns stable repo slugs, required/optional status, branch defaults,
+  work mode, and area association for the project. `.local/repos.map` owns machine-local absolute
+  checkout paths and is intentionally gitignored.
 - `docs/resources/<area>/components/<component-slug>/CONTEXT.md` owns component architecture:
   boundaries, public interfaces, dependencies, data ownership, tests, and invariants.
 - `docs/resources/_inbox/` is the raw knowledge drop zone for documents, exports, notes, and pasted
@@ -107,7 +110,9 @@ Use `/define-area` when the area spans repos, packages, install modes, or runtim
 
 For cross-repo work, agents should guide users toward narrow area boundaries, one canonical docs home,
 explicit version compatibility, first-class env/auth/Docker/runtime boundaries, and a verification
-matrix that names missing checks instead of hiding them.
+matrix that names missing checks instead of hiding them. Use `<repo-slug>:<repo-relative-path>` source
+references from `repos.project` when available, and never write absolute local checkout paths into
+committed docs.
 
 ## Component contexts
 

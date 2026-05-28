@@ -1,17 +1,40 @@
 # Changelog (base)
 
+BASE_VERSION: 2026.05.28.0
+
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
 
 All template-relevant changes are recorded here so downstream projects can see what's coming in before running `git merge template/master`.
 
-Format: reverse chronological. Each entry lists the date, a short description, and (where relevant) a **Downstream impact** line explaining what a project pulling this in should expect — particularly merge conflicts, new conventions to follow, or behavior changes.
+Format: reverse chronological. `BASE_VERSION` is the machine-readable base-template version currently
+present in the checkout; bump it for every base-template change intended for downstream repos. Use
+`YYYY.MM.DD.N`, where `N` starts at `0` for the first base change of that date. Each changelog entry
+lists the date, a short description, and (where relevant) a **Downstream impact** line explaining what
+a project pulling this in should expect — particularly merge conflicts, new conventions to follow, or
+behavior changes.
 
 This file is **upstream-owned**: do not edit it in a downstream project. It updates cleanly via `git fetch template && git merge`.
 
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Add optional repo registry and local checkout map convention
+
+Projects can now opt into stable repo slugs without committing machine-local paths.
+
+- New `_base/repos.project.example` provides the scaffold for downstream-owned `repos.project`.
+- New `_base/repos.map.example` documents the gitignored `.local/repos.map` checkout map format.
+- New `_base/scripts/check-repos-config.sh` validates the optional registry, task `Repos` metadata, and
+  local checkout paths in `--local` mode.
+- Task-producing playbooks can fill optional `Repos` metadata when inferable from `repos.project`.
+- Cross-repo docs now use `<repo-slug>:<repo-relative-path>` references and keep absolute local paths
+  out of committed docs.
+
+**Downstream impact:** no required action for single-repo projects. Multi-repo projects can copy
+`_base/repos.project.example` to `repos.project`, commit it, copy `_base/repos.map.example` to
+`.local/repos.map`, and run `_base/scripts/check-repos-config.sh --local`.
 
 ### Add timestamped report artifact convention
 

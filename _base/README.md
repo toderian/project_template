@@ -23,6 +23,8 @@ This repo is designed to work with both **Claude Code** and **OpenAI Codex**. Co
 │   ├── CHANGELOG.md                       # Base-template changelog
 │   ├── SETUP_INSTRUCTIONS.md              # Numbered setup steps for an agent (or human) to execute
 │   ├── PROJECT.md.template                # Optional alignment-doc scaffold; copy to ./PROJECT.md to enable /align
+│   ├── repos.project.example              # Optional downstream repo-registry scaffold; copy to ./repos.project
+│   ├── repos.map.example                  # Optional local checkout-map example; copy to ./.local/repos.map
 │   ├── project.env.example                # Reference env vars; copy to ./project.env at repo root
 │   ├── docs/                              # Seed docs layout: tasks, areas, knowledge resources, archive
 │   ├── plugins/                           # Template-owned Codex plugins and plugin installers
@@ -36,6 +38,7 @@ This repo is designed to work with both **Claude Code** and **OpenAI Codex**. Co
 │       ├── seed-docs.sh                   # Seeds docs/ from _base/docs/ without overwriting
 │       ├── reserve-work-item.sh           # Atomically reserves task/inbox filenames
 │       ├── sync-todo-ledgers.sh           # Regenerates task ledgers and generated area blocks
+│       ├── check-repos-config.sh          # Validates optional repos.project and .local/repos.map
 │       ├── gen-skills-table.sh            # Regenerates the skills table in _base/README.md
 │       ├── check-skills-sync.sh           # Validates skill/wrapper/table consistency
 │       └── check-codex-plugins.sh         # Validates bundled Codex plugin manifests/assets
@@ -101,6 +104,12 @@ Task files own status and detail, the roadmap owns placement, and ledgers/area p
 The primary knowledge base lives in `docs/resources/CONTEXT.md`, `docs/resources/<area>/summary.md`,
 `docs/resources/<area>/dependency-graph.md`, `docs/resources/<area>/contracts/<feature-slug>.md`, and
 `docs/resources/<area>/components/<component-slug>/CONTEXT.md`; root `CONTEXT.md` is a pointer/fallback.
+Projects that span multiple repos can opt into a committed `repos.project` registry, created from
+`_base/repos.project.example`, plus a gitignored `.local/repos.map` checkout map, created from
+`_base/repos.map.example`. Repo slugs from `repos.project` are the stable names for task `Repos`
+metadata and cross-repo source paths such as `<repo-slug>:<repo-relative-path>`; absolute local paths
+stay out of committed docs. Set this up during `_base/SETUP_INSTRUCTIONS.md` Phase 2c, before seeding
+docs or creating multi-repo tasks/contracts, when the project needs it.
 Raw source material waiting for extraction lives in `docs/resources/_inbox/`, and curated digests live
 under `docs/resources/_digests/<area-or-bucket>/` so distilled knowledge stays segregated by area
 before stable facts are promoted into canonical docs. Rerunnable reports, audits, inventories, and
@@ -228,6 +237,11 @@ Severities: **BLOCKER** (missing/orphan files, broken references), **DRIFT** (ou
 
 Template-owned scripts live under `_base/scripts/`, and template-owned bundled plugins live under `_base/plugins/`, so the root `scripts/` and `plugins/` directories remain available for downstream project tooling. Some helpers validate upstream-owned content, while task-system and setup helpers intentionally operate on the downstream repo state from their upstream-owned location. Downstream projects should not re-implement them; pull updates from the template and re-run.
 
+`_base/scripts/check-repos-config.sh` validates an optional downstream `repos.project` registry and any
+task `Repos` metadata. Default mode is safe for projects that have not opted in. Use
+`_base/scripts/check-repos-config.sh --local` after configuring `.local/repos.map` to verify required
+repo mappings, absolute paths, and checkout directories.
+
 ## Platform support
 
 | Feature | Claude Code | Codex |
@@ -336,6 +350,8 @@ Copy these into the target project (then point an agent at `_base/SETUP_INSTRUCT
 | `_base/plugins/` | Both | Vendored plugins, `install-codex-plugins.sh`, `install-claude-plugins.sh`, `bootstrap-third-party.sh` |
 | `_base/project.env.example` | Both (optional) | Copy to `project.env` at the repo root (`cp _base/project.env.example project.env`) to override default install paths |
 | `_base/PROJECT.md.template` | Both (optional) | Copy to `PROJECT.md` at the repo root (`cp _base/PROJECT.md.template PROJECT.md`) and fill in to enable the `/align` skill for feature-level alignment gating |
+| `_base/repos.project.example` | Both (optional) | Copy to `repos.project` and edit when the downstream project needs a committed repo registry |
+| `_base/repos.map.example` | Both (optional, local-only) | Copy to `.local/repos.map` and edit with machine-local absolute checkout directory paths; `.local/` is gitignored |
 
 After copying or pulling template updates, run the one-command setup:
 
@@ -434,6 +450,8 @@ Each repo file falls into one of three buckets:
 
 - `README.md` — describes the project, links to `_base/README.md`.
 - `AGENTS.md` — entrypoint auto-loaded by agents; instructs them to read `_base/AGENTS.md` and then applies any project-specific overrides.
+- `repos.project` (optional) — committed repo registry created from `_base/repos.project.example` when
+  a project needs stable repo slugs, branch/work policy, and task `Repos` metadata.
 
 **Upstream-owned** — everything under `_base/`. Do not edit; flows in cleanly from `git fetch template && git merge`. Simple rule for merge conflicts: always accept upstream for `_base/*`.
 
@@ -442,6 +460,8 @@ Each repo file falls into one of three buckets:
 - `_base/CHANGELOG.md` — base-template changelog; read this after `git fetch template` to know what's coming in. Downstream projects may keep their own root-level `CHANGELOG.md` for project-specific changes (downstream-owned, never collides).
 - `_base/SETUP_INSTRUCTIONS.md` — agent-readable numbered setup steps. Point an agent at this file to wire up a fresh project end-to-end (template remote, runtime installers, downstream-slot replacements, verification).
 - `_base/PROJECT.md.template` — alignment-doc scaffold; copy to `PROJECT.md` at the repo root if you want feature-level alignment gating via `/align`.
+- `_base/repos.project.example` — optional scaffold for downstream `repos.project`.
+- `_base/repos.map.example` — optional example for local `.local/repos.map` checkout mappings.
 - `_base/docs/` — seed docs layout for the task manager, generated area views, docs-primary
   knowledge resources, raw knowledge inbox/digests/reports, and archive.
 
@@ -450,6 +470,7 @@ Each repo file falls into one of three buckets:
 - `.claude/settings.json` — merge hook entries by hand; don't blindly accept upstream.
 - `playbooks/skills/*` and `skills/*` / `.claude/skills/*` — accept upstream for skills you haven't customized; keep downstream for skills you've forked.
 - `project.env` — never committed; not a conflict source.
+- `.local/repos.map` — never committed; machine-local checkout paths for repo slugs in `repos.project`.
 - `PROJECT.md` — downstream-owned alignment doc, if seeded from `_base/PROJECT.md.template`. The template flows in cleanly; the seeded `PROJECT.md` is the project's own and is not touched by template pulls.
 
 ### Agent instructions for downstream projects
@@ -474,7 +495,7 @@ When operating in a project that was seeded from this template, agents should:
 - copy the files in `playbooks/templates/` for durable progress, task, and decision state
 - require agents to use conventional commit summaries plus a commit body
 - define branch mode up front: default branch for downstream template-maintenance repos, explicit task
-  branches for working/product repos
+  branches for working/product repos, or `repos.project` work modes for multi-repo projects
 - rerun `playbooks/meta/UPDATE_PLAN.md` whenever you change the project's agent doctrine
 
 ## Examples
