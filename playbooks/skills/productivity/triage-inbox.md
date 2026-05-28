@@ -74,7 +74,7 @@ For each promoted idea, settle:
 - **Area and prefix** — pick a row from `docs/tasks_manager/_areas.md`. If none fits, this is the
   moment to define a new area with the user: propose an area slug, uppercase prefix, one-line
   description, and page path, confirm, append it to `_areas.md`, then use it.
-- **Repos** — if `repos.project` exists and the relevant repo slugs are inferable, fill optional
+- **Repos** — if `.config/repos.project.md` exists and the relevant repo slugs are inferable, fill optional
   `Repos` metadata with comma-separated slugs. If not inferable, omit the row. Do not encode repo
   slugs into task IDs, filenames, prefixes, or areas.
 - **Priority** — high / medium / low.
@@ -86,7 +86,7 @@ Reserve the task file with `_base/scripts/reserve-work-item.sh task <PREFIX> <TY
 the printed path per the task convention's full format:
 
 - Metadata table including `Task ID`, `Type`, `Area`, `Source: inbox`, `Source ref: I-NNN`, and `Priority`.
-- Optional `Repos` metadata when inferable from `repos.project`.
+- Optional `Repos` metadata when inferable from `.config/repos.project.md`.
 - A short human-readable title and a 2-4 sentence brief.
 - Optional `### Repo scope` section for cross-repo tasks when repo responsibilities need explanation.
 - Phases with per-phase checklists.
@@ -117,7 +117,7 @@ the end to ensure the ledgers and area pages reflect every change, then run
 
 - Every promoted idea became a well-formed task (passes `block-bad-todo-name.sh`) with `Source ref`
   pointing back to its `I-NNN`.
-- Optional `Repos` metadata uses slugs from `repos.project`; repo slugs are not encoded into task IDs,
+- Optional `Repos` metadata uses slugs from `.config/repos.project.md`; repo slugs are not encoded into task IDs,
   filenames, prefixes, or areas.
 - New areas were confirmed with the user before use and recorded in `docs/tasks_manager/_areas.md`.
 - The inbox contains only `new` ideas afterward; promoted/dropped ones are in `_inbox_archived/`.

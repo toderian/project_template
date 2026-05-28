@@ -51,7 +51,7 @@ Read `docs/tasks_manager/_areas.md`.
 - Use `global` / prefix `T` for default, global, or cross-area work.
 - If no area fits, propose an `Area`, `Prefix`, `Description`, and `Page` row and ask before appending.
 
-If `repos.project` exists, also infer the relevant repo slugs from the request, nearby docs, code
+If `.config/repos.project.md` exists, also infer the relevant repo slugs from the request, nearby docs, code
 paths, or area ownership. Fill the optional `Repos` metadata row with comma-separated slugs when the
 scope is clear. If repo scope is unclear, omit the row rather than guessing. Do not encode repo slugs
 into the task ID, filename, prefix, or area.
@@ -62,7 +62,7 @@ Create one atomic task. Fill:
 
 - type (`F`, `D`, `C`, `R`)
 - priority (`high`, `medium`, `low`)
-- optional `Repos` metadata when inferable from `repos.project`
+- optional `Repos` metadata when inferable from `.config/repos.project.md`
 - 2-4 sentence brief
 - phases with checklists
 - acceptance criteria
@@ -121,7 +121,7 @@ review gate in `todo-convention.md`.
 - The filename passes `block-bad-todo-name.sh`.
 - The task has the complete template required by `todo-convention.md`.
 - The task ID uses the selected area's prefix and the next per-prefix counter.
-- Optional `Repos` metadata uses slugs from `repos.project`; repo slugs are not encoded into task IDs,
+- Optional `Repos` metadata uses slugs from `.config/repos.project.md`; repo slugs are not encoded into task IDs,
   filenames, prefixes, or areas.
 - New area rows are user-approved and include a page path.
 - Ledgers and area pages are synced and pass `_base/scripts/sync-todo-ledgers.sh --check`.

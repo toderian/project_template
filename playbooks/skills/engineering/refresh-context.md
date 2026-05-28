@@ -24,7 +24,7 @@ Keep these locations distinct:
   pages when the ledger generator owns them.
 - Component contexts live at
   `docs/resources/<area>/components/<component-slug>/CONTEXT.md`.
-- `repos.project`, when present, owns stable repo slugs and branch/work policy defaults. `.local/repos.map`
+- `.config/repos.project.md`, when present, owns stable repo slugs and branch/work policy defaults. `.local/repos.map`
   maps those slugs to machine-local absolute checkout paths and must not be cited in committed docs.
 - Raw source drops live at `docs/resources/_inbox/` and curated source digests live under
   `docs/resources/_digests/<area-or-bucket>/`. Refresh uses digests as evidence; raw inbox processing
@@ -94,7 +94,7 @@ List the docs that can drift:
 Record each context doc's explicit review date if it has one. For area docs, capture participant repos
 and source paths from area summaries, dependency graphs, and feature contracts. For component docs,
 also capture source paths from headers matching `Architectural context for <repo>:<source-path>`.
-When `repos.project` exists, verify participant repo names against its slugs and keep source path
+When `.config/repos.project.md` exists, verify participant repo names against its slugs and keep source path
 references in `<repo-slug>:<repo-relative-path>` form.
 
 ### 2. Discover the Changed Scope

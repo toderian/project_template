@@ -20,8 +20,8 @@ When guiding the user, enforce these defaults:
 - Choose one canonical docs home before writing cross-repo docs. Prefer the central docs repo when it
   already exists and is clearly shared; otherwise use the initiating repo. Do not split one area's
   summary, dependency graph, and contracts across multiple repos.
-- Use repo slugs from `repos.project` when that registry exists. If it is missing, propose creating it
-  from `_base/repos.project.example` before committing cross-repo docs that need stable repo names.
+- Use repo slugs from `.config/repos.project.md` when that registry exists. If it is missing, propose creating it
+  from `_base/repos.project.example.md` before committing cross-repo docs that need stable repo names.
 - Record source paths as `<repo-slug>:<repo-relative-path>`, never as absolute local checkout paths
   from `.local/repos.map`.
 - Treat source paths, package names, install modes, env/config keys, API schemas, Docker images, and
@@ -78,7 +78,7 @@ area name implies a multi-repo capability.
 
 Gather evidence, not guesses:
 
-- repo roots, remotes, current branches, `repos.project` rows when present, and whether each checkout
+- repo roots, remotes, current branches, `.config/repos.project.md` rows when present, and whether each checkout
   is independent, a submodule, or a vendored copy
 - `.gitmodules`, lockfiles, workspace files, Dockerfiles, compose files, CI files, and packaging files
 - package names and import names from `package.json`, `pyproject.toml`, `setup.cfg`, `go.mod`,
@@ -194,7 +194,7 @@ Use the shared status vocabulary:
 - The canonical docs home is explicit, especially when a central docs repo is available.
 - Every participant repo and dependency edge is backed by a file, manifest, command output, registry
   row, or existing doc.
-- Participant repo names are stable slugs from `repos.project` when the project has opted into the
+- Participant repo names are stable slugs from `.config/repos.project.md` when the project has opted into the
   registry; source paths use `<repo-slug>:<repo-relative-path>`.
 - The docs distinguish runtime dependencies from local development conveniences.
 - Unknown ownership is reported as uncertainty, not rewritten into certainty.

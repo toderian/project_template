@@ -21,7 +21,7 @@ Checks:
   - syntax-checks template shell scripts
   - validates skill/wrapper/table consistency
   - validates bundled Codex plugin manifests
-  - validates optional repos.project and task Repos metadata
+  - validates optional .config/repos.project.md and task Repos metadata
   - validates .local/repos.map when present, or always with --local
   - validates task ledgers in --check mode
   - runs git diff --check

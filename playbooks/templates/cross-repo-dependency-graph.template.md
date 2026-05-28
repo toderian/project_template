@@ -5,7 +5,7 @@
 
 ## Repo graph
 
-Use repo slugs from `repos.project` when this project has a registry. Source path evidence should use
+Use repo slugs from `.config/repos.project.md` when this project has a registry. Source path evidence should use
 `<repo-slug>:<repo-relative-path>`, not absolute local checkout paths.
 
 ```text

@@ -43,8 +43,8 @@ When guiding the user, enforce these defaults:
   API/schema/env/Docker compatibility should grow tests or CI checks when the risk justifies it.
 - Link implementation tasks and PRs back to the contract, and run `/refresh-context` during closeout
   when code changes affect recorded boundaries.
-- Use repo slugs from `repos.project` when that registry exists. If it is missing and the contract
-  needs stable repo names, propose creating it from `_base/repos.project.example` first.
+- Use repo slugs from `.config/repos.project.md` when that registry exists. If it is missing and the contract
+  needs stable repo names, propose creating it from `_base/repos.project.example.md` first.
 - Record source paths as `<repo-slug>:<repo-relative-path>`, never as absolute local checkout paths
   from `.local/repos.map`.
 
@@ -174,7 +174,7 @@ Use the shared status vocabulary:
 
 - A durable area context exists before the contract is written.
 - Repo responsibilities are explicit enough that each implementation task can be assigned.
-- Repo names use stable `repos.project` slugs when the project has opted into the registry; source
+- Repo names use stable `.config/repos.project.md` slugs when the project has opted into the registry; source
   paths use `<repo-slug>:<repo-relative-path>`.
 - API/schema/event/message/env/CLI/Docker boundaries are either specified or explicitly marked `None`.
 - Compatibility and rollout order are stated, not left as implementation folklore.

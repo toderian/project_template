@@ -3,7 +3,7 @@
 # Validate the committed repo registry and, optionally, the local checkout map.
 #
 # Default mode validates:
-#   repos.project when present
+#   .config/repos.project.md when present
 #   task Repos metadata values when docs/tasks_manager/ exists
 #
 # --local additionally validates:
@@ -22,7 +22,7 @@ usage() {
   cat <<'EOF'
 Usage: _base/scripts/check-repos-config.sh [--local]
 
-Validate repo registry configuration.
+Validate `.config/repos.project.md`, task `Repos` metadata, and optional local checkout mappings.
 
 Options:
   --local   Also validate .local/repos.map and required checkout paths.
@@ -67,6 +67,7 @@ TASK_META_HEADER = ["Field", "Value"]
 SLUG_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 AREA_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 WORK_MODES = {"default-branch", "task-branch", "same-branch", "read-only", "ask"}
+REGISTRY_PATH = ROOT / ".config" / "repos.project.md"
 
 errors: list[str] = []
 
@@ -208,10 +209,14 @@ def validate_area_list(path: Path, line: int, value: str, label: str) -> None:
 
 
 def load_registry() -> tuple[dict[str, dict[str, str]], bool]:
-    path = ROOT / "repos.project"
+    path = REGISTRY_PATH
     if not path.exists():
         if LOCAL_MODE:
-            report(path, None, "missing repo registry; copy _base/repos.project.example to repos.project")
+            report(
+                path,
+                None,
+                "missing repo registry; copy _base/repos.project.example.md to .config/repos.project.md",
+            )
         return {}, False
 
     rows = parse_required_table(path, REGISTRY_HEADER, "repo registry")
@@ -302,7 +307,7 @@ def validate_repo_list(
         report(path, line, "Repos must be comma-separated repo slugs or N/A")
         return
     if not registry_present:
-        report(path, line, "Repos metadata requires a committed repos.project registry")
+        report(path, line, "Repos metadata requires a committed .config/repos.project.md registry")
         return
 
     parts = [part.strip() for part in value.split(",")]

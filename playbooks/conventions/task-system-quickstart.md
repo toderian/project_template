@@ -13,7 +13,7 @@ For full details, use:
 
 ## Golden path
 
-For multi-repo projects, set up `repos.project` and `.local/repos.map` during
+For multi-repo projects, set up `.config/repos.project.md` and `.local/repos.map` during
 `_base/SETUP_INSTRUCTIONS.md` Phase 2c before creating tasks, so task-producing skills can fill
 optional `Repos` metadata from stable repo slugs.
 
@@ -51,7 +51,7 @@ _base/scripts/sync-todo-ledgers.sh --check
 - **Task files** (`docs/tasks_manager/_todos/<PREFIX>-NNN-<TYPE>_*.md`) own committed work details:
   status, priority, owner, phase checklists, acceptance criteria, related tests, execution log,
   completion harvest, and completion summary. When a downstream project has committed
-  `repos.project`, tasks may also include optional `Repos` metadata with comma-separated repo slugs.
+  `.config/repos.project.md`, tasks may also include optional `Repos` metadata with comma-separated repo slugs.
 - **Roadmap** (`docs/tasks_manager/_roadmap.md`) owns placement and order only: Now, Next, Later. It
   references task IDs in `Now` / `Next`; raw inbox IDs may sit in `Later` as parking-lot signals until
   `/triage-inbox` promotes or drops them. It does not duplicate task status or phase detail.

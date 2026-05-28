@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.05.28.3
+BASE_VERSION: 2026.05.28.4
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,20 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Move repo registry to `.config/repos.project.md`
+
+The committed downstream repo registry now lives under `.config/` and uses a Markdown extension.
+
+- `_base/repos.project.example` was renamed to `_base/repos.project.example.md`.
+- `_base/scripts/check-repos-config.sh` now validates `.config/repos.project.md` only.
+- Root-level `repos.project` and `repos.project.md` are no longer supported registry paths.
+- `.local/repos.map` stays unchanged as the gitignored machine-local checkout map.
+
+**Downstream impact:** projects with a committed root `repos.project` or `repos.project.md` must
+migrate with `mkdir -p .config && git mv <legacy-file> .config/repos.project.md`, then run
+`_base/scripts/check-repos-config.sh`. Fresh multi-repo projects should copy
+`_base/repos.project.example.md` to `.config/repos.project.md` and keep `.local/repos.map` local.
 
 ### Add operational runbook storage convention
 

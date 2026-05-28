@@ -21,7 +21,7 @@ Raw transcripts, pasted debugging logs, and one-off terminal output should not b
 runbooks. Keep raw material in `_inbox/`, distilled reusable facts in `_digests/`, and rerunnable
 outputs in `_reports/`; promote only stable procedures into runbooks.
 
-For cross-repo docs, use repo slugs from the root `repos.project` registry when that project has one.
+For cross-repo docs, use repo slugs from the committed `.config/repos.project.md` registry when that project has one.
 Reference source paths as `<repo-slug>:<repo-relative-path>`. Do not commit absolute local checkout
 paths from `.local/repos.map`.
 

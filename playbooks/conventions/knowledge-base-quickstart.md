@@ -27,7 +27,7 @@ authoritative.
   procedures: SSH, setup, debugging, deployment inspection, service restart, and similar agent-runnable
   workflows. Use `global` for cross-cutting runbooks. Local placeholder values live in
   `.local/runbooks/<scenario-slug>.local.md`.
-- `repos.project`, when present, owns stable repo slugs, required/optional status, branch defaults,
+- `.config/repos.project.md`, when present, owns stable repo slugs, required/optional status, branch defaults,
   work mode, and area association for the project. `.local/repos.map` owns machine-local absolute
   checkout paths and is intentionally gitignored.
 - `docs/resources/<area>/components/<component-slug>/CONTEXT.md` owns component architecture:
@@ -127,7 +127,7 @@ Use `/define-area` when the area spans repos, packages, install modes, or runtim
 For cross-repo work, agents should guide users toward narrow area boundaries, one canonical docs home,
 explicit version compatibility, first-class env/auth/Docker/runtime boundaries, and a verification
 matrix that names missing checks instead of hiding them. Use `<repo-slug>:<repo-relative-path>` source
-references from `repos.project` when available, and never write absolute local checkout paths into
+references from `.config/repos.project.md` when available, and never write absolute local checkout paths into
 committed docs.
 
 ## Component contexts

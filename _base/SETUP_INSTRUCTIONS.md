@@ -107,7 +107,7 @@ if not section.strip():
 PY
 ```
 
-### 2c — `repos.project` (optional, enables stable repo slugs)
+### 2c — `.config/repos.project.md` (optional, enables stable repo slugs)
 
 Do this step during downstream setup if the project spans multiple repos or expects agents to write
 cross-repo docs, repo-scoped tasks, or branch/work policy from stable repo names. Set it up before
@@ -117,19 +117,19 @@ running `/init`, `/define-area`, `/cross-repo-feature`, `/add-task`, `/triage-in
 Create a committed repo registry and a local checkout map:
 
 ```bash
-[[ -f repos.project ]] && echo "repos.project already exists, not overwriting" || cp _base/repos.project.example repos.project
-mkdir -p .local
+mkdir -p .config .local
+[[ -f .config/repos.project.md ]] && echo ".config/repos.project.md already exists, not overwriting" || cp _base/repos.project.example.md .config/repos.project.md
 [[ -f .local/repos.map ]] && echo ".local/repos.map already exists, not overwriting" || cp _base/repos.map.example .local/repos.map
 ```
 
-Then edit `repos.project` so each row names a real project repo, and edit `.local/repos.map` with
-absolute checkout directory paths on this machine. Commit `repos.project`; do not commit
+Then edit `.config/repos.project.md` so each row names a real project repo, and edit `.local/repos.map` with
+absolute checkout directory paths on this machine. Commit `.config/repos.project.md`; do not commit
 `.local/repos.map`.
 
 If the project is single-repo or does not need repo-scope task metadata, skip this step. Tasks without
 a `Repos` metadata row remain valid.
 
-**Check:** if `repos.project` exists, `_base/scripts/check-repos-config.sh` exits 0. If
+**Check:** if `.config/repos.project.md` exists, `_base/scripts/check-repos-config.sh` exits 0. If
 `.local/repos.map` was configured for this machine, `_base/scripts/check-repos-config.sh --local` exits
 0.
 

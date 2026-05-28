@@ -1,7 +1,7 @@
 # Repository Registry
 
-This file is copied to `repos.project` and then owned by the downstream project. Keep repo slugs stable
-because tasks and cross-repo docs use them as durable names.
+Copy this scaffold to `.config/repos.project.md` and then let the downstream project own that file.
+Keep repo slugs stable because tasks and cross-repo docs use them as durable names.
 
 Allowed values:
 
