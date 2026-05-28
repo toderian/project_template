@@ -13,6 +13,22 @@ For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
 
+### Move template plugins under `_base/plugins`
+
+Template-owned bundled plugins no longer live in the root `plugins/` directory.
+
+- Moved bundled Codex plugin packages and plugin installers under `_base/plugins/`.
+- `_base/scripts/setup-agents.sh` now calls plugin installers from `_base/plugins/`.
+- `_base/scripts/check-codex-plugins.sh` validates `_base/plugins/`.
+- Codex marketplace entries are refreshed to point at `./_base/plugins/<name>` instead of the old
+  root `./plugins/<name>` paths.
+- Root `plugins/` is left for downstream project-owned plugin/tooling content.
+
+**Downstream impact:** after pulling template updates, run `./_base/scripts/setup-agents.sh` so Codex
+plugin symlinks and marketplace entries refresh to `_base/plugins`. Use
+`./_base/plugins/install-codex-plugins.sh`, `./_base/plugins/install-claude-plugins.sh`, or
+`./_base/plugins/bootstrap-third-party.sh` only for manual/debugging setup.
+
 ### Move template scripts under `_base/scripts`
 
 Template-owned operational scripts no longer live in the root `scripts/` directory.
@@ -149,7 +165,7 @@ future component context to the docs-primary component path. Re-run skill instal
 
 Follow-up consistency fixes from a Claude/Codex parity review:
 
-- `_base/README.md` now reflects that Claude Code can use `plugins/install-claude-plugins.sh`, lists the
+- `_base/README.md` now reflects that Claude Code can use `_base/plugins/install-claude-plugins.sh`, lists the
   full Claude agent set in the repo tree, and points Codex implementer/reviewer behavioral skills at
   their bucketed source paths.
 - `_base/SETUP_INSTRUCTIONS.md` now describes the bucketed Codex skill source layout, flat install
@@ -165,17 +181,17 @@ Follow-up consistency fixes from a Claude/Codex parity review:
 - The pre-implementation review gate is now explicitly bounded: routine tasks can log concise
   codebase-first current-state and plan-freshness notes, while full researcher/plan-critique workflows
   are reserved for larger, stale, high-risk, or externally current work.
-- `plugins/install-claude-plugins.sh` now distinguishes GitHub marketplace repos from local Claude
+- `_base/plugins/install-claude-plugins.sh` now distinguishes GitHub marketplace repos from local Claude
   marketplace aliases, fixing Superpowers installation to use `superpowers@superpowers-marketplace`.
 - New `_base/scripts/check-codex-plugins.sh` validates bundled Codex plugin manifests, plugin skill
-  files, app JSON, optional MCP JSON, and declared interface assets. `plugins/install-codex-plugins.sh`
+  files, app JSON, optional MCP JSON, and declared interface assets. `_base/plugins/install-codex-plugins.sh`
   runs it before changing local install state.
 - `_base/scripts/gen-skills-table.sh --check` now supports read-only table validation, and
   `_base/scripts/check-skills-sync.sh` uses that mode instead of regenerating and restoring files.
 
 **Downstream impact:** documentation and setup-validation changes only. Re-run skill installers if you
 want the refreshed `/triage-inbox` description in global Claude/Codex skill directories. Re-run
-`./plugins/install-claude-plugins.sh` if you installed the older Superpowers marketplace entry.
+`./_base/plugins/install-claude-plugins.sh` if you installed the older Superpowers marketplace entry.
 
 ### Add task-system quickstart and triage discovery gate
 
@@ -259,10 +275,10 @@ Fixed a few template-hygiene issues that affected newly seeded projects and repe
 - The downstream `AGENTS.md` check now verifies the `_base/AGENTS.md` auto-load directive and fails if
   the `_None for the base template itself._` placeholder remains under Project-specific overrides.
   The previous `grep -A3 ... | tail -1` check could pass on a blank line.
-- **`plugins/install-codex-plugins.sh`** now refreshes existing plugin symlinks when they point at stale
+- **`_base/plugins/install-codex-plugins.sh`** now refreshes existing plugin symlinks when they point at stale
   locations, while still preserving non-symlink targets. This mirrors the Codex skill installer.
 
-**Downstream impact:** re-running `./plugins/install-codex-plugins.sh` now repairs stale local plugin
+**Downstream impact:** re-running `./_base/plugins/install-codex-plugins.sh` now repairs stale local plugin
 symlinks. Fresh setup agents should have `jq` available for Claude Code hook support. The active
 manifest and `project.env` behavior are unchanged.
 
@@ -467,7 +483,7 @@ The skills table in `_base/README.md` was regenerated to include `planning-workf
 
 ### Move `project.env.example` under `_base/`
 
-The reference env-vars file is now at `_base/project.env.example`. The live `project.env` continues to live at the repo root (gitignored) and is the file all four installer scripts (`skills/install-codex-skills.sh`, `plugins/install-codex-plugins.sh`, `plugins/install-claude-plugins.sh`, `plugins/bootstrap-third-party.sh`) source — no installer changes were needed. The example file's internal header comment now documents the new copy command: `cp _base/project.env.example project.env`.
+The reference env-vars file is now at `_base/project.env.example`. The live `project.env` continues to live at the repo root (gitignored) and is the file all four installer scripts (`skills/install-codex-skills.sh`, `_base/plugins/install-codex-plugins.sh`, `_base/plugins/install-claude-plugins.sh`, `_base/plugins/bootstrap-third-party.sh`) source — no installer changes were needed. The example file's internal header comment now documents the new copy command: `cp _base/project.env.example project.env`.
 
 **Downstream impact:** if your downstream `README.md`, scripts, CI, or local notes reference `project.env.example` at the repo root, update the path to `_base/project.env.example` after merging. Your live `project.env` at the repo root is unaffected and continues to work as-is. Future template updates to the reference env vars (new entries, removed entries, comment changes) will now arrive cleanly inside `_base/` instead of as root-level merge candidates. Downstream projects that want to ship their *own* `.env.example` for project-specific env vars can now do so at the repo root without colliding with the template's.
 
@@ -483,11 +499,11 @@ New maintenance script that validates skill / wrapper / table consistency: every
 
 **Downstream impact:** none. Opt-in maintenance script. Recommended after adding or modifying any skill or wrapper, and as a CI gate for downstream projects that add their own skills. The "Adding a new skill" checklist in `_base/README.md` now includes a regenerate-table + validate step.
 
-### Add `plugins/install-claude-plugins.sh` and `_base/SETUP_INSTRUCTIONS.md`
+### Add `_base/plugins/install-claude-plugins.sh` and `_base/SETUP_INSTRUCTIONS.md`
 
 Two related additions that close the dual-runtime setup story for downstream projects.
 
-- **`plugins/install-claude-plugins.sh`** — installs a curated set of Claude Code plugins by merging entries into `~/.claude/settings.json` (`extraKnownMarketplaces` + `enabledPlugins`). Idempotent: re-running reports `already present, left as-is` for entries that already exist; preserves unrelated keys in the user's settings. The curated default list is hard-coded at the top of the script under `PLUGINS=( … )` and is easy to edit. The list ships with two starters: `obra/superpowers-marketplace` (Claude variant of the already-vendored Codex superpowers plugin) and `thedotmack/claude-mem` (cross-session memory). No umbrella `install-all.sh` — installers stay agent-scoped (Codex installers under `skills/` + `plugins/`; Claude installer under `plugins/`).
+- **`_base/plugins/install-claude-plugins.sh`** — installs a curated set of Claude Code plugins by merging entries into `~/.claude/settings.json` (`extraKnownMarketplaces` + `enabledPlugins`). Idempotent: re-running reports `already present, left as-is` for entries that already exist; preserves unrelated keys in the user's settings. The curated default list is hard-coded at the top of the script under `PLUGINS=( … )` and is easy to edit. The list ships with two starters: `obra/superpowers-marketplace` (Claude variant of the already-vendored Codex superpowers plugin) and `thedotmack/claude-mem` (cross-session memory). No umbrella `install-all.sh` — installers stay agent-scoped (Codex installers under `skills/` + `_base/plugins/`; Claude installer under `_base/plugins/`).
 - **`_base/SETUP_INSTRUCTIONS.md`** — agent-readable numbered setup steps for wiring up a fresh project. **Each agent sets up only its own runtime**: Claude Code agents run Phases 0–2 + Phase 3 (Claude) + Phases 5–6; Codex agents run Phases 0–2 + Phase 4 (Codex) + Phases 5–6. Phases 0, 1, 2, 5, 6 are idempotent, so a second agent on the other runtime can re-run the file later to set up its side without re-doing or breaking the first agent's work. Each step has an explicit check; on any failure the agent stops and hands control back to the user. Pointed at like `Follow _base/SETUP_INSTRUCTIONS.md`.
 
 **Downstream impact:** none for existing projects; the new installer is opt-in. Newly-seeded projects benefit immediately — pointing an agent at `_base/SETUP_INSTRUCTIONS.md` is now the canonical setup path (`_base/README.md` § "Quick start" updated to reflect this). The file ownership matrix in both `_base/README.md` and `_base/AGENTS.md` now lists `_base/SETUP_INSTRUCTIONS.md` as upstream-owned.
@@ -559,19 +575,19 @@ Closed gaps between Claude Code and Codex wrappers across existing skills so bot
 ### Add frontend-design skill, third-party bootstrap, richer write-a-skill
 
 - New skill `frontend-design` (imported from Anthropic's frontend-design plugin): builds distinctive, production-grade frontend interfaces.
-- `plugins/bootstrap-third-party.sh` installs/documents third-party tools (`get-shit-done-cc`, `context-mode`, `claude-mem`) that ship their own multi-platform installers. Toggle each with env vars (`INSTALL_GSD`, `INSTALL_CONTEXT_MODE`, `INSTALL_CLAUDE_MEM`).
+- `_base/plugins/bootstrap-third-party.sh` installs/documents third-party tools (`get-shit-done-cc`, `context-mode`, `claude-mem`) that ship their own multi-platform installers. Toggle each with env vars (`INSTALL_GSD`, `INSTALL_CONTEXT_MODE`, `INSTALL_CLAUDE_MEM`).
 - `write-a-skill` playbook expanded with more concrete guidance.
 
-**Downstream impact:** additive. To pick up the third-party tools, run `./plugins/bootstrap-third-party.sh`.
+**Downstream impact:** additive. To pick up the third-party tools, run `./_base/plugins/bootstrap-third-party.sh`.
 
 ## 2026-04-27
 
 ### Bundle GitHub Codex plugin and add Codex plugin installation support
 
-- New `plugins/install-codex-plugins.sh` symlinks repo plugins into `~/plugins/` and adds local marketplace entries to `~/.agents/plugins/marketplace.json`.
-- Vendored `plugins/github/` plugin for Codex (PR/issue/CI workflows).
+- New `_base/plugins/install-codex-plugins.sh` symlinks repo plugins into `~/plugins/` and adds local marketplace entries to `~/.agents/plugins/marketplace.json`.
+- Vendored `_base/plugins/github/` plugin for Codex (PR/issue/CI workflows).
 
-**Downstream impact:** additive. Run `./plugins/install-codex-plugins.sh` if you use Codex; restart Codex after.
+**Downstream impact:** additive. Run `./_base/plugins/install-codex-plugins.sh` if you use Codex; restart Codex after.
 
 ## 2026-04-14
 

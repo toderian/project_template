@@ -1,6 +1,6 @@
 # Codex Plugins
 
-Place repo-provided Codex plugins in this directory.
+Template-provided Codex plugins live in this directory.
 
 Bundled plugins:
 
@@ -10,7 +10,7 @@ Bundled plugins:
 Each plugin should use the standard plugin layout:
 
 ```text
-plugins/
+_base/plugins/
 └── example-plugin/
     ├── .codex-plugin/
     │   └── plugin.json
@@ -35,9 +35,10 @@ Use `./_base/scripts/setup-agents.sh --codex-only` for a Codex-only refresh.
 To install only the local Codex plugins, run:
 
 ```bash
-./plugins/install-codex-plugins.sh
+./_base/plugins/install-codex-plugins.sh
 ```
 
 The installer symlinks each plugin into `~/plugins/<plugin-name>` by default and
-adds it to `~/.agents/plugins/marketplace.json` so Codex can discover it as a
-local marketplace plugin.
+adds a `./_base/plugins/<plugin-name>` local source entry to
+`~/.agents/plugins/marketplace.json` so Codex can discover it as a local
+marketplace plugin.

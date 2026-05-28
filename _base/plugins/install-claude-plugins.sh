@@ -32,7 +32,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 # Source project.env if it exists.
 if [[ -f "${REPO_ROOT}/project.env" ]]; then
@@ -51,7 +51,7 @@ SETTINGS_PATH="${CLAUDE_SETTINGS_PATH:-${CLAUDE_HOME}/settings.json}"
 # Edit this list to fit the project. Comment lines out with a leading '#'.
 PLUGINS=(
   # Broad workflow plugin (TDD, debugging, planning, dispatching parallel agents).
-  # Codex equivalent is vendored under plugins/superpowers/; this is the Claude variant.
+  # Codex equivalent is vendored under _base/plugins/superpowers/; this is the Claude variant.
   "obra/superpowers-marketplace|superpowers|superpowers-marketplace"
 
   # Cross-session memory for Claude. Ships .claude-plugin/ + .codex-plugin/;

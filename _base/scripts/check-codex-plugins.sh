@@ -10,19 +10,20 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-PLUGINS_DIR="${REPO_ROOT}/plugins"
+PLUGINS_DIR="${REPO_ROOT}/_base/plugins"
 
-python3 - "${PLUGINS_DIR}" <<'PY'
+python3 - "${PLUGINS_DIR}" "${REPO_ROOT}" <<'PY'
 import json
 import sys
 from pathlib import Path
 
 plugins_dir = Path(sys.argv[1])
+repo_root = Path(sys.argv[2])
 findings = []
 
 def rel(path: Path) -> str:
     try:
-        return str(path.relative_to(plugins_dir.parent))
+        return str(path.relative_to(repo_root))
     except ValueError:
         return str(path)
 
@@ -30,7 +31,7 @@ def emit(severity: str, check_id: str, path: Path, details: str) -> None:
     findings.append((severity, check_id, rel(path), details))
 
 if not plugins_dir.is_dir():
-    emit("BLOCKER", "missing-plugins-dir", plugins_dir, "plugins directory is missing")
+    emit("BLOCKER", "missing-plugins-dir", plugins_dir, "_base/plugins directory is missing")
 else:
     for plugin_dir in sorted(p for p in plugins_dir.iterdir() if p.is_dir()):
         manifest_path = plugin_dir / ".codex-plugin" / "plugin.json"

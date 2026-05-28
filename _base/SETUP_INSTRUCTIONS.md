@@ -181,7 +181,7 @@ Claude Code auto-discovers `.claude/skills/`. No installer.
 Run the Claude plugins installer. It merges into `~/.claude/settings.json` without touching unrelated keys.
 
 ```bash
-./plugins/install-claude-plugins.sh
+./_base/plugins/install-claude-plugins.sh
 ```
 
 The default curated list is hard-coded at the top of that script under `PLUGINS=( … )`. To change which plugins get installed, edit the array in the script before re-running. The installer is **idempotent** — re-running is safe and reports `already present, left as-is` for entries already in `settings.json`.
@@ -226,11 +226,11 @@ missing 0.` Re-running is idempotent; unchanged existing symlinks count as skipp
 ### 4b — Plugins
 
 Run the Codex plugins installer. It first validates bundled plugin manifests and referenced assets with
-`_base/scripts/check-codex-plugins.sh`, then symlinks `plugins/<name>/` into `~/plugins/` and adds
-entries to `~/.agents/plugins/marketplace.json`.
+`_base/scripts/check-codex-plugins.sh`, then symlinks `_base/plugins/<name>/` into `~/plugins/` and adds
+`./_base/plugins/<name>` entries to `~/.agents/plugins/marketplace.json`.
 
 ```bash
-./plugins/install-codex-plugins.sh
+./_base/plugins/install-codex-plugins.sh
 ```
 
 **Check:** the installer prints `OK  Codex plugin manifests valid`, then either installs, refreshes, or
@@ -245,7 +245,7 @@ After both installers finish, tell the user to **restart Codex** so the new skil
 A handful of upstream tools ship their own multi-platform installers. Run this script if you want them — toggle individual sections via env vars (`INSTALL_GSD=0`, `INSTALL_CONTEXT_MODE=0`, `INSTALL_CLAUDE_MEM=0`).
 
 ```bash
-./plugins/bootstrap-third-party.sh
+./_base/plugins/bootstrap-third-party.sh
 ```
 
 Some entries here only print marketplace-install hints rather than executing them; that is by design (the upstream tools' own install flow is the source of truth). Read the output and follow any hints that apply to your runtime.
@@ -268,13 +268,13 @@ Verify only the runtime you set up (the other one, if it gets set up later, will
 - `ls .claude/skills/ | wc -l` ≥ 1 (skills auto-discovered).
 - `[[ -d .claude/agents ]] && ls .claude/agents/*.md >/dev/null 2>&1` succeeds (native subagent definitions like `implementer.md` and `reviewer.md` are present and auto-loaded).
 - `[[ -d .claude/hooks ]] && ls .claude/hooks/*.sh >/dev/null 2>&1` succeeds (PreToolUse hook scripts like `block-dangerous-bash.sh` and `block-dangerous-git.sh` are present). Also verify `.claude/settings.json` references them under `hooks.PreToolUse` — if either the scripts or the references are missing, the safety hooks are not active and the user should be told.
-- `python3 -c 'import json; d=json.load(open("'"$HOME"'/.claude/settings.json")); print(list(d.get("enabledPlugins", {}).keys()))'` includes everything from `plugins/install-claude-plugins.sh`'s curated list.
+- `python3 -c 'import json; d=json.load(open("'"$HOME"'/.claude/settings.json")); print(list(d.get("enabledPlugins", {}).keys()))'` includes everything from `_base/plugins/install-claude-plugins.sh`'s curated list.
 
 **If you are Codex:**
 
 - `ls ~/.codex/skills/` includes the skills shipped with this template (see `_base/README.md` § "Available skills" for the current set).
 - `./_base/scripts/check-codex-plugins.sh` prints `OK  Codex plugin manifests valid`.
-- `python3 -c 'import json; d=json.load(open("'"$HOME"'/.agents/plugins/marketplace.json")); print([p.get("name") for p in d.get("plugins", [])])'` includes everything vendored under `plugins/`.
+- `python3 -c 'import json; d=json.load(open("'"$HOME"'/.agents/plugins/marketplace.json")); print([(p.get("name"), p.get("source", {}).get("path")) for p in d.get("plugins", [])])'` includes everything vendored under `_base/plugins/` with `./_base/plugins/<name>` source paths.
 
 Report a structured summary to the user. Pick the line for your runtime; leave the other one unsaid (it is not your concern):
 

@@ -130,7 +130,7 @@ if [[ "${TARGET_CODEX}" -eq 1 ]]; then
     "${REPO_ROOT}/skills/install-codex-skills.sh"
 
   run_step "Install or refresh Codex plugins" \
-    "${REPO_ROOT}/plugins/install-codex-plugins.sh"
+    "${REPO_ROOT}/_base/plugins/install-codex-plugins.sh"
 fi
 
 if [[ "${TARGET_CLAUDE}" -eq 1 ]]; then
@@ -138,7 +138,7 @@ if [[ "${TARGET_CLAUDE}" -eq 1 ]]; then
     "${REPO_ROOT}/_base/scripts/link-skills.sh"
 
   run_step "Install or refresh Claude Code plugins" \
-    "${REPO_ROOT}/plugins/install-claude-plugins.sh"
+    "${REPO_ROOT}/_base/plugins/install-claude-plugins.sh"
 fi
 
 cat <<'EOF'

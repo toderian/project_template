@@ -3,7 +3,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 # Source project.env if it exists.
 if [[ -f "${REPO_ROOT}/project.env" ]]; then
@@ -138,11 +138,11 @@ for plugin_dir in plugin_dirs:
         )
 
     category = manifest.get("interface", {}).get("category") or "Productivity"
-    entry = {
+    desired_entry = {
         "name": plugin_name,
         "source": {
             "source": "local",
-            "path": f"./plugins/{plugin_name}",
+            "path": f"./_base/plugins/{plugin_name}",
         },
         "policy": {
             "installation": "AVAILABLE",
@@ -152,9 +152,18 @@ for plugin_dir in plugin_dirs:
     }
 
     if plugin_name in existing_by_name:
-        print(f"Marketplace already has {plugin_name}; leaving existing entry unchanged")
+        existing = existing_by_name[plugin_name]
+        changed = False
+        for key in ("source", "policy", "category"):
+            if existing.get(key) != desired_entry[key]:
+                existing[key] = desired_entry[key]
+                changed = True
+        if changed:
+            print(f"Refreshed marketplace entry for {plugin_name}")
+        else:
+            print(f"Marketplace already has {plugin_name}; leaving existing entry unchanged")
     else:
-        plugins.append(entry)
+        plugins.append(desired_entry)
         print(f"Added marketplace entry for {plugin_name}")
 
 marketplace_path.write_text(json.dumps(data, indent=2) + "\n")
