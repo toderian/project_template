@@ -39,6 +39,7 @@ docs/
 │       ├── summary.md       # Durable area architecture summary
 │       ├── dependency-graph.md
 │       ├── contracts/<feature-slug>.md
+│       ├── runbooks/<scenario-slug>.md
 │       └── components/<component-slug>/CONTEXT.md
 └── archive/                 # Frozen docs/resources that are no longer current
 ```
@@ -107,7 +108,8 @@ Rules:
 - `Prefix` is uppercase alphanumeric, starts with a letter, and is unique.
 - `T` is reserved for the `global` area and for work that genuinely crosses areas.
 - `Page` points at `docs/areas/<slug>.md`; durable architecture notes for the area live in
-  `docs/resources/<slug>/summary.md`.
+  `docs/resources/<slug>/summary.md`, and repeatable operational procedures live in
+  `docs/resources/<slug>/runbooks/`.
 - Areas are defined with the user when possible. If no existing area fits a clear task, propose a slug,
   prefix, description, and page, then add it after confirmation.
 

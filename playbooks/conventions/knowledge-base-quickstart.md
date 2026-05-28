@@ -23,6 +23,10 @@ authoritative.
 - `docs/resources/<area>/contracts/<feature-slug>.md` owns concrete cross-repo feature contracts:
   participant responsibilities, API/schema/event/env/CLI/Docker boundaries, compatibility, rollout,
   and verification.
+- `docs/resources/<area>/runbooks/<scenario-slug>.md` owns sanitized, reusable operational
+  procedures: SSH, setup, debugging, deployment inspection, service restart, and similar agent-runnable
+  workflows. Use `global` for cross-cutting runbooks. Local placeholder values live in
+  `.local/runbooks/<scenario-slug>.local.md`.
 - `repos.project`, when present, owns stable repo slugs, required/optional status, branch defaults,
   work mode, and area association for the project. `.local/repos.map` owns machine-local absolute
   checkout paths and is intentionally gitignored.
@@ -38,6 +42,9 @@ authoritative.
 - `docs/resources/_reports/` stores rerunnable agent-generated reports, audits, inventories, and
   migration proposals. Use timestamped filenames per `playbooks/conventions/generated-artifacts.md`
   so repeated runs preserve previous observations and can include a delta.
+- Raw transcripts, one-off debugging logs, and pasted terminal output are not runbooks. Put raw source
+  material in `_inbox/`, distilled reusable facts in `_digests/`, and rerunnable output in `_reports/`;
+  promote only stable procedures into `runbooks/`.
 - `CONTEXT_DOCS_DIR` is an external-storage escape hatch for describing a repo you should not write
   into. It is not the normal default for repos that use this template.
 
@@ -51,20 +58,29 @@ look in this order:
 3. `docs/resources/<area>/summary.md` for the relevant area
 4. `docs/resources/<area>/dependency-graph.md` for repo/package relationships and install modes
 5. `docs/resources/<area>/contracts/*.md` for feature-specific cross-repo agreements
-6. `docs/resources/<area>/components/*/CONTEXT.md` for known component boundaries
-7. `docs/resources/_digests/**/*.md` for source-backed summaries not yet promoted elsewhere
-8. Legacy component context files stored beside source only as fallback evidence
+6. `docs/resources/<area>/runbooks/*.md` for known operational setup/debugging procedures
+7. `docs/resources/global/runbooks/*.md` for cross-cutting operational procedures
+8. `docs/resources/<area>/components/*/CONTEXT.md` for known component boundaries
+9. `docs/resources/_digests/**/*.md` for source-backed summaries not yet promoted elsewhere
+10. Legacy component context files stored beside source only as fallback evidence
+
+Before asking the user to repeat SSH, setup, debugging, service, or deployment-inspection details,
+search the relevant area runbooks and `docs/resources/global/runbooks/`. If a runbook exists, check
+`.local/runbooks/<scenario-slug>.local.md` for local bindings and ask only for missing placeholder
+values.
 
 Do not scan `docs/resources/_inbox/` as routine project context. Raw inbox files may be large,
 duplicative, sensitive, or stale. Use `/distill-knowledge` when the task is to process that material.
 
 When `CONTEXT_DOCS_DIR` is configured as a central docs repo, use
 `$CONTEXT_DOCS_DIR/resources/<area>/` as the canonical writable home for shared cross-repo area docs,
-including area summaries, dependency graphs, feature contracts, and component contexts. For
+including area summaries, dependency graphs, feature contracts, runbooks, and component contexts. For
 repo-specific external context, use `$CONTEXT_DOCS_DIR/<source-repo>/` as the writable knowledge root
 for that source repo:
 
 - `$CONTEXT_DOCS_DIR/<source-repo>/CONTEXT.md` for the domain glossary
+- `$CONTEXT_DOCS_DIR/<source-repo>/resources/<area>/runbooks/<scenario-slug>.md` for sanitized
+  operational runbooks
 - `$CONTEXT_DOCS_DIR/<source-repo>/resources/<area>/components/<component-slug>/CONTEXT.md` for
   component contexts
 
@@ -157,6 +173,30 @@ The first blockquote in every component context must record the exact source pat
 
 Use the registered area that clearly owns the component. Cross-area, global, or default components go
 under `docs/resources/global/components/...`.
+
+## Runbooks
+
+Runbooks live at:
+
+```text
+docs/resources/<area>/runbooks/<scenario-slug>.md
+```
+
+Use `global` for cross-cutting workflows. Each runbook should include purpose, when to use,
+prerequisites, placeholders, step-by-step procedure, expected results, failure signals, and safety or
+cleanup notes. Committed runbooks use placeholders only; local values live at:
+
+```text
+.local/runbooks/<scenario-slug>.local.md
+```
+
+Local bindings may contain multiple named profiles such as `prod-a`, `devnet`, `staging`, or
+`customer-x`. Unless the user explicitly says a non-secret value is safe to commit, keep real
+hostnames, account names, paths, customer names, and reusable local values in `.local/`. Never commit
+secrets, private keys, tokens, or passwords.
+
+Use `playbooks/conventions/runbook-convention.md` for the exact format and
+`playbooks/templates/runbook.template.md` for a starter.
 
 ## Refreshing
 

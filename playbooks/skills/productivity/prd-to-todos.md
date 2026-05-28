@@ -45,8 +45,8 @@ Before asking the user to approve task creation, compare the proposed slices aga
 - `docs/tasks_manager/_inbox/` and `docs/tasks_manager/_inbox_archived/`
 - `docs/tasks_manager/_todos/` and `docs/tasks_manager/_todos_archived/`
 - `docs/tasks_manager/_roadmap.md`, ledgers, and area pages
-- `docs/resources/`, `docs/archive/`, `docs/resources/CONTEXT.md`, area summaries, component contexts,
-  and likely code/tests
+- `docs/resources/`, `docs/archive/`, `docs/resources/CONTEXT.md`, area summaries, runbooks,
+  component contexts, and likely code/tests
 
 If a slice is already captured, tracked, implemented, obsolete, or related-but-distinct, show the
 evidence with the proposed task list. Ask whether to skip it, append detail to the existing item, link

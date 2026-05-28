@@ -34,8 +34,9 @@ For each idea, inspect likely matches in:
 - `docs/resources/` and `docs/archive/`
 - `docs/resources/CONTEXT.md`, area summaries under `docs/resources/<area>/summary.md`, dependency
   graphs under `docs/resources/<area>/dependency-graph.md`, feature contracts under
-  `docs/resources/<area>/contracts/*.md`, component contexts under
-  `docs/resources/<area>/components/*/CONTEXT.md`, and `CONTEXT_DOCS_DIR` only if configured
+  `docs/resources/<area>/contracts/*.md`, runbooks under `docs/resources/<area>/runbooks/*.md`,
+  component contexts under `docs/resources/<area>/components/*/CONTEXT.md`, and `CONTEXT_DOCS_DIR`
+  only if configured
 - likely code and tests found by searching for the idea's domain terms, filenames, commands, or symbols
 
 Classify each idea as one of:

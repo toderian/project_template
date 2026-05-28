@@ -22,7 +22,8 @@ Examples:
 - durable plans: `docs/_plans/<slug>.md`
 - spec-workflow artifacts: `specs/<slug>/spec.md`, `design.md`, `tasks.md`, `review.md`
 - durable knowledge docs: `docs/resources/CONTEXT.md`, `docs/resources/<area>/summary.md`,
-  component contexts, dependency graphs, and feature contracts
+  component contexts, dependency graphs, feature contracts, and sanitized operational runbooks under
+  `docs/resources/<area>/runbooks/<scenario-slug>.md`
 
 These files are meant to be referenced repeatedly. Timestamped names would make links brittle and make
 routine updates harder to find.
@@ -78,3 +79,6 @@ other report types. If no prior report exists, include:
 
 No previous report found.
 ```
+
+Do not replace timestamped reports with runbooks. A report records one run's observations; a runbook
+records a stable procedure that can be run again with placeholders and local bindings.

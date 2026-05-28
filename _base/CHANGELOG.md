@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.05.28.2
+BASE_VERSION: 2026.05.28.3
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,27 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Add operational runbook storage convention
+
+Repeated agent-assisted operational procedures now have a sanitized committed home plus ignored local
+bindings.
+
+- New `playbooks/conventions/runbook-convention.md` defines committed runbooks under
+  `docs/resources/<area>/runbooks/<scenario-slug>.md`.
+- New `playbooks/templates/runbook.template.md` and `playbooks/templates/runbook.local.template.md`
+  provide starter shapes for committed procedures and local bindings.
+- `_base/docs/resources/global/runbooks/` is seeded for cross-cutting runbooks.
+- Knowledge-base docs now tell agents to search runbooks before asking repeated SSH, setup, service,
+  or debugging questions, while keeping real hostnames, account names, paths, and reusable local values
+  in `.local/runbooks/`.
+- The template `.gitignore` also ignores `.no-commit/`, `.temp/`, `.tmp/`, `temp/`, and `tmp/` for
+  local scratch or intentionally uncommitted material.
+
+**Downstream impact:** run `_base/scripts/seed-docs.sh` to seed
+`docs/resources/global/runbooks/` in existing repos. Use committed placeholders in runbooks and keep
+real values in ignored `.local/runbooks/<scenario-slug>.local.md` files. Move scratch files that must
+not be committed under `.no-commit/`, `.temp/`, `.tmp/`, `temp/`, or `tmp/`.
 
 ### Add one-command template update check
 

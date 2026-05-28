@@ -6,7 +6,10 @@ A disciplined loop for hard bugs and performance regressions: reproduce → mini
 
 When exploring the codebase, use the project's domain glossary (`docs/resources/CONTEXT.md`, if
 present; root `CONTEXT.md` only as pointer/fallback) to get a clear mental model of the relevant
-modules, and check ADRs or area summaries in the area you're touching.
+modules, and check ADRs or area summaries in the area you're touching. For repeated SSH, setup,
+service-inspection, or environment-specific debugging workflows, check
+`docs/resources/<area>/runbooks/` and `docs/resources/global/runbooks/` before asking the user for
+operational details; real placeholder values should come from `.local/runbooks/` when present.
 
 ## Phase 1 — Build a feedback loop
 

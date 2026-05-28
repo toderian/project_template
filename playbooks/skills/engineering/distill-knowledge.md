@@ -25,6 +25,7 @@ Use these locations consistently:
 - `docs/resources/<area>/summary.md` - durable area architecture knowledge.
 - `docs/resources/<area>/dependency-graph.md` - cross-repo/package dependencies.
 - `docs/resources/<area>/contracts/<feature-slug>.md` - concrete feature contracts.
+- `docs/resources/<area>/runbooks/<scenario-slug>.md` - sanitized reusable operational procedures.
 - `docs/resources/<area>/components/<component-slug>/CONTEXT.md` - component context.
 
 The raw inbox is a staging area, not a place future agents should rely on for context. Preserve
@@ -131,8 +132,12 @@ After writing the digest, update durable knowledge files only when the source gi
 - add or clarify terms in `docs/resources/CONTEXT.md`
 - update area responsibilities, flows, decisions, or open questions in
   `docs/resources/<area>/summary.md`
-- update dependency graphs, feature contracts, or component contexts when the source describes those
-  concrete boundaries
+- update dependency graphs, feature contracts, runbooks, or component contexts when the source
+  describes those concrete boundaries or repeatable procedures
+
+For SSH, setup, debugging, service inspection, and similar operational sources, promote only stable
+procedure steps into `docs/resources/<area>/runbooks/`. Keep real hostnames, account names, paths, and
+local reusable values in `.local/runbooks/`; never commit secrets.
 
 Do not dump the digest wholesale into the knowledge base. Promote only durable facts that future
 agents need during implementation or review. If a fact is interesting but not yet stable, keep it in

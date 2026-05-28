@@ -28,7 +28,8 @@ Prerequisite: `docs/tasks_manager/` must already be initialized. If it is missin
    - **Knowledge-base docs** — `docs/resources/CONTEXT.md`, area summaries under
      `docs/resources/<area>/summary.md`, dependency graphs under
      `docs/resources/<area>/dependency-graph.md`, feature contracts under
-     `docs/resources/<area>/contracts/*.md`, and component contexts under
+     `docs/resources/<area>/contracts/*.md`, runbooks under
+     `docs/resources/<area>/runbooks/*.md`, and component contexts under
      `docs/resources/<area>/components/*/CONTEXT.md` (plus `CONTEXT_DOCS_DIR` only if configured).
      These describe what already *exists*, so a match here means the idea may already be built.
 

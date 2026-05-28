@@ -23,3 +23,7 @@ decisions, domain terms, risks, suggested knowledge-base updates, and follow-ups
 
 Durable facts from a digest should be promoted into the canonical knowledge files under
 `docs/resources/` when they are stable enough for future agents to rely on.
+
+For operational material, promote stable procedure steps into
+`docs/resources/<area>/runbooks/<scenario-slug>.md` and keep real environment values in
+`.local/runbooks/<scenario-slug>.local.md`.

@@ -6,6 +6,10 @@ This folder is staging, not authoritative context. Run `/distill-knowledge` to t
 Markdown digests under `docs/resources/_digests/<area-or-bucket>/` and durable updates under
 `docs/resources/`.
 
+Raw transcripts, pasted debugging logs, and one-off operational notes belong here before they are
+distilled. Do not turn them directly into `docs/resources/<area>/runbooks/` files; promote only stable,
+repeatable procedure steps after distillation.
+
 By default, non-Markdown files in this folder are ignored so large, binary, proprietary, or sensitive
 sources are not committed by accident. If a project intentionally versions raw source files, adjust this
 folder's `.gitignore` in that downstream repo.

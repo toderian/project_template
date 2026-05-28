@@ -26,7 +26,7 @@ This repo is designed to work with both **Claude Code** and **OpenAI Codex**. Co
 │   ├── repos.project.example              # Optional downstream repo-registry scaffold; copy to ./repos.project
 │   ├── repos.map.example                  # Optional local checkout-map example; copy to ./.local/repos.map
 │   ├── project.env.example                # Reference env vars; copy to ./project.env at repo root
-│   ├── docs/                              # Seed docs layout: tasks, areas, knowledge resources, archive
+│   ├── docs/                              # Seed docs layout: tasks, areas, resources, runbooks, archive
 │   ├── plugins/                           # Template-owned Codex plugins and plugin installers
 │   │   ├── <plugin-name>/.codex-plugin/plugin.json
 │   │   ├── install-codex-plugins.sh
@@ -56,7 +56,9 @@ This repo is designed to work with both **Claude Code** and **OpenAI Codex**. Co
 │   ├── templates/                         # Durable artifacts for long-running tasks
 │   │   ├── AGENT_TASKS.template.json
 │   │   ├── AGENT_PROGRESS.template.md
-│   │   └── AGENT_DECISIONS.template.md
+│   │   ├── AGENT_DECISIONS.template.md
+│   │   ├── runbook.template.md
+│   │   └── runbook.local.template.md
 │   └── meta/                              # Template maintenance
 │       ├── UPDATE_PLAN.md
 │       └── RESEARCH_SNAPSHOT.md
@@ -103,7 +105,8 @@ The task system's golden path is:
 
 Task files own status and detail, the roadmap owns placement, and ledgers/area pages are generated.
 The primary knowledge base lives in `docs/resources/CONTEXT.md`, `docs/resources/<area>/summary.md`,
-`docs/resources/<area>/dependency-graph.md`, `docs/resources/<area>/contracts/<feature-slug>.md`, and
+`docs/resources/<area>/dependency-graph.md`, `docs/resources/<area>/contracts/<feature-slug>.md`,
+`docs/resources/<area>/runbooks/<scenario-slug>.md`, and
 `docs/resources/<area>/components/<component-slug>/CONTEXT.md`; root `CONTEXT.md` is a pointer/fallback.
 Projects that span multiple repos can opt into a committed `repos.project` registry, created from
 `_base/repos.project.example`, plus a gitignored `.local/repos.map` checkout map, created from
@@ -116,9 +119,13 @@ under `docs/resources/_digests/<area-or-bucket>/` so distilled knowledge stays s
 before stable facts are promoted into canonical docs. Rerunnable reports, audits, inventories, and
 migration proposals live under `docs/resources/_reports/<workflow>/` with timestamped filenames so
 repeat runs preserve previous observations.
+Repeated operational procedures such as SSH, setup, service inspection, and debugging live as
+sanitized runbooks under `docs/resources/<area>/runbooks/`; real placeholder values live in ignored
+`.local/runbooks/` binding files.
 See [`playbooks/conventions/task-system-quickstart.md`](../playbooks/conventions/task-system-quickstart.md),
 [`playbooks/conventions/knowledge-base-quickstart.md`](../playbooks/conventions/knowledge-base-quickstart.md),
-and [`playbooks/conventions/generated-artifacts.md`](../playbooks/conventions/generated-artifacts.md)
+[`playbooks/conventions/generated-artifacts.md`](../playbooks/conventions/generated-artifacts.md), and
+[`playbooks/conventions/runbook-convention.md`](../playbooks/conventions/runbook-convention.md)
 for the full command map and source-of-truth split.
 
 Use `/audit-todos` periodically to compare active tasks with current code, tests, docs, roadmap,
@@ -470,7 +477,7 @@ Each repo file falls into one of three buckets:
 - `_base/repos.project.example` — optional scaffold for downstream `repos.project`.
 - `_base/repos.map.example` — optional example for local `.local/repos.map` checkout mappings.
 - `_base/docs/` — seed docs layout for the task manager, generated area views, docs-primary
-  knowledge resources, raw knowledge inbox/digests/reports, and archive.
+  knowledge resources, raw knowledge inbox/digests/reports, runbooks, and archive.
 
 **Mixed** (manual merge required):
 
@@ -478,6 +485,7 @@ Each repo file falls into one of three buckets:
 - `playbooks/skills/*` and `skills/*` / `.claude/skills/*` — accept upstream for skills you haven't customized; keep downstream for skills you've forked.
 - `project.env` — never committed; not a conflict source.
 - `.local/repos.map` — never committed; machine-local checkout paths for repo slugs in `repos.project`.
+- `.local/runbooks/` — never committed; machine-local placeholder bindings for sanitized runbooks.
 - `PROJECT.md` — downstream-owned alignment doc, if seeded from `_base/PROJECT.md.template`. The template flows in cleanly; the seeded `PROJECT.md` is the project's own and is not touched by template pulls.
 
 ### Agent instructions for downstream projects

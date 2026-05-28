@@ -6,8 +6,8 @@ Initialize the project's `docs/` layout: the **task manager** (`docs/tasks_manag
 layer, committed tasks, areas registry, ledgers, and roadmap), **areas** (`docs/areas/` - generated
 area task-status pages), **plans** (`docs/_plans/` - durable implementation plans), **resources**
 (`docs/resources/` - project documentation, the primary domain glossary, durable area contexts,
-feature contracts, component contexts, and timestamped reports), and **archive** (`docs/archive/` -
-frozen docs/resources). Seeded from the `_base/docs/` template.
+feature contracts, component contexts, sanitized operational runbooks, and timestamped reports), and
+**archive** (`docs/archive/` - frozen docs/resources). Seeded from the `_base/docs/` template.
 
 ## Process
 
@@ -50,7 +50,8 @@ docs/
 │   ├── _reports/         #   timestamped reports, audits, inventories, and migration proposals
 │   ├── CONTEXT.md        #   primary domain glossary
 │   └── global/
-│       └── summary.md    #   durable global-area architecture notes
+│       ├── summary.md    #   durable global-area architecture notes
+│       └── runbooks/     #   sanitized cross-cutting operational procedures
 └── archive/              # frozen docs/resources
 ```
 
@@ -68,7 +69,7 @@ If `_base/docs/` is unavailable (e.g. a repo that vendored only part of the temp
 creating the dirs with `.gitkeep` and seeding `_areas.md`/`_active.md`/`_done.md`/`_roadmap.md`,
 `docs/_plans/`, `docs/areas/_overview.md`, `docs/resources/CONTEXT.md`,
 `docs/resources/_inbox/`, `docs/resources/_digests/`, `docs/resources/_reports/`,
-`docs/resources/global/summary.md`, and a root pointer by hand -
+`docs/resources/global/summary.md`, `docs/resources/global/runbooks/`, and a root pointer by hand -
 see `playbooks/conventions/todo-convention.md`,
 `playbooks/conventions/inbox-convention.md`, and
 `playbooks/conventions/knowledge-base-quickstart.md` for the exact shapes.
@@ -90,6 +91,8 @@ Report what was created. Remind the user that:
   knowledge base
 - Rerunnable reports and audits go under `docs/resources/_reports/<workflow>/` with timestamped
   filenames
+- Reusable operational procedures go under `docs/resources/<area>/runbooks/` with committed
+  placeholders; real values live in ignored `.local/runbooks/` binding files
 - Durable area knowledge lives in `docs/resources/<area>/`; use `/define-area` to index real
   architecture before adding cross-repo feature contracts
 - Cross-repo feature contracts live in `docs/resources/<area>/contracts/<feature-slug>.md`

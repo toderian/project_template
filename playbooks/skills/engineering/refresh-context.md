@@ -18,6 +18,8 @@ Keep these locations distinct:
 - Area architecture summaries live at `docs/resources/<area>/summary.md`.
 - Cross-repo dependency graphs live at `docs/resources/<area>/dependency-graph.md`.
 - Cross-repo feature contracts live at `docs/resources/<area>/contracts/<feature-slug>.md`.
+- Sanitized operational runbooks live at `docs/resources/<area>/runbooks/<scenario-slug>.md`; local
+  placeholder values live under `.local/runbooks/` and must not be cited in committed docs.
 - Generated area status pages remain at `docs/areas/<area>.md`; do not hand-edit generated status
   pages when the ledger generator owns them.
 - Component contexts live at
@@ -31,8 +33,8 @@ Keep these locations distinct:
   the source repo, and it may also point at a central docs repo for shared cross-repo area docs. When
   set for repo-specific context, use `$CONTEXT_DOCS_DIR/<source-repo>/` as the writable knowledge root
   for glossary and component context updates. When set as the canonical central docs home for an area,
-  use `$CONTEXT_DOCS_DIR/resources/<area>/` for area summaries, dependency graphs, contracts, and
-  component contexts.
+  use `$CONTEXT_DOCS_DIR/resources/<area>/` for area summaries, dependency graphs, contracts,
+  runbooks, and component contexts.
 
 ## Component Slugs
 
@@ -77,6 +79,10 @@ List the docs that can drift:
   `$CONTEXT_DOCS_DIR/resources/<area>/dependency-graph.md` when central docs storage is configured
 - feature contracts: `docs/resources/<area>/contracts/*.md`, or
   `$CONTEXT_DOCS_DIR/resources/<area>/contracts/*.md` when central docs storage is configured
+- operational runbooks: `docs/resources/<area>/runbooks/*.md` and
+  `docs/resources/global/runbooks/*.md`, or `$CONTEXT_DOCS_DIR/resources/<area>/runbooks/*.md` for
+  central area docs, or `$CONTEXT_DOCS_DIR/<source-repo>/resources/<area>/runbooks/*.md` for
+  repo-specific external context
 - component contexts: `docs/resources/<area>/components/*/CONTEXT.md`, or
   `$CONTEXT_DOCS_DIR/resources/<area>/components/*/CONTEXT.md` for central area docs, or
   `$CONTEXT_DOCS_DIR/<source-repo>/resources/<area>/components/*/CONTEXT.md` for repo-specific
@@ -116,6 +122,8 @@ Map changed files to registered areas and known component docs before editing:
   ownership.
 - Use existing `docs/resources/<area>/dependency-graph.md` and
   `docs/resources/<area>/contracts/*.md` to identify cross-repo participants and boundaries.
+- Use existing `docs/resources/<area>/runbooks/*.md` only for stable operational procedures and safety
+  notes; do not treat local bindings as committed evidence.
 - Match component docs by their recorded source path first, then by slug only as a fallback.
 - Prefer `global` for cross-area infrastructure, shared conventions, and default components.
 - Ask the user before creating a new area or materially changing which area owns a component.
@@ -152,6 +160,8 @@ to the configured knowledge root:
   matrix drifted.
 - Update component `CONTEXT.md` files for public interface, ownership, dependencies, source path moves,
   tests, or important gotchas.
+- Update runbooks only when a stable repeated procedure, placeholder, expected result, failure signal,
+  or safety note has drifted. Keep private values in `.local/runbooks/`.
 - When `CONTEXT_DOCS_DIR` is set, apply the corresponding updates under
   the configured central area root or repo-specific root rather than the source repo's in-repo docs.
 - Leave generated `docs/areas/<area>.md` pages to the generator unless the user explicitly asks for a

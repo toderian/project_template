@@ -1,6 +1,12 @@
 .idea
 .codex
+# Local-only machine bindings (repos.map, runbook placeholders, environment notes).
 .local/
+.no-commit/
+.temp/
+.tmp/
+temp/
+tmp/
 
 # Local environment config (copy from project.env.example)
 project.env

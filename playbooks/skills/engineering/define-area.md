@@ -41,6 +41,7 @@ docs/resources/<area>/
 ├── summary.md
 ├── dependency-graph.md
 ├── contracts/
+├── runbooks/
 └── components/
 ```
 
@@ -49,8 +50,9 @@ the durable architecture home.
 
 When a central docs repo is configured through `CONTEXT_DOCS_DIR`, prefer
 `$CONTEXT_DOCS_DIR/resources/<area>/` as the canonical home for cross-repo area docs after confirming
-that the directory is meant to be shared project knowledge. Existing per-source external context under
-`$CONTEXT_DOCS_DIR/<source-repo>/...` may still be read as fallback evidence.
+that the directory is meant to be shared project knowledge, including sanitized operational runbooks.
+Existing per-source external context under `$CONTEXT_DOCS_DIR/<source-repo>/...` may still be read as
+fallback evidence.
 
 ## Process
 
@@ -122,7 +124,8 @@ Links to READMEs, ADRs, runbooks, component contexts, tasks, and external refere
 Unresolved ownership, compatibility, rollout, or verification questions.
 ````
 
-Do not duplicate detailed component context. Link to `docs/resources/<area>/components/...` instead.
+Do not duplicate detailed component context or full procedures. Link to
+`docs/resources/<area>/components/...` and `docs/resources/<area>/runbooks/...` instead.
 
 ### 4. Write or Refresh the Dependency Graph
 

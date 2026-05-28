@@ -58,6 +58,9 @@ _base/scripts/sync-todo-ledgers.sh --check
 - **Generated ledgers and area pages** (`docs/tasks_manager/_active.md`, `docs/tasks_manager/_done.md`,
   `docs/areas/_overview.md`, generated blocks in `docs/areas/<slug>.md`) are derived views. Rebuild
   them with `_base/scripts/sync-todo-ledgers.sh`; validate them with `_base/scripts/sync-todo-ledgers.sh --check`.
+- **Runbooks** (`docs/resources/<area>/runbooks/<scenario-slug>.md`) own sanitized, repeatable
+  operational procedures. Local placeholder bindings live in ignored
+  `.local/runbooks/<scenario-slug>.local.md`.
 
 ## Active-task health checks
 
@@ -83,8 +86,9 @@ For each idea, inspect likely matches in:
 - `docs/resources/` and `docs/archive/`
 - `docs/resources/CONTEXT.md`, area summaries under `docs/resources/<area>/summary.md`, dependency
   graphs under `docs/resources/<area>/dependency-graph.md`, feature contracts under
-  `docs/resources/<area>/contracts/*.md`, component contexts under
-  `docs/resources/<area>/components/*/CONTEXT.md`, and `CONTEXT_DOCS_DIR` only if configured
+  `docs/resources/<area>/contracts/*.md`, runbooks under `docs/resources/<area>/runbooks/*.md`,
+  component contexts under `docs/resources/<area>/components/*/CONTEXT.md`, and `CONTEXT_DOCS_DIR`
+  only if configured
 - likely implementation files and tests
 
 Classify the idea before asking for a decision:
