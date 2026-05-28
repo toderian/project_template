@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.05.28.0
+BASE_VERSION: 2026.05.28.1
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,21 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Add one-command template update check
+
+Downstream repos now have a single read-only verification command after pulling or merging template
+updates.
+
+- New `_base/scripts/check-template-update.sh` prints `BASE_VERSION`, validates skills, bundled Codex
+  plugin manifests, repo registry/task `Repos` metadata, optional local checkout maps, task ledgers,
+  and git whitespace.
+- The script validates `.local/repos.map` automatically when present, or requires it with `--local`.
+- Setup docs and README now point downstream users at this command as the standard post-merge check.
+
+**Downstream impact:** after `git merge template/master`, run
+`./_base/scripts/check-template-update.sh`. Run `./_base/scripts/setup-agents.sh` separately when you
+want to refresh local agent runtime installs.
 
 ### Add optional repo registry and local checkout map convention
 

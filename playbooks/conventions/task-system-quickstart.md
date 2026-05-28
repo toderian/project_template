@@ -131,6 +131,5 @@ _base/scripts/check-repos-config.sh
 For template maintenance, also run:
 
 ```bash
-./_base/scripts/check-skills-sync.sh
-git diff --check
+./_base/scripts/check-template-update.sh
 ```

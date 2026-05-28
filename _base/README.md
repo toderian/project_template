@@ -38,6 +38,7 @@ This repo is designed to work with both **Claude Code** and **OpenAI Codex**. Co
 │       ├── seed-docs.sh                   # Seeds docs/ from _base/docs/ without overwriting
 │       ├── reserve-work-item.sh           # Atomically reserves task/inbox filenames
 │       ├── sync-todo-ledgers.sh           # Regenerates task ledgers and generated area blocks
+│       ├── check-template-update.sh       # One-command read-only verification after template pulls
 │       ├── check-repos-config.sh          # Validates optional repos.project and .local/repos.map
 │       ├── gen-skills-table.sh            # Regenerates the skills table in _base/README.md
 │       ├── check-skills-sync.sh           # Validates skill/wrapper/table consistency
@@ -236,6 +237,11 @@ Severities: **BLOCKER** (missing/orphan files, broken references), **DRIFT** (ou
 `_base/scripts/check-codex-plugins.sh` validates bundled Codex plugin manifests, referenced skill/app paths, plugin skill `SKILL.md` files, app JSON, optional MCP JSON, and declared interface assets. `_base/plugins/install-codex-plugins.sh` runs it before changing local symlinks or marketplace entries.
 
 Template-owned scripts live under `_base/scripts/`, and template-owned bundled plugins live under `_base/plugins/`, so the root `scripts/` and `plugins/` directories remain available for downstream project tooling. Some helpers validate upstream-owned content, while task-system and setup helpers intentionally operate on the downstream repo state from their upstream-owned location. Downstream projects should not re-implement them; pull updates from the template and re-run.
+
+`_base/scripts/check-template-update.sh` is the standard read-only post-merge verifier for downstream
+repos. It prints the current `BASE_VERSION`, runs the template validation checks, exits non-zero when
+anything needs attention, and is designed for an agent to run, fix reported failures, and rerun until
+green.
 
 `_base/scripts/check-repos-config.sh` validates an optional downstream `repos.project` registry and any
 task `Repos` metadata. Default mode is safe for projects that have not opted in. Use
@@ -438,9 +444,10 @@ git fetch template
 git log --oneline HEAD..template/master    # preview what's new upstream
 git diff HEAD..template/master -- _base/CHANGELOG.md   # human-readable summary + per-change downstream impact
 git merge template/master                  # or: git cherry-pick <commit>
+./_base/scripts/check-template-update.sh   # read-only verification after the merge
 ```
 
-Always check `_base/CHANGELOG.md` before merging — each entry includes a **Downstream impact** line that flags expected conflicts, new conventions, or behavior changes. Use `merge` when you want everything; use `cherry-pick` when you only want specific commits (e.g. a new skill but not a hook change you've customized).
+Always check `_base/CHANGELOG.md` before merging — each entry includes a **Downstream impact** line that flags expected conflicts, new conventions, or behavior changes. Use `merge` when you want everything; use `cherry-pick` when you only want specific commits (e.g. a new skill but not a hook change you've customized). After the merge, an agent can run `./_base/scripts/check-template-update.sh`, fix any reported failures, and rerun it until it passes.
 
 ### File conventions for downstream projects
 

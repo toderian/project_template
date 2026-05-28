@@ -289,8 +289,10 @@ Verify only the runtime you set up (the other one, if it gets set up later, will
 
 1. **Template remote is reachable.** `git ls-remote template HEAD` returns a hash.
 2. **Downstream slot files are project-specific.** Re-run the Phase 2 checks.
-3. **Repo registry is valid when present.** If `repos.project` exists, `_base/scripts/check-repos-config.sh`
-   exits 0. If `.local/repos.map` is configured, `_base/scripts/check-repos-config.sh --local` exits 0.
+3. **Post-merge verifier passes.** `_base/scripts/check-template-update.sh` exits 0. If it fails, fix
+   the reported items and rerun until it passes. If this machine intentionally has `.local/repos.map`,
+   `_base/scripts/check-template-update.sh` validates it automatically; use
+   `_base/scripts/check-template-update.sh --local` to require a local map.
 
 **If you are Claude Code:**
 
