@@ -7,7 +7,8 @@ layer, committed tasks, areas registry, ledgers, and roadmap), **areas** (`docs/
 area task-status pages), **plans** (`docs/_plans/` - durable implementation plans), **resources**
 (`docs/resources/` - project documentation, the primary domain glossary, durable area contexts,
 feature contracts, component contexts, sanitized operational runbooks, and timestamped reports), and
-**archive** (`docs/archive/` - frozen docs/resources). Seeded from the `_base/docs/` template.
+**archive** (`docs/archive/` - frozen docs/resources). It also seeds root `workbooks/README.md` as the
+index for workbook bundles. Seeded from the `_base/docs/` and `_base/workbooks/` templates.
 
 ## Process
 
@@ -19,9 +20,9 @@ pages, or the areas registry.
 
 ### 2. Seed the structure from the template
 
-The canonical template lives in `_base/docs/`. Copy it into the working repo rather than
-hand-authoring the files — this keeps every project's structure identical and lets the template evolve
-upstream. Copy without clobbering anything already present:
+The canonical templates live in `_base/docs/` and `_base/workbooks/`. Copy them into the working repo
+rather than hand-authoring the files — this keeps every project's structure identical and lets the
+template evolve upstream. Copy without clobbering anything already present:
 
 ```bash
 _base/scripts/seed-docs.sh
@@ -53,10 +54,14 @@ docs/
 │       ├── summary.md    #   durable global-area architecture notes
 │       └── runbooks/     #   sanitized cross-cutting operational procedures
 └── archive/              # frozen docs/resources
+
+workbooks/
+└── README.md             # root workbook index and README shape
 ```
 
 The root `CONTEXT.md`, if missing, is created as a pointer to `docs/resources/CONTEXT.md`. The
-`.gitkeep` files come along with the copy so the empty dirs stay tracked by git. After seeding, run
+`.gitkeep` files come along with the copy so the empty dirs stay tracked by git. Workbook folders are
+created under root `workbooks/`, one folder per reusable working bundle. After seeding, run
 `_base/scripts/sync-todo-ledgers.sh` to confirm the ledgers are valid.
 
 Stable repo slugs are normally set up earlier in `_base/SETUP_INSTRUCTIONS.md` Phase 2c, before docs
@@ -70,10 +75,12 @@ If `_base/docs/` is unavailable (e.g. a repo that vendored only part of the temp
 creating the dirs with `.gitkeep` and seeding `_areas.md`/`_active.md`/`_done.md`/`_roadmap.md`,
 `docs/_plans/`, `docs/areas/_overview.md`, `docs/resources/CONTEXT.md`,
 `docs/resources/_inbox/`, `docs/resources/_digests/`, `docs/resources/_reports/`,
-`docs/resources/global/summary.md`, `docs/resources/global/runbooks/`, and a root pointer by hand -
+`docs/resources/global/summary.md`, `docs/resources/global/runbooks/`, root `workbooks/README.md`, and
+a root pointer by hand -
 see `playbooks/conventions/todo-convention.md`,
 `playbooks/conventions/inbox-convention.md`, and
-`playbooks/conventions/knowledge-base-quickstart.md` for the exact shapes.
+`playbooks/conventions/knowledge-base-quickstart.md` for the exact shapes. Use
+`playbooks/conventions/workbook-convention.md` for workbook folder and README requirements.
 
 ### 3. Confirm
 
@@ -90,10 +97,14 @@ Report what was created. Remind the user that:
 - Raw docs, notes, and exports can be dropped into `docs/resources/_inbox/`; `/distill-knowledge`
   writes curated Markdown digests under `docs/resources/_digests/` and promotes stable facts into the
   knowledge base
+- Long-lived committed `.docx`, PDF, spreadsheet, diagram, and similar source documents live under
+  `docs/resources/<area>/attachments/` with nearby Markdown metadata or an attachment index
 - Rerunnable reports and audits go under `docs/resources/_reports/<workflow>/` with timestamped
   filenames
 - Reusable operational procedures go under `docs/resources/<area>/runbooks/` with committed
   placeholders; real values live in ignored `.local/runbooks/` binding files
+- Workbook bundles live under root `workbooks/`, one folder per workbook, with workbook-local
+  scripts/support files and reuse declared in `README.md` `Depends on` paths
 - Durable area knowledge lives in `docs/resources/<area>/`; use `/define-area` to index real
   architecture before adding cross-repo feature contracts
 - Cross-repo feature contracts live in `docs/resources/<area>/contracts/<feature-slug>.md`

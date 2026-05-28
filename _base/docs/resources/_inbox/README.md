@@ -13,3 +13,7 @@ repeatable procedure steps after distillation.
 By default, non-Markdown files in this folder are ignored so large, binary, proprietary, or sensitive
 sources are not committed by accident. If a project intentionally versions raw source files, adjust this
 folder's `.gitignore` in that downstream repo.
+
+If a `.docx`, PDF, spreadsheet, diagram, or similar source document must be committed as a long-lived
+project resource, move it to `docs/resources/<area>/attachments/` and add nearby Markdown metadata or
+an attachment index documenting purpose, provenance, area or owner, and update guidance.

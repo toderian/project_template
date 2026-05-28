@@ -7,6 +7,10 @@ a feature, a bug you noticed, a thing to look into — it goes into the inbox *i
 ceremony. No phases, no acceptance criteria, no commitment. Triage later turns the good ones into full
 tasks.
 
+This inbox is for raw ideas and work items only. Raw uploaded knowledge files belong in
+`docs/resources/_inbox/`, and long-lived committed source documents or binaries belong under
+`docs/resources/<area>/attachments/` with Markdown metadata.
+
 The whole point is speed of capture: an idea half-written is an idea kept. Don't make the user answer
 questions to record a thought.
 

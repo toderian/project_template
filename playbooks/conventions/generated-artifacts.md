@@ -22,8 +22,10 @@ Examples:
 - durable plans: `docs/_plans/<slug>.md`
 - spec-workflow artifacts: `specs/<slug>/spec.md`, `design.md`, `tasks.md`, `review.md`
 - durable knowledge docs: `docs/resources/CONTEXT.md`, `docs/resources/<area>/summary.md`,
-  component contexts, dependency graphs, feature contracts, and sanitized operational runbooks under
-  `docs/resources/<area>/runbooks/<scenario-slug>.md`
+  component contexts, dependency graphs, feature contracts, sanitized operational runbooks under
+  `docs/resources/<area>/runbooks/<scenario-slug>.md`, and attachment metadata under
+  `docs/resources/<area>/attachments/`
+- workbook bundles: `workbooks/<workbook-slug>/README.md` and workbook-local support files
 
 These files are meant to be referenced repeatedly. Timestamped names would make links brittle and make
 routine updates harder to find.

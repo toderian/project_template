@@ -27,6 +27,10 @@ authoritative.
   procedures: SSH, setup, debugging, deployment inspection, service restart, and similar agent-runnable
   workflows. Use `global` for cross-cutting runbooks. Local placeholder values live in
   `.local/runbooks/<scenario-slug>.local.md`.
+- `docs/resources/<area>/attachments/` owns long-lived committed source documents and binaries:
+  `.docx`, PDFs, spreadsheets, diagrams, and similar durable project resources. Each durable binary
+  needs nearby Markdown metadata or an index documenting purpose, provenance, area or owner, and update
+  guidance.
 - `.config/repos.project.md`, when present, owns stable repo slugs, required/optional status, branch defaults,
   work mode, and area association for the project. `.local/repos.map` owns machine-local absolute
   checkout paths and is intentionally gitignored.
@@ -42,6 +46,8 @@ authoritative.
 - `docs/resources/_reports/` stores rerunnable agent-generated reports, audits, inventories, and
   migration proposals. Use timestamped filenames per `playbooks/conventions/generated-artifacts.md`
   so repeated runs preserve previous observations and can include a delta.
+- Root `workbooks/` stores workbook bundles: one folder per reusable working set, with local scripts,
+  data, assets, templates, examples, outputs, and a workbook `README.md`.
 - Raw transcripts, one-off debugging logs, and pasted terminal output are not runbooks. Put raw source
   material in `_inbox/`, distilled reusable facts in `_digests/`, and rerunnable output in `_reports/`;
   promote only stable procedures into `runbooks/`.
@@ -60,9 +66,10 @@ look in this order:
 5. `docs/resources/<area>/contracts/*.md` for feature-specific cross-repo agreements
 6. `docs/resources/<area>/runbooks/*.md` for known operational setup/debugging procedures
 7. `docs/resources/global/runbooks/*.md` for cross-cutting operational procedures
-8. `docs/resources/<area>/components/*/CONTEXT.md` for known component boundaries
-9. `docs/resources/_digests/**/*.md` for source-backed summaries not yet promoted elsewhere
-10. Legacy component context files stored beside source only as fallback evidence
+8. `docs/resources/<area>/attachments/*.md` or attachment index files for durable source-document metadata
+9. `docs/resources/<area>/components/*/CONTEXT.md` for known component boundaries
+10. `docs/resources/_digests/**/*.md` for source-backed summaries not yet promoted elsewhere
+11. Legacy component context files stored beside source only as fallback evidence
 
 Before asking the user to repeat SSH, setup, debugging, service, or deployment-inspection details,
 search the relevant area runbooks and `docs/resources/global/runbooks/`. If a runbook exists, check
@@ -92,6 +99,11 @@ evidence about work status, not durable knowledge.
 
 ## Raw knowledge ingestion
 
+Use the two inboxes for different things:
+
+- `docs/tasks_manager/_inbox/` is for raw ideas and work items (`I-NNN`) awaiting triage.
+- `docs/resources/_inbox/` is for raw uploaded knowledge files awaiting distillation.
+
 Use `docs/resources/_inbox/` as the drop zone for raw source material: PDFs, notes, exports, vendor
 docs, design drafts, screenshots with text, transcripts, and research. Non-Markdown files in the seeded
 folder are ignored by default so large or sensitive material is not committed accidentally; projects can
@@ -111,6 +123,27 @@ canonical docs under `docs/resources/`; keep uncertain or one-off details in the
 If the raw source is sensitive, license-restricted, or too large to commit, keep it outside the repo or
 leave it ignored in `_inbox/`. The committed digest should retain only the information the project is
 allowed to keep.
+
+## Durable attachments
+
+Raw inbox staging is not the long-term home for authoritative source documents. When a `.docx`, PDF,
+spreadsheet, diagram, or similar non-Markdown resource must remain committed as durable project
+evidence, store it under:
+
+```text
+docs/resources/<area>/attachments/
+```
+
+Add a nearby Markdown companion file or an attachment index, such as `README.md`, with:
+
+- purpose
+- provenance or source
+- owning area or owner
+- update guidance
+- links to any digest, area summary, contract, component context, or task that depends on it
+
+Keep the binary and its metadata together. If the binary is generated from a workbook or script, point
+the metadata back to the generating workbook and explain how to rebuild it.
 
 ## Area summaries
 

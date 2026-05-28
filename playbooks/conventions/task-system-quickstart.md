@@ -62,6 +62,12 @@ _base/scripts/sync-todo-ledgers.sh --check
 - **Runbooks** (`docs/resources/<area>/runbooks/<scenario-slug>.md`) own sanitized, repeatable
   operational procedures. Local placeholder bindings live in ignored
   `.local/runbooks/<scenario-slug>.local.md`.
+- **Raw knowledge files** (`docs/resources/_inbox/`) are staging for uploads awaiting
+  `/distill-knowledge`; non-Markdown files there stay ignored by default.
+- **Durable attachments** (`docs/resources/<area>/attachments/`) own long-lived committed `.docx`, PDF,
+  spreadsheet, diagram, and similar source documents with nearby Markdown metadata.
+- **Workbooks** (`workbooks/<workbook-slug>/`) own reusable working bundles with a workbook
+  `README.md`, local scripts, data, assets, templates, examples, outputs, and declared dependencies.
 
 ## Active-task health checks
 

@@ -27,6 +27,7 @@ This repo is designed to work with both **Claude Code** and **OpenAI Codex**. Co
 │   ├── repos.map.example                  # Optional local checkout-map example; copy to ./.local/repos.map
 │   ├── project.env.example                # Reference env vars; copy to ./project.env at repo root
 │   ├── docs/                              # Seed docs layout: tasks, areas, resources, runbooks, archive
+│   ├── workbooks/                         # Seed root workbook index
 │   ├── plugins/                           # Template-owned Codex plugins and plugin installers
 │   │   ├── <plugin-name>/.codex-plugin/plugin.json
 │   │   ├── install-codex-plugins.sh
@@ -35,7 +36,7 @@ This repo is designed to work with both **Claude Code** and **OpenAI Codex**. Co
 │   └── scripts/                           # Template-owned setup, task-system, and validation scripts
 │       ├── setup-agents.sh                # One-command Claude + Codex skill/plugin refresh
 │       ├── link-skills.sh                 # Links Claude Code skills into ~/.claude/skills
-│       ├── seed-docs.sh                   # Seeds docs/ from _base/docs/ without overwriting
+│       ├── seed-docs.sh                   # Seeds docs/ and workbooks/ without overwriting
 │       ├── reserve-work-item.sh           # Atomically reserves task/inbox filenames
 │       ├── sync-todo-ledgers.sh           # Regenerates task ledgers and generated area blocks
 │       ├── check-template-update.sh       # One-command read-only verification after template pulls
@@ -119,13 +120,20 @@ under `docs/resources/_digests/<area-or-bucket>/` so distilled knowledge stays s
 before stable facts are promoted into canonical docs. Rerunnable reports, audits, inventories, and
 migration proposals live under `docs/resources/_reports/<workflow>/` with timestamped filenames so
 repeat runs preserve previous observations.
+Long-lived committed source documents and binaries live under `docs/resources/<area>/attachments/`
+with nearby Markdown metadata or an attachment index documenting purpose, provenance, area or owner,
+and update guidance.
 Repeated operational procedures such as SSH, setup, service inspection, and debugging live as
 sanitized runbooks under `docs/resources/<area>/runbooks/`; real placeholder values live in ignored
 `.local/runbooks/` binding files.
+Reusable workbook bundles live under root `workbooks/`, one folder per workbook, with workbook-local
+scripts, data, assets, templates, examples, outputs, support files, and dependencies declared in the
+workbook `README.md`.
 See [`playbooks/conventions/task-system-quickstart.md`](../playbooks/conventions/task-system-quickstart.md),
 [`playbooks/conventions/knowledge-base-quickstart.md`](../playbooks/conventions/knowledge-base-quickstart.md),
-[`playbooks/conventions/generated-artifacts.md`](../playbooks/conventions/generated-artifacts.md), and
-[`playbooks/conventions/runbook-convention.md`](../playbooks/conventions/runbook-convention.md)
+[`playbooks/conventions/generated-artifacts.md`](../playbooks/conventions/generated-artifacts.md),
+[`playbooks/conventions/runbook-convention.md`](../playbooks/conventions/runbook-convention.md), and
+[`playbooks/conventions/workbook-convention.md`](../playbooks/conventions/workbook-convention.md)
 for the full command map and source-of-truth split.
 
 Use `/audit-todos` periodically to compare active tasks with current code, tests, docs, roadmap,
@@ -356,6 +364,7 @@ Copy these into the target project (then point an agent at `_base/SETUP_INSTRUCT
 | `AGENTS.md` | Both | Auto-loaded entrypoint; downstream-owned (project-specific overrides go here) |
 | `_base/` | Both | Base operating contract, base README, base changelog, **base setup instructions**; upstream-owned (do not edit downstream) |
 | `_base/docs/` | Both (optional) | Seed layout for `docs/tasks_manager/`, `docs/areas/`, docs-primary knowledge resources, raw knowledge inbox/digests/reports, and `docs/archive/`; copy via `/init` |
+| `_base/workbooks/` | Both (optional) | Seed root `workbooks/README.md` as the workbook index; copy via `/init` |
 | `playbooks/` | Both | Authoritative workflow logic, role cards, templates |
 | `.claude/` | Claude Code | Skills, native subagents, hook scripts, settings |
 | `skills/` | Codex | Thin wrappers + `install-codex-skills.sh` |
@@ -466,6 +475,8 @@ Each repo file falls into one of three buckets:
 - `AGENTS.md` — entrypoint auto-loaded by agents; instructs them to read `_base/AGENTS.md` and then applies any project-specific overrides.
 - `.config/repos.project.md` (optional) — committed repo registry created from `_base/repos.project.example.md` when
   a project needs stable repo slugs, branch/work policy, and task `Repos` metadata.
+- `workbooks/` — workbook bundles, one folder per workbook. Seeded from `_base/workbooks/README.md`,
+  then owned by the downstream project.
 
 **Upstream-owned** — everything under `_base/`. Do not edit; flows in cleanly from `git fetch template && git merge`. Simple rule for merge conflicts: always accept upstream for `_base/*`.
 
@@ -478,6 +489,8 @@ Each repo file falls into one of three buckets:
 - `_base/repos.map.example` — optional example for local `.local/repos.map` checkout mappings.
 - `_base/docs/` — seed docs layout for the task manager, generated area views, docs-primary
   knowledge resources, raw knowledge inbox/digests/reports, runbooks, and archive.
+- `_base/workbooks/` — seed root workbook index. Pull updates from upstream; downstream workbook
+  contents live in root `workbooks/`.
 
 **Mixed** (manual merge required):
 

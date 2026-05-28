@@ -14,6 +14,11 @@ Raw source material waiting to be processed belongs in `_inbox/`. Curated Markdo
 sources belong in `_digests/`. Use `/distill-knowledge` to extract the important information and
 promote stable facts into the canonical knowledge files.
 
+Long-lived committed source documents and binaries, such as `.docx`, PDFs, spreadsheets, diagrams, or
+similar durable project resources, belong under `<area>/attachments/`. Keep a nearby Markdown companion
+file or attachment index that documents purpose, provenance, area or owner, update guidance, and links
+to related digests or canonical docs.
+
 Rerunnable agent reports, audits, inventories, and migration proposals belong in `_reports/` with
 timestamped filenames, one file per run. Stable project docs do not belong there.
 
@@ -26,6 +31,6 @@ Reference source paths as `<repo-slug>:<repo-relative-path>`. Do not commit abso
 paths from `.local/repos.map`.
 
 Queued work belongs in `../tasks_manager/`. Area status belongs in `../areas/`. Frozen or obsolete
-docs/resources belong in `../archive/`.
+docs/resources belong in `../archive/`. Workbook bundles belong in root `workbooks/`.
 
 This folder is seeded by `/init`; add structure as the project grows.

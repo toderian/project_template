@@ -26,7 +26,8 @@ This skill orchestrates primitives that already exist rather than reinventing th
 - `_base/scripts/sync-todo-ledgers.sh` — reconciles the ledgers after any file moves.
 
 Read `playbooks/conventions/todo-convention.md` and `playbooks/conventions/inbox-convention.md` for the
-target shapes. Read `playbooks/conventions/generated-artifacts.md` for report filename rules.
+target shapes. Read `playbooks/conventions/generated-artifacts.md` for report filename rules and
+`playbooks/conventions/workbook-convention.md` for workbook bundles.
 
 ## The three piles → where each lands
 
@@ -34,6 +35,8 @@ target shapes. Read `playbooks/conventions/generated-artifacts.md` for report fi
 |------|--------------------|-------------|-----|
 | **Loose work** | ad-hoc `TODO.md`, `NOTES.md`, inline `TODO:`/`FIXME:` clusters, half-finished task files not matching `<PREFIX>-NNN` | `docs/tasks_manager/_inbox/` as `I-NNN` ideas | The inbox is the cheap, reversible capture layer. Re-triaging later beats importing low-quality work as first-class backlog. |
 | **Loose docs** | design notes, stray READMEs, architecture scribbles, `*.md` outside `docs/` that explain *how the system works* | `docs/resources/` | That's the home `/init` seeds for durable project documentation. |
+| **Durable binaries** | long-lived `.docx`, PDFs, spreadsheets, diagrams, or source documents worth committing | `docs/resources/<area>/attachments/` with Markdown metadata | Raw inbox staging is not an authoritative long-term home for committed source documents. |
+| **Workbook bundles** | a folder of scripts, data, assets, examples, templates, outputs, and instructions for one repeatable workflow | `workbooks/<workbook-slug>/` | Workbooks stay packaged so future users can run or inspect the whole working set together. |
 | **Orphans** | stale scripts, dead configs, abandoned scratch files, `*.bak`, commented-out experiments | **flagged list only** — never moved, never deleted | Only the user knows if these are truly dead. Surface them; let them decide. |
 
 When a file is ambiguous (could be a doc or a note), prefer the inbox — it's the lower-commitment

@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.05.29.0
+BASE_VERSION: 2026.05.29.1
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,33 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Add workbook and durable attachment conventions
+
+The template now distinguishes reusable workbook bundles, raw knowledge staging, and long-lived
+committed source documents.
+
+- New `playbooks/conventions/workbook-convention.md` defines root `workbooks/` as the canonical home
+  for workbook bundles.
+- `_base/workbooks/README.md` seeds a root workbook index. `_base/scripts/seed-docs.sh` now copies it
+  to `workbooks/README.md` without overwriting downstream files.
+- Each workbook lives in its own folder, may be nested into collections, keeps scripts/support files
+  local, and declares workbook reuse through README `Depends on` paths.
+- `docs/tasks_manager/_inbox/` remains the raw idea/work-item inbox.
+- `docs/resources/_inbox/` remains the raw knowledge-file staging area for `/distill-knowledge`;
+  non-Markdown files there stay ignored by default unless a downstream project intentionally changes
+  that policy.
+- Long-lived committed `.docx`, PDFs, spreadsheets, diagrams, and similar source documents now have a
+  durable home under `docs/resources/<area>/attachments/` with nearby Markdown metadata or an
+  attachment index documenting purpose, provenance, area or owner, and update guidance.
+
+**Downstream impact:** run `_base/scripts/seed-docs.sh` to create `workbooks/README.md` in existing
+repos. Add or move workbook bundles under root `workbooks/`, declare reuse in each workbook README
+`Depends on` section, keep raw uploads awaiting distillation in `docs/resources/_inbox/`, and move
+long-lived committed binaries to `docs/resources/<area>/attachments/` with Markdown metadata. Keep the
+existing fetch-only `template` remote before future updates:
+`git remote add template git@github.com:toderian/project_template.git` and
+`git remote set-url --push template DISABLE`. No new remote mechanism is introduced.
 
 ### Expand roadmap horizons
 

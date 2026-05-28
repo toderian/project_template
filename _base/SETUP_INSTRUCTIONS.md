@@ -147,9 +147,10 @@ If the project does not want alignment gating, skip this step — the rest of th
 
 **Check:** either `PROJECT.md` exists and the literal string `<Replace this paragraph` no longer appears in its Vision section, **or** the project intentionally has no `PROJECT.md` (in which case `/align` is unavailable and the user has been informed).
 
-### 2e — `docs/` task system (optional, enables inbox/tasks/areas/resources)
+### 2e — `docs/` task system and `workbooks/` index (optional)
 
-If the project wants the template task system, run `/init` or seed the docs layout directly:
+If the project wants the template task system or the root workbook convention, run `/init` or seed the
+layout directly:
 
 ```bash
 _base/scripts/seed-docs.sh
@@ -159,15 +160,16 @@ _base/scripts/sync-todo-ledgers.sh
 This creates the inbox, flat task directory, area registry with the reserved `T` prefix, global roadmap,
 generated area overview, `docs/_plans/`, `docs/resources/CONTEXT.md`,
 `docs/resources/_inbox/`, area-segregated `docs/resources/_digests/`,
-`docs/resources/global/summary.md`, `docs/resources/global/runbooks/README.md`, `docs/archive/`, and
-a root `CONTEXT.md` pointer if one does not already exist. Re-running is safe because
-`_base/scripts/seed-docs.sh` never overwrites downstream-owned task files, area pages, or docs.
+`docs/resources/global/summary.md`, `docs/resources/global/runbooks/README.md`, `docs/archive/`,
+root `workbooks/README.md` as the workbook index, and a root `CONTEXT.md` pointer if one does not
+already exist. Re-running is safe because `_base/scripts/seed-docs.sh` never overwrites
+downstream-owned task files, area pages, docs, or workbooks.
 
 **Check:** `docs/tasks_manager/_areas.md`, `docs/tasks_manager/_roadmap.md`,
 `docs/areas/_overview.md`, `docs/resources/global/summary.md`, `docs/_plans/`,
 `docs/resources/README.md`, `docs/resources/CONTEXT.md`, `docs/resources/_inbox/README.md`,
-`docs/resources/_digests/README.md`, `docs/resources/global/runbooks/README.md`, and
-`docs/archive/README.md` exist, and
+`docs/resources/_digests/README.md`, `docs/resources/global/runbooks/README.md`,
+`docs/archive/README.md`, and `workbooks/README.md` exist, and
 `_base/scripts/sync-todo-ledgers.sh` exits 0.
 
 ---

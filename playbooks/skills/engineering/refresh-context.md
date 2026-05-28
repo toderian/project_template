@@ -20,6 +20,9 @@ Keep these locations distinct:
 - Cross-repo feature contracts live at `docs/resources/<area>/contracts/<feature-slug>.md`.
 - Sanitized operational runbooks live at `docs/resources/<area>/runbooks/<scenario-slug>.md`; local
   placeholder values live under `.local/runbooks/` and must not be cited in committed docs.
+- Durable committed source documents and binaries live under `docs/resources/<area>/attachments/` with
+  nearby Markdown metadata or an attachment index documenting purpose, provenance, area or owner, and
+  update guidance.
 - Generated area status pages remain at `docs/areas/<area>.md`; do not hand-edit generated status
   pages when the ledger generator owns them.
 - Component contexts live at
@@ -83,6 +86,8 @@ List the docs that can drift:
   `docs/resources/global/runbooks/*.md`, or `$CONTEXT_DOCS_DIR/resources/<area>/runbooks/*.md` for
   central area docs, or `$CONTEXT_DOCS_DIR/<source-repo>/resources/<area>/runbooks/*.md` for
   repo-specific external context
+- attachment metadata and indexes under `docs/resources/<area>/attachments/*.md`, or the equivalent
+  configured external context path
 - component contexts: `docs/resources/<area>/components/*/CONTEXT.md`, or
   `$CONTEXT_DOCS_DIR/resources/<area>/components/*/CONTEXT.md` for central area docs, or
   `$CONTEXT_DOCS_DIR/<source-repo>/resources/<area>/components/*/CONTEXT.md` for repo-specific

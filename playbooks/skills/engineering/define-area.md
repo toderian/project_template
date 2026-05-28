@@ -40,6 +40,7 @@ The canonical in-repo area knowledge root is:
 docs/resources/<area>/
 ├── summary.md
 ├── dependency-graph.md
+├── attachments/
 ├── contracts/
 ├── runbooks/
 └── components/

@@ -28,6 +28,8 @@ Store those in the right knowledge lane first:
 - raw notes, transcripts, or pasted logs: `docs/resources/_inbox/`
 - distilled reusable facts from raw sources: `docs/resources/_digests/<area-or-bucket>/...`
 - rerunnable investigation output: `docs/resources/_reports/<workflow>/...`
+- durable source documents and binaries: `docs/resources/<area>/attachments/` with Markdown metadata
+- reusable workbook bundles with scripts/support files: `workbooks/<workbook-slug>/`
 
 Promote only stable, repeatable procedure steps into a runbook.
 

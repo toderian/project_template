@@ -26,6 +26,8 @@ Use these locations consistently:
 - `docs/resources/<area>/dependency-graph.md` - cross-repo/package dependencies.
 - `docs/resources/<area>/contracts/<feature-slug>.md` - concrete feature contracts.
 - `docs/resources/<area>/runbooks/<scenario-slug>.md` - sanitized reusable operational procedures.
+- `docs/resources/<area>/attachments/` - durable committed source documents and binaries with nearby
+  Markdown metadata or an attachment index.
 - `docs/resources/<area>/components/<component-slug>/CONTEXT.md` - component context.
 
 The raw inbox is a staging area, not a place future agents should rely on for context. Preserve
@@ -49,6 +51,11 @@ project is allowed to retain.
 For binary formats, use available local extraction tools when they exist (`pdftotext`, office document
 converters, OCR utilities). If extraction is not available, report the blocker or ask the user for a
 text export. Do not pretend to have read a file that could not be extracted.
+
+If the user wants a binary or source document committed for long-term reference instead of merely
+distilled, place it under `docs/resources/<area>/attachments/` with Markdown metadata documenting
+purpose, provenance, area or owner, and update guidance. Do not leave authoritative binaries in
+`docs/resources/_inbox/`.
 
 ### 2. Classify and scope
 
@@ -134,6 +141,8 @@ After writing the digest, update durable knowledge files only when the source gi
   `docs/resources/<area>/summary.md`
 - update dependency graphs, feature contracts, runbooks, or component contexts when the source
   describes those concrete boundaries or repeatable procedures
+- move long-lived committed source documents or binaries to `docs/resources/<area>/attachments/` with
+  nearby Markdown metadata or an attachment index
 
 For SSH, setup, debugging, service inspection, and similar operational sources, promote only stable
 procedure steps into `docs/resources/<area>/runbooks/`. Keep real hostnames, account names, paths, and
