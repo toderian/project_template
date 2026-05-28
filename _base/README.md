@@ -238,10 +238,10 @@ Severities: **BLOCKER** (missing/orphan files, broken references), **DRIFT** (ou
 
 Template-owned scripts live under `_base/scripts/`, and template-owned bundled plugins live under `_base/plugins/`, so the root `scripts/` and `plugins/` directories remain available for downstream project tooling. Some helpers validate upstream-owned content, while task-system and setup helpers intentionally operate on the downstream repo state from their upstream-owned location. Downstream projects should not re-implement them; pull updates from the template and re-run.
 
-`_base/scripts/check-template-update.sh` is the standard read-only post-merge verifier for downstream
-repos. It prints the current `BASE_VERSION`, runs the template validation checks, exits non-zero when
-anything needs attention, and is designed for an agent to run, fix reported failures, and rerun until
-green.
+`_base/scripts/check-template-update.sh` is the standard read-only, agent-runtime-independent
+post-merge verifier for downstream repos. It prints the current `BASE_VERSION`, syntax-checks template
+shell scripts, runs the template validation checks, exits non-zero when anything needs attention, and
+is designed for an agent to run, fix reported failures, and rerun until green.
 
 `_base/scripts/check-repos-config.sh` validates an optional downstream `repos.project` registry and any
 task `Repos` metadata. Default mode is safe for projects that have not opted in. Use

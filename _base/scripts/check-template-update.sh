@@ -18,6 +18,7 @@ Run the standard read-only checks after pulling or merging template updates.
 
 Checks:
   - reports BASE_VERSION from _base/CHANGELOG.md
+  - syntax-checks template shell scripts
   - validates skill/wrapper/table consistency
   - validates bundled Codex plugin manifests
   - validates optional repos.project and task Repos metadata
@@ -78,7 +79,31 @@ print_base_version() {
   printf '%s\n' "${version}"
 }
 
+check_shell_syntax() {
+  local failed=0
+  local root file
+  local roots=(
+    "${REPO_ROOT}/_base/scripts"
+    "${REPO_ROOT}/_base/plugins"
+    "${REPO_ROOT}/skills"
+  )
+
+  for root in "${roots[@]}"; do
+    [[ -d "${root}" ]] || continue
+    while IFS= read -r -d '' file; do
+      if ! bash -n "${file}"; then
+        failed=1
+      fi
+    done < <(find "${root}" -type f -name '*.sh' -print0)
+  done
+
+  return "${failed}"
+}
+
 print_base_version
+
+run_check "Template shell syntax" \
+  check_shell_syntax
 
 run_check "Skill catalog" \
   "${REPO_ROOT}/_base/scripts/check-skills-sync.sh"
