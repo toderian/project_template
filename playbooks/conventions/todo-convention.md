@@ -23,7 +23,7 @@ docs/
 ├── _plans/                 # Durable implementation plans that outlive a session
 ├── tasks_manager/
 │   ├── _areas.md            # Area registry: Area | Prefix | Description | Page
-│   ├── _roadmap.md          # Global Now / Next / Later execution plan
+│   ├── _roadmap.md          # Global Urgent / Now / Next / Later / Someday execution plan
 │   ├── _active.md           # Generated ledger of open + in_progress tasks
 │   ├── _done.md             # Generated ledger of completed/cancelled tasks
 │   ├── _inbox/              # Raw ideas (see inbox-convention.md)
@@ -114,7 +114,7 @@ Rules:
   prefix, description, and page, then add it after confirmation.
 
 `_base/scripts/sync-todo-ledgers.sh` uses this registry to create missing area pages, regenerate
-`docs/areas/_overview.md`, and refresh generated Now / Next / Later blocks in each area page. Do not
+`docs/areas/_overview.md`, and refresh generated Urgent / Now / Next / Later / Someday blocks in each area page. Do not
 add durable architecture notes to area pages; write them under `docs/resources/<area>/`.
 
 ## Repo registry and local checkout map
@@ -372,14 +372,15 @@ Keep tasks atomic: one clear deliverable per file.
 
 ## Roadmap
 
-`docs/tasks_manager/_roadmap.md` is the global execution plan: Now, Next, and Later. Placement and order
-are deliberate human decisions, not derived from status or priority. Priority stays `high`, `medium`, or
-`low`; roadmap order decides the actual execution sequence.
+`docs/tasks_manager/_roadmap.md` is the global execution plan: Urgent, Now, Next, Later, and Someday.
+Placement and order are deliberate human decisions, not derived from status or priority. Priority stays
+`high`, `medium`, or `low`; roadmap order decides the actual execution sequence.
 
 The roadmap is placement-only. It stores task IDs like `AUTH-001` in the intended horizon and order;
-raw inbox ideas like `I-007` may appear in `Later` as parking-lot signals, but must be promoted through
-`/triage-inbox` before moving into `Now` or `Next`. Task files remain authoritative for status, phases,
-priority, and other detail. Ambiguous or missing references reported by
+task IDs may appear in any horizon. Raw inbox ideas like `I-007` may appear only in `Someday` as
+parking-lot signals, and must be promoted through `/triage-inbox` before moving into `Urgent`, `Now`,
+`Next`, or `Later`. Task files remain authoritative for status, phases, priority, and other detail.
+Ambiguous or missing references reported by
 `_base/scripts/sync-todo-ledgers.sh --check` must be fixed by a human or agent; do not guess which task was
 meant.
 
@@ -391,7 +392,7 @@ Task files remain the source of truth. `_base/scripts/sync-todo-ledgers.sh` deri
 - `docs/tasks_manager/_done.md` - every `done` and `cancelled` archived task.
 - `docs/areas/_overview.md` - generated overview from `_areas.md`, task metadata, and recognizable
   roadmap IDs.
-- Generated Now / Next / Later status blocks in each `docs/areas/<slug>.md`.
+- Generated Urgent / Now / Next / Later / Someday status blocks in each `docs/areas/<slug>.md`.
 
 The sync tooling edits only generated marker blocks inside area pages and creates missing area pages
 from the standard template. Existing content outside those markers is preserved for compatibility, but
@@ -450,7 +451,7 @@ For a quick overview, read `docs/tasks_manager/_roadmap.md`, `docs/tasks_manager
 
 - Counts by status and area.
 - Breakdown by priority.
-- Items at the top of Now / Next / Later.
+- Items at the top of Urgent / Now / Next / Later / Someday.
 - Oldest open tasks.
 - Recently executed tasks.
 - Blocked tasks and dependencies.

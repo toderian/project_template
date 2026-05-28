@@ -21,7 +21,7 @@ optional `Repos` metadata from stable repo slugs.
 /init
 /capture-idea "rough idea or follow-up"
 /triage-inbox          # discovery gate, then promote / drop / defer / append
-/roadmap               # place task IDs in Now / Next / Later
+/roadmap               # place task IDs in Urgent / Now / Next / Later / Someday
 # Before implementing an existing task:
 # run the pre-implementation review gate from todo-convention.md
 # implement / execute the task
@@ -52,9 +52,10 @@ _base/scripts/sync-todo-ledgers.sh --check
   status, priority, owner, phase checklists, acceptance criteria, related tests, execution log,
   completion harvest, and completion summary. When a downstream project has committed
   `.config/repos.project.md`, tasks may also include optional `Repos` metadata with comma-separated repo slugs.
-- **Roadmap** (`docs/tasks_manager/_roadmap.md`) owns placement and order only: Now, Next, Later. It
-  references task IDs in `Now` / `Next`; raw inbox IDs may sit in `Later` as parking-lot signals until
-  `/triage-inbox` promotes or drops them. It does not duplicate task status or phase detail.
+- **Roadmap** (`docs/tasks_manager/_roadmap.md`) owns placement and order only: Urgent, Now, Next,
+  Later, Someday. It references task IDs in any horizon; raw inbox IDs may sit only in `Someday` as
+  parking-lot signals until `/triage-inbox` promotes or drops them. It does not duplicate task status
+  or phase detail.
 - **Generated ledgers and area pages** (`docs/tasks_manager/_active.md`, `docs/tasks_manager/_done.md`,
   `docs/areas/_overview.md`, generated blocks in `docs/areas/<slug>.md`) are derived views. Rebuild
   them with `_base/scripts/sync-todo-ledgers.sh`; validate them with `_base/scripts/sync-todo-ledgers.sh --check`.

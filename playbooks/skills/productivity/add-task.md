@@ -99,8 +99,8 @@ _base/scripts/sync-todo-ledgers.sh --check
 _base/scripts/check-repos-config.sh
 ```
 
-If the user wants this scheduled, add the task ID to `docs/tasks_manager/_roadmap.md` under Now, Next,
-or Later in the intended order, then run sync and `--check` again so `docs/areas/_overview.md` and
+If the user wants this scheduled, add the task ID to `docs/tasks_manager/_roadmap.md` under Urgent,
+Now, Next, Later, or Someday in the intended order, then run sync and `--check` again so `docs/areas/_overview.md` and
 generated area blocks reflect the roadmap placement. Run `_base/scripts/check-repos-config.sh` again
 after any task metadata changes.
 

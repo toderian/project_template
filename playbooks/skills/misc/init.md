@@ -34,7 +34,7 @@ docs/
 ├── _plans/              # durable implementation plans
 ├── tasks_manager/        # seeded from _base/docs/tasks_manager/
 │   ├── _areas.md         #   area registry: Area | Prefix | Description | Page
-│   ├── _roadmap.md       #   Now/Next/Later plan of execution
+│   ├── _roadmap.md       #   Urgent/Now/Next/Later/Someday plan of execution
 │   ├── _active.md        #   open + in_progress ledger
 │   ├── _done.md          #   completed/cancelled ledger
 │   ├── _inbox/           #   raw captured ideas (I-NNN)
@@ -82,7 +82,7 @@ Report what was created. Remind the user that:
 - `/capture-idea` records an idea into `docs/tasks_manager/_inbox/` instantly (`I-NNN`)
 - `/add-task` creates a full task directly when the work is already clear
 - `/triage-inbox` promotes inbox ideas into typed, area-prefixed tasks
-- `/roadmap` maintains `docs/tasks_manager/_roadmap.md` — the Now/Next/Later plan of execution
+- `/roadmap` maintains `docs/tasks_manager/_roadmap.md` — the Urgent/Now/Next/Later/Someday plan of execution
 - Any skill can produce tasks following `playbooks/conventions/todo-convention.md` (`/write-a-prd`,
   `/prd-to-todos`, planning)
 - Durable implementation plans live in `docs/_plans/`

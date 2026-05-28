@@ -100,8 +100,8 @@ For each approved item, reserve a file in `docs/tasks_manager/_todos/` named
 Reserve each file with `_base/scripts/reserve-work-item.sh task <PREFIX> <TYPE> <short-desc>` in dependency
 order so IDs sort naturally within each area. Fill each reserved placeholder immediately. Use the
 current datetime for the `Created` field. After creating the files, run `_base/scripts/sync-todo-ledgers.sh`.
-If the user wants the PRD scheduled, place the new task IDs on `docs/tasks_manager/_roadmap.md` in Now,
-Next, or Later and run the sync again. After all task and roadmap changes are done, run
+If the user wants the PRD scheduled, place the new task IDs on `docs/tasks_manager/_roadmap.md` in
+Urgent, Now, Next, Later, or Someday and run the sync again. After all task and roadmap changes are done, run
 `_base/scripts/sync-todo-ledgers.sh --check` and `_base/scripts/check-repos-config.sh`.
 
 ### 7. Report

@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.05.28.4
+BASE_VERSION: 2026.05.29.0
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,22 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Expand roadmap horizons
+
+The task roadmap convention now uses five placement horizons: `Urgent`, `Now`, `Next`, `Later`, and
+`Someday`.
+
+- `docs/tasks_manager/_roadmap.md` is still placement-only; task `Priority` remains `high`, `medium`,
+  or `low` metadata.
+- Raw `I-NNN` inbox IDs may appear only in `Someday`; task IDs may appear in any horizon.
+- `_base/scripts/sync-todo-ledgers.sh` now recognizes all five horizons and generates matching area
+  page and overview columns.
+- Horizon soft thresholds are documented review guidance only, not script or CI validation rules.
+
+**Downstream impact:** after merging this update, run `_base/scripts/sync-todo-ledgers.sh` to refresh
+generated area pages and `docs/areas/_overview.md`. Move any raw inbox references from `Later` to
+`Someday`, or promote them to tasks before placing them elsewhere.
 
 ### Move repo registry to `.config/repos.project.md`
 

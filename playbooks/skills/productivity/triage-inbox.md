@@ -78,7 +78,7 @@ For each promoted idea, settle:
   `Repos` metadata with comma-separated slugs. If not inferable, omit the row. Do not encode repo
   slugs into task IDs, filenames, prefixes, or areas.
 - **Priority** — high / medium / low.
-- **Roadmap placement** — leave unscheduled unless the user wants the new task in Now, Next, or Later.
+- **Roadmap placement** — leave unscheduled unless the user wants the new task in Urgent, Now, Next, Later, or Someday.
 
 ### 5. Create the task
 
