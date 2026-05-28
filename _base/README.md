@@ -555,6 +555,10 @@ When operating in a project that was seeded from this template, agents should:
 4. Never edit anything under `_base/` in a downstream project. Suggested base-contract changes belong upstream in the template repo itself.
 5. Before template merges, run `./_base/scripts/setup-template-merge-rules.sh --check`; if it fails,
    run it without `--check`, commit `.gitattributes` if changed, then retry the merge.
+6. If the base changelog describes new or changed downstream-owned formats, seeded docs, task metadata,
+   project-slot files, or local setup conventions, ask whether the user wants to migrate the downstream
+   repo to the updated base format. Treat that migration as a separate user-approved step, not as an
+   automatic side effect of merging `_base/**`.
 
 ## Recommended adoption pattern
 

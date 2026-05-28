@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.05.29.2
+BASE_VERSION: 2026.05.29.3
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,16 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Clarify downstream format migration consent
+
+Agents updating downstream repos from the template must now explicitly ask whether to migrate
+downstream-owned files when a base update introduces or changes formats, seeded docs, task metadata,
+project-slot files, or local setup conventions.
+
+**Downstream impact:** documentation-only behavior clarification. Template merges still update
+`_base/**` directly, but downstream-owned format migrations should be presented as a separate
+user-approved follow-up step instead of being applied silently during the merge.
 
 ### Add template merge rules for downstream repos
 

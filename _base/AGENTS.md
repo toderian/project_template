@@ -301,6 +301,10 @@ Agents working in a downstream project must:
   `_base/scripts/setup-template-merge-rules.sh`, commit `.gitattributes` if it changed, then retry the
   merge
 - on requests like "update from the template" or "pull template updates", run `git fetch template`, **read `_base/CHANGELOG.md` from the template** (`git diff HEAD..template/master -- _base/CHANGELOG.md`) and surface each new entry's **Downstream impact** line to the user, then show the commit-level diff (`git log --oneline HEAD..template/master`) and let the user choose between `git merge template/master` and selective `git cherry-pick`
+- when base updates introduce or change downstream-owned formats, seeded docs, task metadata,
+  project-slot files, or local setup conventions, ask whether the user wants to migrate the downstream
+  repo to the updated base format; do not silently rewrite downstream-owned files as part of the
+  template merge
 - if the `template` remote is missing in a project that clearly originated from this template (it has `AGENTS.md` + `_base/AGENTS.md`, `playbooks/`, `.claude/skills/`), offer to add it:
 
   ```bash
