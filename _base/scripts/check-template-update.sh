@@ -18,6 +18,7 @@ Run the standard read-only checks after pulling or merging template updates.
 
 Checks:
   - reports BASE_VERSION from _base/CHANGELOG.md
+  - validates template merge rules and local Git merge drivers
   - syntax-checks template shell scripts
   - validates skill/wrapper/table consistency
   - validates bundled Codex plugin manifests
@@ -101,6 +102,9 @@ check_shell_syntax() {
 }
 
 print_base_version
+
+run_check "Template merge rules" \
+  "${REPO_ROOT}/_base/scripts/setup-template-merge-rules.sh" --check
 
 run_check "Template shell syntax" \
   check_shell_syntax

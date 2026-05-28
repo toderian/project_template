@@ -34,7 +34,7 @@ The runtime CLI (`claude` or `codex`) is implicitly available — you, the agent
 
 ---
 
-## Phase 1 — Wire up the `template` git remote
+## Phase 1 — Wire up the `template` git remote and merge rules
 
 This template publishes updates at `git@github.com:toderian/project_template.git`. Every downstream project should keep a fetch-only `template` remote pointing at it.
 
@@ -48,9 +48,19 @@ This template publishes updates at `git@github.com:toderian/project_template.git
    git remote set-url --push template DISABLE
    git fetch template
    ```
-3. **Check:** `git remote -v` shows `template` with the fetch URL `git@github.com:toderian/project_template.git` and the push URL `DISABLE`.
+3. Install the template merge rules:
+   ```bash
+   ./_base/scripts/setup-template-merge-rules.sh
+   ```
+   This configures local Git merge drivers and creates or updates the managed block in root
+   `.gitattributes`.
+4. **Check:** `git remote -v` shows `template` with the fetch URL `git@github.com:toderian/project_template.git` and the push URL `DISABLE`, and this command exits 0:
+   ```bash
+   ./_base/scripts/setup-template-merge-rules.sh --check
+   ```
 
-If the check fails, the most likely cause is missing SSH access to the upstream repo. Stop and ask the user.
+If the remote check fails, the most likely cause is missing SSH access to the upstream repo. If the
+merge-rule check fails, run the setup script again and report its exact output if it still fails.
 
 ---
 

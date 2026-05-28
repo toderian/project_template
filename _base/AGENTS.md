@@ -274,6 +274,7 @@ Downstream projects follow a strict split:
 | `_base/AGENTS.md` | **Upstream-owned** | This file. Base contract. Do not edit downstream — it flows in cleanly from upstream. |
 | `README.md` | **Downstream-owned** | Each project's own README. Links to `_base/README.md`. |
 | `_base/README.md` | **Upstream-owned** | Authoritative template documentation. Do not edit downstream. |
+| `.gitattributes` | **Downstream-owned** | Contains the managed agents-template merge-rule block plus project-specific attributes outside that block. Install or refresh with `_base/scripts/setup-template-merge-rules.sh`. |
 | `_base/CHANGELOG.md` | **Upstream-owned** | Base-template changelog. Agents must check this before applying a template merge so they can communicate downstream impact to the user. |
 | `_base/SETUP_INSTRUCTIONS.md` | **Upstream-owned** | Numbered setup steps an agent (or human) executes to wire up a fresh project — template remote, runtime installers, downstream-slot replacements, verification. |
 | `.config/repos.project.md` (optional) | **Downstream-owned** | Committed project repo registry. Create from `_base/repos.project.example.md` when a project needs stable repo slugs, branch defaults, and work-mode policy. |
@@ -296,7 +297,10 @@ Downstream projects follow a strict split:
 Agents working in a downstream project must:
 
 - treat `template` as **fetch-only**; never push to it (the push URL is disabled by convention as `DISABLE`)
-- on requests like "update from the template" or "pull template updates", run `git fetch template`, **read `CHANGELOG.md` from the template** (`git diff HEAD..template/master -- CHANGELOG.md`) and surface each new entry's **Downstream impact** line to the user, then show the commit-level diff (`git log --oneline HEAD..template/master`) and let the user choose between `git merge template/master` and selective `git cherry-pick`
+- before template merges, run `_base/scripts/setup-template-merge-rules.sh --check`; if it fails, run
+  `_base/scripts/setup-template-merge-rules.sh`, commit `.gitattributes` if it changed, then retry the
+  merge
+- on requests like "update from the template" or "pull template updates", run `git fetch template`, **read `_base/CHANGELOG.md` from the template** (`git diff HEAD..template/master -- _base/CHANGELOG.md`) and surface each new entry's **Downstream impact** line to the user, then show the commit-level diff (`git log --oneline HEAD..template/master`) and let the user choose between `git merge template/master` and selective `git cherry-pick`
 - if the `template` remote is missing in a project that clearly originated from this template (it has `AGENTS.md` + `_base/AGENTS.md`, `playbooks/`, `.claude/skills/`), offer to add it:
 
   ```bash

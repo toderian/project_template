@@ -15,6 +15,7 @@ This repo is designed to work with both **Claude Code** and **OpenAI Codex**. Co
 .
 ├── AGENTS.md                              # Downstream-owned entrypoint; loads _base/AGENTS.md
 ├── README.md                              # Downstream-owned README; links to _base/README.md
+├── .gitattributes                         # Downstream-owned file with template merge-rule block
 ├── LICENSE
 │
 ├── _base/                                 # Upstream-owned base content — never edit downstream
@@ -35,6 +36,7 @@ This repo is designed to work with both **Claude Code** and **OpenAI Codex**. Co
 │   │   └── bootstrap-third-party.sh
 │   └── scripts/                           # Template-owned setup, task-system, and validation scripts
 │       ├── setup-agents.sh                # One-command Claude + Codex skill/plugin refresh
+│       ├── setup-template-merge-rules.sh  # Configures template/downstream merge drivers
 │       ├── link-skills.sh                 # Links Claude Code skills into ~/.claude/skills
 │       ├── seed-docs.sh                   # Seeds docs/ and workbooks/ without overwriting
 │       ├── reserve-work-item.sh           # Atomically reserves task/inbox filenames
@@ -253,10 +255,17 @@ Severities: **BLOCKER** (missing/orphan files, broken references), **DRIFT** (ou
 
 Template-owned scripts live under `_base/scripts/`, and template-owned bundled plugins live under `_base/plugins/`, so the root `scripts/` and `plugins/` directories remain available for downstream project tooling. Some helpers validate upstream-owned content, while task-system and setup helpers intentionally operate on the downstream repo state from their upstream-owned location. Downstream projects should not re-implement them; pull updates from the template and re-run.
 
+`_base/scripts/setup-template-merge-rules.sh` configures the local Git merge drivers used by the root
+`.gitattributes` template block. The drivers are template-aware: they apply the ownership rule only
+when the merge or cherry-pick head comes from the `template` remote, and otherwise fall back to normal
+three-way file merging. Run the setup script once during downstream setup, and rerun it if
+`check-template-update.sh` reports missing merge rules.
+
 `_base/scripts/check-template-update.sh` is the standard read-only, agent-runtime-independent
-post-merge verifier for downstream repos. It prints the current `BASE_VERSION`, syntax-checks template
-shell scripts, runs the template validation checks, exits non-zero when anything needs attention, and
-is designed for an agent to run, fix reported failures, and rerun until green.
+post-merge verifier for downstream repos. It prints the current `BASE_VERSION`, validates the template
+merge rules, syntax-checks template shell scripts, runs the template validation checks, exits non-zero
+when anything needs attention, and is designed for an agent to run, fix reported failures, and rerun
+until green.
 
 `_base/scripts/check-repos-config.sh` validates an optional downstream `.config/repos.project.md` registry and any
 task `Repos` metadata. Default mode is safe for projects that have not opted in. Use
@@ -451,7 +460,11 @@ If a downstream project was started by copying files (not cloning), add the remo
 git remote add template git@github.com:toderian/project_template.git
 git remote set-url --push template DISABLE
 git fetch template
+./_base/scripts/setup-template-merge-rules.sh
 ```
+
+Commit the resulting `.gitattributes` change in the downstream repo. The script also writes local Git
+config for the two custom merge drivers, which is intentionally not committed.
 
 ### Pulling updates from the template
 
@@ -459,11 +472,18 @@ git fetch template
 git fetch template
 git log --oneline HEAD..template/master    # preview what's new upstream
 git diff HEAD..template/master -- _base/CHANGELOG.md   # human-readable summary + per-change downstream impact
+./_base/scripts/setup-template-merge-rules.sh --check   # if this fails, run it without --check and commit .gitattributes
 git merge template/master                  # or: git cherry-pick <commit>
 ./_base/scripts/check-template-update.sh   # read-only verification after the merge
 ```
 
-Always check `_base/CHANGELOG.md` before merging — each entry includes a **Downstream impact** line that flags expected conflicts, new conventions, or behavior changes. Use `merge` when you want everything; use `cherry-pick` when you only want specific commits (e.g. a new skill but not a hook change you've customized). After the merge, an agent can run `./_base/scripts/check-template-update.sh`, fix any reported failures, and rerun it until it passes.
+Always check `_base/CHANGELOG.md` before merging — each entry includes a **Downstream impact** line
+that flags expected conflicts, new conventions, or behavior changes. Keep
+`./_base/scripts/setup-template-merge-rules.sh --check` green before template merges so Git can apply
+the ownership rules automatically. Use `merge` when you want everything; use `cherry-pick` when you
+only want specific commits (e.g. a new skill but not a hook change you've customized). After the merge,
+an agent can run `./_base/scripts/check-template-update.sh`, fix any reported failures, and rerun it
+until it passes.
 
 ### File conventions for downstream projects
 
@@ -473,6 +493,8 @@ Each repo file falls into one of three buckets:
 
 - `README.md` — describes the project, links to `_base/README.md`.
 - `AGENTS.md` — entrypoint auto-loaded by agents; instructs them to read `_base/AGENTS.md` and then applies any project-specific overrides.
+- `.gitattributes` — contains the managed agents-template merge-rule block plus any project-specific
+  attributes outside that block.
 - `.config/repos.project.md` (optional) — committed repo registry created from `_base/repos.project.example.md` when
   a project needs stable repo slugs, branch/work policy, and task `Repos` metadata.
 - `workbooks/` — workbook bundles, one folder per workbook. Seeded from `_base/workbooks/README.md`,
@@ -501,6 +523,28 @@ Each repo file falls into one of three buckets:
 - `.local/runbooks/` — never committed; machine-local placeholder bindings for sanitized runbooks.
 - `PROJECT.md` — downstream-owned alignment doc, if seeded from `_base/PROJECT.md.template`. The template flows in cleanly; the seeded `PROJECT.md` is the project's own and is not touched by template pulls.
 
+### Template merge rules
+
+The root `.gitattributes` managed block turns the ownership split into Git merge behavior:
+
+- `template-keep-upstream` accepts the template remote's version for `_base/**`.
+- `template-keep-local` keeps the downstream version for `AGENTS.md`, `README.md`, seeded docs,
+  workbook bundles, `PROJECT.md`, `CONTEXT.md`, `CHANGELOG.md`, `LICENSE`, and
+  `.config/repos.project.md`.
+- mixed paths such as `playbooks/`, `skills/`, and `.claude/settings.json` are intentionally not
+  automated because downstream forks need human judgment.
+
+These custom drivers detect Git's `GITHEAD_*`/`GIT_REFLOG_ACTION` merge environment, with
+`MERGE_HEAD`/`CHERRY_PICK_HEAD` as a fallback, against refs under the `template` remote. For ordinary
+project branch merges, they run Git's normal three-way file merge instead of forcing either side. The
+driver commands live in local Git config, not in committed files, so each checkout must run:
+
+```bash
+./_base/scripts/setup-template-merge-rules.sh
+```
+
+Commit `.gitattributes` if the script changes it. Do not commit `.git/config`.
+
 ### Agent instructions for downstream projects
 
 When operating in a project that was seeded from this template, agents should:
@@ -509,6 +553,8 @@ When operating in a project that was seeded from this template, agents should:
 2. Never push to the `template` remote. The push URL is disabled by convention; if it is not, treat any push there as out of scope.
 3. If the `template` remote is missing in a project that clearly originated from this template (presence of `AGENTS.md` + `_base/`, `playbooks/`, `.claude/skills/`), offer to add it with the one-time setup commands above.
 4. Never edit anything under `_base/` in a downstream project. Suggested base-contract changes belong upstream in the template repo itself.
+5. Before template merges, run `./_base/scripts/setup-template-merge-rules.sh --check`; if it fails,
+   run it without `--check`, commit `.gitattributes` if changed, then retry the merge.
 
 ## Recommended adoption pattern
 

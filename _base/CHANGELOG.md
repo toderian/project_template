@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.05.29.1
+BASE_VERSION: 2026.05.29.2
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,33 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Add template merge rules for downstream repos
+
+Downstream projects can now install Git merge drivers and a managed `.gitattributes` block that encode
+the template ownership split.
+
+- New root `.gitattributes` managed block maps `_base/**` to `template-keep-upstream`.
+- Downstream-owned files such as `AGENTS.md`, `README.md`, `PROJECT.md`, `CONTEXT.md`,
+  `CHANGELOG.md`, `LICENSE`, `.config/repos.project.md`, root `docs/**`, and root `workbooks/**` map
+  to `template-keep-local`.
+- New `_base/scripts/setup-template-merge-rules.sh` configures the required local Git merge drivers and
+  creates or refreshes the managed `.gitattributes` block.
+- New `_base/scripts/template-merge-driver.sh` applies keep-local or keep-upstream only when Git's
+  merge environment identifies refs under the `template` remote; ordinary project branch merges fall
+  back to normal three-way file merging.
+- `_base/scripts/check-template-update.sh` now validates these merge rules before running the rest of
+  the post-merge checks.
+- `_base/SETUP_INSTRUCTIONS.md`, `_base/README.md`, and `_base/AGENTS.md` now tell agents to install
+  or verify merge rules before template pulls.
+
+**Downstream impact:** after merging this update, run
+`./_base/scripts/setup-template-merge-rules.sh`, commit `.gitattributes` if it changed, then run
+`./_base/scripts/check-template-update.sh`. If a downstream project already has a root
+`.gitattributes`, keep its project-specific rules outside the managed agents-template block. Future
+template pulls should keep `_base/**` from upstream automatically and keep downstream-owned slot files
+local only for template-remote merges; mixed paths such as `playbooks/`, `skills/`, and
+`.claude/settings.json` still require human merge judgment.
 
 ### Add workbook and durable attachment conventions
 

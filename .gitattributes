@@ -1,0 +1,25 @@
+# BEGIN agents-template merge rules
+# Managed by _base/scripts/setup-template-merge-rules.sh.
+# Keep project-specific attributes outside this block.
+
+# Avoid conflicts when downstream projects add their own attributes.
+.gitattributes merge=union
+
+# Downstream-owned files and seeded project workspaces keep the local version
+# during template-remote merges. Ordinary project branch merges use normal
+# three-way file merging.
+AGENTS.md merge=template-keep-local
+README.md merge=template-keep-local
+CHANGELOG.md merge=template-keep-local
+LICENSE merge=template-keep-local
+PROJECT.md merge=template-keep-local
+CONTEXT.md merge=template-keep-local
+.config/repos.project.md merge=template-keep-local
+docs/** merge=template-keep-local
+workbooks/** merge=template-keep-local
+
+# Upstream-owned base files accept the template remote's version during
+# template-remote merges. Ordinary project branch merges use normal three-way
+# file merging.
+_base/** merge=template-keep-upstream
+# END agents-template merge rules
