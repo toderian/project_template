@@ -13,6 +13,21 @@ For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
 
+### Add timestamped report artifact convention
+
+Rerunnable agent reports now have a stable home and unique filenames.
+
+- New `playbooks/conventions/generated-artifacts.md` distinguishes stable project artifacts from
+  rerunnable reports, audits, inventories, and snapshots.
+- `/init` seeds `docs/resources/_reports/` for report snapshots.
+- `/tidy-repo` now writes each migration report under
+  `docs/resources/_reports/tidy-repo/<timestamp>_tidy-report.md` and includes a delta from the previous
+  tidy report when one exists.
+- Saved `/audit-todos` reports use the same `_reports/<workflow>/` convention.
+
+**Downstream impact:** future tidy reports no longer overwrite the old single-report location. Run
+`/init` or `_base/scripts/seed-docs.sh` to seed `docs/resources/_reports/` in existing repos.
+
 ### Move template plugins under `_base/plugins`
 
 Template-owned bundled plugins no longer live in the root `plugins/` directory.
@@ -306,7 +321,7 @@ hatch, while the normal template layout remains docs-primary.
 
 New `productivity` skill (playbook + Codex/Claude wrappers) for repos that have drifted: scattered
 todos, stray docs, and orphan files. It audits the repo read-only, writes a migration report to
-`docs/resources/_tidy-report.md`, and only applies moves after you approve them.
+`docs/resources/_reports/tidy-repo/`, and only applies moves after you approve them.
 
 - **Non-destructive by design**: loose work → `docs/tasks_manager/_inbox/` as `I-NNN` ideas (re-triage
   later with `/triage-inbox`), loose docs → `docs/resources/` (via `git mv`), orphan files **flagged

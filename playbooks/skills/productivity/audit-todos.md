@@ -117,6 +117,18 @@ Group the report by recommendation, with higher-action categories first:
 5. `needs-user-decision`
 6. `keep`
 
+If the user asks to save the report, or if the audit is part of a repeated backlog-health pass, create
+`docs/resources/_reports/audit-todos/` if it does not exist and write the report there using the
+generated-artifact convention:
+
+```text
+docs/resources/_reports/audit-todos/<YYYY-MM-DDTHHMMSS+ZZZZ>_audit-todos-report.md
+```
+
+If a previous audit report exists, include a `## Delta since previous report` section keyed by task ID
+that names tasks newly entering each recommendation, tasks leaving each recommendation, and tasks that
+remained in the same recommendation.
+
 Use this structure:
 
 ```markdown

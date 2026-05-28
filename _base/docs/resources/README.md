@@ -9,6 +9,9 @@ Raw source material waiting to be processed belongs in `_inbox/`. Curated Markdo
 sources belong in `_digests/`. Use `/distill-knowledge` to extract the important information and
 promote stable facts into the canonical knowledge files.
 
+Rerunnable agent reports, audits, inventories, and migration proposals belong in `_reports/` with
+timestamped filenames, one file per run. Stable project docs do not belong there.
+
 Queued work belongs in `../tasks_manager/`. Area status belongs in `../areas/`. Frozen or obsolete
 docs/resources belong in `../archive/`.
 

@@ -103,9 +103,12 @@ The primary knowledge base lives in `docs/resources/CONTEXT.md`, `docs/resources
 `docs/resources/<area>/components/<component-slug>/CONTEXT.md`; root `CONTEXT.md` is a pointer/fallback.
 Raw source material waiting for extraction lives in `docs/resources/_inbox/`, and curated digests live
 under `docs/resources/_digests/<area-or-bucket>/` so distilled knowledge stays segregated by area
-before stable facts are promoted into canonical docs.
-See [`playbooks/conventions/task-system-quickstart.md`](../playbooks/conventions/task-system-quickstart.md)
-and [`playbooks/conventions/knowledge-base-quickstart.md`](../playbooks/conventions/knowledge-base-quickstart.md)
+before stable facts are promoted into canonical docs. Rerunnable reports, audits, inventories, and
+migration proposals live under `docs/resources/_reports/<workflow>/` with timestamped filenames so
+repeat runs preserve previous observations.
+See [`playbooks/conventions/task-system-quickstart.md`](../playbooks/conventions/task-system-quickstart.md),
+[`playbooks/conventions/knowledge-base-quickstart.md`](../playbooks/conventions/knowledge-base-quickstart.md),
+and [`playbooks/conventions/generated-artifacts.md`](../playbooks/conventions/generated-artifacts.md)
 for the full command map and source-of-truth split.
 
 Use `/audit-todos` periodically to compare active tasks with current code, tests, docs, roadmap,
@@ -325,7 +328,7 @@ Copy these into the target project (then point an agent at `_base/SETUP_INSTRUCT
 |----------|--------------|-------|
 | `AGENTS.md` | Both | Auto-loaded entrypoint; downstream-owned (project-specific overrides go here) |
 | `_base/` | Both | Base operating contract, base README, base changelog, **base setup instructions**; upstream-owned (do not edit downstream) |
-| `_base/docs/` | Both (optional) | Seed layout for `docs/tasks_manager/`, `docs/areas/`, docs-primary knowledge resources, raw knowledge inbox/digests, and `docs/archive/`; copy via `/init` |
+| `_base/docs/` | Both (optional) | Seed layout for `docs/tasks_manager/`, `docs/areas/`, docs-primary knowledge resources, raw knowledge inbox/digests/reports, and `docs/archive/`; copy via `/init` |
 | `playbooks/` | Both | Authoritative workflow logic, role cards, templates |
 | `.claude/` | Claude Code | Skills, native subagents, hook scripts, settings |
 | `skills/` | Codex | Thin wrappers + `install-codex-skills.sh` |
@@ -440,7 +443,7 @@ Each repo file falls into one of three buckets:
 - `_base/SETUP_INSTRUCTIONS.md` — agent-readable numbered setup steps. Point an agent at this file to wire up a fresh project end-to-end (template remote, runtime installers, downstream-slot replacements, verification).
 - `_base/PROJECT.md.template` — alignment-doc scaffold; copy to `PROJECT.md` at the repo root if you want feature-level alignment gating via `/align`.
 - `_base/docs/` — seed docs layout for the task manager, generated area views, docs-primary
-  knowledge resources, raw knowledge inbox/digests, and archive.
+  knowledge resources, raw knowledge inbox/digests/reports, and archive.
 
 **Mixed** (manual merge required):
 

@@ -32,6 +32,9 @@ authoritative.
   affect several areas, and `_uncategorized/` when ownership is not known yet. A digest preserves
   source provenance and the important extracted facts before stable facts are promoted into canonical
   glossary, area, dependency, contract, or component docs.
+- `docs/resources/_reports/` stores rerunnable agent-generated reports, audits, inventories, and
+  migration proposals. Use timestamped filenames per `playbooks/conventions/generated-artifacts.md`
+  so repeated runs preserve previous observations and can include a delta.
 - `CONTEXT_DOCS_DIR` is an external-storage escape hatch for describing a repo you should not write
   into. It is not the normal default for repos that use this template.
 

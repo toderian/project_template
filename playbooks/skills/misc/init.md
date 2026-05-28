@@ -6,8 +6,8 @@ Initialize the project's `docs/` layout: the **task manager** (`docs/tasks_manag
 layer, committed tasks, areas registry, ledgers, and roadmap), **areas** (`docs/areas/` - generated
 area task-status pages), **plans** (`docs/_plans/` - durable implementation plans), **resources**
 (`docs/resources/` - project documentation, the primary domain glossary, durable area contexts,
-feature contracts, and component contexts), and **archive** (`docs/archive/` - frozen docs/resources).
-Seeded from the `_base/docs/` template.
+feature contracts, component contexts, and timestamped reports), and **archive** (`docs/archive/` -
+frozen docs/resources). Seeded from the `_base/docs/` template.
 
 ## Process
 
@@ -47,6 +47,7 @@ docs/
 ├── resources/            # project docs (architecture, glossary, component contexts, runbooks)
 │   ├── _inbox/           #   raw knowledge drops waiting for /distill-knowledge
 │   ├── _digests/         #   curated Markdown summaries of raw sources, segregated by area
+│   ├── _reports/         #   timestamped reports, audits, inventories, and migration proposals
 │   ├── CONTEXT.md        #   primary domain glossary
 │   └── global/
 │       └── summary.md    #   durable global-area architecture notes
@@ -60,8 +61,8 @@ The root `CONTEXT.md`, if missing, is created as a pointer to `docs/resources/CO
 If `_base/docs/` is unavailable (e.g. a repo that vendored only part of the template), fall back to
 creating the dirs with `.gitkeep` and seeding `_areas.md`/`_active.md`/`_done.md`/`_roadmap.md`,
 `docs/_plans/`, `docs/areas/_overview.md`, `docs/resources/CONTEXT.md`,
-`docs/resources/_inbox/`, `docs/resources/_digests/`, `docs/resources/global/summary.md`, and a root
-pointer by hand -
+`docs/resources/_inbox/`, `docs/resources/_digests/`, `docs/resources/_reports/`,
+`docs/resources/global/summary.md`, and a root pointer by hand -
 see `playbooks/conventions/todo-convention.md`,
 `playbooks/conventions/inbox-convention.md`, and
 `playbooks/conventions/knowledge-base-quickstart.md` for the exact shapes.
@@ -81,6 +82,8 @@ Report what was created. Remind the user that:
 - Raw docs, notes, and exports can be dropped into `docs/resources/_inbox/`; `/distill-knowledge`
   writes curated Markdown digests under `docs/resources/_digests/` and promotes stable facts into the
   knowledge base
+- Rerunnable reports and audits go under `docs/resources/_reports/<workflow>/` with timestamped
+  filenames
 - Durable area knowledge lives in `docs/resources/<area>/`; use `/define-area` to index real
   architecture before adding cross-repo feature contracts
 - Cross-repo feature contracts live in `docs/resources/<area>/contracts/<feature-slug>.md`

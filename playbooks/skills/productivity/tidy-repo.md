@@ -26,7 +26,7 @@ This skill orchestrates primitives that already exist rather than reinventing th
 - `_base/scripts/sync-todo-ledgers.sh` — reconciles the ledgers after any file moves.
 
 Read `playbooks/conventions/todo-convention.md` and `playbooks/conventions/inbox-convention.md` for the
-target shapes.
+target shapes. Read `playbooks/conventions/generated-artifacts.md` for report filename rules.
 
 ## The three piles → where each lands
 
@@ -68,14 +68,39 @@ tracked project content, not generated artifacts.
 
 ### Phase 2 — Migration report (propose, don't apply)
 
-Write a migration report to `docs/resources/_tidy-report.md` (and summarize it in chat). The report is
-the deliverable of a tidy run — a reviewable plan, not a fait accompli. Structure:
+Create `docs/resources/_reports/tidy-repo/` if it does not exist. Write a migration report there (and
+summarize it in chat). The report is the deliverable of a tidy run — a reviewable plan, not a fait
+accompli. It must be a new timestamped file for every run:
+
+```text
+docs/resources/_reports/tidy-repo/<YYYY-MM-DDTHHMMSS+ZZZZ>_tidy-report.md
+```
+
+Use `date +%Y-%m-%dT%H%M%S%z` for the timestamp. If the exact path exists, append `-02`, `-03`, and so
+on before `.md` until the path is unused. Never overwrite an earlier tidy report.
+
+Before writing the report, find the newest previous tidy report, if one exists. Match both
+`docs/resources/_reports/tidy-repo/*_tidy-report.md` and collision-suffixed files such as
+`docs/resources/_reports/tidy-repo/*_tidy-report-02.md`. Compare by stable finding keys: loose-work
+source path plus line/title, loose-doc source path, and orphan file path. Include a delta section
+listing new, resolved, and still-present findings. If no previous report exists, say so.
+
+Structure:
 
 ```markdown
-# Tidy report — <date>
+# Tidy report - <timestamp>
+
+Report path: docs/resources/_reports/tidy-repo/<timestamp>_tidy-report.md
+Previous report: <path | none>
 
 ## Summary
 N loose-work items -> inbox · M loose docs -> resources · K orphans flagged
+
+## Delta since previous report
+
+- New findings: ...
+- Resolved findings: ...
+- Still present: ...
 
 ## Loose work → inbox (proposed I-NNN)
 | Source | Proposed | Area guess | Note |
@@ -130,8 +155,9 @@ decides what's worth doing.
 - Every swept idea is a well-formed `I-NNN` inbox file (passes `block-bad-todo-name.sh`) with a traceable
   note of where it came from.
 - Loose docs moved with `git mv` (history preserved); the migration report records any links left dangling.
-- The report (`docs/resources/_tidy-report.md`) is self-contained — a reader can see what was found,
-  what moved, and what still needs a human decision.
+- The timestamped report in `docs/resources/_reports/tidy-repo/` is self-contained — a reader can see
+  what was found, what changed since the previous report, what moved, and what still needs a human
+  decision.
 - Ledgers are in sync (`_base/scripts/sync-todo-ledgers.sh` run after moves).
 - A Codex agent (no hooks) following this playbook produces correctly-named `I-NNN` files and the same
   report — the rules here don't depend on the Claude-only hooks.
