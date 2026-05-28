@@ -33,15 +33,22 @@ docs/
 ├── areas/
 │   ├── _overview.md         # Generated area/task overview
 │   └── <slug>.md            # Generated area task-status page plus context pointer
-├── resources/               # Durable reference material, glossary, runbooks, component docs
+├── resources/               # Durable reference material, glossary, runbooks, attachments, component docs
 │   ├── CONTEXT.md           # Primary domain glossary
+│   ├── _inbox/              # Raw knowledge files waiting for /distill-knowledge
+│   ├── _digests/            # Curated Markdown summaries of raw sources
+│   ├── _reports/            # Timestamped rerunnable reports and audits
 │   └── <area>/
 │       ├── summary.md       # Durable area architecture summary
 │       ├── dependency-graph.md
+│       ├── attachments/     # Durable source documents and binaries with Markdown metadata
 │       ├── contracts/<feature-slug>.md
 │       ├── runbooks/<scenario-slug>.md
 │       └── components/<component-slug>/CONTEXT.md
 └── archive/                 # Frozen docs/resources that are no longer current
+
+workbooks/
+└── <workbook-slug>/          # Reusable workbook bundle with README and local support files
 ```
 
 The task manager remains the source of truth for work. `docs/resources/` replaces the older
@@ -49,7 +56,8 @@ reference folder. `docs/resources/CONTEXT.md` is the primary domain glossary; ro
 `CONTEXT.md` is only a pointer or legacy fallback. Do not add repo slugs to task IDs, filenames,
 prefixes, or areas; use the optional `Repos` metadata row for repo scope.
 
-If these directories do not exist, run `/init` to seed them from `_base/docs/`.
+If these directories do not exist, run `/init` to seed them from `_base/docs/` and
+`_base/workbooks/`.
 
 ## File naming
 
