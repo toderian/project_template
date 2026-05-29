@@ -152,7 +152,7 @@ or repo-specific `AGENTS.md` instructions override it.
 ```md
 | Repo | Required | Role | Default branch | Integration branch | Work mode | Areas | Notes |
 |------|----------|------|----------------|--------------------|-----------|-------|-------|
-| project-template | yes | Agent template | main | main | default-branch | global | Work directly on main |
+| project-template | yes | Agent template | master | master | default-branch | global | Work directly on default branch |
 ```
 
 Allowed values:
@@ -161,6 +161,18 @@ Allowed values:
 - branch fields: a branch name, `N/A`, or `unknown`
 - `Work mode`: `default-branch`, `task-branch`, `same-branch`, `read-only`, or `ask`
 - `Areas`: comma-separated area slugs or `N/A`
+
+Work mode meaning:
+
+- `default-branch`: work and commit directly on `Default branch`; ask if the checkout is elsewhere.
+- `same-branch`: stay on the current branch and do not create or switch branches.
+- `task-branch`: use an explicitly named task branch; ask before creating or switching if none is
+  specified.
+- `read-only`: inspect only; do not edit or commit.
+- `ask`: ask the user before edits or branch changes.
+
+Template-inherited downstream repos should normally use `default-branch` or `same-branch`. Do not use
+branching for those repos unless the user explicitly asks or the host/CI policy requires it.
 
 `.local/repos.map` is line-oriented:
 

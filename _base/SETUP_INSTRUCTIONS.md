@@ -132,9 +132,10 @@ mkdir -p .config .local
 [[ -f .local/repos.map ]] && echo ".local/repos.map already exists, not overwriting" || cp _base/repos.map.example .local/repos.map
 ```
 
-Then edit `.config/repos.project.md` so each row names a real project repo, and edit `.local/repos.map` with
-absolute checkout directory paths on this machine. Commit `.config/repos.project.md`; do not commit
-`.local/repos.map`.
+Then edit `.config/repos.project.md` so each row names a real project repo and its intended work mode.
+Template-inherited downstream repos should normally use `default-branch` or `same-branch`, not
+per-task branching. Edit `.local/repos.map` with absolute checkout directory paths on this machine.
+Commit `.config/repos.project.md`; do not commit `.local/repos.map`.
 
 If the project is single-repo or does not need repo-scope task metadata, skip this step. Tasks without
 a `Repos` metadata row remain valid.

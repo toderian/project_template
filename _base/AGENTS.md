@@ -106,8 +106,14 @@ If changing the repo’s agent doctrine, workflows, role definitions, or evaluat
 ### 8. Branch, commit, and push discipline
 
 Before code edits, determine the repo mode from the user request, project-specific `AGENTS.md`, task
-brief, `.config/repos.project.md` branch/work policy when present, or current repo convention. `.config/repos.project.md`
-is a default registry; explicit user instructions, task files, or repo-specific `AGENTS.md` override it.
+brief, `.config/repos.project.md` branch/work policy when present, or current repo convention.
+`.config/repos.project.md` is a default registry; explicit user instructions, task files, or
+repo-specific `AGENTS.md` override it.
+
+When executing an approved task or plan, read and validate `.config/repos.project.md` before deciding
+branch behavior. If no registry is present in a template-inherited downstream repo, default to
+the repo's configured default branch (`main` or `master` in most repos); if already on a non-default
+branch, ask before continuing. Do not create a feature/task branch merely because commits will be made.
 
 For **downstream template-maintenance repos**:
 
@@ -118,11 +124,21 @@ For **downstream template-maintenance repos**:
 
 For **working/product repos**:
 
-- work on the explicit task branch named by the user, task file, issue, or project convention at task
-  start
-- if no task branch is defined, ask for one or ask whether the current branch should be treated as the
-  task branch
+- work on the current/default branch unless a user instruction, task file, issue, repo-specific
+  `AGENTS.md`, or `.config/repos.project.md` row explicitly says `task-branch`
+- when `task-branch` mode applies and no task branch is defined, ask for one or ask whether the
+  current branch should be treated as the task branch
 - do not create nested/subbranches unless the user explicitly asks
+
+Interpret `.config/repos.project.md` `Work mode` values as:
+
+- `default-branch`: commit on the configured default branch; if currently elsewhere, ask before
+  continuing or switching
+- `same-branch`: stay on the current branch; do not create or switch branches
+- `task-branch`: use the explicit branch named by the user/task/project; if absent, ask before
+  creating or switching
+- `read-only`: do not commit; stop if implementation would require writes
+- `ask`: ask before edits or branch changes
 
 In all modes, commit after each coherent, reviewable set of modifications: one task slice, one plan
 phase, one bug fix, or one documentation batch. Do not commit every tiny edit, and do not leave a large

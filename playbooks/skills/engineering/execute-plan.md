@@ -52,7 +52,38 @@ normalization changes scope or creates new product decisions, ask the user to ap
 plan. If it only clarifies obvious execution mechanics, record the clarification in the execution log
 and proceed.
 
-### 2. Protect the worktree
+### 2. Resolve repo branch policy
+
+Before any implementation phase, determine the repo scope and branch/work mode. This is mandatory even
+when the task looks single-repo.
+
+1. If `.config/repos.project.md` exists, read it and run `_base/scripts/check-repos-config.sh`.
+2. If the task or plan has `Repos` metadata, use those repo slugs as the execution scope. If no `Repos`
+   metadata exists, treat the current repo as the execution scope.
+3. If cross-repo execution requires local checkout paths, validate `.local/repos.map` with
+   `_base/scripts/check-repos-config.sh --local` before editing another checkout.
+4. For each repo in scope, record the resolved `Default branch`, `Integration branch`, and
+   `Work mode` in the execution log.
+
+Branch behavior by `Work mode`:
+
+- `default-branch`: commit directly on the configured default branch. If the checkout is not on that
+  branch, ask before continuing or switching.
+- `same-branch`: stay on the current branch. Do not create or switch branches.
+- `task-branch`: use the explicit branch named by the user, task, issue, or repo-specific
+  `AGENTS.md`. If none is named, ask before creating or switching.
+- `read-only`: do not edit or commit in that repo. Stop if the plan requires writes there.
+- `ask`: ask before editing or changing branches.
+
+If no `.config/repos.project.md` exists in a template-inherited downstream repo, resolve the repo's
+default branch (`main` or `master` in most repos). If already on that branch, stay there. If currently
+on a non-default branch, ask before continuing or switching. Do not create a feature/task branch unless
+the user explicitly asked for it or the host/CI policy requires it. Downstream repos should accumulate
+execute-plan commits on the approved same/default branch, with one coherent commit per phase.
+
+Never create a new branch merely because `execute-plan` will make commits.
+
+### 3. Protect the worktree
 
 Before any implementation phase:
 
@@ -66,7 +97,7 @@ Before any implementation phase:
 Never use destructive cleanup to get a clean tree. Work with existing changes or ask when they collide
 with the phase.
 
-### 3. Run the pre-implementation architect review
+### 4. Run the pre-implementation architect review
 
 Before code execution, run an architect review subagent, or the closest architecture review facility
 the runtime supports, over the plan and affected code. The goal is to catch bad phase boundaries, poor
@@ -108,7 +139,7 @@ For existing task files, this review can satisfy or extend the task-system pre-i
 plan-critic review when it covers freshness and applicability. If a separate researcher current-state
 review is required by the task convention, run and log that bounded review before code edits as well.
 
-### 4. Execute one phase at a time
+### 5. Execute one phase at a time
 
 For each phase, keep the loop narrow:
 
@@ -142,7 +173,7 @@ Infer `<type>` conservatively (`feat`, `fix`, `chore`, `docs`, `test`, or `refac
 fail, fix the issue and rerun the required checks before committing. Never proceed to the next phase
 with failing required tests. Never commit a phase whose acceptance criteria are unmet.
 
-### 5. Run final validation
+### 6. Run final validation
 
 After all phases are committed:
 
@@ -155,7 +186,7 @@ After all phases are committed:
 If e2e is marked `N/A`, record why. If the project has no e2e command and the plan did not require one,
 do not invent a heavyweight e2e harness; record the available validation instead.
 
-### 6. Run the two-reviewer validation loop
+### 7. Run the two-reviewer validation loop
 
 Run up to three review rounds. Each round dispatches two independent xhigh implementation reviewers.
 They must not see each other's reports before both have returned.

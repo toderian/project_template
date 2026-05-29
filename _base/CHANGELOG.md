@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.05.29.3
+BASE_VERSION: 2026.05.29.4
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,25 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Require branch policy check before execute-plan work
+
+`execute-plan` now explicitly resolves repo scope and branch/work mode before implementation starts.
+
+- The playbook reads and validates `.config/repos.project.md` when present.
+- If task `Repos` metadata points at multiple repos, the agent must validate `.local/repos.map` before
+  editing other checkouts.
+- `default-branch` and `same-branch` modes forbid creating per-task branches.
+- `task-branch` mode requires an explicitly named branch; the agent must ask before creating or
+  switching when none is named.
+- Template-inherited downstream repos default to same/default-branch execution when no repo registry
+  exists.
+
+**Downstream impact:** behavior clarification plus example update. Existing repos that use
+`.config/repos.project.md` should review `Work mode` values: use `default-branch` or `same-branch` for
+template-inherited downstream repos that should keep all execute-plan commits on the same
+`main`/`master` branch. Use `task-branch` only for product repos that intentionally require per-task
+branches.
 
 ### Clarify downstream format migration consent
 

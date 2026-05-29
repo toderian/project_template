@@ -572,8 +572,10 @@ When operating in a project that was seeded from this template, agents should:
 - use `manager.md`, `builder.md`, `tester.md`, `critic.md`, and `reviewer.md` as explicit passes or sub-agent roles
 - copy the files in `playbooks/templates/` for durable progress, task, and decision state
 - require agents to use conventional commit summaries plus a commit body
-- define branch mode up front: default branch for downstream template-maintenance repos, explicit task
-  branches for working/product repos, or `.config/repos.project.md` work modes for multi-repo projects
+- define branch mode up front: `default-branch` or `same-branch` for template-inherited downstream
+  repos, and `task-branch` only where a project explicitly wants per-task branches
+- commit `.config/repos.project.md` for multi-repo projects so `execute-plan` can verify branch/work
+  mode before making phase commits
 - rerun `playbooks/meta/UPDATE_PLAN.md` whenever you change the project's agent doctrine
 
 ## Examples
@@ -602,7 +604,7 @@ If the critic or tester finds a real problem, loop again.
 
 ```text
 In downstream template-maintenance repos, work directly on main/master.
-In working/product repos, use the explicit task branch named at task start.
+In working/product repos, use the current/default branch unless task-branch mode is explicit.
 Commit each coherent, reviewable slice with a conventional summary line and a body explaining what changed and why.
 Never commit unrelated dirty files.
 Do not push unless I ask.
