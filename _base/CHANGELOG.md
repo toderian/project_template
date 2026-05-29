@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.05.29.4
+BASE_VERSION: 2026.05.29.5
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,17 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Allow post-completion squash of downstream task commits
+
+`execute-plan` now keeps per-phase commits during execution and review, but explicitly allows
+downstream repos to squash a completed task's own phase/review commits into one final task commit after
+validation and review pass.
+
+**Downstream impact:** behavior clarification. Agents should still create phase commits while working
+so each step is reviewable and recoverable. After the task is done, they may squash only the commits
+belonging to that task, preserve the phase/review/check summary in the final commit message, rerun
+final checks, and avoid rewriting pushed/shared history without explicit user approval.
 
 ### Require branch policy check before execute-plan work
 

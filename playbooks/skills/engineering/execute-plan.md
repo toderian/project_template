@@ -16,7 +16,9 @@ proposal, route it through the appropriate planning or task skill first. A paste
 only after it has been normalized into explicit phases, acceptance criteria, and tests/checks.
 
 Invoking this skill is consent to create commits for completed phases. Do not ask again before each
-normal phase commit, but do protect unrelated local work.
+normal phase commit, but do protect unrelated local work. In downstream repos, those phase/review
+commits may be squashed after the task is complete and reviewed, following the post-completion squash
+rules below.
 
 ## Required outcome
 
@@ -24,7 +26,7 @@ The implementation is satisfactory only when all of these are true:
 
 - Every phase acceptance criterion is met.
 - Required unit, integration, and explicitly requested e2e checks pass.
-- Each completed phase has its own commit.
+- During execution, each completed phase has its own commit.
 - Two independent xhigh implementation reviewers report no blocking or acceptance-failing findings.
 - Any residual concerns are recorded as non-blocking.
 
@@ -231,10 +233,36 @@ Review outcomes:
 - After three failed rounds, stop. Report remaining issues, last passing checks, and why the loop did
   not converge.
 
+### 8. Optionally squash completed task commits
+
+After all implementation phases, final validation, and reviewer rounds pass, downstream repos may
+squash the task's own step commits into one final task commit. This is a cleanup step after the task is
+done; do not squash early because phase commits are the review and recovery boundary during execution.
+
+Squash rules:
+
+1. Identify the execution base revision recorded in step 3 for each repo.
+2. Inspect `git log --oneline <base>..HEAD` and verify every commit in the squash range belongs to this
+   task: phase commits, validation fixes, execution-log updates, or review-fix commits.
+3. Stop and ask if the range contains unrelated commits, user commits, merge commits, or commits from
+   another task.
+4. Prefer squashing before push. If any commit in the range has already been pushed or is shared with
+   another human/agent, ask for explicit approval before rewriting history.
+5. Run the final required checks again after squashing.
+6. Use one conventional final commit with a body that preserves:
+   - the task or plan identifier
+   - the phase outcomes
+   - review-fix summary, if any
+   - checks run and results
+
+For multi-repo tasks, squash independently per downstream repo. Do not squash read-only repos, repos
+outside the task scope, or upstream template-maintenance history unless the user explicitly asks.
+
 ## Quality bar
 
 - The plan/task remains the source of truth; implementation notes do not replace acceptance criteria.
 - Each phase is independently reviewable from its commit.
+- If task commits are squashed, the final commit message preserves the phase/review/check summary.
 - Required checks are named with exact commands and outcomes.
 - E2e timing follows the plan: end-only by default, earlier only when explicitly required.
 - Unrelated work is neither staged nor committed.

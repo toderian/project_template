@@ -606,6 +606,7 @@ If the critic or tester finds a real problem, loop again.
 In downstream template-maintenance repos, work directly on main/master.
 In working/product repos, use the current/default branch unless task-branch mode is explicit.
 Commit each coherent, reviewable slice with a conventional summary line and a body explaining what changed and why.
+After a downstream task is complete and reviewed, squash only that task's own step commits if cleanup is desired.
 Never commit unrelated dirty files.
 Do not push unless I ask.
 ```
