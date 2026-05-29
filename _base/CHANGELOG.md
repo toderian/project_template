@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.05.29.5
+BASE_VERSION: 2026.05.29.6
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,25 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Move task squashing and stale-done cleanup into closeout
+
+Task closeout now owns the post-completion cleanup path.
+
+- `/complete-task` explicitly handles active tasks whose implementation is already done but whose task
+  file was not reconciled or archived.
+- Closeout must reconcile progress checkboxes, append execution-log evidence, fill completion harvest,
+  and archive the task.
+- `/complete-task` now contains the optional downstream squash rules for task-owned commits.
+- `execute-plan` must update task progress, `Updated`, `Last executed`, execution logs, and execution
+  base revision as work progresses; phase commit SHAs can be logged in later execution updates or
+  closeout summaries.
+- `/audit-todos` now calls out completed-but-still-active tasks as `appears-done` and recommends
+  `/complete-task`.
+
+**Downstream impact:** behavior clarification. Agents should keep task files current during execution.
+If they find a task whose work is already done but still active, they should use `/complete-task` to
+verify acceptance, reconcile progress, optionally squash task-owned commits, and archive it.
 
 ### Allow post-completion squash of downstream task commits
 

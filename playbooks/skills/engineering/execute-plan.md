@@ -94,7 +94,8 @@ Before any implementation phase:
 3. If unrelated changes are outside the phase scope, leave them untouched and use explicit pathspecs
    when staging.
 4. If unrelated changes are inside files the phase must edit, stop and ask how to proceed.
-5. Record the execution base revision with `git rev-parse --short HEAD`.
+5. Record the execution base revision with `git rev-parse --short HEAD` in the task/plan execution
+   log.
 
 Never use destructive cleanup to get a clean tree. Work with existing changes or ask when they collide
 with the phase.
@@ -155,6 +156,8 @@ For each phase, keep the loop narrow:
    and outcome.
 7. Stage only files that belong to the phase.
 8. Commit before moving to the next phase.
+9. Record the phase commit SHA in the next execution-log update or closeout summary. Do not create an
+   extra metadata-only commit solely to record the SHA unless the project explicitly wants that.
 
 Phase commit format:
 
@@ -174,6 +177,10 @@ Checks:
 Infer `<type>` conservatively (`feat`, `fix`, `chore`, `docs`, `test`, or `refactor`). If commit hooks
 fail, fix the issue and rerun the required checks before committing. Never proceed to the next phase
 with failing required tests. Never commit a phase whose acceptance criteria are unmet.
+
+For task files, progress updates are not optional: update phase checkboxes, `Updated`, `Last executed`,
+and the append-only execution log before considering the phase complete. If a phase changes code and
+the task file is not updated, the phase is not ready to commit.
 
 ### 6. Run final validation
 

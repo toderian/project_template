@@ -338,7 +338,8 @@ was captured for session expiry telemetry.
 - **Repo scope:** optional `### Repo scope` section for cross-repo tasks when metadata alone is not
   enough; explain why each repo is involved and use `<repo-slug>:<repo-relative-path>` references.
 - **Follow-ups:** use `None` if no follow-ups exist. Prefer `I-NNN` inbox captures for new ideas.
-- **Execution log:** append-only. Each entry records actions taken, decisions made, test results, and outcome.
+- **Execution log:** append-only. Each entry records actions taken, decisions made, test results, commit
+  SHAs when work is committed, and outcome.
 - **Completion harvest:** required before archiving; each row must name updates or explicitly say `None`.
 - **Completion summary:** required when archived, with the outcome and final validation state.
 

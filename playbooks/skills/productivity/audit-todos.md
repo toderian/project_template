@@ -173,6 +173,9 @@ search terms and explain what was not found.
 
 - Active task appears implemented in code/tests: classify `appears-done` only when repo evidence maps
   to the task's acceptance criteria; recommend `/complete-task`.
+- Active task has execution commits/logs showing completed work but stale phase checkboxes or missing
+  archive move: classify `appears-done` when acceptance evidence is strong; recommend `/complete-task`
+  to reconcile task progress, fill completion harvest, optionally squash task commits, and archive.
 - Active task is obsolete or superseded: classify `cancel-or-close` only with concrete current-state
   evidence such as a replacement task, archived completion, removed subsystem, or documented decision.
 - Active task duplicates another task: classify `cancel-or-close` or `needs-user-decision`, cite the

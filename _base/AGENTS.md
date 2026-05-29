@@ -149,6 +149,11 @@ task's own phase/review commits may be squashed into a single final task commit.
 that belong to that task, preserve the important commit-message details, and never rewrite already
 pushed/shared history without explicit user approval.
 
+Task progress files are part of the work. When implementing a tracked task, update phase checkboxes,
+`Updated`, `Last executed`, and the append-only execution log as work progresses. If implementation is
+complete but the task still lives in `_todos/`, run the task closeout workflow rather than leaving the
+backlog stale.
+
 If asked to commit:
 
 - use a concise conventional summary line with a prefix such as `feat:`, `fix:`, or `chore:`

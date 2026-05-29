@@ -3,8 +3,12 @@
 ## Purpose
 
 Close out a committed task safely. This workflow turns an active task into an archived `done` or
-`cancelled` task only after acceptance checks, final execution notes, completion harvest, generated
-ledgers, and strict validation all agree.
+`cancelled` task only after acceptance checks, progress reconciliation, final execution notes,
+completion harvest, generated ledgers, and strict validation all agree.
+
+Use this workflow when work was completed but the task was never moved to `done`. Do not leave
+implemented work sitting in `_todos/` just because the closeout step was missed; verify it, update the
+task file, harvest the outcome, and archive it.
 
 Follow `playbooks/conventions/todo-convention.md` for the task format and lifecycle.
 
@@ -25,13 +29,17 @@ Use `done` when the acceptance criteria were met. Use `cancelled` when the task 
 being completed. Do not infer cancellation silently; the user or task history must make that decision
 clear.
 
-### 3. Verify acceptance and tests
+### 3. Verify acceptance, progress, and tests
 
 For `done`:
 
 - Check every acceptance criterion and phase item that must be complete.
+- Reconcile the task's phase/progress checkboxes with the actual completed work. Mark only items with
+  evidence from code, docs, tests, commits, or execution logs.
 - Run the related tests listed in the task, unless the task says `N/A - <reason>`.
 - If a listed test cannot be run, record the exact command attempted and the reason.
+- If the work appears complete in the repo but progress markers were stale, record that this is a
+  closeout reconciliation in the execution log instead of pretending the progress was updated earlier.
 
 For `cancelled`, record the reason and any useful partial validation instead of claiming acceptance.
 
@@ -87,6 +95,33 @@ _base/scripts/sync-todo-ledgers.sh --check
 If `--check` reports completion-harvest, status-directory, roadmap, or stale-ledger errors, fix them
 before reporting success.
 
+### 9. Optional downstream commit squash
+
+For downstream repos, after the task is verified as `done`, archived, synced, and strictly validated,
+you may squash the task's own execution and closeout commits into one final task commit. This is a
+history-cleanup step, not a substitute for phase commits during execution.
+
+Only squash when all of these are true:
+
+- The task is `done`, not `cancelled`.
+- The squash range is identifiable from the execution log, recorded base revision, phase commit SHAs,
+  or direct `git log <base>..HEAD` inspection.
+- Every commit in the range belongs to this task: implementation phases, validation fixes, review
+  fixes, task progress updates, archive move, or generated ledger updates.
+- The range contains no unrelated user commits, merge commits, other-task commits, or commits whose
+  ownership is unclear.
+- The commits have not been pushed/shared, or the user explicitly approves rewriting shared history.
+
+After squashing:
+
+- Run the final related checks again.
+- Use one conventional final commit that names the task ID and preserves the phase outcomes,
+  review-fix summary, completion harvest, and check results.
+- Mention the final squashed commit SHA in the user report. Do not create another metadata-only commit
+  solely to add that SHA to the archived task unless the project explicitly wants that.
+
+If any condition is uncertain, keep the phase commits and report that squash was skipped.
+
 ## Report
 
 Return:
@@ -95,6 +130,7 @@ Return:
 - acceptance/test result summary
 - harvest rows that changed
 - whether strict validation passed
+- squash result, if attempted or skipped
 
 ## Quality bar
 
