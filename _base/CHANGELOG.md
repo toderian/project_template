@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.05.29.6
+BASE_VERSION: 2026.06.04.0
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,26 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Add experimental Antigravity runtime adapter
+
+The template now includes an isolated, generated Antigravity (`agy`) skill-wrapper surface.
+
+- New `.agents/skills/` wrappers are generated from `.claude-plugin/plugin.json`.
+- New `_base/scripts/gen-antigravity-skills.sh` regenerates the wrappers and supports `--check`.
+- New `_base/scripts/check-antigravity-skills.sh` validates wrapper drift and ensures tracked
+  `.agents` files stay under `.agents/skills/`.
+- `_base/scripts/setup-agents.sh --antigravity-only` refreshes only the experimental `agy` wrappers.
+- `_base/scripts/check-template-update.sh` now includes the read-only Antigravity wrapper check.
+- `_base/README.md` and `_base/SETUP_INSTRUCTIONS.md` document `agy` as experimental and removable,
+  including the removal path. Gemini CLI remains compatibility/migration context only, not a supported
+  peer runtime.
+
+**Downstream impact:** additive experimental runtime surface. Existing Claude Code and Codex setup
+paths remain the default. Projects that do not use Antigravity only need to accept the generated
+`.agents/skills/` files and the new validation step. To test Antigravity, run
+`./_base/scripts/setup-agents.sh --antigravity-only`; to remove it later, delete `.agents/` plus the
+two Antigravity scripts and remove the small Antigravity references from setup/check docs and scripts.
 
 ### Move task squashing and stale-done cleanup into closeout
 
