@@ -18,11 +18,15 @@ Use one digest per source or small source batch:
 docs/resources/_digests/<area-or-bucket>/YYYY-MM-DD-<source-slug>.md
 ```
 
-Digests should name the source, distillation date, digest bucket, affected areas, key facts,
-decisions, domain terms, risks, suggested knowledge-base updates, and follow-ups.
+Digests should name the source, distillation date, digest bucket, affected areas, related task or inbox
+idea when known, key facts, decisions, domain terms, risks, suggested knowledge-base updates, and
+follow-ups.
 
 Durable facts from a digest should be promoted into the canonical knowledge files under
 `docs/resources/` when they are stable enough for future agents to rely on.
+
+When a source should remain traceable for future work, add or update a row in
+`docs/resources/<area>/sources.md` linking the source, digest, related tasks, and canonical docs.
 
 For operational material, promote stable procedure steps into
 `docs/resources/<area>/runbooks/<scenario-slug>.md` and keep real environment values in

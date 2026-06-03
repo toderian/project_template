@@ -72,8 +72,11 @@ the tool, service, dataset, or document explicitly and include setup notes under
 Keep these lanes distinct:
 
 - `docs/tasks_manager/_inbox/` is for raw ideas and work items.
-- `docs/resources/_inbox/` is for raw uploaded knowledge files awaiting distillation.
+- `docs/resources/_inbox/` is for raw uploaded knowledge files awaiting distillation; related files
+  from one source event may be grouped in a batch folder with a `README.md` manifest.
 - `docs/resources/_digests/` is for curated Markdown summaries extracted from raw sources.
+- `docs/resources/<area>/sources.md` is for area source history: why a source was added, where it is
+  stored, and which digests, tasks, or canonical docs depend on it.
 - `docs/resources/<area>/attachments/` is for long-lived committed source documents and binaries such
   as `.docx`, PDFs, spreadsheets, diagrams, and similar durable project resources.
 - `workbooks/` is for reusable working bundles that may contain scripts, data, generated outputs, or

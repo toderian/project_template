@@ -18,6 +18,9 @@ authoritative.
 - `docs/resources/<area>/summary.md` owns area-level architecture knowledge: responsibilities,
   important flows, decisions, open questions, and links to dependency graphs, contracts, and component
   contexts.
+- `docs/resources/<area>/sources.md` owns the area source history: teammate inputs, call batches,
+  uploaded documents, durable attachments, why each was added, where it is stored, and which digests,
+  tasks, or canonical docs depend on it.
 - `docs/resources/<area>/dependency-graph.md` owns cross-repo or cross-package dependency knowledge:
   repo/package relationships, runtime dependencies, install modes, and drift signals.
 - `docs/resources/<area>/contracts/<feature-slug>.md` owns concrete cross-repo feature contracts:
@@ -36,8 +39,10 @@ authoritative.
   checkout paths and is intentionally gitignored.
 - `docs/resources/<area>/components/<component-slug>/CONTEXT.md` owns component architecture:
   boundaries, public interfaces, dependencies, data ownership, tests, and invariants.
-- `docs/resources/_inbox/` is the raw knowledge drop zone for documents, exports, notes, and pasted
-  source material that has not been distilled yet. It is staging, not authoritative context.
+- `docs/resources/_inbox/` is the raw knowledge drop zone for documents, exports, notes, call
+  transcripts, and pasted source material that has not been distilled yet. It is staging, not
+  authoritative context. Related files from one call, teammate handoff, upload, or research bundle may
+  be grouped as `docs/resources/_inbox/<YYYY-MM-DD>-<source-slug>/` with a `README.md` manifest.
 - `docs/resources/_digests/<area>/` stores curated Markdown summaries of raw sources, segregated by
   owning area. Use `global/` for cross-cutting knowledge, `_cross-area/` for sources that materially
   affect several areas, and `_uncategorized/` when ownership is not known yet. A digest preserves
@@ -62,14 +67,16 @@ look in this order:
 1. `docs/resources/CONTEXT.md`
 2. Root `CONTEXT.md` if it points to the docs-primary glossary or if no docs-primary glossary exists
 3. `docs/resources/<area>/summary.md` for the relevant area
-4. `docs/resources/<area>/dependency-graph.md` for repo/package relationships and install modes
-5. `docs/resources/<area>/contracts/*.md` for feature-specific cross-repo agreements
-6. `docs/resources/<area>/runbooks/*.md` for known operational setup/debugging procedures
-7. `docs/resources/global/runbooks/*.md` for cross-cutting operational procedures
-8. `docs/resources/<area>/attachments/*.md` or attachment index files for durable source-document metadata
-9. `docs/resources/<area>/components/*/CONTEXT.md` for known component boundaries
-10. `docs/resources/_digests/**/*.md` for source-backed summaries not yet promoted elsewhere
-11. Legacy component context files stored beside source only as fallback evidence
+4. `docs/resources/<area>/sources.md` for source provenance, teammate input history, and links to
+   digests or attachments
+5. `docs/resources/<area>/dependency-graph.md` for repo/package relationships and install modes
+6. `docs/resources/<area>/contracts/*.md` for feature-specific cross-repo agreements
+7. `docs/resources/<area>/runbooks/*.md` for known operational setup/debugging procedures
+8. `docs/resources/global/runbooks/*.md` for cross-cutting operational procedures
+9. `docs/resources/<area>/attachments/*.md` or attachment index files for durable source-document metadata
+10. `docs/resources/<area>/components/*/CONTEXT.md` for known component boundaries
+11. `docs/resources/_digests/**/*.md` for source-backed summaries not yet promoted elsewhere
+12. Legacy component context files stored beside source only as fallback evidence
 
 Before asking the user to repeat SSH, setup, debugging, service, or deployment-inspection details,
 search the relevant area runbooks and `docs/resources/global/runbooks/`. If a runbook exists, check
@@ -105,9 +112,23 @@ Use the two inboxes for different things:
 - `docs/resources/_inbox/` is for raw uploaded knowledge files awaiting distillation.
 
 Use `docs/resources/_inbox/` as the drop zone for raw source material: PDFs, notes, exports, vendor
-docs, design drafts, screenshots with text, transcripts, and research. Non-Markdown files in the seeded
-folder are ignored by default so large or sensitive material is not committed accidentally; projects can
-relax that rule in their downstream `.gitignore` if they intentionally version raw sources.
+docs, design drafts, screenshots with text, transcripts, call recordings, teammate input, and
+research. Non-Markdown files in the seeded folder are ignored by default so large or sensitive material
+is not committed accidentally; projects can relax that rule in their downstream `.gitignore` if they
+intentionally version raw sources.
+
+When several files belong to one source event, create an inbox batch folder:
+
+```text
+docs/resources/_inbox/<YYYY-MM-DD>-<source-slug>/
+```
+
+Use one folder per call, teammate handoff, upload bundle, or research bundle. Add a `README.md`
+manifest using `playbooks/templates/resource-inbox-batch.template.md`, plus committed Markdown files
+such as `transcript.md`, `notes.md`, or `chat-export.md` when available. Raw audio, video, archives,
+and other large or sensitive files stay ignored or external by default unless the downstream project
+intentionally enables versioning, usually with Git LFS. A batch folder represents a source event, not a
+permanent area folder or task folder; record the related area and task in the manifest instead.
 
 Run `/distill-knowledge` to process raw material. The workflow creates a digest at:
 
@@ -144,6 +165,27 @@ Add a nearby Markdown companion file or an attachment index, such as `README.md`
 
 Keep the binary and its metadata together. If the binary is generated from a workbook or script, point
 the metadata back to the generating workbook and explain how to rebuild it.
+
+## Area source history
+
+Create `docs/resources/<area>/sources.md` when an area receives teammate input, call batches, durable
+attachments, or other source material that future agents should be able to trace. Use
+`playbooks/templates/area-sources.template.md` for the initial file.
+
+Each source row records:
+
+- date
+- source title and type
+- origin or participants
+- why it was added
+- stored location
+- digest link
+- related tasks or canonical docs
+- status (`new`, `distilled`, `attached`, `superseded`, or `archived`)
+
+Append or update one row per source batch or durable attachment. Do not use `sources.md` as a dumping
+ground for facts from the source; put extracted facts in digests and promote stable knowledge to the
+canonical area files.
 
 ## Area summaries
 

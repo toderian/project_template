@@ -63,7 +63,11 @@ _base/scripts/sync-todo-ledgers.sh --check
   operational procedures. Local placeholder bindings live in ignored
   `.local/runbooks/<scenario-slug>.local.md`.
 - **Raw knowledge files** (`docs/resources/_inbox/`) are staging for uploads awaiting
-  `/distill-knowledge`; non-Markdown files there stay ignored by default.
+  `/distill-knowledge`; related files from one source event may be grouped in an inbox batch folder,
+  and non-Markdown files there stay ignored by default.
+- **Area source history** (`docs/resources/<area>/sources.md`) records teammate inputs, call batches,
+  uploaded documents, durable attachments, why each source was added, and links to digests, tasks, or
+  canonical docs.
 - **Durable attachments** (`docs/resources/<area>/attachments/`) own long-lived committed `.docx`, PDF,
   spreadsheet, diagram, and similar source documents with nearby Markdown metadata.
 - **Workbooks** (`workbooks/<workbook-slug>/`) own reusable working bundles with a workbook

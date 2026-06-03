@@ -16,13 +16,17 @@ Raw material is not authoritative. The output of this skill is:
 
 Use these locations consistently:
 
-- `docs/resources/_inbox/` - raw knowledge drop zone. Files here are waiting to be distilled.
+- `docs/resources/_inbox/` - raw knowledge drop zone. Files or source batch folders here are waiting
+  to be distilled.
 - `docs/resources/_digests/<area>/` - curated Markdown summaries of one source or one small source
   batch, segregated by owning area.
 - `docs/resources/_digests/_cross-area/` - digests that materially affect multiple areas.
 - `docs/resources/_digests/_uncategorized/` - digests whose area is not known yet.
 - `docs/resources/CONTEXT.md` - canonical domain glossary.
 - `docs/resources/<area>/summary.md` - durable area architecture knowledge.
+- `docs/resources/<area>/sources.md` - area source history for teammate inputs, call batches,
+  uploaded documents, durable attachments, why each was added, and links to digests, tasks, or
+  canonical docs.
 - `docs/resources/<area>/dependency-graph.md` - cross-repo/package dependencies.
 - `docs/resources/<area>/contracts/<feature-slug>.md` - concrete feature contracts.
 - `docs/resources/<area>/runbooks/<scenario-slug>.md` - sanitized reusable operational procedures.
@@ -40,6 +44,8 @@ important facts by writing a digest and promoting durable facts into the appropr
 Accept any of:
 
 - files already in `docs/resources/_inbox/`
+- source batch folders under `docs/resources/_inbox/<YYYY-MM-DD>-<source-slug>/` with a `README.md`
+  manifest
 - paths supplied by the user
 - pasted text in the conversation
 - external local paths when the project should not commit raw source files
@@ -47,6 +53,12 @@ Accept any of:
 If the source may be sensitive, proprietary, license-restricted, or too large to commit, keep the raw
 file outside the repo or leave it ignored in `_inbox/`. The digest should summarize only what the
 project is allowed to retain.
+
+For calls, teammate handoffs, upload bundles, or research bundles with related files, prefer one source
+batch folder per source event. Use `playbooks/templates/resource-inbox-batch.template.md` for the
+manifest. Commit Markdown transcripts, notes, and chat exports when appropriate; leave raw audio,
+video, archives, or other large/sensitive files ignored or external by default unless the downstream
+project intentionally versions them.
 
 For binary formats, use available local extraction tools when they exist (`pdftotext`, office document
 converters, OCR utilities). If extraction is not available, report the blocker or ask the user for a
@@ -59,15 +71,20 @@ purpose, provenance, area or owner, and update guidance. Do not leave authoritat
 
 ### 2. Classify and scope
 
-For each source, identify:
+For each source or source batch, identify:
 
-- source type: spec, meeting notes, research, vendor docs, design notes, audit/report, runbook, other
+- source type: call, teammate-input, spec, meeting notes, research, vendor docs, design notes,
+  audit/report, runbook, document-drop, other
 - project area(s) affected
+- related task or inbox idea, when known
+- why the source was added
 - whether it contains domain terms, architecture facts, decisions, dependencies, risks, or tasks
 - whether the digest should cover one file or a batch of related files
 
-Keep batches small. If unrelated files were dropped together, create separate digests so future agents
-can cite the right source without reading irrelevant material.
+Keep batches small. A batch should represent one call, teammate input, upload bundle, or closely
+related research bundle. If unrelated files were dropped together, split them into separate source
+batches or create separate digests so future agents can cite the right source without reading
+irrelevant material.
 
 ### 3. Write the digest
 
@@ -94,6 +111,7 @@ Use this shape:
 | Distilled | <YYYY-MM-DD> |
 | Digest bucket | <area-or-bucket> |
 | Areas | <area slugs or N/A> |
+| Related task | <TASK-ID, I-NNN, or N/A> |
 | Status | raw-distilled |
 
 ## Executive summary
@@ -139,6 +157,9 @@ After writing the digest, update durable knowledge files only when the source gi
 - add or clarify terms in `docs/resources/CONTEXT.md`
 - update area responsibilities, flows, decisions, or open questions in
   `docs/resources/<area>/summary.md`
+- append or update one row in `docs/resources/<area>/sources.md` using
+  `playbooks/templates/area-sources.template.md` when an area receives teammate input, a call batch,
+  durable attachment, or other traceable source material
 - update dependency graphs, feature contracts, runbooks, or component contexts when the source
   describes those concrete boundaries or repeatable procedures
 - move long-lived committed source documents or binaries to `docs/resources/<area>/attachments/` with
@@ -160,10 +181,10 @@ When the source implies actionable work, use the task system:
 
 ### 5. Clean up or retain raw sources intentionally
 
-At the end, report which raw files were processed. If the raw file is committed Markdown and still
-useful, it can remain in `_inbox/` with a link to the digest. If it is ignored, large, binary, or
-sensitive, leave it in place locally or ask the user before deleting/moving it. Never delete raw
-source material without explicit user approval.
+At the end, report which raw files or source batches were processed. If committed Markdown in
+`_inbox/` is still useful, it can remain there with a link to the digest. If it is ignored, large,
+binary, or sensitive, leave it in place locally or ask the user before deleting/moving it. Never delete
+raw source material without explicit user approval.
 
 ### 6. Report
 
@@ -171,6 +192,7 @@ End with:
 
 - digest files created
 - durable knowledge files updated
+- area source history rows created or updated
 - raw sources processed and still pending
 - follow-ups captured or recommended
 - blockers, especially unreadable formats or sensitivity concerns
@@ -187,6 +209,8 @@ Use the shared status vocabulary:
 ## Quality bar
 
 - Every digest names its source and distillation date.
+- Every source batch manifest records why the source was added and the related area/task when known.
+- Area `sources.md` ledgers are updated when source material should remain traceable for future work.
 - Summaries preserve the most important information without becoming a duplicate of the source.
 - Durable knowledge-base updates are source-backed and placed in the correct canonical file.
 - Raw inbox material is treated as staging, not long-term context.

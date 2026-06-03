@@ -60,6 +60,8 @@ This repo is designed to work with both **Claude Code** and **OpenAI Codex**. Co
 │   │   ├── AGENT_TASKS.template.json
 │   │   ├── AGENT_PROGRESS.template.md
 │   │   ├── AGENT_DECISIONS.template.md
+│   │   ├── resource-inbox-batch.template.md
+│   │   ├── area-sources.template.md
 │   │   ├── runbook.template.md
 │   │   └── runbook.local.template.md
 │   └── meta/                              # Template maintenance
@@ -108,18 +110,23 @@ The task system's golden path is:
 
 Task files own status and detail, the roadmap owns placement, and ledgers/area pages are generated.
 The primary knowledge base lives in `docs/resources/CONTEXT.md`, `docs/resources/<area>/summary.md`,
-`docs/resources/<area>/dependency-graph.md`, `docs/resources/<area>/contracts/<feature-slug>.md`,
+`docs/resources/<area>/sources.md`, `docs/resources/<area>/dependency-graph.md`,
+`docs/resources/<area>/contracts/<feature-slug>.md`,
 `docs/resources/<area>/runbooks/<scenario-slug>.md`, and
-`docs/resources/<area>/components/<component-slug>/CONTEXT.md`; root `CONTEXT.md` is a pointer/fallback.
+`docs/resources/<area>/components/<component-slug>/CONTEXT.md`; root `CONTEXT.md` is a
+pointer/fallback.
 Projects that span multiple repos can opt into a committed `.config/repos.project.md` registry, created from
 `_base/repos.project.example.md`, plus a gitignored `.local/repos.map` checkout map, created from
 `_base/repos.map.example`. Repo slugs from `.config/repos.project.md` are the stable names for task `Repos`
 metadata and cross-repo source paths such as `<repo-slug>:<repo-relative-path>`; absolute local paths
 stay out of committed docs. Set this up during `_base/SETUP_INSTRUCTIONS.md` Phase 2c, before seeding
 docs or creating multi-repo tasks/contracts, when the project needs it.
-Raw source material waiting for extraction lives in `docs/resources/_inbox/`, and curated digests live
-under `docs/resources/_digests/<area-or-bucket>/` so distilled knowledge stays segregated by area
-before stable facts are promoted into canonical docs. Rerunnable reports, audits, inventories, and
+Raw source material waiting for extraction lives in `docs/resources/_inbox/`; related files from one
+call, teammate handoff, upload bundle, or research bundle may be grouped in an inbox batch folder with
+a `README.md` manifest. Curated digests live under `docs/resources/_digests/<area-or-bucket>/` so
+distilled knowledge stays segregated by area before stable facts are promoted into canonical docs.
+Area source history lives in `docs/resources/<area>/sources.md` so source provenance, why a source was
+added, and links to digests/tasks/docs remain traceable. Rerunnable reports, audits, inventories, and
 migration proposals live under `docs/resources/_reports/<workflow>/` with timestamped filenames so
 repeat runs preserve previous observations.
 Long-lived committed source documents and binaries live under `docs/resources/<area>/attachments/`

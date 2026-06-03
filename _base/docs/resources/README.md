@@ -10,14 +10,20 @@ Repeated operational procedures belong in `docs/resources/<area>/runbooks/<scena
 `<HOST>`, `<USER>`, `<SERVICE>`, `<REMOTE_PATH>`, and `<CONFIG_PROFILE>`. Real values belong in
 ignored local binding files under `.local/runbooks/<scenario-slug>.local.md`.
 
-Raw source material waiting to be processed belongs in `_inbox/`. Curated Markdown summaries of those
-sources belong in `_digests/`. Use `/distill-knowledge` to extract the important information and
-promote stable facts into the canonical knowledge files.
+Raw source material waiting to be processed belongs in `_inbox/`. Related files from one call,
+teammate input, upload bundle, or research bundle may live together in an inbox batch folder with a
+`README.md` manifest. Curated Markdown summaries of those sources belong in `_digests/`. Use
+`/distill-knowledge` to extract the important information and promote stable facts into the canonical
+knowledge files.
 
 Long-lived committed source documents and binaries, such as `.docx`, PDFs, spreadsheets, diagrams, or
 similar durable project resources, belong under `<area>/attachments/`. Keep a nearby Markdown companion
 file or attachment index that documents purpose, provenance, area or owner, update guidance, and links
 to related digests or canonical docs.
+
+Area-level source history belongs in `<area>/sources.md`. Use it to record teammate inputs, call
+batches, uploaded documents, durable attachments, why each source was added, where it is stored, and
+which digests, tasks, or canonical docs depend on it.
 
 Rerunnable agent reports, audits, inventories, and migration proposals belong in `_reports/` with
 timestamped filenames, one file per run. Stable project docs do not belong there.

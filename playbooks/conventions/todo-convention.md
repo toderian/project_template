@@ -40,6 +40,7 @@ docs/
 │   ├── _reports/            # Timestamped rerunnable reports and audits
 │   └── <area>/
 │       ├── summary.md       # Durable area architecture summary
+│       ├── sources.md       # Area source history and provenance ledger
 │       ├── dependency-graph.md
 │       ├── attachments/     # Durable source documents and binaries with Markdown metadata
 │       ├── contracts/<feature-slug>.md
