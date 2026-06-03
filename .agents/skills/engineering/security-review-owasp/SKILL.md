@@ -1,0 +1,11 @@
+---
+name: security-review-owasp
+description: Apply current OWASP standards (Top 10:2025, ASVS 5.0, LLM Top 10 2025, Agentic AI 2026) when writing or reviewing code. Use when reviewing code for security issues, implementing auth/authz, handling user input, designing API endpoints, building AI agent systems, integrating LLMs/RAG, or discussing application security.
+---
+
+Read and follow:
+
+- `playbooks/skills/engineering/security-review-owasp.md`
+
+This Antigravity wrapper is generated from `.claude-plugin/plugin.json`.
+Keep Antigravity support experimental and isolated; update the shared playbook first.

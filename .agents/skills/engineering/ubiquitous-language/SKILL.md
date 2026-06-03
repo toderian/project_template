@@ -1,0 +1,11 @@
+---
+name: ubiquitous-language
+description: Extract a DDD-style ubiquitous language glossary from the current conversation, flagging ambiguities and proposing canonical terms. Saves to UBIQUITOUS_LANGUAGE.md. Use when user wants to define domain terms, build a glossary, harden terminology, create a ubiquitous language, or mentions "domain model" or "DDD".
+---
+
+Read and follow:
+
+- `playbooks/skills/engineering/ubiquitous-language.md`
+
+This Antigravity wrapper is generated from `.claude-plugin/plugin.json`.
+Keep Antigravity support experimental and isolated; update the shared playbook first.
