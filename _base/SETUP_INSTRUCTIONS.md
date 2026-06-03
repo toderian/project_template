@@ -5,9 +5,10 @@
 
 The agent invoking this file should announce at the start: "Following `_base/SETUP_INSTRUCTIONS.md`. I will run the steps for my runtime and stop on any failed check."
 
-## Normal setup covers both runtimes
+## Normal setup covers both primary runtimes
 
-This file's normal path sets up both Claude Code and Codex integration with one command:
+This file's normal path sets up both Claude Code and Codex integration with one command. Antigravity
+(`agy`) support is experimental and opt-in; use Phase 4C only when intentionally testing it.
 
 - Run Phases 0 → 2, then Phase 3 one-command setup, then Phases 5 → 6.
 - Use the runtime-specific manual phases only when debugging the installer or intentionally doing a
@@ -26,9 +27,11 @@ Phases 0, 1, 2, 3, 5, and 6 are idempotent — running them again on the same pr
 | `python3` | portable path/docs helpers, marketplace and plugin installers | `python3 --version` |
 | `git` | template remote and commits | `git --version` |
 | `jq` | Claude Code hooks | `jq --version` |
+| `agy` | optional; only for experimental Antigravity wrapper checks | `agy --version` |
 | `gh` | optional; only if you want to operate on issues/PRs | `gh --version` |
 
-The runtime CLI (`claude` or `codex`) is implicitly available — you, the agent reading this, are it. No separate check needed.
+The primary runtime CLI (`claude` or `codex`) is implicitly available — you, the agent reading this,
+are it. No separate check needed. Check `agy` only when running the experimental Antigravity phase.
 
 **Check:** `bash`, `python3`, and `git` are all callable. If you are Claude Code, `jq` is also callable. If any required tool is missing, stop and ask the user to install it.
 
@@ -189,10 +192,10 @@ downstream-owned task files, area pages, docs, or workbooks.
 
 Run the shared setup command. It validates the skill catalog, installs or refreshes Codex skills and
 plugins, links Claude Code skills globally, and installs or refreshes Claude Code plugins. The command
-is idempotent; run it again after each template update. By default it sets up both runtimes; use
+is idempotent; run it again after each template update. By default it sets up both primary runtimes; use
 `--codex-only` or `--claude-only` for a narrower refresh. It checks that the selected agent CLIs are on
 `PATH` before changing runtime install state; use `--force` only when intentionally preinstalling config
-before the CLI exists.
+before the CLI exists. Use `--antigravity-only` only for the experimental wrapper-generation path.
 
 ```bash
 ./_base/scripts/setup-agents.sh
@@ -281,6 +284,41 @@ After both installers finish, tell the user to **restart Codex** so the new skil
 
 ---
 
+## Phase 4C — Antigravity setup (experimental)
+
+Skip this phase unless the user explicitly wants to test Antigravity (`agy`). Antigravity support is a
+temporary adapter: it writes generated wrappers under `.agents/skills/` from `.claude-plugin/plugin.json`
+and does not install plugins, change the manifest schema, or add a root `GEMINI.md`.
+
+Run the opt-in setup target:
+
+```bash
+./_base/scripts/setup-agents.sh --antigravity-only
+```
+
+**Check:** these commands exit 0:
+
+```bash
+agy --version
+agy --help
+./_base/scripts/gen-antigravity-skills.sh --check
+./_base/scripts/check-antigravity-skills.sh
+```
+
+To remove the adapter later:
+
+```bash
+rm -rf .agents
+rm _base/scripts/gen-antigravity-skills.sh
+rm _base/scripts/check-antigravity-skills.sh
+```
+
+Then delete the small Antigravity references from setup/check docs and scripts. Gemini CLI is only
+compatibility or migration context for tools that can import from it; this template does not set up
+Gemini as a runtime.
+
+---
+
 ## Phase 5 — Third-party tools (optional, dual-runtime)
 
 A handful of upstream tools ship their own multi-platform installers. Run this script if you want them — toggle individual sections via env vars (`INSTALL_GSD=0`, `INSTALL_CONTEXT_MODE=0`, `INSTALL_CLAUDE_MEM=0`).
@@ -299,7 +337,7 @@ Some entries here only print marketplace-install hints rather than executing the
 
 Verify only the runtime you set up (the other one, if it gets set up later, will run its own Phase 6).
 
-**Universal checks (both runtimes):**
+**Universal checks (all setup paths):**
 
 1. **Template remote is reachable.** `git ls-remote template HEAD` returns a hash.
 2. **Downstream slot files are project-specific.** Re-run the Phase 2 checks.
@@ -321,19 +359,25 @@ Verify only the runtime you set up (the other one, if it gets set up later, will
 - `./_base/scripts/check-codex-plugins.sh` prints `OK  Codex plugin manifests valid`.
 - `python3 -c 'import json; d=json.load(open("'"$HOME"'/.agents/plugins/marketplace.json")); print([(p.get("name"), p.get("source", {}).get("path")) for p in d.get("plugins", [])])'` includes everything vendored under `_base/plugins/` with `./_base/plugins/<name>` source paths.
 
-Report a structured summary to the user. Pick the line for your runtime; leave the other one unsaid (it is not your concern):
+**If you are Antigravity (`agy`, experimental):**
+
+- `agy --version` and `agy --help` exit 0.
+- `find .agents -maxdepth 2 -type d | sort` includes `.agents/skills`.
+- `./_base/scripts/check-antigravity-skills.sh` prints `OK  Antigravity wrappers current`.
+
+Report a structured summary to the user. Pick the line for your runtime; leave the others unsaid (they are not your concern):
 
 ```
-Setup complete for <Claude Code | Codex>.
+Setup complete for <Claude Code | Codex | Antigravity (experimental)>.
 
 - Template remote: <hash>
 - Project README replaced: yes/no
 - Project AGENTS overrides set: yes/no
-- Skills:    <N installed (or "auto-discovered" for Claude)>
-- Plugins:   <N installed>
+- Skills:    <N installed, "auto-discovered" for Claude, or "generated wrappers" for Antigravity>
+- Plugins:   <N installed, or "none" for Antigravity>
 - Third-party (Phase 5): <"ran" OR "skipped">
 
-Restart <Claude Code | Codex> to pick up the new configuration.
+Restart <Claude Code | Codex | Antigravity> to pick up the new configuration.
 ```
 
 ---
@@ -358,4 +402,6 @@ Do not invent fix-it scripts. Hand control back to the user with the most useful
 - `_base/CHANGELOG.md` — what changes when you pull updates from the template.
 - `playbooks/skills/` — the authoritative workflow definitions for every shipped skill.
 
-The skill catalog (regenerated automatically) lives in `_base/README.md` § "Available skills". To use any skill, invoke `/<skill-name>` from within Claude Code or Codex.
+The skill catalog (regenerated automatically) lives in `_base/README.md` § "Available skills". Invoke
+skills according to your runtime: slash-style commands in Claude Code, natural language or `$skill-name`
+in Codex, and generated `.agents/skills/` wrappers in experimental Antigravity.

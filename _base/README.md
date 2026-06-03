@@ -5,7 +5,7 @@
 
 Template repository for portable agent behavior contracts and reusable skills in any development project.
 
-This repo is designed to work with both **Claude Code** and **OpenAI Codex**. Copy it into a project, use it as a submodule, or seed a new project from it and keep it wired up as a `template` git remote so you can pull future improvements in (see [Staying in sync with the template](#staying-in-sync-with-the-template)).
+This repo is designed to work primarily with **Claude Code** and **OpenAI Codex**. It also includes an experimental, removable **Antigravity** (`agy`) adapter that consumes the same shared playbooks through generated wrappers. Copy it into a project, use it as a submodule, or seed a new project from it and keep it wired up as a `template` git remote so you can pull future improvements in (see [Staying in sync with the template](#staying-in-sync-with-the-template)).
 
 **Canonical URL:** `git@github.com:toderian/project_template.git`
 
@@ -35,7 +35,7 @@ This repo is designed to work with both **Claude Code** and **OpenAI Codex**. Co
 │   │   ├── install-claude-plugins.sh
 │   │   └── bootstrap-third-party.sh
 │   └── scripts/                           # Template-owned setup, task-system, and validation scripts
-│       ├── setup-agents.sh                # One-command Claude + Codex skill/plugin refresh
+│       ├── setup-agents.sh                # One-command Claude + Codex refresh; optional Antigravity wrapper generation
 │       ├── setup-template-merge-rules.sh  # Configures template/downstream merge drivers
 │       ├── link-skills.sh                 # Links Claude Code skills into ~/.claude/skills
 │       ├── seed-docs.sh                   # Seeds docs/ and workbooks/ without overwriting
@@ -45,6 +45,8 @@ This repo is designed to work with both **Claude Code** and **OpenAI Codex**. Co
 │       ├── check-repos-config.sh          # Validates optional .config/repos.project.md and .local/repos.map
 │       ├── gen-skills-table.sh            # Regenerates the skills table in _base/README.md
 │       ├── check-skills-sync.sh           # Validates skill/wrapper/table consistency
+│       ├── gen-antigravity-skills.sh      # Generates experimental .agents/skills wrappers
+│       ├── check-antigravity-skills.sh    # Validates generated Antigravity wrappers
 │       └── check-codex-plugins.sh         # Validates bundled Codex plugin manifests/assets
 │
 │
@@ -71,15 +73,18 @@ This repo is designed to work with both **Claude Code** and **OpenAI Codex**. Co
 ├── skills/                                # Codex skill wrappers (thin)
 │   ├── <bucket>/<skill-name>/SKILL.md
 │   └── install-codex-skills.sh
-└── .claude/
-    ├── skills/                            # Claude Code skill wrappers (thin)
-    │   └── <bucket>/<skill-name>/SKILL.md
-    ├── agents/                            # Claude Code subagent definitions
-    │   ├── implementer.md, reviewer.md, plan-critic.md
-    │   ├── spec-validator.md, security-auditor.md
-    │   └── researcher.md
-    ├── hooks/                             # PreToolUse hook scripts
-    └── settings.json                      # Hook configuration
+├── .claude/
+│   ├── skills/                            # Claude Code skill wrappers (thin)
+│   │   └── <bucket>/<skill-name>/SKILL.md
+│   ├── agents/                            # Claude Code subagent definitions
+│   │   ├── implementer.md, reviewer.md, plan-critic.md
+│   │   ├── spec-validator.md, security-auditor.md
+│   │   └── researcher.md
+│   ├── hooks/                             # PreToolUse hook scripts
+│   └── settings.json                      # Hook configuration
+└── .agents/
+    └── skills/                            # Generated Antigravity wrappers (experimental)
+        └── <bucket>/<skill-name>/SKILL.md
 ```
 
 ## Core design
@@ -155,18 +160,22 @@ capture, task creation, or roadmap cleanup to `/complete-task`, `/capture-idea`,
 Skills are reusable agent capabilities invoked by name. Claude Code exposes repo skills as slash-style
 commands such as `/tdd`, `/qa`, and `/grill-me`. Codex loads skills into the model context instead; in
 Codex, use natural language ("tidy this repo") or name the skill explicitly (`$tidy-repo`) rather than
-typing `/tidy-repo` as a TUI command.
+typing `/tidy-repo` as a TUI command. Antigravity support is experimental: `agy` consumes generated
+wrappers under `.agents/skills/`, but those wrappers are not a source of truth.
 
 ### Architecture
 
 ```
 skills/<bucket>/<name>/SKILL.md          →  thin Codex wrapper
 .claude/skills/<bucket>/<name>/SKILL.md  →  thin Claude Code wrapper
+.agents/skills/<bucket>/<name>/SKILL.md  →  generated Antigravity wrapper (experimental)
 playbooks/skills/<bucket>/<name>.md      →  shared workflow logic (authoritative)
 .claude-plugin/plugin.json               →  active-skill manifest (single source of truth)
 ```
 
 Active skills are listed in `.claude-plugin/plugin.json` — the manifest is what the sync/install scripts iterate over, not the filesystem. Skills are grouped into buckets (`engineering/`, `productivity/`, `misc/`, `personal/`) to keep the catalogue legible as it grows.
+Antigravity wrappers are generated from that same manifest by `_base/scripts/gen-antigravity-skills.sh`;
+do not edit `.agents/skills/` by hand.
 
 Most wrappers point to the same playbook. **The playbook is the single source of truth.** The only
 agent-only exceptions are `implementer` and `reviewer`: their canonical behavior is the subagent
@@ -241,8 +250,9 @@ The table below lists the skills authored in this template (base tier). Downstre
 4. Create the Claude wrapper: `.claude/skills/<bucket>/<name>/SKILL.md`
 5. Add `./skills/<bucket>/<name>` to the `skills` array in `.claude-plugin/plugin.json` (keep it alphabetically sorted within the bucket).
 6. Regenerate the skills table: `./_base/scripts/gen-skills-table.sh`
-7. Validate consistency: `./_base/scripts/check-skills-sync.sh` (fix any findings and re-run until clean)
-8. For Codex, run `skills/install-codex-skills.sh` and restart Codex
+7. Regenerate experimental Antigravity wrappers: `./_base/scripts/gen-antigravity-skills.sh`
+8. Validate consistency: `./_base/scripts/check-skills-sync.sh` and `./_base/scripts/check-antigravity-skills.sh` (fix any findings and re-run until clean)
+9. For Codex, run `skills/install-codex-skills.sh` and restart Codex
 
 See `playbooks/skills/productivity/write-a-skill.md` for the full skill authoring guide.
 
@@ -257,6 +267,8 @@ See `playbooks/skills/productivity/write-a-skill.md` for the full skill authorin
 ```
 
 Severities: **BLOCKER** (missing/orphan files, broken references), **DRIFT** (out-of-sync metadata, mechanically fixable), **STYLE** (advisory thin-wrapper / convention violations). The script exits non-zero on BLOCKER or DRIFT; STYLE alone is allowed.
+`_base/scripts/check-antigravity-skills.sh` separately verifies that the generated `.agents/skills/`
+tree matches the same manifest and that no tracked `.agents` file lives outside `.agents/skills/`.
 
 `_base/scripts/check-codex-plugins.sh` validates bundled Codex plugin manifests, referenced skill/app paths, plugin skill `SKILL.md` files, app JSON, optional MCP JSON, and declared interface assets. `_base/plugins/install-codex-plugins.sh` runs it before changing local symlinks or marketplace entries.
 
@@ -270,9 +282,9 @@ three-way file merging. Run the setup script once during downstream setup, and r
 
 `_base/scripts/check-template-update.sh` is the standard read-only, agent-runtime-independent
 post-merge verifier for downstream repos. It prints the current `BASE_VERSION`, validates the template
-merge rules, syntax-checks template shell scripts, runs the template validation checks, exits non-zero
-when anything needs attention, and is designed for an agent to run, fix reported failures, and rerun
-until green.
+merge rules, syntax-checks template shell scripts, runs the template validation checks including
+generated Antigravity wrapper drift, exits non-zero when anything needs attention, and is designed for
+an agent to run, fix reported failures, and rerun until green.
 
 `_base/scripts/check-repos-config.sh` validates an optional downstream `.config/repos.project.md` registry and any
 task `Repos` metadata. Default mode is safe for projects that have not opted in. Use
@@ -291,6 +303,12 @@ repo mappings, absolute paths, and checkout directories.
 | Per-directory overrides | Nested `AGENTS.md` in subdirectories | Not supported — root `AGENTS.md` only |
 
 All workflow logic lives in `playbooks/` (shared). Platform-specific features in `.claude/`, `skills/`, and `_base/plugins/` are additive — a Codex user reading only `AGENTS.md` + `_base/AGENTS.md` + `playbooks/` + `skills/` + `_base/plugins/` gets the full picture.
+
+Antigravity (`agy`) is an experimental adapter, not an equal primary runtime. Its only committed
+workspace surface is `.agents/skills/`, generated from `.claude-plugin/plugin.json`; there is no
+Antigravity plugin bundle, manifest schema change, native subagent setup, or hook setup in this
+template. Gemini CLI is mentioned only as compatibility or migration context where upstream tools or
+`agy plugin import` reference it; this template does not ship or maintain Gemini runtime files.
 
 ## Using with Claude Code
 
@@ -348,6 +366,34 @@ description: What it does. Use when [triggers].
 ---
 ```
 
+## Using with Antigravity (`agy`, experimental)
+
+Antigravity wrappers are generated into `.agents/skills/` from the existing shared manifest and
+playbooks. They are intentionally thin so this adapter can be removed without touching Claude/Codex
+wrappers, playbooks, plugin manifests, task conventions, or repo contracts.
+
+```bash
+./_base/scripts/setup-agents.sh --antigravity-only
+# Then restart or reopen agy in this repo
+```
+
+For manual/debugging use:
+
+```bash
+./_base/scripts/gen-antigravity-skills.sh
+./_base/scripts/check-antigravity-skills.sh
+```
+
+Removal path:
+
+```bash
+rm -rf .agents
+rm _base/scripts/gen-antigravity-skills.sh
+rm _base/scripts/check-antigravity-skills.sh
+```
+
+Then delete the small Antigravity references from setup/check docs and scripts.
+
 ## Third-party plugins (own installers)
 
 Some upstream tools ship multi-platform installers and don't fit the `playbooks/` + dual-wrapper convention. They're not vendored — `_base/plugins/bootstrap-third-party.sh` runs (or documents) their native install paths instead.
@@ -384,7 +430,8 @@ Copy these into the target project (then point an agent at `_base/SETUP_INSTRUCT
 | `playbooks/` | Both | Authoritative workflow logic, role cards, templates |
 | `.claude/` | Claude Code | Skills, native subagents, hook scripts, settings |
 | `skills/` | Codex | Thin wrappers + `install-codex-skills.sh` |
-| `_base/scripts/setup-agents.sh` | Both | One-command skill/plugin validation and install/refresh for Claude Code and Codex |
+| `.agents/skills/` | Antigravity (experimental) | Generated wrappers only; regenerate from `.claude-plugin/plugin.json` |
+| `_base/scripts/setup-agents.sh` | Both | One-command skill/plugin validation and install/refresh for Claude Code and Codex; `--antigravity-only` regenerates experimental `agy` wrappers |
 | `_base/plugins/` | Both | Vendored plugins, `install-codex-plugins.sh`, `install-claude-plugins.sh`, `bootstrap-third-party.sh` |
 | `_base/project.env.example` | Both (optional) | Copy to `project.env` at the repo root (`cp _base/project.env.example project.env`) to override default install paths |
 | `_base/PROJECT.md.template` | Both (optional) | Copy to `PROJECT.md` at the repo root (`cp _base/PROJECT.md.template PROJECT.md`) and fill in to enable the `/align` skill for feature-level alignment gating |
@@ -400,8 +447,10 @@ After copying or pulling template updates, run the one-command setup:
 It validates the skill catalog, installs or refreshes Codex skills and plugins, links Claude Code skills
 globally, and installs or refreshes Claude Code plugins. The command is idempotent; run it again after
 each template update. Restart Codex and Claude Code afterwards so they reload skills and plugins. The
-lower-level installers remain available for advanced/manual use. To set up only one runtime, use
-`./_base/scripts/setup-agents.sh --codex-only` or `./_base/scripts/setup-agents.sh --claude-only`.
+lower-level installers remain available for advanced/manual use. To set up only one primary runtime,
+use `./_base/scripts/setup-agents.sh --codex-only` or `./_base/scripts/setup-agents.sh --claude-only`.
+To refresh only the experimental Antigravity wrappers, use
+`./_base/scripts/setup-agents.sh --antigravity-only`.
 
 ### Option 2: use as a submodule
 
