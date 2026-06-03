@@ -20,8 +20,10 @@ fi
 
 CODEX_CLI="${CODEX_CLI:-codex}"
 CLAUDE_CLI="${CLAUDE_CLI:-claude}"
+ANTIGRAVITY_CLI="${ANTIGRAVITY_CLI:-agy}"
 TARGET_CODEX=1
 TARGET_CLAUDE=1
+TARGET_ANTIGRAVITY=0
 FORCE_SETUP=0
 
 usage() {
@@ -31,19 +33,21 @@ Usage: _base/scripts/setup-agents.sh [OPTION]
 Validate and refresh agent integrations after pulling template updates.
 
 Default:
-  Set up both Codex and Claude Code.
+  Set up both Codex and Claude Code. Antigravity is experimental and opt-in.
 
 Options:
-  --all          Set up both Codex and Claude Code. This is the default.
-  --codex-only   Set up only Codex skills/plugins.
-  --claude-only  Set up only Claude Code skills/plugins.
-  --force        Run selected setup even if the matching CLI is not on PATH.
-  --help         Show this help.
+  --all                Set up both Codex and Claude Code. This is the default.
+  --codex-only         Set up only Codex skills/plugins.
+  --claude-only        Set up only Claude Code skills/plugins.
+  --antigravity-only   Generate only experimental Antigravity skill wrappers.
+  --force              Run selected setup even if the matching CLI is not on PATH.
+  --help               Show this help.
 
 CLI guards:
   By default, the script requires selected CLIs to be installed:
-  - Codex:  command named by CODEX_CLI, default "codex"
-  - Claude: command named by CLAUDE_CLI, default "claude"
+  - Codex:       command named by CODEX_CLI, default "codex"
+  - Claude:      command named by CLAUDE_CLI, default "claude"
+  - Antigravity: command named by ANTIGRAVITY_CLI, default "agy"
 
   Use --force to preinstall links/settings on a machine before the CLI exists.
 EOF
@@ -54,14 +58,22 @@ while [[ $# -gt 0 ]]; do
     --all)
       TARGET_CODEX=1
       TARGET_CLAUDE=1
+      TARGET_ANTIGRAVITY=0
       ;;
     --codex-only)
       TARGET_CODEX=1
       TARGET_CLAUDE=0
+      TARGET_ANTIGRAVITY=0
       ;;
     --claude-only)
       TARGET_CODEX=0
       TARGET_CLAUDE=1
+      TARGET_ANTIGRAVITY=0
+      ;;
+    --antigravity-only)
+      TARGET_CODEX=0
+      TARGET_CLAUDE=0
+      TARGET_ANTIGRAVITY=1
       ;;
     --force)
       FORCE_SETUP=1
@@ -113,16 +125,21 @@ run_step "Validate skill catalog" \
 
 codex_path="$(cli_path "${CODEX_CLI}")"
 claude_path="$(cli_path "${CLAUDE_CLI}")"
+antigravity_path="$(cli_path "${ANTIGRAVITY_CLI}")"
 
 printf '\nDetected runtimes:\n'
-printf '  Codex CLI:      %s\n' "${codex_path:-not found (${CODEX_CLI})}"
-printf '  Claude Code CLI: %s\n' "${claude_path:-not found (${CLAUDE_CLI})}"
+printf '  Codex CLI:        %s\n' "${codex_path:-not found (${CODEX_CLI})}"
+printf '  Claude Code CLI:  %s\n' "${claude_path:-not found (${CLAUDE_CLI})}"
+printf '  Antigravity CLI:  %s\n' "${antigravity_path:-not found (${ANTIGRAVITY_CLI})}"
 
 if [[ "${TARGET_CODEX}" -eq 1 ]]; then
   require_cli "Codex" "${CODEX_CLI}"
 fi
 if [[ "${TARGET_CLAUDE}" -eq 1 ]]; then
   require_cli "Claude Code" "${CLAUDE_CLI}"
+fi
+if [[ "${TARGET_ANTIGRAVITY}" -eq 1 ]]; then
+  require_cli "Antigravity" "${ANTIGRAVITY_CLI}"
 fi
 
 if [[ "${TARGET_CODEX}" -eq 1 ]]; then
@@ -141,13 +158,24 @@ if [[ "${TARGET_CLAUDE}" -eq 1 ]]; then
     "${REPO_ROOT}/_base/plugins/install-claude-plugins.sh"
 fi
 
+if [[ "${TARGET_ANTIGRAVITY}" -eq 1 ]]; then
+  run_step "Generate experimental Antigravity skill wrappers" \
+    "${REPO_ROOT}/_base/scripts/gen-antigravity-skills.sh"
+
+  run_step "Validate experimental Antigravity skill wrappers" \
+    "${REPO_ROOT}/_base/scripts/check-antigravity-skills.sh"
+fi
+
 cat <<'EOF'
 
-Agent setup complete.
+Agent setup complete for selected runtimes.
 
 This command is idempotent; run it again after each template update to refresh links and plugin entries.
 Restart any agent CLI whose setup ran so it reloads skills and plugins.
 
 Codex note: installed skills are model-visible skills, not TUI slash commands.
 Invoke them by describing the task ("tidy this repo") or by naming the skill ("$tidy-repo").
+
+Antigravity note: `agy` support is experimental. It only generates repo-local wrappers under
+`.agents/skills/`; there is no Antigravity plugin bundle in this template.
 EOF

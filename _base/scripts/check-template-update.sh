@@ -21,6 +21,7 @@ Checks:
   - validates template merge rules and local Git merge drivers
   - syntax-checks template shell scripts
   - validates skill/wrapper/table consistency
+  - validates generated Antigravity skill wrappers
   - validates bundled Codex plugin manifests
   - validates optional .config/repos.project.md and task Repos metadata
   - validates .local/repos.map when present, or always with --local
@@ -111,6 +112,9 @@ run_check "Template shell syntax" \
 
 run_check "Skill catalog" \
   "${REPO_ROOT}/_base/scripts/check-skills-sync.sh"
+
+run_check "Antigravity skill wrappers" \
+  "${REPO_ROOT}/_base/scripts/check-antigravity-skills.sh"
 
 run_check "Codex plugin manifests" \
   "${REPO_ROOT}/_base/scripts/check-codex-plugins.sh"
