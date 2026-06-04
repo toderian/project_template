@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.06.04.0
+BASE_VERSION: 2026.06.04.1
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,36 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Adopt doubt-driven-development, ADR convention, and performance-optimization
+
+Three additions adapted from [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills)
+(MIT License). The ~80% of that repo that overlaps existing template skills was intentionally not
+ported; only the genuinely additive pieces were taken, reworked to reuse this template's existing
+machinery rather than duplicate it.
+
+- New `doubt-driven-development` engineering skill (`playbooks/skills/engineering/doubt-driven-development.md`
+  + Codex/Claude wrappers): per-decision fresh-context adversarial review *during implementation*.
+  Reuses the `subagent-protocol` dispatch format and status vocabulary, the `plan-critic` subagent
+  with `playbooks/conventions/plan-critique.md` for plan-shaped decisions, and the `critic`
+  personality for code-level decisions. It does not fork the five-axis rubric — it references it.
+- New `playbooks/conventions/adr-convention.md` + `playbooks/templates/adr.template.md`: promotes the
+  ADR format that previously lived only inside `grill-with-docs/ADR-FORMAT.md` into a first-class,
+  reusable convention. `grill-with-docs/ADR-FORMAT.md` is now a pointer at the convention so there is
+  one authoritative ADR definition. `_base/README.md` and `_base/AGENTS.md` reference the new
+  convention and the `docs/adr/` location.
+- New `performance-optimization` engineering skill
+  (`playbooks/skills/engineering/performance-optimization.md` + Codex/Claude wrappers): measure-first,
+  profile-before-optimize discipline. Cross-references `diagnose` (which owns performance
+  *regression* localization) to keep the boundary clear.
+- `.claude-plugin/plugin.json` gains `doubt-driven-development` and `performance-optimization` in the
+  engineering bucket; the `_base/README.md` skills table and the generated `.agents/skills/` wrappers
+  were regenerated.
+
+**Downstream impact:** additive. Two new opt-in skills plus one new convention/template. After merging,
+run `./_base/scripts/setup-agents.sh` to refresh skill installs and accept the regenerated
+`.agents/skills/` wrappers and `_base/README.md` skills table. Projects that maintained a forked
+`grill-with-docs/ADR-FORMAT.md` should re-point it at `playbooks/conventions/adr-convention.md`.
 
 ### Add experimental Antigravity runtime adapter
 
