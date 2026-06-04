@@ -1,6 +1,6 @@
 ---
 name: init
-description: Initialize project idea/task tracking structure. Use when user wants to set up docs/ with inbox, tasks, areas, durable plans, resources, archive, roadmap, and generated ledgers.
+description: "Initialize project idea/task tracking structure. Use when user wants to set up docs/ with inbox, tasks, areas, durable plans, resources, archive, roadmap, and generated ledgers."
 ---
 
 Read and follow:

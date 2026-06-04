@@ -1,6 +1,6 @@
 ---
 name: prd-to-todos
-description: Extract actionable tasks from a PRD and create area-prefixed task files. Use when user wants to convert a PRD into trackable tasks in docs/tasks_manager/_todos/.
+description: "Extract actionable tasks from a PRD and create area-prefixed task files. Use when user wants to convert a PRD into trackable tasks in docs/tasks_manager/_todos/."
 ---
 
 Read and follow:

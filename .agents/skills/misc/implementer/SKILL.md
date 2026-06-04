@@ -1,6 +1,6 @@
 ---
 name: implementer
-description: Act as an implementer for a single task slice. Use when implementing focused work from a plan, following the subagent protocol with scope fencing and structured reporting.
+description: "Act as an implementer for a single task slice. Use when implementing focused work from a plan, following the subagent protocol with scope fencing and structured reporting."
 ---
 
 Read and follow:

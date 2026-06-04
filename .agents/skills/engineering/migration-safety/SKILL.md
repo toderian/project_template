@@ -1,6 +1,6 @@
 ---
 name: migration-safety
-description: Safety review and generation guidance for reversible database schema migrations. Focuses on production hazards such as table-rewrite locks, unsafe NOT NULL changes, missing concurrent indexes, irreversible drops, backfills, and zero-downtime DDL across PostgreSQL, MySQL, SQLite, Liquibase, or Flyway.
+description: "Safety review and generation guidance for reversible database schema migrations. Focuses on production hazards such as table-rewrite locks, unsafe NOT NULL changes, missing concurrent indexes, irreversible drops, backfills, and zero-downtime DDL across PostgreSQL, MySQL, SQLite, Liquibase, or Flyway."
 ---
 
 Read and follow:

@@ -1,6 +1,6 @@
 ---
 name: tidy-repo
-description: Inventory scattered TODOs, loose docs, and orphan files, then propose a non-destructive migration into docs/tasks_manager and docs/resources. Use when the user says "tidy this repo", "systematize", "clean up the mess", or "organize my tasks/docs".
+description: "Inventory scattered TODOs, loose docs, and orphan files, then propose a non-destructive migration into docs/tasks_manager and docs/resources. Use when the user says \"tidy this repo\", \"systematize\", \"clean up the mess\", or \"organize my tasks/docs\"."
 ---
 
 Read and follow:

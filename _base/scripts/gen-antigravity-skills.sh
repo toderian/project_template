@@ -81,10 +81,19 @@ def frontmatter_field(path: Path, field: str) -> str:
         prefix = f"{field}:"
         if line.startswith(prefix):
             value = line[len(prefix):].strip()
-            if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
-                value = value[1:-1]
+            if len(value) >= 2 and value[0] == value[-1] == '"':
+                try:
+                    value = json.loads(value)
+                except json.JSONDecodeError:
+                    value = value[1:-1]
+            elif len(value) >= 2 and value[0] == value[-1] == "'":
+                value = value[1:-1].replace("''", "'")
             return value
     raise SystemExit(f"missing frontmatter field {field!r}: {path.relative_to(repo_root)}")
+
+
+def yaml_string(value: str) -> str:
+    return json.dumps(value, ensure_ascii=False)
 
 
 def skill_tuples() -> list[tuple[str, str]]:
@@ -122,7 +131,7 @@ def wrapper_content(bucket: str, name: str) -> str:
     ref_lines = "\n".join(f"- `{ref}`" for ref in refs)
     return f"""---
 name: {name}
-description: {description}
+description: {yaml_string(description)}
 ---
 
 Read and follow:

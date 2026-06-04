@@ -1,6 +1,6 @@
 ---
 name: subagent-protocol
-description: Multi-agent coordination protocol with status vocabulary, dispatch format, and two-stage review. Use when dispatching subagents, coordinating multi-agent work, or reviewing implementation output.
+description: "Multi-agent coordination protocol with status vocabulary, dispatch format, and two-stage review. Use when dispatching subagents, coordinating multi-agent work, or reviewing implementation output."
 ---
 
 Read and follow:

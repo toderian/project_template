@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: Two-stage review of implementation work. Use when reviewing completed task output for spec compliance and code quality.
+description: "Two-stage review of implementation work. Use when reviewing completed task output for spec compliance and code quality."
 ---
 
 Read and follow:
