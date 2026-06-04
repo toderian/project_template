@@ -1,6 +1,6 @@
 ---
 name: spec-workflow
-description: Heavyweight spec-driven development loop (plan → build → review → fix) for a single engineering item, producing spec.md / design.md / tasks.md / review.md under specs/<slug>/ and dispatching parallel implementers via the subagent-protocol. Use when the user wants Codex to "spec it out", drive a "spec workflow" or "spec-driven" loop, or plan + build + review a non-trivial feature with parallel subagents. Do NOT use for one-file edits, typos, trivial bug fixes, or exploratory spikes — the default single-agent operating loop is correct for those.
+description: Spec-driven planning and implementation loop for a non-trivial engineering item, producing specs/<slug>/ artifacts and review/fix passes. Use when the user asks to "spec it out", run a "spec workflow" or "spec-driven" process, or plan + build + review work too large for the default loop. Avoid trivial edits or exploratory spikes.
 ---
 
 # Spec Workflow

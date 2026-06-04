@@ -1,6 +1,6 @@
 ---
 name: complete-task
-description: Complete or cancel a task, reconcile stale progress, fill completion harvest and summary, optionally squash task-owned downstream commits, archive it, then sync and strictly validate task ledgers. Use when the user says "complete task", "finish task", "close task", "cancel task", asks to archive a done task, or finds work that is done but still active.
+description: Complete or cancel an active task: reconcile progress, fill completion harvest/summary, optionally squash task-owned commits, archive it, and sync ledgers. Use when the user says "complete task", "finish task", "close task", "cancel task", asks to archive a done task, or finds completed work still active.
 disable-model-invocation: true
 ---
 

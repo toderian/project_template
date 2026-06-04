@@ -1,6 +1,6 @@
 ---
 name: doubt-driven-development
-description: Subject a non-trivial implementation decision to a fresh-context adversarial review before it stands, by dispatching a reviewer that gets the artifact and its contract but not your reasoning. Use when the user wants to "doubt" or stress-test a decision, when correctness matters more than speed, when working in unfamiliar code, or when a decision branches logic, crosses a module boundary, asserts an unverifiable property, or is hard to reverse.
+description: Adversarial review for a non-trivial implementation decision before it stands. Use when the user asks to "doubt" or stress-test a decision, when correctness matters more than speed, or when the choice crosses module boundaries, asserts something hard to verify, or is hard to reverse.
 ---
 
 Read and follow:

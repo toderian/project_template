@@ -7,6 +7,22 @@
 
 set -euo pipefail
 
+usage() {
+  cat <<'EOF'
+Usage: install-codex-skills.sh [OPTION]
+
+Symlink every active project skill into Codex's global skills directory.
+
+With no option, install or refresh symlinks from this repository's skills/
+directory into ${CODEX_HOME:-$HOME/.codex}/skills.
+
+Options:
+  --prune-source PATH  Remove Codex skill symlinks whose resolved target is under PATH.
+  --dry-run            With --prune-source, print removals without deleting symlinks.
+  --help               Show this message and exit.
+EOF
+}
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
@@ -20,6 +36,41 @@ SOURCE_SKILLS_DIR="${SCRIPT_DIR}"
 CODEX_HOME="${CODEX_HOME:-${HOME}/.codex}"
 TARGET_SKILLS_DIR="${CODEX_HOME}/skills"
 MANIFEST="${REPO_ROOT}/.claude-plugin/plugin.json"
+PRUNE_SOURCE=""
+DRY_RUN=0
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --prune-source)
+      if [[ $# -lt 2 || "$2" == --* ]]; then
+        echo "--prune-source requires a PATH argument" >&2
+        usage >&2
+        exit 2
+      fi
+      PRUNE_SOURCE="$2"
+      shift 2
+      ;;
+    --dry-run)
+      DRY_RUN=1
+      shift
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "unknown option: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
+if (( DRY_RUN == 1 )) && [[ -z "${PRUNE_SOURCE}" ]]; then
+  echo "--dry-run is only supported with --prune-source" >&2
+  usage >&2
+  exit 2
+fi
 
 resolve_path() {
   python3 - "$1" <<'PY'
@@ -29,6 +80,64 @@ import sys
 print(Path(sys.argv[1]).expanduser().resolve(strict=False))
 PY
 }
+
+path_is_under() {
+  local child="$1" parent="$2"
+  [[ "$child" == "$parent" || "$child" == "$parent/"* ]]
+}
+
+prune_source_symlinks() {
+  local source_resolved
+  source_resolved="$(resolve_path "${PRUNE_SOURCE}")"
+
+  if [[ ! -d "${TARGET_SKILLS_DIR}" ]]; then
+    echo "No Codex skills directory found at ${TARGET_SKILLS_DIR}; nothing to prune."
+    return 0
+  fi
+
+  local pruned=0 kept=0
+  while IFS= read -r -d '' entry; do
+    local name resolved
+    name="$(basename "${entry}")"
+
+    if [[ "${name}" == ".system" ]]; then
+      kept=$((kept+1))
+      continue
+    fi
+
+    if [[ ! -L "${entry}" ]]; then
+      kept=$((kept+1))
+      continue
+    fi
+
+    resolved="$(resolve_path "${entry}")"
+    if ! path_is_under "${resolved}" "${source_resolved}"; then
+      kept=$((kept+1))
+      continue
+    fi
+
+    if (( DRY_RUN == 1 )); then
+      echo "Would prune ${name} -> ${resolved}"
+    else
+      rm "${entry}"
+      echo "Pruned ${name} -> ${resolved}"
+    fi
+    pruned=$((pruned+1))
+  done < <(find "${TARGET_SKILLS_DIR}" -mindepth 1 -maxdepth 1 -print0 2>/dev/null)
+
+  echo
+  if (( DRY_RUN == 1 )); then
+    echo "Dry run: would prune ${pruned} symlink(s) from ${TARGET_SKILLS_DIR}; kept ${kept} entries."
+  else
+    echo "Pruned ${pruned} symlink(s) from ${TARGET_SKILLS_DIR}; kept ${kept} entries."
+  fi
+  echo "Prune source: ${source_resolved}"
+}
+
+if [[ -n "${PRUNE_SOURCE}" ]]; then
+  prune_source_symlinks
+  exit 0
+fi
 
 if [[ ! -d "${SOURCE_SKILLS_DIR}" ]]; then
   echo "No repo skills directory found at ${SOURCE_SKILLS_DIR}" >&2

@@ -16,7 +16,7 @@
 
 set -euo pipefail
 
-readonly VERSION="0.2.0"
+readonly VERSION="0.3.0"
 
 usage() {
   cat <<'EOF'
@@ -73,6 +73,12 @@ BUCKETS=("engineering" "productivity" "misc" "personal")
 
 # Wrappers should fit on a quick read; longer than this is a thinness smell.
 WRAPPER_MAX_LINES=50
+
+# Keep skill metadata cheap enough for Codex to keep loaded.
+DESCRIPTION_MAX_CHARS=350
+
+codex_description_chars=0
+claude_description_chars=0
 
 # Accumulator (TSV: severity\tcheck_id\tpath\tdetails)
 FINDINGS=()
@@ -280,6 +286,17 @@ check_wrapper() {
   fm_desc="$(fm_field "$wrapper" description || true)"
   if [[ -z "$fm_desc" ]]; then
     emit BLOCKER missing-description "$pretty" "frontmatter has no description: field"
+  else
+    local desc_len=${#fm_desc}
+    if [[ "$runtime" == "codex" ]]; then
+      codex_description_chars=$((codex_description_chars + desc_len))
+    else
+      claude_description_chars=$((claude_description_chars + desc_len))
+    fi
+    if (( desc_len > DESCRIPTION_MAX_CHARS )); then
+      emit STYLE description-too-long "$pretty" \
+        "chars=$desc_len max=$DESCRIPTION_MAX_CHARS"
+    fi
   fi
 
   if [[ "$expect_disable_model" == "yes" ]]; then
@@ -395,11 +412,15 @@ if (( total == 0 )); then
   done
   printf 'OK  manifest has %d skills (%s)\n' \
     "${#MANIFEST_NAMES[@]}" "${bucket_summary% }"
+  printf 'Metadata summary: manifest skills=%d, codex description chars=%d, claude description chars=%d\n' \
+    "${#MANIFEST_NAMES[@]}" "$codex_description_chars" "$claude_description_chars"
   exit 0
 fi
 
 printf '%d findings  (%d BLOCKER, %d DRIFT, %d STYLE)\n' \
   "$total" "$blocker_count" "$drift_count" "$style_count"
+printf 'Metadata summary: manifest skills=%d, codex description chars=%d, claude description chars=%d\n' \
+  "${#MANIFEST_NAMES[@]}" "$codex_description_chars" "$claude_description_chars"
 
 if (( blocker_count + drift_count > 0 )); then
   exit 1

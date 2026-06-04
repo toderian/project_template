@@ -1,6 +1,6 @@
 ---
 name: describe-component
-description: Generate or refresh a docs-primary component CONTEXT.md describing responsibility, public interface, dependencies, data owned, invariants, and tests. Use when the user wants to "describe a component", "document this module/service", map a subsystem's boundaries, or onboard to/hand off a part of the codebase. Distinct from docs/resources/CONTEXT.md domain glossary work (that's grill-with-docs).
+description: Generate or refresh a docs-primary component CONTEXT.md covering responsibility, public interface, dependencies, owned data, invariants, and tests. Use when the user wants to "describe a component", "document this module/service", map subsystem boundaries, or onboard/handoff code.
 ---
 
 Read and follow:
