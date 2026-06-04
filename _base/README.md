@@ -146,8 +146,9 @@ workbook `README.md`.
 See [`playbooks/conventions/task-system-quickstart.md`](../playbooks/conventions/task-system-quickstart.md),
 [`playbooks/conventions/knowledge-base-quickstart.md`](../playbooks/conventions/knowledge-base-quickstart.md),
 [`playbooks/conventions/generated-artifacts.md`](../playbooks/conventions/generated-artifacts.md),
-[`playbooks/conventions/runbook-convention.md`](../playbooks/conventions/runbook-convention.md), and
-[`playbooks/conventions/workbook-convention.md`](../playbooks/conventions/workbook-convention.md)
+[`playbooks/conventions/runbook-convention.md`](../playbooks/conventions/runbook-convention.md),
+[`playbooks/conventions/workbook-convention.md`](../playbooks/conventions/workbook-convention.md), and
+[`playbooks/conventions/adr-convention.md`](../playbooks/conventions/adr-convention.md)
 for the full command map and source-of-truth split.
 
 Use `/audit-todos` periodically to compare active tasks with current code, tests, docs, roadmap,
@@ -202,6 +203,7 @@ The table below lists the skills authored in this template (base tier). Downstre
 | design-an-interface | misc | Generate multiple radically different interface designs for a module using parallel sub-agents when available. Use when user wants to design an API, explore interface options, compare module shapes, or mentions "design it twice". |
 | diagnose | engineering | Disciplined diagnosis loop for hard bugs and performance regressions. Reproduce → minimise → hypothesise → instrument → fix → regression-test. Use when user says "diagnose this" / "debug this", reports a bug, says something is broken/throwing/failing, or describes a performance regression. |
 | distill-knowledge | engineering | Distill raw documents, notes, exports, or pasted context into Markdown digests and durable docs/resources knowledge-base updates. Use when the user says "distill knowledge", "process raw docs", "summarize these docs", "ingest docs", or points to docs/resources/_inbox/ material. |
+| doubt-driven-development | engineering | Subject a non-trivial implementation decision to a fresh-context adversarial review before it stands, by dispatching a reviewer that gets the artifact and its contract but not your reasoning. Use when the user wants to "doubt" or stress-test a decision, when correctness matters more than speed, when working in unfamiliar code, or when a decision branches logic, crosses a module boundary, asserts an unverifiable property, or is hard to reverse. |
 | edit-article | personal | Edit and improve articles by restructuring sections, improving clarity, and tightening prose. Use when user wants to edit, revise, or improve an article draft. |
 | execute-plan | engineering | Execute an approved task or implementation plan phase-by-phase, committing each completed phase and running repeated independent reviews. Use when the user says "execute plan", "execute-plan", or "/execute-plan", or points to docs/tasks_manager/_todos/<TASK>.md or docs/_plans/<slug>.md and wants it implemented. |
 | frontend-design | misc | Create distinctive, production-grade frontend interfaces with high design quality. Use when the user asks to build web components, pages, or applications. Generates creative, polished code that avoids generic AI aesthetics. |
@@ -216,6 +218,7 @@ The table below lists the skills authored in this template (base tier). Downstre
 | migrate-to-shoehorn | engineering | Migrate test files from `as` type assertions to @total-typescript/shoehorn. Use when user mentions shoehorn, wants to replace `as` in tests, or needs partial test data. |
 | migration-safety | engineering | Generate safe, reversible database schema migrations and review proposed ones for production hazards (table-rewrite locks, NOT-NULL-without-backfill, missing CONCURRENTLY, irreversible DROPs). Default focus PostgreSQL with Liquibase or Flyway; safety rules generalize to MySQL and SQLite. Use when the user mentions migration, schema change, alter table, add/drop column, add index, backfill, Liquibase, Flyway, or zero-downtime DDL. |
 | obsidian-vault | personal | Search, create, and manage notes in the Obsidian vault with wikilinks and index notes. Use when user wants to find, create, or organize notes in Obsidian. |
+| performance-optimization | engineering | Measure-first performance optimization — profile to find the real hot path, record a baseline, change one thing, and re-measure before keeping it. Use when the user wants to optimize performance, reduce latency or memory, speed something up, or asks "why is this slow?" for a known hot path (use diagnose instead for a performance regression). |
 | planning-workflow | productivity | Seven-step pre-implementation planning workflow. Use when the user wants to plan a non-trivial change before writing code — multi-file features, multiple plausible approaches, or work that needs scope bounded. Pairs with the plan-critic subagent for adversarial review against the five-axis rubric. |
 | prd-to-issues | productivity | Break a PRD into independently-grabbable GitHub issues using tracer-bullet vertical slices. Use when user wants to convert a PRD to issues, create implementation tickets, or break down a PRD into work items. |
 | prd-to-plan | productivity | Turn a PRD into a multi-phase implementation plan using tracer-bullet vertical slices, saved as docs/_plans/<slug>.md. Use when user wants to break down a PRD, create an implementation plan, plan phases from a PRD, or mentions "tracer bullets". |
