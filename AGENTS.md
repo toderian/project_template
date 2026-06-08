@@ -29,6 +29,23 @@ When this template is seeded into a new project:
   docs, logs, prompts, final answers, or task artifacts. If a needed credential is missing, state the
   expected `.creds/<filename>` path without inventing a value.
 
+### Python tooling environments
+
+- Use `uv` for persistent repo-level Python tooling dependencies. Do not use `pip install` directly
+  for dependencies that should be represented in committed project state.
+- Keep the default Python tooling environment under `tools/python/`, not at the repo root:
+  `tools/python/pyproject.toml` declares tooling dependencies, `tools/python/uv.lock` records the
+  exact resolved dependency state, and `tools/python/.python-version` pins the interpreter. Commit
+  those files once Python tooling dependencies exist.
+- Keep `tools/python/.venv/` local-only and uncommitted; the root `.gitignore` ignores it. A root
+  `.venv/` is also ignored for local scratch environments.
+- Run `uv` commands from `tools/python/`, for example `cd tools/python && uv sync`. Use `uv add`,
+  `uv remove`, `uv lock`, `uv sync`, and `uv run` for managed tooling dependencies and commands.
+- If a project needs multiple Python tooling environments, create explicit subfolders such as
+  `tools/python/<name>/` and document each environment in the downstream `AGENTS.md`.
+- Do not create `tools/python/pyproject.toml`, `tools/python/uv.lock`, or
+  `tools/python/.python-version` until there are real Python tooling dependencies to represent.
+
 Downstream projects, replace or extend this section with rules that are specific to your project — for example:
 
 - domain language and key invariants unique to this codebase

@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.06.08.0
+BASE_VERSION: 2026.06.09.0
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,28 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Add uv-based Python tooling environment convention
+
+Repo-level Python tooling dependencies now have a standard optional home under `tools/python/`.
+Projects should commit uv-managed environment metadata once dependencies exist:
+`tools/python/pyproject.toml`, `tools/python/uv.lock`, and `tools/python/.python-version`.
+The actual virtual environments, `.venv/` and `tools/python/.venv/`, are local-only and gitignored.
+
+Agent instructions now direct persistent Python dependency changes through `uv add`, `uv remove`,
+`uv lock`, `uv sync`, and `uv run` from `tools/python/`, rather than direct `pip install` for
+committed project deps. Projects that need multiple Python tooling environments should place them in
+explicit `tools/python/<name>/` subfolders and document them in downstream `AGENTS.md`. No Python
+metadata files are created by the template until real Python tooling dependencies exist.
+
+Claude git guardrails now block explicit staging of `.venv/` paths and block commits when `.venv/`
+paths are already staged, matching the existing local-only `.creds/` protection. Forced `git add`
+remains blocked because it can bypass `.gitignore`.
+
+**Downstream impact:** additive convention plus guardrail tightening. Existing projects do not need to
+create `tools/python/` until they have Python tooling dependencies. If a project already uses Python
+tooling at the repo root, consider migrating the tooling metadata to `tools/python/` and keep
+`tools/python/.venv/` uncommitted. After merging, run `./_base/scripts/check-template-update.sh`.
 
 ### Add local `.creds/` credential convention
 

@@ -205,6 +205,29 @@ See `playbooks/personalities/` for detailed role cards including default questio
 - `reviewer.md` — maintainability, clarity, adoption fitness
 - `researcher.md` — research-focused investigation
 
+## Python tooling environment
+
+For persistent repo-level Python tooling dependencies, use `uv` and keep the environment metadata
+under `tools/python/` rather than the repository root. This convention is for tooling helpers, not for
+turning every downstream project into a Python package.
+
+- `tools/python/pyproject.toml` declares Python tooling dependencies and should be committed once
+  those dependencies exist.
+- `tools/python/uv.lock` records the exact resolved dependency state, is committed, and is
+  uv-managed; do not hand-edit it.
+- `tools/python/.python-version` pins the interpreter for the tooling environment and is committed.
+- `tools/python/.venv/` is the local virtual environment and must never be committed. A root `.venv/`
+  is also local-only.
+- Run managed commands from `tools/python/`, for example `cd tools/python && uv sync` and
+  `cd tools/python && uv run <command>`.
+- Use `uv add`, `uv remove`, `uv lock`, `uv sync`, and `uv run`; do not use `pip install` directly for
+  dependencies that should be represented in committed project state.
+- If multiple Python tooling environments are needed, use explicit subfolders under
+  `tools/python/<name>/` and document each one in the downstream `AGENTS.md`.
+
+Do not create `tools/python/pyproject.toml`, `tools/python/uv.lock`, or
+`tools/python/.python-version` until there are real Python tooling dependencies to represent.
+
 ## Multi-agent rules
 
 If multiple agents are used, the manager must enforce:
@@ -308,11 +331,14 @@ Downstream projects follow a strict split:
 | `_base/repos.map.example` | **Upstream-owned** | Example local checkout map. Copy to `.local/repos.map` and edit locally; do not commit `.local/`. |
 | `workbooks/` | **Downstream-owned** | Root workbook bundles. Seeded with an index from `_base/workbooks/README.md`; each workbook owns its own folder and README. |
 | `_base/workbooks/` | **Upstream-owned** | Seed root workbook index. Do not edit downstream — root `workbooks/` is the downstream-owned workspace. |
+| `tools/python/` | **Downstream-owned** | Optional uv-managed Python tooling metadata. Commit `pyproject.toml`, `uv.lock`, and `.python-version` when dependencies exist; never commit `.venv/`. |
 | `PROJECT.md` | **Downstream-owned** | Vision, goals, scope. Copied from `_base/PROJECT.md.template`. Read by the `/align` skill. |
 | `_base/PROJECT.md.template` | **Upstream-owned** | Template for `PROJECT.md`. |
 | `docs/resources/CONTEXT.md` | **Downstream-owned** | Primary domain glossary (canonical terms, relationships, resolved ambiguities). Seeded from `_base/docs/resources/CONTEXT.md`. Read and updated inline by `grill-with-docs`; consulted by `diagnose`, `zoom-out`, and `refresh-context`. |
 | `CONTEXT.md` | **Downstream-owned** | Pointer/fallback to `docs/resources/CONTEXT.md`. Created from `_base/CONTEXT.md.template` when missing. |
 | `_base/CONTEXT.md.template` | **Upstream-owned** | Template for the root pointer. |
+| `.venv/` | **Local-only** | Local Python virtual environment. Never commit. |
+| `tools/python/.venv/` | **Local-only** | Local uv-managed Python tooling environment. Never commit. |
 | `.local/runbooks/` | **Local-only** | Machine-local placeholder bindings for sanitized committed runbooks. Never commit. |
 | `CHANGELOG.md` (optional) | **Downstream-owned** | Downstream project's own changelog, if they keep one. Never overlaps with `_base/CHANGELOG.md`. |
 | `.claude/settings.json` | Mixed | Merge hook entries by hand. |

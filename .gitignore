@@ -11,6 +11,10 @@ tmp/
 # Local credentials for agent/tool use. Never commit.
 .creds/
 
+# Local Python virtual environments. Commit uv metadata, never the env itself.
+.venv/
+tools/python/.venv/
+
 # Local environment config (copy from project.env.example)
 project.env
 

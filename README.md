@@ -51,6 +51,13 @@ gitignored and must never be committed. Agents should read credential values onl
 them, and should not print or copy secret contents into tracked files, docs, logs, prompts, final
 answers, or task artifacts.
 
+### Python tooling environments
+
+Repo-level Python tooling dependencies should use `uv` under `tools/python/`. When such tooling exists,
+commit `tools/python/pyproject.toml`, `tools/python/uv.lock`, and `tools/python/.python-version`; keep
+`tools/python/.venv/` local-only. Run managed commands from that folder, for example
+`cd tools/python && uv sync` or `cd tools/python && uv run <command>`.
+
 ### Project skills
 
 _None for the base template itself._

@@ -27,13 +27,16 @@ Phases 0, 1, 2, 3, 5, and 6 are idempotent — running them again on the same pr
 | `python3` | portable path/docs helpers, marketplace and plugin installers | `python3 --version` |
 | `git` | template remote and commits | `git --version` |
 | `jq` | Claude Code hooks | `jq --version` |
+| `uv` | optional; only when configuring repo-level Python tooling dependencies | `uv --version` |
 | `agy` | optional; only for experimental Antigravity wrapper checks | `agy --version` |
 | `gh` | optional; only if you want to operate on issues/PRs | `gh --version` |
 
 The primary runtime CLI (`claude` or `codex`) is implicitly available — you, the agent reading this,
 are it. No separate check needed. Check `agy` only when running the experimental Antigravity phase.
 
-**Check:** `bash`, `python3`, and `git` are all callable. If you are Claude Code, `jq` is also callable. If any required tool is missing, stop and ask the user to install it.
+**Check:** `bash`, `python3`, and `git` are all callable. If you are Claude Code, `jq` is also callable.
+If the project will configure Python tooling dependencies in Phase 2f, `uv` is callable. If any
+required tool for the selected path is missing, stop and ask the user to install it.
 
 ---
 
@@ -93,6 +96,7 @@ This project extends the agents template — see [`_base/README.md`](./_base/REA
 
 The template ships an `AGENTS.md` that auto-loads `_base/AGENTS.md` and reserves a
 `## Project-specific overrides` slot. Keep or adapt the local `.creds/` convention in that section,
+keep or adapt the optional `tools/python/` uv tooling convention if the project uses Python tooling,
 then add rules specific to this project — domain language, repo-specific test/lint/deploy commands,
 areas with non-obvious constraints, stakeholder routing rules. Do **not** edit anything else in
 `AGENTS.md` (the auto-load directive at the top must stay intact).
@@ -190,6 +194,43 @@ downstream-owned task files, area pages, docs, or workbooks.
 `docs/resources/_digests/README.md`, `docs/resources/global/runbooks/README.md`,
 `docs/archive/README.md`, and `workbooks/README.md` exist, and
 `_base/scripts/sync-todo-ledgers.sh` exits 0.
+
+### 2f — `tools/python/` Python tooling environment (optional)
+
+If the project needs persistent repo-level Python tooling dependencies, use `uv` and keep the default
+environment metadata under `tools/python/` rather than at the repo root. This environment is for
+tooling helpers, not for packaging every downstream project as a Python app/library.
+
+When dependencies exist, commit:
+
+- `tools/python/pyproject.toml`
+- `tools/python/uv.lock`
+- `tools/python/.python-version`
+
+Never commit:
+
+- `.venv/`
+- `tools/python/.venv/`
+
+Run uv commands from the environment directory:
+
+```bash
+cd tools/python && uv sync
+cd tools/python && uv run <command>
+```
+
+Use `uv add`, `uv remove`, `uv lock`, `uv sync`, and `uv run`; do not use `pip install` directly for
+dependencies that should be represented in committed project state. `tools/python/uv.lock` is
+uv-managed; do not hand-edit it. If multiple Python tooling environments are needed, create explicit
+subfolders such as `tools/python/<name>/` and document them in downstream `AGENTS.md`.
+
+If the project has no Python tooling dependencies yet, skip this step and do not create
+`tools/python/pyproject.toml`, `tools/python/uv.lock`, or `tools/python/.python-version`.
+
+**Check:** if `tools/python/pyproject.toml` exists, then `tools/python/uv.lock` and
+`tools/python/.python-version` also exist, `git check-ignore -q tools/python/.venv/bin/python`
+succeeds, and `cd tools/python && uv sync --locked` exits 0. If there are no Python tooling
+dependencies, the metadata files do not need to exist.
 
 ---
 

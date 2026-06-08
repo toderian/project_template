@@ -156,6 +156,39 @@ ledgers, area pages, and resources. It is report-only by default and delegates a
 capture, task creation, or roadmap cleanup to `/complete-task`, `/capture-idea`, `/add-task`, or
 `/roadmap`.
 
+## Python tooling environments
+
+When a downstream project needs repo-level Python tooling dependencies, use `uv` and keep that
+environment under `tools/python/` rather than at the repository root. This convention is for helper
+tooling used by agents or project scripts; it does not make every seeded project a Python package.
+
+Once Python tooling dependencies exist, commit these files:
+
+- `tools/python/pyproject.toml` — declares the Python tooling dependencies.
+- `tools/python/uv.lock` — records the exact resolved dependency state. This file is uv-managed; do
+  not hand-edit it.
+- `tools/python/.python-version` — pins the interpreter version for the tooling environment.
+
+Never commit the virtual environment itself:
+
+- `.venv/` — ignored root scratch environment.
+- `tools/python/.venv/` — ignored uv-managed environment for repo-level Python tooling.
+
+Run uv commands from the environment directory, for example:
+
+```bash
+cd tools/python && uv sync
+cd tools/python && uv run <command>
+```
+
+Use `uv add`, `uv remove`, `uv lock`, `uv sync`, and `uv run`; do not use `pip install` directly for
+dependencies that should be represented in committed project state. If a project needs multiple
+Python tooling environments, create explicit subfolders such as `tools/python/<name>/` and document
+each one in the downstream `AGENTS.md`.
+
+Do not create `tools/python/pyproject.toml`, `tools/python/uv.lock`, or
+`tools/python/.python-version` until there are real Python tooling dependencies to represent.
+
 ## Skills and playbooks
 
 Skills are reusable agent capabilities invoked by name. Claude Code exposes repo skills as slash-style
@@ -558,6 +591,9 @@ Each repo file falls into one of three buckets:
   a project needs stable repo slugs, branch/work policy, and task `Repos` metadata.
 - `workbooks/` — workbook bundles, one folder per workbook. Seeded from `_base/workbooks/README.md`,
   then owned by the downstream project.
+- `tools/python/` — optional downstream-owned Python tooling environments. Commit uv metadata files
+  such as `pyproject.toml`, `uv.lock`, and `.python-version` once dependencies exist; never commit
+  `.venv/`.
 
 **Upstream-owned** — everything under `_base/`. Do not edit; flows in cleanly from `git fetch template && git merge`. Simple rule for merge conflicts: always accept upstream for `_base/*`.
 
@@ -579,6 +615,8 @@ Each repo file falls into one of three buckets:
 - `playbooks/skills/*` and `skills/*` / `.claude/skills/*` — accept upstream for skills you haven't customized; keep downstream for skills you've forked.
 - `project.env` — never committed; not a conflict source.
 - `.creds/` — never committed; local credential files for agent/tool use when a task requires them.
+- `.venv/` — never committed; local Python virtual environment.
+- `tools/python/.venv/` — never committed; local uv-managed Python tooling environment.
 - `.local/repos.map` — never committed; machine-local checkout paths for repo slugs in `.config/repos.project.md`.
 - `.local/runbooks/` — never committed; machine-local placeholder bindings for sanitized runbooks.
 - `PROJECT.md` — downstream-owned alignment doc, if seeded from `_base/PROJECT.md.template`. The template flows in cleanly; the seeded `PROJECT.md` is the project's own and is not touched by template pulls.
@@ -589,7 +627,7 @@ The root `.gitattributes` managed block turns the ownership split into Git merge
 
 - `template-keep-upstream` accepts the template remote's version for `_base/**`.
 - `template-keep-local` keeps the downstream version for `AGENTS.md`, `README.md`, seeded docs,
-  workbook bundles, `PROJECT.md`, `CONTEXT.md`, `CHANGELOG.md`, `LICENSE`, and
+  workbook bundles, `tools/python/`, `PROJECT.md`, `CONTEXT.md`, `CHANGELOG.md`, `LICENSE`, and
   `.config/repos.project.md`.
 - mixed paths such as `playbooks/`, `skills/`, and `.claude/settings.json` are intentionally not
   automated because downstream forks need human judgment.
