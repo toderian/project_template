@@ -42,7 +42,14 @@ The same rule applies to skills, plugins, and any other artifacts: list things *
 
 ## Project-specific additions
 
-> **This section is the downstream-project slot.** Each project seeded from this template uses this part of `README.md` to describe what *it* adds on top of the base — its own skills, plugins, conventions, scripts, etc. The base template itself has nothing to list here, so this section is intentionally empty.
+> **This section is the downstream-project slot.** Each project seeded from this template uses this part of `README.md` to describe what *it* adds on top of the base — its own skills, plugins, conventions, scripts, etc. Keep or adapt the local credentials convention below as needed, then add project-owned items in the subsections that follow.
+
+### Local credentials
+
+Credentials for agent/tool use may live under `.creds/` at the repository root. The folder is
+gitignored and must never be committed. Agents should read credential values only when a task requires
+them, and should not print or copy secret contents into tracked files, docs, logs, prompts, final
+answers, or task artifacts.
 
 ### Project skills
 

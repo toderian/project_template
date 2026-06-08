@@ -91,9 +91,14 @@ This project extends the agents template — see [`_base/README.md`](./_base/REA
 
 ### 2b — `AGENTS.md`
 
-The template ships a `AGENTS.md` that auto-loads `_base/AGENTS.md` and reserves a `## Project-specific overrides` slot that says `_None for the base template itself._` Replace the placeholder line under `## Project-specific overrides` with rules specific to this project — domain language, repo-specific test/lint/deploy commands, areas with non-obvious constraints, stakeholder routing rules. Do **not** edit anything else in `AGENTS.md` (the auto-load directive at the top must stay intact).
+The template ships an `AGENTS.md` that auto-loads `_base/AGENTS.md` and reserves a
+`## Project-specific overrides` slot. Keep or adapt the local `.creds/` convention in that section,
+then add rules specific to this project — domain language, repo-specific test/lint/deploy commands,
+areas with non-obvious constraints, stakeholder routing rules. Do **not** edit anything else in
+`AGENTS.md` (the auto-load directive at the top must stay intact).
 
-**Check:** this command exits 0, confirming the auto-load directive is intact and the placeholder was actually replaced:
+**Check:** this command exits 0, confirming the auto-load directive is intact and the
+Project-specific overrides section has content:
 
 ```bash
 python3 - <<'PY'

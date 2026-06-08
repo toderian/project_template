@@ -578,6 +578,7 @@ Each repo file falls into one of three buckets:
 - `.claude/settings.json` — merge hook entries by hand; don't blindly accept upstream.
 - `playbooks/skills/*` and `skills/*` / `.claude/skills/*` — accept upstream for skills you haven't customized; keep downstream for skills you've forked.
 - `project.env` — never committed; not a conflict source.
+- `.creds/` — never committed; local credential files for agent/tool use when a task requires them.
 - `.local/repos.map` — never committed; machine-local checkout paths for repo slugs in `.config/repos.project.md`.
 - `.local/runbooks/` — never committed; machine-local placeholder bindings for sanitized runbooks.
 - `PROJECT.md` — downstream-owned alignment doc, if seeded from `_base/PROJECT.md.template`. The template flows in cleanly; the seeded `PROJECT.md` is the project's own and is not touched by template pulls.

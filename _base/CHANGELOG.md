@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.06.04.1
+BASE_VERSION: 2026.06.08.0
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,24 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Add local `.creds/` credential convention
+
+The root template now reserves `.creds/` for local credential files that agents may read only when a
+task needs credentialed access. The folder is gitignored, documented in `AGENTS.md` and `README.md`,
+and included in the security-auditor guidance. Claude guardrails now treat `.creds/` as sensitive for
+direct Write/Edit/MultiEdit operations, block explicit `.creds/` staging, block forced `git add`
+commands that could bypass `.gitignore`, and block commits when `.creds/` paths are already staged;
+the bundled git-guardrails install script carries the same behavior.
+
+`_base/SETUP_INSTRUCTIONS.md` now tells downstream setup agents to keep or adapt the local `.creds/`
+convention before adding project-specific overrides, and `_base/README.md` lists `.creds/` among
+never-committed local files.
+
+**Downstream impact:** additive. Downstream projects pulling this template update get a standard
+root `.creds/` location for local credentials. Existing credentials elsewhere are unaffected, but new
+agent-accessible secrets should be moved under `.creds/` and kept out of committed docs, logs, and
+task artifacts.
 
 ### Adopt doubt-driven-development, ADR convention, and performance-optimization
 

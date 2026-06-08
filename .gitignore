@@ -8,6 +8,9 @@
 temp/
 tmp/
 
+# Local credentials for agent/tool use. Never commit.
+.creds/
+
 # Local environment config (copy from project.env.example)
 project.env
 

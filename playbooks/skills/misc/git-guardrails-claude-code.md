@@ -11,6 +11,9 @@ Set up a PreToolUse hook that intercepts and blocks dangerous git commands befor
 - `git clean -f` / `git clean -fd`
 - `git branch -D`
 - `git checkout .` / `git restore .`
+- `git add` commands that stage `.creds/` paths
+- forced `git add` commands (`-f` / `--force`) because they can bypass `.gitignore`
+- `git commit` when `.creds/` paths are already staged
 
 When blocked, Claude sees a message telling it that it does not have authority to access these commands.
 
