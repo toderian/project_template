@@ -3,6 +3,7 @@
   "description": "Skills shared across Claude Code and Codex by this project template. The script tooling (check-skills-sync, gen-skills-table, install-codex-skills, link-skills) reads this file as the active-skill allowlist; skills not listed here are treated as inactive even if they exist on disk.",
   "skills": [
     "./skills/engineering/cross-repo-feature",
+    "./skills/engineering/cross-repo-pr-review",
     "./skills/engineering/define-area",
     "./skills/engineering/describe-component",
     "./skills/engineering/diagnose",
