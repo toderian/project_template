@@ -39,6 +39,28 @@ When this template is seeded into a new project:
   not make a prompt safe to commit.
 - Prompts that should remain local-only belong under `.no-commit/.prompts/`.
 
+### Artifact registry
+
+- Large, external, generated, encrypted, or reproducible artifacts must be discoverable through
+  [`artifacts/README.md`](./artifacts/README.md). Before walking the repository for artifacts, read
+  that registry for the artifact slug, backend, path or pattern, fetch command, verification command,
+  encryption status, and update notes.
+- Use `artifacts/lfs/<artifact-slug>/` as the default home for new Git LFS-managed artifacts. Files
+  may live elsewhere only when colocating with source, docs, or tests is materially clearer, and they
+  must still be listed in `artifacts/README.md`.
+- Before using Git LFS artifacts, run `git lfs install`, then fetch only the needed registry entries
+  with `git lfs pull --include="<path-or-pattern>"`. Verify registry drift with
+  `git lfs ls-files --name-only` and confirm every tracked path is represented in
+  `artifacts/README.md`.
+- Before committing new Git LFS artifacts, run `git lfs track "<path-or-pattern>"`, keep the
+  `.gitattributes` LFS pattern narrow and per-artifact, and place project-specific LFS rules outside
+  the managed agents-template block, preferably after `# END agents-template merge rules`. Commit the
+  updated `.gitattributes` and the `artifacts/README.md` registry entry in the same change.
+- For encrypted artifacts, use `age` by default. Commit only encrypted files such as `*.age` through
+  Git LFS, store private keys under `.creds/lfs/<artifact-slug>.agekey`, and keep decrypted outputs
+  under ignored local paths such as `.local/artifacts/<artifact-slug>/`. Never print, summarize, or
+  commit private keys or plaintext secrets.
+
 ### Python tooling environments
 
 - Use `uv` for persistent repo-level Python tooling dependencies. Do not use `pip install` directly

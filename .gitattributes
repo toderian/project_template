@@ -24,3 +24,9 @@ tools/python/** merge=template-keep-local
 # file merging.
 _base/** merge=template-keep-upstream
 # END agents-template merge rules
+
+# Artifact registries are downstream-owned once a project is seeded.
+artifacts/** merge=template-keep-local
+
+# Project-specific Git LFS rules belong below this line. Keep patterns narrow,
+# per-artifact, and mirrored in artifacts/README.md.
