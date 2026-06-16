@@ -145,9 +145,10 @@ phase, one bug fix, or one documentation batch. Do not commit every tiny edit, a
 completed task as one uncommitted dump.
 
 For downstream repos, once an execute-plan task is fully implemented, validated, and reviewed, the
-task's own phase/review commits may be squashed into a single final task commit. Squash only commits
-that belong to that task, preserve the important commit-message details, and never rewrite already
-pushed/shared history without explicit user approval.
+task's own phase/review commits may be squashed into a single final task commit. Route that cleanup
+through `squash-workspace-commits`: audit first, squash only safely identifiable task commits, preserve
+the important commit-message details, and never rewrite pushed/shared history without explicit user
+approval.
 
 Task progress files are part of the work. When implementing a tracked task, update phase checkboxes,
 `Updated`, `Last executed`, and the append-only execution log as work progresses. If implementation is

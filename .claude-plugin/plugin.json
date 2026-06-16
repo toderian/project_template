@@ -47,6 +47,7 @@
     "./skills/productivity/prd-to-todos",
     "./skills/productivity/qa",
     "./skills/productivity/roadmap",
+    "./skills/productivity/squash-workspace-commits",
     "./skills/productivity/subagent-protocol",
     "./skills/productivity/tidy-repo",
     "./skills/productivity/triage-inbox",

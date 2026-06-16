@@ -17,8 +17,8 @@ only after it has been normalized into explicit phases, acceptance criteria, and
 
 Invoking this skill is consent to create commits for completed phases. Do not ask again before each
 normal phase commit, but do protect unrelated local work. In downstream repos, those phase/review
-commits may be squashed after the task is complete and reviewed, following the post-completion squash
-rules below.
+commits may be squashed after the task is complete and reviewed, following
+`playbooks/skills/productivity/squash-workspace-commits.md`.
 
 ## Required outcome
 
@@ -246,24 +246,12 @@ After all implementation phases, final validation, and reviewer rounds pass, dow
 squash the task's own step commits into one final task commit. This is a cleanup step after the task is
 done; do not squash early because phase commits are the review and recovery boundary during execution.
 
-Squash rules:
+Route the cleanup through `playbooks/skills/productivity/squash-workspace-commits.md`. That skill owns
+the audit helper, pushed/shared-history refusal, unrelated-commit preservation rules, backup-ref
+requirements, and final squashed commit-message requirements.
 
-1. Identify the execution base revision recorded in step 3 for each repo.
-2. Inspect `git log --oneline <base>..HEAD` and verify every commit in the squash range belongs to this
-   task: phase commits, validation fixes, execution-log updates, or review-fix commits.
-3. Stop and ask if the range contains unrelated commits, user commits, merge commits, or commits from
-   another task.
-4. Prefer squashing before push. If any commit in the range has already been pushed or is shared with
-   another human/agent, ask for explicit approval before rewriting history.
-5. Run the final required checks again after squashing.
-6. Use one conventional final commit with a body that preserves:
-   - the task or plan identifier
-   - the phase outcomes
-   - review-fix summary, if any
-   - checks run and results
-
-For multi-repo tasks, squash independently per downstream repo. Do not squash read-only repos, repos
-outside the task scope, or upstream template-maintenance history unless the user explicitly asks.
+For multi-repo tasks, audit and squash independently per downstream repo. Do not squash read-only repos,
+repos outside the task scope, or upstream template-maintenance history unless the user explicitly asks.
 
 ## Quality bar
 

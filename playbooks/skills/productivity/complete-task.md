@@ -101,26 +101,11 @@ For downstream repos, after the task is verified as `done`, archived, synced, an
 you may squash the task's own execution and closeout commits into one final task commit. This is a
 history-cleanup step, not a substitute for phase commits during execution.
 
-Only squash when all of these are true:
+Route the cleanup through `playbooks/skills/productivity/squash-workspace-commits.md`. That skill owns
+the audit helper, safe auto-squash policy, pushed/shared-history refusal, unrelated-commit preservation
+rules, backup-ref requirements, and final squashed commit-message requirements.
 
-- The task is `done`, not `cancelled`.
-- The squash range is identifiable from the execution log, recorded base revision, phase commit SHAs,
-  or direct `git log <base>..HEAD` inspection.
-- Every commit in the range belongs to this task: implementation phases, validation fixes, review
-  fixes, task progress updates, archive move, or generated ledger updates.
-- The range contains no unrelated user commits, merge commits, other-task commits, or commits whose
-  ownership is unclear.
-- The commits have not been pushed/shared, or the user explicitly approves rewriting shared history.
-
-After squashing:
-
-- Run the final related checks again.
-- Use one conventional final commit that names the task ID and preserves the phase outcomes,
-  review-fix summary, completion harvest, and check results.
-- Mention the final squashed commit SHA in the user report. Do not create another metadata-only commit
-  solely to add that SHA to the archived task unless the project explicitly wants that.
-
-If any condition is uncertain, keep the phase commits and report that squash was skipped.
+If the audit is blocked or uncertain, keep the phase commits and report that squash was skipped.
 
 ## Report
 
