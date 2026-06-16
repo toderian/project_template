@@ -29,6 +29,16 @@ When this template is seeded into a new project:
   docs, logs, prompts, final answers, or task artifacts. If a needed credential is missing, state the
   expected `.creds/<filename>` path without inventing a value.
 
+### Saved prompts
+
+- Reusable or historically useful prompts that should travel with the repository belong under
+  `.prompts/`. This directory is intentionally committable; do not add prompts there unless their
+  contents are meant to become part of project history.
+- Before committing anything from `.prompts/`, review it for credentials, private data, copied
+  sensitive context, or other material that should not be preserved in Git. Being in `.prompts/` does
+  not make a prompt safe to commit.
+- Prompts that should remain local-only belong under `.no-commit/.prompts/`.
+
 ### Python tooling environments
 
 - Use `uv` for persistent repo-level Python tooling dependencies. Do not use `pip install` directly

@@ -51,6 +51,13 @@ gitignored and must never be committed. Agents should read credential values onl
 them, and should not print or copy secret contents into tracked files, docs, logs, prompts, final
 answers, or task artifacts.
 
+### Saved prompts
+
+Reusable or historically useful prompts may live under `.prompts/` and be committed with the
+repository. Review any prompt before committing it for credentials, private data, copied sensitive
+context, or other material that should not be preserved in Git. Prompts that should remain local-only
+belong under `.no-commit/.prompts/`.
+
 ### Python tooling environments
 
 Repo-level Python tooling dependencies should use `uv` under `tools/python/`. When such tooling exists,
