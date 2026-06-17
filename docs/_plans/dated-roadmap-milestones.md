@@ -2,7 +2,7 @@
 
 ## Status
 
-- State: in progress
+- State: complete
 - Execution base revision: `c50a212`
 - Repo policy: `.config/repos.project.md` is absent; the checkout is on `master`, so this follows the
   default-branch fallback from `_base/AGENTS.md`.
@@ -85,8 +85,23 @@ Notes:
   `_base/scripts/sync-todo-ledgers.sh --check`, `git diff --check`, and temporary fixture scenarios
   covering seeded roadmaps with no live milestones, valid milestone horizon assignment, malformed
   milestone dates, malformed task target dates, missing roadmap task IDs, duplicate roadmap task IDs,
-  and inbox IDs outside `Someday`.
+  and inbox IDs outside `Someday`. Committed as `chore: validate dated roadmap milestones`
+  (`19121ff`).
+- 2026-06-17T12:30:46+0300: Final review added an explicit validator warning for top-level
+  `## Milestones` / `## Milestone` sections, preserving the rule that milestone headings live inside
+  existing horizons only. Final validation passed: `bash -n _base/scripts/sync-todo-ledgers.sh`,
+  `_base/scripts/sync-todo-ledgers.sh --check`, `git diff --check`,
+  `_base/scripts/check-skills-sync.sh`, `_base/scripts/gen-skills-table.sh --check`,
+  `_base/scripts/gen-antigravity-skills.sh --check`, `_base/scripts/check-antigravity-skills.sh`, and
+  temporary fixture scenarios covering all planned validation cases plus top-level `## Milestones`.
 
 ## Final Review
 
-Pending.
+Main-thread fallback review, not an independent subagent review: this runtime exposes subagent tooling
+only when the user explicitly asks for delegation, and the user did not request subagents.
+
+Result: pass with one process limitation. The implementation satisfies the normalized acceptance
+criteria: milestone headings are roadmap-level, per-task dates are optional and validated, scheduling
+prompts are explicit-intent only, and the existing task/inbox roadmap reference checks still fail in
+the expected cases. Independent xhigh reviewers were not run because subagent tool policy requires
+explicit user delegation.

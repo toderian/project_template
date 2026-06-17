@@ -726,6 +726,11 @@ if [[ -f "${ROADMAP}" ]]; then
       "## Next"|"## Next "*) horizon="Next"; continue ;;
       "## Later"|"## Later "*) horizon="Later"; continue ;;
       "## Someday"|"## Someday "*) horizon="Someday"; continue ;;
+      "## Milestone"|"## Milestone "*|"## Milestones"|"## Milestones "*)
+        validate_or_warn "roadmap must not use a top-level ## Milestones section; place milestone headings inside Urgent, Now, Next, Later, or Someday"
+        horizon="__invalid__"
+        continue
+        ;;
       "## "*) horizon="__invalid__"; continue ;;
     esac
 
