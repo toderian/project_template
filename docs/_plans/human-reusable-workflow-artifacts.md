@@ -108,3 +108,36 @@ Notes:
   v1 decision.
 - 2026-06-17: Phase 3 complete. Ran targeted `rg` checks for changelog/research/update-plan terms
   (pass) and `git diff --check` (pass).
+- 2026-06-17: Final validation complete on committed phase work. Ran `git diff --check` (pass),
+  `./_base/scripts/check-template-update.sh` (pass), manual grep for `workbook`, `runbook`,
+  `inline`, and `human-runnable` (pass), and the model-training user-scenario grep for
+  `workbooks/<training-slug>/scripts/*.py`, README methodology, inputs, outputs, cleanup, and
+  `artifacts/README.md` routing (pass).
+
+## Phase Commits
+
+- Phase 1: `349c160` (`docs: require reusable workflow artifacts`)
+- Phase 2: `d656d45` (`docs: strengthen workbook artifact convention`)
+- Phase 3: `b997dec` (`docs: record reusable workflow doctrine refresh`)
+
+## Final Review
+
+Main-thread fallback review, not an independent two-reviewer subagent review: subagent tools are
+available in this runtime, but their usage policy only allows delegation when the user explicitly asks
+for subagents.
+
+Spec compliance: pass.
+
+Blocking findings: none.
+
+Non-blocking concerns:
+
+- Independent xhigh implementation reviewers were not run because subagent delegation was not
+  explicitly requested by the user in this environment.
+
+Checks reviewed:
+
+- `git diff --check`: pass
+- `./_base/scripts/check-template-update.sh`: pass
+- Manual grep for `workbook`, `runbook`, `inline`, and `human-runnable`: pass
+- Model-training scenario routing review: pass
