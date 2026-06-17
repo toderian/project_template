@@ -9,6 +9,12 @@ description: "Publish local changes to GitHub by confirming scope, committing in
 
 Use this skill only when the user explicitly wants the full publish flow from the local checkout: branch setup if needed, staging, commit, push, and opening a pull request.
 
+This workflow is an L3 action under `playbooks/conventions/autonomy-levels.md`. A direct user request
+to commit, push, and open a draft PR is explicit task-level authorization for this run, but repo
+`Work mode`, branch resolution, repo `Autonomy max`, runtime permissions, and safety rules can still
+be stricter. If a committed repo registry caps the repo below L3, stop and ask before changing that
+policy or publishing through another route.
+
 This workflow is hybrid:
 
 - Use local `git` for branch creation, staging, commit, and push.
@@ -32,17 +38,22 @@ This workflow is hybrid:
 1. Confirm intended scope.
    - Run `git status -sb` and inspect the diff before staging.
    - If the working tree contains unrelated changes, do not default to `git add -A`. Ask the user which files belong in the PR.
-2. Determine the branch strategy.
+2. Resolve the autonomy and branch gates.
+   - Read `.config/repos.project.md` when present and run `_base/scripts/check-repos-config.sh`.
+   - Resolve the effective `Work mode`, branch, repo `Autonomy max`, and task/user autonomy request.
+   - Continue only when the effective action is L3 on the branch allowed by `Work mode`.
+   - Stop before merge, deploy, release, ready-for-review, force-push/history rewrite, or broad connector writes.
+3. Determine the branch strategy.
    - If on `main`, `master`, or another default branch, create `codex/{description}`.
    - Otherwise stay on the current branch.
-3. Stage only the intended changes.
+4. Stage only the intended changes.
    - Prefer explicit file paths when the worktree is mixed.
    - Use `git add -A` only when the user has confirmed the whole worktree belongs in scope.
-4. Commit tersely with the confirmed description.
-5. Run the most relevant checks available if they have not already been run.
+5. Commit tersely with the confirmed description.
+6. Run the most relevant checks available if they have not already been run.
    - If checks fail due to missing dependencies or tools, install what is needed and rerun once.
-6. Push with tracking: `git push -u origin $(git branch --show-current)`.
-7. Open a draft PR.
+7. Push with tracking: `git push -u origin $(git branch --show-current)`.
+8. Open a draft PR.
    - Prefer the GitHub app from this plugin for PR creation after the push succeeds.
    - Derive `repository_full_name` from the remote, for example by normalizing `git remote get-url origin` or by using `gh repo view --json nameWithOwner`.
    - Derive `head_branch` from `git branch --show-current`.
@@ -50,13 +61,14 @@ This workflow is hybrid:
    - If the branch is being pushed from a fork or the PR target differs from the remote that was just pushed, prefer `gh pr create` fallback because the connector PR creation flow expects one repository target and may not encode cross-repo head semantics cleanly.
    - If connector-based PR creation cannot infer the repository or branch cleanly, fall back to `gh pr create --draft --fill --head $(git branch --show-current)`.
    - Write the PR body to a temp file with real newlines when using CLI fallback so the markdown renders cleanly.
-8. Summarize the result with branch name, commit, PR target, validation, and anything the user still needs to confirm.
+9. Summarize the result with branch name, commit, PR target, validation, and anything the user still needs to confirm.
 
 ## Write Safety
 
 - Never stage unrelated user changes silently.
 - Never push without confirming scope when the worktree is mixed.
-- Default to a draft PR unless the user explicitly asks for a ready-for-review PR.
+- Always open a draft PR. Do not mark ready for review, merge, deploy, release, or force-push in this
+  workflow.
 - If the repository does not appear to be connected to an accessible GitHub remote, stop and explain the blocker before making assumptions.
 
 ## PR Body Expectations

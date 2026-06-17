@@ -14,6 +14,12 @@ Use this skill when the task is specifically about failing GitHub Actions checks
 - Use `gh` for GitHub Actions checks and logs because the connector does not expose that workflow end to end.
 - Summarize the root cause first, propose a focused fix plan, and implement only after explicit approval.
 
+By default this workflow is L1 after approval: local diagnosis, local edits, local checks, and local
+commits. Pushing a CI fix back to the PR branch or repeatedly repairing remote CI requires effective
+L2 or higher under `playbooks/conventions/autonomy-levels.md`, and must operate only on the branch
+allowed by the repo's effective `Work mode`. Opening or updating a PR is L3 and out of scope for this
+skill unless the user explicitly moves to a draft-PR workflow.
+
 Prereq: authenticate with GitHub CLI once, then confirm with `gh auth status`. Repo and workflow scopes are typically required for Actions inspection.
 
 ## Inputs
@@ -59,7 +65,13 @@ Prereq: authenticate with GitHub CLI once, then confirm with `gh auth status`. R
 7. Implement after approval.
    - Apply the approved fix locally.
    - Run the most relevant local verification available.
-8. Recheck status and summarize residual risk.
+8. Push or re-run remote CI only when authorized.
+   - Resolve `.config/repos.project.md` when present and run `_base/scripts/check-repos-config.sh`.
+   - Continue to remote branch update/CI repair only when effective autonomy is L2 or higher.
+   - Push only to the branch allowed by effective `Work mode`; do not switch branches to make CI repair easier.
+   - Stop before opening PRs, marking ready for review, merging, deploying, releasing, force-pushing,
+     or rewriting history.
+9. Recheck status and summarize residual risk.
    - Suggest re-running the relevant tests and `gh pr checks`.
    - Report what is still unverified, what may still be flaky, and whether any failing checks were external and therefore not actionable here.
 

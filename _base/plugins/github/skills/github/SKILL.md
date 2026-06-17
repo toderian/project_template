@@ -13,6 +13,9 @@ This plugin is intentionally hybrid:
 
 - Prefer the GitHub app from this plugin for repository, issue, pull request, comment, label, reaction, and PR creation workflows.
 - Use local `git` and `gh` only when the connector does not cover the job well, especially for current-branch PR discovery, branch creation, commit and push, `gh auth status`, and GitHub Actions log inspection.
+- Treat publishing gates as autonomy-sensitive: branch push/CI repair requires effective L2, while
+  draft PR creation/update requires effective L3. Work mode, branch resolution, repo `Autonomy max`,
+  runtime permissions, and direct user instructions still constrain the action.
 - Keep connector state and local checkout context aligned. If the request is about the current branch, resolve the local repo and branch before acting.
 
 Once the intent is clear, route to the specialist skill immediately and do not keep broad GitHub triage in scope longer than needed.
@@ -40,8 +43,8 @@ Prefer the GitHub app from this plugin for those flows because it provides struc
 2. Classify the request before taking action:
    - `repo or PR triage`: summarize PRs, issues, patches, comments, labels, reactions, or repository state
    - `review follow-up`: unresolved review threads, requested changes, or inline review feedback
-   - `CI debugging`: failing checks, Actions logs, or CI root-cause analysis
-   - `publish changes`: create or switch branches, stage changes, commit, push, and open a draft PR
+   - `CI debugging`: failing checks, Actions logs, or CI root-cause analysis; push fixes only with L2
+   - `publish changes`: create or switch branches, stage changes, commit, push, and open a draft PR only with L3
 3. Route to the specialist skill as soon as the category is clear:
    - Review comments and requested changes: `../gh-address-comments/SKILL.md`
    - Failing GitHub Actions checks: `../gh-fix-ci/SKILL.md`

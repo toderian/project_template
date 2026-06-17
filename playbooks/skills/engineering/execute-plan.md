@@ -54,10 +54,10 @@ normalization changes scope or creates new product decisions, ask the user to ap
 plan. If it only clarifies obvious execution mechanics, record the clarification in the execution log
 and proceed.
 
-### 2. Resolve repo branch policy
+### 2. Resolve repo branch policy and autonomy
 
-Before any implementation phase, determine the repo scope and branch/work mode. This is mandatory even
-when the task looks single-repo.
+Before any implementation phase, determine the repo scope, branch/work mode, and effective autonomy.
+This is mandatory even when the task looks single-repo.
 
 1. If `.config/repos.project.md` exists, read it and run `_base/scripts/check-repos-config.sh`.
 2. If the task or plan has `Repos` metadata, use those repo slugs as the execution scope. If no `Repos`
@@ -66,6 +66,9 @@ when the task looks single-repo.
    `_base/scripts/check-repos-config.sh --local` before editing another checkout.
 4. For each repo in scope, record the resolved `Default branch`, `Integration branch`, and
    `Work mode` in the execution log.
+5. Resolve effective autonomy using `playbooks/conventions/autonomy-levels.md` and record the repo
+   `Autonomy max`, task/user `Autonomy` request, effective level, and any stricter runtime or safety
+   limit in the execution log.
 
 Branch behavior by `Work mode`:
 
@@ -84,6 +87,20 @@ the user explicitly asked for it or the host/CI policy requires it. Downstream r
 execute-plan commits on the approved same/default branch, with one coherent commit per phase.
 
 Never create a new branch merely because `execute-plan` will make commits.
+
+Autonomy behavior:
+
+- Default to `L1` when no repo or task autonomy is configured.
+- `L0` is read-only. Stop before edits, staging, commits, pushes, or connector writes.
+- `L1` allows local edits, checks, iteration, and local commits inside this approved workflow.
+- `L2` adds push/update and CI repair only for the branch allowed by effective `Work mode`.
+- `L3` adds draft PR open/update and PR status validation only.
+- No level authorizes merge, deploy, release, mark-ready-for-review, force-push/history rewrite,
+  broad connector writes, or secret exposure.
+
+Keep `Work mode` separate from autonomy: work mode decides where/how work happens; autonomy decides
+how far the loop may proceed. If a later phase would push, repair CI, open/update a PR, or write to an
+external connector, re-check and log that the effective autonomy permits that action before doing it.
 
 ### 3. Protect the worktree
 

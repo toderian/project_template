@@ -146,3 +146,9 @@ Notes:
   invalid registry autonomy values, task autonomy below/equal repo max, and task autonomy above repo
   max. `bash -n _base/scripts/check-repos-config.sh`, `_base/scripts/check-repos-config.sh`, and
   `git diff --check` passed.
+- 2026-06-17T10:42:57+03:00: Phase 3 updated `execute-plan` to resolve and log effective autonomy,
+  tightened `_base/AGENTS.md` push guidance, and gated the bundled GitHub publish/CI workflows:
+  `gh-fix-ci` treats remote branch update/CI repair as L2, while `yeet` treats draft PR publishing as
+  L3 and stops before ready-for-review/merge/deploy/release/force-push. Targeted searches confirmed
+  the L2/L3 and draft-PR stop-point language. `_base/scripts/check-codex-plugins.sh` and
+  `git diff --check` passed.

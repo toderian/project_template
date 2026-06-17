@@ -140,6 +140,12 @@ Interpret `.config/repos.project.md` `Work mode` values as:
 - `read-only`: do not commit; stop if implementation would require writes
 - `ask`: ask before edits or branch changes
 
+Autonomy is a separate permission ceiling; see `playbooks/conventions/autonomy-levels.md`. Default to
+L1 local development unless repo/task metadata or a direct user request explicitly permits L2/L3.
+`Work mode` and branch resolution still decide where work happens, and the strictest rule wins. Never
+let autonomy authorize merge, deploy, release, mark-ready-for-review, force-push/history rewrite,
+broad connector writes, or secret exposure.
+
 In all modes, commit after each coherent, reviewable set of modifications: one task slice, one plan
 phase, one bug fix, or one documentation batch. Do not commit every tiny edit, and do not leave a large
 completed task as one uncommitted dump.
@@ -166,7 +172,8 @@ If asked to commit:
 If asked to push:
 
 - make sure the local commit message already follows the above format before pushing
-- never push unless the user explicitly asks
+- never push unless the user explicitly asks and effective autonomy permits L2 or L3 for the resolved
+  branch
 
 Default format:
 
