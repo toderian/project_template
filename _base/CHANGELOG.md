@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.06.17.1
+BASE_VERSION: 2026.06.17.2
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,28 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Require human-runnable artifacts for reusable workflows
+
+Agents must now preserve substantial, repeatable, expensive, or human-reusable workflow logic as
+documented repo files instead of leaving it only in inline shell or Python snippets in a transcript.
+
+- `_base/AGENTS.md` adds a base-contract rule for human-runnable workflow artifacts.
+- Reusable workflow bundles with scripts/support files route to `workbooks/<workflow-slug>/`.
+- Stable operational procedures route to `docs/resources/<area>/runbooks/`.
+- Persistent repo-level Python tooling dependencies still route through `tools/python/` with `uv`.
+- Large, external, generated, encrypted, or reproducible artifacts remain discoverable through
+  `artifacts/README.md`.
+- `playbooks/conventions/workbook-convention.md` and `_base/workbooks/README.md` now define a
+  human-usable workbook shape: `README.md`, `scripts/` entrypoints, optional `configs/`, safe sample
+  inputs, documented outputs, support files, script expectations, methodology, and cleanup notes.
+- `_base/README.md` documents model training/evaluation as an example workflow that should become a
+  workbook rather than remain an inline snippet.
+
+**Downstream impact:** behavior clarification plus convention tightening. Existing downstream
+workbooks remain valid, but new substantial or repeatable agent-created workflows should be committed
+as human-runnable workbooks or runbooks when safe to share. No automated validator is added in this
+version; review remains documentation-led.
 
 ### Add SciWrite scientific manuscript review skill
 

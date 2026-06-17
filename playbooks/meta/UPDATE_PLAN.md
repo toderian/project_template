@@ -2,7 +2,7 @@
 
 Repeatable research and template-refresh plan for this repository.
 
-Last executed: 2026-03-22.
+Last executed: 2026-06-17.
 
 ## Purpose
 
@@ -134,6 +134,8 @@ Update only what the evidence supports:
 - `_base/AGENTS.md`
 - `playbooks/personalities/`
 - `_base/README.md`
+- relevant conventions such as `playbooks/conventions/workbook-convention.md` when doctrine changes
+  artifact routing or reusable workflow shape
 - `playbooks/meta/RESEARCH_SNAPSHOT.md`
 
 If a finding is interesting but not yet mature, log it under open questions instead of promoting it into default behavior.
@@ -174,14 +176,29 @@ Every completed run should leave behind:
 - an updated `playbooks/meta/RESEARCH_SNAPSHOT.md`
 - an updated `_base/AGENTS.md`
 - updated role cards in `playbooks/personalities/` if behavior changed
+- updated conventions or seed docs when behavior changes reusable artifact routing
 - refreshed `_base/README.md` examples if the adoption story changed
 
 ## Current baseline recommendation
 
-As of 2026-03-22, the template should continue to optimize for:
+As of 2026-06-17, the template should continue to optimize for:
 
 - simple, composable workflows first
 - explicit manager-builder-tester-critic-reviewer passes
 - strong evaluation and benchmark skepticism
 - durable state for long-running work
 - multi-agent specialization only when task structure justifies it
+- human-runnable artifacts for substantial or repeatable workflows that humans should be able to
+  discover and rerun
+
+## Recent executions
+
+### 2026-06-17
+
+Doctrine refresh for human-runnable workflow artifacts.
+
+- Promoted the rule that substantial, repeatable, expensive, or likely-to-be-reused agent-created
+  workflows should become documented repo artifacts instead of transcript-only inline snippets.
+- Updated `_base/AGENTS.md`, `_base/README.md`, `playbooks/conventions/workbook-convention.md`,
+  `_base/workbooks/README.md`, and `playbooks/meta/RESEARCH_SNAPSHOT.md`.
+- Kept v1 docs-first with no automated validator because inline-snippet detection would be brittle.

@@ -103,3 +103,8 @@ Notes:
   script expectations, methodology, and cleanup guidance.
 - 2026-06-17: Phase 2 complete. Ran targeted `rg` checks for workbook layout/script expectation terms
   (pass) and `git diff --check` (pass).
+- 2026-06-17: Phase 3 in progress. Updated the base changelog, research snapshot, and update plan to
+  record the doctrine refresh, downstream impact, evidence traceability, and docs-first/no-validator
+  v1 decision.
+- 2026-06-17: Phase 3 complete. Ran targeted `rg` checks for changelog/research/update-plan terms
+  (pass) and `git diff --check` (pass).

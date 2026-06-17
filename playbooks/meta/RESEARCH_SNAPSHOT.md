@@ -21,6 +21,8 @@ The current template now leans harder into:
   promoted into canonical knowledge-base docs
 - an autonomy ladder that treats publishing and connector activity as explicit opt-in permission
   ceilings layered on top of existing work-mode and branch rules
+- a stricter human-runnable workflow artifact rule for substantial, repeatable, expensive, or
+  human-reusable agent-created procedures
 
 ## Current conclusions
 
@@ -102,10 +104,29 @@ Template impact:
 - kept L1 local development as the default for existing repos
 - defined L2/L3 as ceilings for branch/CI and draft-PR loops, not as permission to merge or deploy
 
+### 9. Substantial workflows should become human-runnable repo artifacts
+
+Recent tool and skill guidance converges on a practical point: useful procedures should be packaged as
+discoverable instructions, scripts, resources, and documented tools instead of being trapped in a
+single transcript. Anthropic's Skills guidance explicitly treats scripts/resources as part of reusable
+agent capabilities, and its long-running-agent harness work uses setup scripts plus progress artifacts
+to make future sessions efficient. OpenAI's agent guidance likewise emphasizes well-documented,
+tested, reusable tools as a reliability foundation.
+
+Template impact:
+
+- added a base-contract rule requiring human-runnable artifacts for substantial, repeatable,
+  expensive, or likely-to-be-reused workflows
+- routed reusable bundles to `workbooks/<workflow-slug>/`, stable operational procedures to
+  `docs/resources/<area>/runbooks/`, Python tooling dependencies to `tools/python/`, and
+  large/generated/reproducible outputs to `artifacts/README.md`
+- strengthened workbook README/script expectations while leaving tiny throwaway inspections inline
+
 ## Sources reviewed
 
 | Date | Source | Why it mattered | Repo consequence |
 | --- | --- | --- | --- |
+| 2025-10-16 | [Equipping agents for the real world with Agent Skills](https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills) | Shows reusable agent capabilities as organized folders of instructions, scripts, and resources; emphasizes progressive disclosure and scripts as deterministic repeatable tools | Strengthened the workbook convention and base rule so substantial agent-created procedures become documented, runnable repo artifacts |
 | 2026-06-17 | [Addy Osmani, "Loop Engineering"](https://addyosmani.com/blog/loop-engineering/) and current Codex manual subagent/custom-agent docs fetched through `openai-docs` | The template needed to absorb loop-engineering terminology without weakening branch, push, PR, or connector boundaries | Added a loop-engineering digest and autonomy-level convention; L1 remains default, L2/L3 require explicit opt-in |
 | 2026-05-26 | Maintainer knowledge-base operating preference for this template | The project needs a place to drop raw docs/files and a structured distillation path into durable knowledge | Added `docs/resources/_inbox/`, area-segregated `_digests/`, and `/distill-knowledge` |
 | 2026-05-26 | Maintainer operating preference for this template | Branch policy is a project operating constraint rather than a model-behavior research finding | Added default-branch mode for downstream template-maintenance repos and explicit task-branch mode for working/product repos |
@@ -115,12 +136,12 @@ Template impact:
 | 2026-01-21 | [Designing AI-resistant technical evaluations](https://www.anthropic.com/engineering/AI-resistant-technical-evaluations) | Reinforces eval integrity as an adversarial problem | Kept evaluation integrity as an explicit update-plan concern |
 | 2026-02-05 | [Building a C compiler with a team of parallel Claudes](https://www.anthropic.com/engineering/building-c-compiler) | High-signal lessons on task locks, specialization, and test quality for autonomous teams | Added multi-agent task-lock and ownership rules |
 | 2026 | [Quantifying infrastructure noise in agentic coding evals](https://www.anthropic.com/engineering/infrastructure-noise) | Shows infra configuration can move scores by more than leaderboard gaps | Added caution against over-reading small benchmark differences |
-| 2025-11-26 | [Effective harnesses for long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents) | Best recent source on progress artifacts and incremental long-running execution | Added recommended durable artifacts and incremental progress rules |
+| 2025-11-26 | [Effective harnesses for long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents) | Best recent source on progress artifacts, setup scripts, and incremental long-running execution | Added recommended durable artifacts, incremental progress rules, and support for preserving reusable setup/workflow steps as repo files |
 | 2025-09-29 | [Effective context engineering for AI agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents) | Strong framing for context as a systems-design problem | Strengthened context-discipline rules |
-| 2025-09-11 | [Writing effective tools for agents — with agents](https://www.anthropic.com/engineering/writing-tools-for-agents) | Clear evidence that tool ergonomics and tool evals matter | Added tool-quality guidance |
+| 2025-09-11 | [Writing effective tools for agents — with agents](https://www.anthropic.com/engineering/writing-tools-for-agents) | Clear evidence that tool ergonomics, tool evals, meaningful context, and choosing the right reusable tool surface matter | Added tool-quality guidance and reinforced docs-first workflow artifacts over transcript-only snippets |
 | 2025-06-13 | [How we built our multi-agent research system](https://www.anthropic.com/engineering/built-multi-agent-research-system) | Good evidence on when orchestrator-worker systems pay off and when they are expensive | Multi-agent kept as an escalation path only |
 | 2025-03-11 | [New tools for building agents](https://openai.com/index/new-tools-for-building-agents/) | Useful general framing: tools, instructions, models, and reliable agent foundations | Kept template portable and tool-oriented instead of SDK-shaped |
-| 2025 | [A practical guide to building AI agents](https://cdn.openai.com/business-guides-and-resources/a-practical-guide-to-building-agents.pdf) | Strong general guidance to start simple, define guardrails, and scale orchestration only when needed | Reinforced single-agent-first design |
+| 2025 | [A practical guide to building AI agents](https://openai.com/business/guides-and-resources/a-practical-guide-to-building-ai-agents/) | Strong general guidance to start simple, define guardrails, scale orchestration only when needed, and keep tools well-documented, tested, reusable, and discoverable | Reinforced single-agent-first design and the new human-runnable artifact rule |
 | 2025-02 | [Process Reward Models for LLM Agents: Practical Framework and Directions](https://arxiv.org/abs/2502.10325) | Recent actor-critic direction relevant to the repo’s requested principles | Justified explicit actor-critic language in the template |
 | 2023-03-21 | [Reflexion: Language Agents with Verbal Reinforcement Learning](https://arxiv.org/abs/2303.11366) | Foundational support for reflection loops with feedback memory | Preserved critic/refine passes as a core pattern |
 | 2023-03-30 | [Self-Refine: Iterative Refinement with Self-Feedback](https://arxiv.org/abs/2303.17651) | Foundational support for iterative self-feedback and revision | Preserved multi-pass refinement as a default behavior |
