@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.06.17.0
+BASE_VERSION: 2026.06.17.1
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,23 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Add SciWrite scientific manuscript review skill
+
+The template now includes a `sciwrite` personal skill for scientific and engineering manuscript
+writing review. The skill uses this template's shared-playbook plus thin-wrapper layout and is
+adapted from [`labarba/sciwrite`](https://github.com/labarba/sciwrite), CC BY 4.0, with attribution
+in the playbook.
+
+- New `playbooks/skills/personal/sciwrite.md` defines the review modes, five audit passes, severity
+  tags, output formats, and the boundary that scientific claims and data must not be changed.
+- New Codex and Claude Code wrappers route to the shared playbook.
+- `.claude-plugin/plugin.json` adds `./skills/personal/sciwrite` to the active skill list; generated
+  README and Antigravity wrapper surfaces were refreshed.
+
+**Downstream impact:** additive skill. Downstream repos get `sciwrite` on template merge. Rerun the
+existing setup/install scripts, such as `./_base/scripts/setup-agents.sh`, when you want local Codex,
+Claude Code, or experimental Antigravity skill links regenerated.
 
 ### Add autonomy ceilings for loop-engineering workflows
 

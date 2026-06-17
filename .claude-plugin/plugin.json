@@ -35,6 +35,7 @@
     "./skills/misc/triage-issue",
     "./skills/personal/edit-article",
     "./skills/personal/obsidian-vault",
+    "./skills/personal/sciwrite",
     "./skills/productivity/add-task",
     "./skills/productivity/align",
     "./skills/productivity/audit-todos",
