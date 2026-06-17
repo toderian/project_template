@@ -98,3 +98,8 @@ Notes:
   example.
 - 2026-06-17: Phase 1 complete. Ran targeted `rg` checks for the required routing/discovery terms
   (pass) and `git diff --check` (pass).
+- 2026-06-17: Phase 2 in progress. Strengthened the workbook convention and seed workbook index with
+  the default `README.md` plus `scripts/`, optional `configs/`, samples, outputs, support files,
+  script expectations, methodology, and cleanup guidance.
+- 2026-06-17: Phase 2 complete. Ran targeted `rg` checks for workbook layout/script expectation terms
+  (pass) and `git diff --check` (pass).
