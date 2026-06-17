@@ -283,6 +283,35 @@ If this template repo is used directly, start from the files in `playbooks/templ
 
 For work that produces actionable deliverables (PRDs, triage, planning), use the task convention in `playbooks/conventions/todo-convention.md`; for the golden path, start with `playbooks/conventions/task-system-quickstart.md`. Ideas flow through the **inbox** (`docs/tasks_manager/_inbox/`, `I-NNN`) with `/capture-idea`; captured ideas go through `/triage-inbox`, while clear actionable work can use `/add-task` directly. Tasks live flat in `docs/tasks_manager/_todos/` named `<PREFIX>-NNN-<TYPE>_<desc>.md`; prefixes come from `docs/tasks_manager/_areas.md`, with `T` reserved for default/global/cross-area work, and `TYPE` is `F` feature / `D` debug / `C` chore / `R` research. Do not encode repo slugs in task IDs, filenames, prefixes, or areas; when a downstream project has committed `.config/repos.project.md`, tasks may add an optional `Repos` metadata row with comma-separated repo slugs, and tasks may add optional `Autonomy` metadata (`L0`-`L3`) when intentionally lowering the repo ceiling or requesting a repo-allowed higher loop level. Tasks may add optional `Target date` and `Deadline` metadata (`YYYY-MM-DD` or `N/A`) only when the user explicitly provides task-specific scheduling intent. Reserve new inbox/task IDs with `_base/scripts/reserve-work-item.sh` so parallel agents cannot claim the same number. Each task tracks a brief, phases, acceptance criteria, related tests or `N/A - <reason>`, follow-ups, an append-only execution log, completion harvest, and completion summary. Before implementing an existing task, run and log a bounded researcher current-state review plus a plan-critic freshness/applicability review; keep these concise for routine tasks and expand only when risk or stale/current facts warrant it. Reconcile stale, duplicate, out-of-order, or overlapping work before code edits, and ask before merging/cancelling/materially changing scope. `docs/tasks_manager/_roadmap.md` is the roadmap-level Urgent / Now / Next / Later / Someday ordering and may group IDs under dated milestone headings inside those horizons; task files are authoritative for status and detail, while task `Priority` stays metadata. Raw `I-NNN` inbox IDs may appear only in `Someday`; task IDs may appear in any horizon. `docs/areas/_overview.md` and `docs/areas/<slug>.md` are generated area views; `docs/resources/_inbox/` holds raw knowledge drops awaiting `/distill-knowledge`, with related files from one call, teammate handoff, upload bundle, or research bundle grouped in a source batch folder when useful; non-Markdown files there stay ignored by default unless a downstream project intentionally changes that; `docs/resources/_digests/<area-or-bucket>/` holds curated Markdown summaries of raw sources, segregated by area; `docs/resources/_reports/<workflow>/` holds timestamped rerunnable reports, audits, inventories, and migration proposals per `playbooks/conventions/generated-artifacts.md`; `docs/resources/<area>/summary.md` holds durable area architecture knowledge; `docs/resources/<area>/sources.md` holds area source history and provenance for teammate inputs, call batches, uploads, durable attachments, and links to related digests/tasks/docs; `docs/resources/<area>/dependency-graph.md` holds cross-repo/package dependency knowledge; `docs/resources/<area>/contracts/<feature-slug>.md` holds concrete cross-repo feature contracts; `docs/resources/<area>/runbooks/<scenario-slug>.md` holds sanitized reusable operational procedures, with real placeholder values kept in ignored `.local/runbooks/<scenario-slug>.local.md`; `docs/resources/<area>/attachments/` holds long-lived committed source documents and binaries, each with nearby Markdown metadata or an index documenting purpose, provenance, area or owner, and update guidance; root `workbooks/` holds reusable workbook bundles, one folder per workbook, with workbook-local scripts/support files and dependencies declared in README `Depends on` paths; `docs/_plans/` holds durable implementation plans; `docs/adr/` holds architecture decision records (`NNNN-slug.md`) per `playbooks/conventions/adr-convention.md`; `docs/resources/CONTEXT.md` is the primary domain glossary; `docs/resources/<area>/components/<component-slug>/CONTEXT.md` holds component context; root `CONTEXT.md` is a pointer/fallback only; `docs/archive/` holds frozen docs/resources. Cross-repo docs should use `<repo-slug>:<repo-relative-path>` source references from `.config/repos.project.md`, never absolute local checkout paths from `.local/repos.map`. Rebuild generated ledgers and area blocks with `_base/scripts/sync-todo-ledgers.sh`; validate read-only with `_base/scripts/sync-todo-ledgers.sh --check`; validate repo registry config with `_base/scripts/check-repos-config.sh` when a project opts into `.config/repos.project.md`. Complete or cancel tasks with `/complete-task`, then archive them in `_todos_archived/`. Claude hooks enforce naming/archive reminders; Codex follows the same playbooks manually. `/tidy-repo` migrates loose work to inbox and loose docs to `docs/resources/` after approval, never silently deleting files.
 
+## Human-runnable workflow artifacts
+
+Do not leave substantial workflow logic only in the chat transcript or in one-off inline shell/Python
+snippets. If a workflow is substantial, repeatable, expensive to recreate, or likely to be useful to
+the human later, preserve it as documented repo files before considering the task done.
+
+Use these routing rules:
+
+- `workbooks/<workflow-slug>/`: reusable workflow bundles with scripts, configs, sample inputs,
+  support files, methodology notes, and documented outputs.
+- `docs/resources/<area>/runbooks/`: stable operational procedures such as setup, SSH, service
+  inspection, deployment checks, incident/debugging procedures, and other sanitized commands humans
+  or agents will run again.
+- `tools/python/`: repo-level Python tooling dependencies managed with `uv`; workbook or runbook
+  scripts may depend on this environment when the dependency should be represented in committed
+  project state.
+- `artifacts/README.md`: large, external, generated, encrypted, or reproducible artifacts that must be
+  discoverable by slug, backend, path or pattern, fetch command, verification command, encryption
+  status, and update notes.
+
+Human-runnable workflow files must have descriptive names, clear entrypoint commands, documented
+arguments or config files, expected inputs and outputs, cleanup notes, and no secrets or private local
+paths. Capture the method in README or runbook prose, not only in code comments.
+
+Inline snippets remain fine for tiny inspection, quick `rg`/`jq`/JSON parsing, transient environment
+checks, or throwaway feasibility experiments. Once the command sequence becomes a procedure, benchmark,
+training/evaluation loop, migration helper, report generator, or data-processing workflow someone
+would plausibly rerun, turn it into a human-runnable artifact.
+
 ## Definition of done
 
 Work is done when:

@@ -157,6 +157,15 @@ sanitized runbooks under `docs/resources/<area>/runbooks/`; real placeholder val
 Reusable workbook bundles live under root `workbooks/`, one folder per workbook, with workbook-local
 scripts, data, assets, templates, examples, outputs, support files, and dependencies declared in the
 workbook `README.md`.
+Agents should not leave substantial, repeatable, expensive, or human-reusable workflows only as inline
+shell or Python snippets in a transcript. Turn those workflows into human-runnable artifacts in the
+right lane: workbook bundles for reusable script/support-file sets, runbooks for stable operational
+procedures, `tools/python/` for committed Python tooling dependencies managed with `uv`, and
+`artifacts/README.md` for large/generated/reproducible artifact discovery. For example, if an agent
+trains or evaluates a model, the data-prep, training, evaluation, and cleanup commands should live in
+`workbooks/<training-slug>/scripts/*.py` or equivalent entrypoints with a README that documents the
+methodology, inputs, outputs, dependencies, and cleanup, while model checkpoints or datasets are
+registered in `artifacts/README.md` when they meet the artifact-registry threshold.
 See [`playbooks/conventions/task-system-quickstart.md`](../playbooks/conventions/task-system-quickstart.md),
 [`playbooks/conventions/knowledge-base-quickstart.md`](../playbooks/conventions/knowledge-base-quickstart.md),
 [`playbooks/conventions/generated-artifacts.md`](../playbooks/conventions/generated-artifacts.md),
