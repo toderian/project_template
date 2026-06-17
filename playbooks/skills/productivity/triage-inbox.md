@@ -77,6 +77,9 @@ For each promoted idea, settle:
 - **Repos** — if `.config/repos.project.md` exists and the relevant repo slugs are inferable, fill optional
   `Repos` metadata with comma-separated slugs. If not inferable, omit the row. Do not encode repo
   slugs into task IDs, filenames, prefixes, or areas.
+- **Autonomy** — if the user explicitly asks for a loop autonomy level, or the task should be stricter
+  than the repo default, fill optional `Autonomy` metadata with `L0`, `L1`, `L2`, or `L3`. Omit it
+  otherwise. The value must not exceed the resolved repo `Autonomy max`.
 - **Priority** — high / medium / low.
 - **Roadmap placement** — leave unscheduled unless the user wants the new task in Urgent, Now, Next, Later, or Someday.
 
@@ -87,6 +90,7 @@ the printed path per the task convention's full format:
 
 - Metadata table including `Task ID`, `Type`, `Area`, `Source: inbox`, `Source ref: I-NNN`, and `Priority`.
 - Optional `Repos` metadata when inferable from `.config/repos.project.md`.
+- Optional `Autonomy` metadata only when the task intentionally differs from the repo default/max.
 - A short human-readable title and a 2-4 sentence brief.
 - Optional `### Repo scope` section for cross-repo tasks when repo responsibilities need explanation.
 - Phases with per-phase checklists.
@@ -119,10 +123,11 @@ the end to ensure the ledgers and area pages reflect every change, then run
   pointing back to its `I-NNN`.
 - Optional `Repos` metadata uses slugs from `.config/repos.project.md`; repo slugs are not encoded into task IDs,
   filenames, prefixes, or areas.
+- Optional `Autonomy` metadata is one of `L0`-`L3` and does not exceed the resolved repo max.
 - New areas were confirmed with the user before use and recorded in `docs/tasks_manager/_areas.md`.
 - The inbox contains only `new` ideas afterward; promoted/dropped ones are in `_inbox_archived/`.
 - `docs/tasks_manager/_active.md`, `docs/areas/_overview.md`, and generated per-area blocks are in sync
   and pass `_base/scripts/sync-todo-ledgers.sh --check`.
-- Repo registry and task `Repos` metadata pass `_base/scripts/check-repos-config.sh`.
+- Repo registry and task `Repos` / `Autonomy` metadata pass `_base/scripts/check-repos-config.sh`.
 - The discovery gate ran before task creation, and each promoted idea was checked for duplicates,
   existing tasks, already implemented behavior, stale context, related work, and relevant docs/code/tests.

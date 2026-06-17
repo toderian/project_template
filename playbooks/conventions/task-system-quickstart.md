@@ -15,7 +15,7 @@ For full details, use:
 
 For multi-repo projects, set up `.config/repos.project.md` and `.local/repos.map` during
 `_base/SETUP_INSTRUCTIONS.md` Phase 2c before creating tasks, so task-producing skills can fill
-optional `Repos` metadata from stable repo slugs.
+optional `Repos` metadata from stable repo slugs and honor optional `Autonomy max` ceilings.
 
 ```text
 /init
@@ -52,6 +52,8 @@ _base/scripts/sync-todo-ledgers.sh --check
   status, priority, owner, phase checklists, acceptance criteria, related tests, execution log,
   completion harvest, and completion summary. When a downstream project has committed
   `.config/repos.project.md`, tasks may also include optional `Repos` metadata with comma-separated repo slugs.
+  Tasks may include optional `Autonomy` metadata (`L0`-`L3`) when they intentionally lower the repo
+  ceiling or request a repo-allowed higher loop level.
 - **Roadmap** (`docs/tasks_manager/_roadmap.md`) owns placement and order only: Urgent, Now, Next,
   Later, Someday. It references task IDs in any horizon; raw inbox IDs may sit only in `Someday` as
   parking-lot signals until `/triage-inbox` promotes or drops them. It does not duplicate task status

@@ -9,6 +9,8 @@ Allowed values:
 - `Required`: `yes` or `no`
 - branch fields: branch name, `N/A`, or `unknown`
 - `Work mode`: `default-branch`, `task-branch`, `same-branch`, `read-only`, or `ask`
+- `Autonomy max`: optional permission ceiling, one of `L0`, `L1`, `L2`, or `L3`; omit the column in
+  older registries to keep the default `L1`
 - `Areas`: comma-separated area slugs or `N/A`
 
 Work mode meaning:
@@ -23,7 +25,11 @@ Work mode meaning:
 Template-inherited downstream repos should normally use `default-branch` or `same-branch`, not
 per-task branching.
 
-| Repo | Required | Role | Default branch | Integration branch | Work mode | Areas | Notes |
-|------|----------|------|----------------|--------------------|-----------|-------|-------|
-| project-template | yes | Agent template | master | master | default-branch | global | Work directly on default branch |
-| naeural-core | no | Example product repo | unknown | unknown | ask | N/A | Replace or remove this example row |
+Autonomy levels are defined in `playbooks/conventions/autonomy-levels.md`. Existing 8-column
+registries remain valid and default to `L1`. Do not migrate downstream-owned `.config/repos.project.md`
+files automatically during a template merge; ask whether the project wants to adopt the new column.
+
+| Repo | Required | Role | Default branch | Integration branch | Work mode | Autonomy max | Areas | Notes |
+|------|----------|------|----------------|--------------------|-----------|--------------|-------|-------|
+| project-template | yes | Agent template | master | master | default-branch | L1 | global | Work directly on default branch |
+| naeural-core | no | Example product repo | unknown | unknown | ask | L1 | N/A | Replace or remove this example row |

@@ -131,8 +131,8 @@ add durable architecture notes to area pages; write them under `docs/resources/<
 Cross-repo projects use a two-layer repo convention:
 
 - `.config/repos.project.md` is created and committed by each downstream project that opts into this convention.
-  It defines stable repo slugs, whether each repo is required, branch defaults, work mode, and related
-  areas.
+  It defines stable repo slugs, whether each repo is required, branch defaults, work mode, optional
+  autonomy ceiling, and related areas.
 - `.local/repos.map` is a local-only, gitignored map from repo slug to absolute checkout path. It is
   machine-specific and must never be referenced from committed docs.
 - `_base/repos.project.example.md` and `_base/repos.map.example` are upstream-owned examples for setup.
@@ -148,7 +148,17 @@ reference source paths as `<repo-slug>:<repo-relative-path>`, never as absolute 
 branch/work policy in `.config/repos.project.md` is a default; explicit user instructions, task files,
 or repo-specific `AGENTS.md` instructions override it.
 
-`.config/repos.project.md` is Markdown with one required table:
+`.config/repos.project.md` is Markdown with one required table.
+
+New shape:
+
+```md
+| Repo | Required | Role | Default branch | Integration branch | Work mode | Autonomy max | Areas | Notes |
+|------|----------|------|----------------|--------------------|-----------|--------------|-------|-------|
+| project-template | yes | Agent template | master | master | default-branch | L1 | global | Work directly on default branch |
+```
+
+Legacy shape, still valid and treated as `Autonomy max: L1`:
 
 ```md
 | Repo | Required | Role | Default branch | Integration branch | Work mode | Areas | Notes |
@@ -161,6 +171,8 @@ Allowed values:
 - `Required`: `yes` or `no`
 - branch fields: a branch name, `N/A`, or `unknown`
 - `Work mode`: `default-branch`, `task-branch`, `same-branch`, `read-only`, or `ask`
+- `Autonomy max`: optional permission ceiling, one of `L0`, `L1`, `L2`, or `L3`; old registries
+  without this column remain valid and default to `L1`
 - `Areas`: comma-separated area slugs or `N/A`
 
 Work mode meaning:
@@ -174,6 +186,16 @@ Work mode meaning:
 
 Template-inherited downstream repos should normally use `default-branch` or `same-branch`. Do not use
 branching for those repos unless the user explicitly asks or the host/CI policy requires it.
+
+Autonomy levels are permission ceilings layered on top of work mode and branch rules:
+
+- `L0`: read-only inspection and reporting.
+- `L1`: local edits, checks, iteration, and local commits inside an approved workflow.
+- `L2`: L1 plus push/update the approved branch and repair CI for that branch.
+- `L3`: L2 plus open/update draft PRs and validate PR status.
+
+No level authorizes merge, deploy, release, ready-for-review, force-push/history rewrite, broad
+connector writes, or secret exposure. See `playbooks/conventions/autonomy-levels.md`.
 
 `.local/repos.map` is line-oriented:
 
@@ -233,6 +255,17 @@ When `.config/repos.project.md` exists and repo scope is inferable, add the opti
 ```md
 | Repos | auth-service, web-app |
 ```
+
+When a task should be more restrictive than the repo ceiling, or when the user explicitly requests a
+higher loop level that the repo already allows, add the optional row near `Repos`:
+
+```md
+| Autonomy | L0 |
+```
+
+Omit `Autonomy` to inherit the repo default/max. `Autonomy` may lower the effective ceiling. It cannot
+exceed the resolved repo `Autonomy max`; raise the repo registry deliberately before creating tasks
+that should repeatably run at L2 or L3.
 
 ### Phases
 
@@ -319,6 +352,7 @@ was captured for session expiry telemetry.
 | Type | `F` feature, `D` debug/bug, `C` chore/refactor, `R` research/spike |
 | Area | Area slug from `docs/tasks_manager/_areas.md` |
 | Repos | Optional comma-separated repo slugs from `.config/repos.project.md`, or `N/A`; existing tasks without this row remain valid |
+| Autonomy | Optional permission ceiling/request (`L0`-`L3`); omitted inherits repo default/max, and values above repo max are invalid |
 | Created | ISO 8601 datetime when the file was created |
 | Updated | ISO 8601 datetime of the last metadata or content update |
 | Last executed | ISO 8601 datetime when implementation/research last happened, or `N/A` |
@@ -384,10 +418,11 @@ Creation steps:
 5. Fill the reserved file in `docs/tasks_manager/_todos/` named `<PREFIX>-NNN-<TYPE>_<desc>.md`.
 6. Fill the full template: brief, phases, acceptance criteria, related tests, follow-ups, execution log,
    completion harvest, and completion summary placeholders. Add a `Repos` metadata row when repo scope
-   is inferable from `.config/repos.project.md`; omit it when it is not.
+   is inferable from `.config/repos.project.md`; omit it when it is not. Add an `Autonomy` row only
+   when the task intentionally differs from the repo default/max.
 7. Set `Source` and `Source ref`.
 8. Run `_base/scripts/sync-todo-ledgers.sh`.
-9. Run `_base/scripts/check-repos-config.sh` to validate optional task `Repos` metadata.
+9. Run `_base/scripts/check-repos-config.sh` to validate optional task `Repos` / `Autonomy` metadata.
 10. Optionally place the task on `docs/tasks_manager/_roadmap.md` if the user wants it scheduled.
 
 Keep tasks atomic: one clear deliverable per file.

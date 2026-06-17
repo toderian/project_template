@@ -64,10 +64,12 @@ The root `CONTEXT.md`, if missing, is created as a pointer to `docs/resources/CO
 created under root `workbooks/`, one folder per reusable working bundle. After seeding, run
 `_base/scripts/sync-todo-ledgers.sh` to confirm the ledgers are valid.
 
-Stable repo slugs are normally set up earlier in `_base/SETUP_INSTRUCTIONS.md` Phase 2c, before docs
-and tasks are created. If `/init` is the first moment a multi-repo need is discovered, create
-`.config/`, copy `_base/repos.project.example.md` to `.config/repos.project.md`, edit it for the
-downstream project, and commit it.
+Stable repo slugs and optional autonomy ceilings are normally set up earlier in
+`_base/SETUP_INSTRUCTIONS.md` Phase 2c, before docs and tasks are created. If `/init` is the first
+moment a multi-repo need is discovered, create `.config/`, copy `_base/repos.project.example.md` to
+`.config/repos.project.md`, edit it for the downstream project, and commit it. Existing 8-column
+registries remain valid and default to `Autonomy max: L1`; do not migrate downstream-owned registries
+without user approval.
 For local checkout paths, copy `_base/repos.map.example` to `.local/repos.map` and edit it locally;
 `.local/` is gitignored and should not be committed.
 
@@ -108,8 +110,8 @@ Report what was created. Remind the user that:
 - Durable area knowledge lives in `docs/resources/<area>/`; use `/define-area` to index real
   architecture before adding cross-repo feature contracts
 - Cross-repo feature contracts live in `docs/resources/<area>/contracts/<feature-slug>.md`
-- Optional repo scope lives in committed `.config/repos.project.md`; local checkout paths live in ignored
-  `.local/repos.map`
+- Optional repo scope and autonomy ceilings live in committed `.config/repos.project.md`; local
+  checkout paths live in ignored `.local/repos.map`
 - Tasks are typed `F`/`D`/`C`/`R` and classified by `Area` + `Prefix` (see
   `docs/tasks_manager/_areas.md`)
 - Completed tasks move to `_todos_archived/` and get a row in `docs/tasks_manager/_done.md`;

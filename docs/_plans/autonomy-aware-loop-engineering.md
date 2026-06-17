@@ -140,3 +140,9 @@ Notes:
 - 2026-06-17T10:42:57+03:00: Phase 1 added the autonomy-level convention, loop-engineering digest,
   research snapshot entry, changelog entry, and README pointer. `git diff --check` passed. Manual
   digest review found only paraphrase plus source metadata, with no long copied article excerpts.
+- 2026-06-17T10:42:57+03:00: Phase 2 updated the repo registry and task metadata conventions,
+  setup/quickstart docs, task-producing playbooks, and `_base/scripts/check-repos-config.sh`.
+  Validator fixture checks passed for old 8-column registries, new registries with `Autonomy max`,
+  invalid registry autonomy values, task autonomy below/equal repo max, and task autonomy above repo
+  max. `bash -n _base/scripts/check-repos-config.sh`, `_base/scripts/check-repos-config.sh`, and
+  `git diff --check` passed.

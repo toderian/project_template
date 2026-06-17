@@ -4,7 +4,7 @@
 #
 # Default mode validates:
 #   .config/repos.project.md when present
-#   task Repos metadata values when docs/tasks_manager/ exists
+#   task Repos and Autonomy metadata values when docs/tasks_manager/ exists
 #
 # --local additionally validates:
 #   .local/repos.map
@@ -22,7 +22,7 @@ usage() {
   cat <<'EOF'
 Usage: _base/scripts/check-repos-config.sh [--local]
 
-Validate `.config/repos.project.md`, task `Repos` metadata, and optional local checkout mappings.
+Validate `.config/repos.project.md`, task `Repos` / `Autonomy` metadata, and optional local checkout mappings.
 
 Options:
   --local   Also validate .local/repos.map and required checkout paths.
@@ -53,7 +53,7 @@ import sys
 ROOT = Path(sys.argv[1])
 LOCAL_MODE = sys.argv[2] == "1"
 
-REGISTRY_HEADER = [
+REGISTRY_HEADER_OLD = [
     "Repo",
     "Required",
     "Role",
@@ -63,10 +63,24 @@ REGISTRY_HEADER = [
     "Areas",
     "Notes",
 ]
+REGISTRY_HEADER_NEW = [
+    "Repo",
+    "Required",
+    "Role",
+    "Default branch",
+    "Integration branch",
+    "Work mode",
+    "Autonomy max",
+    "Areas",
+    "Notes",
+]
+REGISTRY_HEADERS = [REGISTRY_HEADER_NEW, REGISTRY_HEADER_OLD]
 TASK_META_HEADER = ["Field", "Value"]
 SLUG_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 AREA_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 WORK_MODES = {"default-branch", "task-branch", "same-branch", "read-only", "ask"}
+AUTONOMY_LEVELS = {"L0": 0, "L1": 1, "L2": 2, "L3": 3}
+DEFAULT_AUTONOMY_MAX = "L1"
 REGISTRY_PATH = ROOT / ".config" / "repos.project.md"
 
 errors: list[str] = []
@@ -121,38 +135,46 @@ def is_separator(cells: list[str]) -> bool:
     return all(re.fullmatch(r":?-{3,}:?", cell.strip() or "") for cell in cells)
 
 
-def parse_required_table(path: Path, expected_header: list[str], table_name: str) -> list[tuple[int, dict[str, str]]]:
+def format_headers(headers: list[list[str]]) -> str:
+    return " or ".join("'{}'".format(" | ".join(header)) for header in headers)
+
+
+def parse_required_table(
+    path: Path,
+    expected_headers: list[list[str]],
+    table_name: str,
+) -> tuple[list[tuple[int, dict[str, str]]], list[str] | None]:
     if not path.exists():
         report(path, None, f"missing required {table_name}")
-        return []
+        return [], None
 
     lines = path.read_text(encoding="utf-8").splitlines()
-    header_matches: list[int] = []
+    header_matches: list[tuple[int, list[str]]] = []
 
     for index, line in enumerate(lines):
         if not line.lstrip().startswith("|"):
             continue
         cells = split_table_row(line)
-        if cells == expected_header:
-            header_matches.append(index)
+        if any(cells == header for header in expected_headers):
+            header_matches.append((index, cells))
 
     if not header_matches:
-        report(path, None, f"missing required {table_name} table with header: {' | '.join(expected_header)}")
-        return []
+        report(path, None, f"missing required {table_name} table with header: {format_headers(expected_headers)}")
+        return [], None
     if len(header_matches) > 1:
-        for index in header_matches[1:]:
+        for index, _ in header_matches[1:]:
             report(path, index + 1, f"duplicate {table_name} table header")
 
-    header_index = header_matches[0]
+    header_index, expected_header = header_matches[0]
     separator_index = header_index + 1
     if separator_index >= len(lines) or not lines[separator_index].lstrip().startswith("|"):
         report(path, header_index + 1, f"{table_name} header is missing a separator row")
-        return []
+        return [], expected_header
 
     separator_cells = split_table_row(lines[separator_index])
     if len(separator_cells) != len(expected_header) or not is_separator(separator_cells):
         report(path, separator_index + 1, f"{table_name} separator row is malformed")
-        return []
+        return [], expected_header
 
     rows: list[tuple[int, dict[str, str]]] = []
     for index in range(separator_index + 1, len(lines)):
@@ -175,7 +197,7 @@ def parse_required_table(path: Path, expected_header: list[str], table_name: str
     if not rows:
         report(path, header_index + 1, f"{table_name} table has no repo rows")
 
-    return rows
+    return rows, expected_header
 
 
 def valid_branch(value: str) -> bool:
@@ -208,6 +230,13 @@ def validate_area_list(path: Path, line: int, value: str, label: str) -> None:
             report(path, line, f"{label} contains malformed area slug '{part}'")
 
 
+def validate_autonomy(path: Path, line: int, value: str, label: str) -> bool:
+    if value not in AUTONOMY_LEVELS:
+        report(path, line, f"{label} must be one of: {', '.join(AUTONOMY_LEVELS)}")
+        return False
+    return True
+
+
 def load_registry() -> tuple[dict[str, dict[str, str]], bool]:
     path = REGISTRY_PATH
     if not path.exists():
@@ -219,17 +248,21 @@ def load_registry() -> tuple[dict[str, dict[str, str]], bool]:
             )
         return {}, False
 
-    rows = parse_required_table(path, REGISTRY_HEADER, "repo registry")
+    rows, header = parse_required_table(path, REGISTRY_HEADERS, "repo registry")
     registry: dict[str, dict[str, str]] = {}
     seen: dict[str, int] = {}
 
     for line, row in rows:
+        if header == REGISTRY_HEADER_OLD:
+            row["Autonomy max"] = DEFAULT_AUTONOMY_MAX
+
         repo = row["Repo"]
         required = row["Required"]
         role = row["Role"]
         default_branch = row["Default branch"]
         integration_branch = row["Integration branch"]
         work_mode = row["Work mode"]
+        autonomy_max = row["Autonomy max"]
         areas = row["Areas"]
 
         if not SLUG_RE.fullmatch(repo):
@@ -250,6 +283,7 @@ def load_registry() -> tuple[dict[str, dict[str, str]], bool]:
             report(path, line, f"Integration branch for '{repo}' must be a branch name, N/A, or unknown")
         if work_mode not in WORK_MODES:
             report(path, line, f"Work mode for '{repo}' must be one of: {', '.join(sorted(WORK_MODES))}")
+        validate_autonomy(path, line, autonomy_max, f"Autonomy max for '{repo}'")
         validate_area_list(path, line, areas, f"Areas for '{repo}'")
 
     return registry, True
@@ -342,6 +376,67 @@ def validate_task_repos(registry: dict[str, dict[str, str]], registry_present: b
                     validate_repo_list(path, line, value, registry, registry_present)
 
 
+def task_field_values(path: Path, field_name: str) -> list[tuple[int, str]]:
+    values: list[tuple[int, str]] = []
+    wanted = field_name.lower()
+    for line, key, value in parse_task_metadata(path):
+        if key.strip().lower() == wanted:
+            values.append((line, value))
+    return values
+
+
+def task_repo_autonomy_max(
+    repos_value: str | None,
+    registry: dict[str, dict[str, str]],
+    registry_present: bool,
+) -> str:
+    if registry_present and repos_value and repos_value != "N/A":
+        levels: list[str] = []
+        for part in [part.strip() for part in repos_value.split(",")]:
+            if part in registry:
+                levels.append(registry[part].get("Autonomy max", DEFAULT_AUTONOMY_MAX))
+        if levels:
+            return min(levels, key=lambda level: AUTONOMY_LEVELS[level])
+
+    if registry_present and len(registry) == 1:
+        row = next(iter(registry.values()))
+        return row.get("Autonomy max", DEFAULT_AUTONOMY_MAX)
+
+    return DEFAULT_AUTONOMY_MAX
+
+
+def validate_task_autonomy(registry: dict[str, dict[str, str]], registry_present: bool) -> None:
+    task_root = ROOT / "docs" / "tasks_manager"
+    if not task_root.exists():
+        return
+
+    for directory_name in ["_todos", "_todos_archived"]:
+        directory = task_root / directory_name
+        if not directory.exists():
+            continue
+        for path in sorted(directory.glob("*.md")):
+            autonomy_values = task_field_values(path, "Autonomy")
+            if not autonomy_values:
+                continue
+            if len(autonomy_values) > 1:
+                for line, _ in autonomy_values[1:]:
+                    report(path, line, "duplicate Autonomy metadata row")
+
+            autonomy_line, autonomy = autonomy_values[0]
+            if not validate_autonomy(path, autonomy_line, autonomy, "Autonomy"):
+                continue
+
+            repos_values = task_field_values(path, "Repos")
+            repos_value = repos_values[0][1] if repos_values else None
+            max_level = task_repo_autonomy_max(repos_value, registry, registry_present)
+            if AUTONOMY_LEVELS[autonomy] > AUTONOMY_LEVELS[max_level]:
+                report(
+                    path,
+                    autonomy_line,
+                    f"Autonomy {autonomy} exceeds resolved repo Autonomy max {max_level}",
+                )
+
+
 def load_local_map(registry: dict[str, dict[str, str]]) -> dict[str, str]:
     path = ROOT / ".local" / "repos.map"
     mappings: dict[str, str] = {}
@@ -392,6 +487,7 @@ def load_local_map(registry: dict[str, dict[str, str]]) -> dict[str, str]:
 def main() -> int:
     registry, registry_present = load_registry()
     validate_task_repos(registry, registry_present)
+    validate_task_autonomy(registry, registry_present)
     if LOCAL_MODE:
         load_local_map(registry)
 

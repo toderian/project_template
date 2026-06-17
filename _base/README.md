@@ -131,8 +131,10 @@ Projects that span multiple repos can opt into a committed `.config/repos.projec
 `_base/repos.project.example.md`, plus a gitignored `.local/repos.map` checkout map, created from
 `_base/repos.map.example`. Repo slugs from `.config/repos.project.md` are the stable names for task `Repos`
 metadata and cross-repo source paths such as `<repo-slug>:<repo-relative-path>`; absolute local paths
-stay out of committed docs. Set this up during `_base/SETUP_INSTRUCTIONS.md` Phase 2c, before seeding
-docs or creating multi-repo tasks/contracts, when the project needs it.
+stay out of committed docs. New registries may also add `Autonomy max` (`L0`-`L3`) to cap loop
+behavior per repo; old 8-column registries remain valid and default to `L1`. Set this up during
+`_base/SETUP_INSTRUCTIONS.md` Phase 2c, before seeding docs or creating multi-repo tasks/contracts,
+when the project needs it.
 Raw source material waiting for extraction lives in `docs/resources/_inbox/`; related files from one
 call, teammate handoff, upload bundle, or research bundle may be grouped in an inbox batch folder with
 a `README.md` manifest. Curated digests live under `docs/resources/_digests/<area-or-bucket>/` so

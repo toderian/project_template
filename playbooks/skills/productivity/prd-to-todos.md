@@ -60,6 +60,8 @@ Present the proposed tasks as a numbered list. For each:
 - **Area / prefix**: existing area row from `_areas.md`, or a proposed new area
 - **Repos**: if `.config/repos.project.md` exists, comma-separated repo slugs when inferable, or omitted when not
   clear
+- **Autonomy**: optional `L0`-`L3` only when the PRD/user explicitly requests a loop level or the task
+  should be stricter than the repo default/max
 - **Type**: `F` / `D` / `C` / `R`
 - **Priority**: high / medium / low
 - **Phases**: list of committable steps
@@ -85,6 +87,7 @@ For each approved item, reserve a file in `docs/tasks_manager/_todos/` named
 - Metadata table with `Task ID` (next id for the area's prefix), `Type` (`F`/`D`/`C`/`R`),
   `Area` (a slug from `docs/tasks_manager/_areas.md`, defining a new row with the user if needed),
   optional `Repos` when inferable from `.config/repos.project.md`,
+  optional `Autonomy` only when the task intentionally differs from the repo default/max,
   `Source: prd-to-todos`, `Source ref` pointing to the PRD, `Priority`, and `Blocked by` (referencing
   other task IDs or filenames if dependent)
 - Short human-readable title and 2-4 sentence brief
@@ -117,5 +120,6 @@ user that starting any existing task requires the pre-implementation review gate
 - New area rows were confirmed with the user before use.
 - Optional `Repos` metadata uses slugs from `.config/repos.project.md`; repo slugs are not encoded into task IDs,
   filenames, prefixes, or areas.
+- Optional `Autonomy` metadata is one of `L0`-`L3` and does not exceed the resolved repo max.
 - Ledgers and area pages are synced and pass `_base/scripts/sync-todo-ledgers.sh --check`.
-- Repo registry and task `Repos` metadata pass `_base/scripts/check-repos-config.sh`.
+- Repo registry and task `Repos` / `Autonomy` metadata pass `_base/scripts/check-repos-config.sh`.
