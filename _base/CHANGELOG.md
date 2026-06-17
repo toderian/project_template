@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.06.09.0
+BASE_VERSION: 2026.06.17.0
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,26 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Add autonomy ceilings for loop-engineering workflows
+
+The template now defines autonomy levels as permission ceilings layered on top of existing branch,
+work-mode, runtime, and safety rules.
+
+- New `playbooks/conventions/autonomy-levels.md` defines L0 read-only, L1 local development, L2 branch
+  update/CI repair, and L3 draft PR validation.
+- L1 remains the default for existing repos and tasks.
+- L2/L3 are explicit opt-ins for remote branch updates, CI repair, and draft PR validation; they do
+  not authorize merge, deploy, release, ready-for-review, force-push/history rewrite, broad connector
+  writes, or secret exposure.
+- New loop-engineering research digest:
+  `_base/docs/resources/_digests/global/2026-06-17-loop-engineering-digest.md`.
+- `playbooks/meta/RESEARCH_SNAPSHOT.md` records the doctrine update and source traceability.
+
+**Downstream impact:** additive convention. Existing downstream repos remain valid and continue to
+operate as L1 unless they opt into higher autonomy through the new optional metadata added by this
+update. After merging, review `playbooks/conventions/autonomy-levels.md` before enabling L2 or L3 in a
+project registry or task.
 
 ### Add uv-based Python tooling environment convention
 

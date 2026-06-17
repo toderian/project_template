@@ -2,7 +2,7 @@
 
 Current research snapshot for this template.
 
-Reviewed on: 2026-05-26.
+Reviewed on: 2026-06-17.
 
 ## What changed this iteration
 
@@ -19,6 +19,8 @@ The current template now leans harder into:
 - a raw knowledge ingestion lane based on maintainer operating preference: raw source drops stay in a
   staging inbox, while distilled Markdown digests are segregated by area before stable facts are
   promoted into canonical knowledge-base docs
+- an autonomy ladder that treats publishing and connector activity as explicit opt-in permission
+  ceilings layered on top of existing work-mode and branch rules
 
 ## Current conclusions
 
@@ -86,10 +88,25 @@ Template impact:
 - do not change default agent behavior because of a small benchmark delta alone
 - require stronger operational evidence before promoting a new pattern
 
+### 8. Loop engineering needs explicit autonomy ceilings
+
+The 2026 loop-engineering discussion is useful because it names the operational shape that this
+template already trends toward: discover work, act in small loops, verify, preserve state, and repeat.
+The adoption risk is mistaking a loop for permission to publish. The safer interpretation is to keep
+local implementation as the default and make remote branch updates, CI repair, draft PR creation, and
+connector writes explicit opt-ins.
+
+Template impact:
+
+- added `playbooks/conventions/autonomy-levels.md`
+- kept L1 local development as the default for existing repos
+- defined L2/L3 as ceilings for branch/CI and draft-PR loops, not as permission to merge or deploy
+
 ## Sources reviewed
 
 | Date | Source | Why it mattered | Repo consequence |
 | --- | --- | --- | --- |
+| 2026-06-17 | [Addy Osmani, "Loop Engineering"](https://addyosmani.com/blog/loop-engineering/) and current Codex manual subagent/custom-agent docs fetched through `openai-docs` | The template needed to absorb loop-engineering terminology without weakening branch, push, PR, or connector boundaries | Added a loop-engineering digest and autonomy-level convention; L1 remains default, L2/L3 require explicit opt-in |
 | 2026-05-26 | Maintainer knowledge-base operating preference for this template | The project needs a place to drop raw docs/files and a structured distillation path into durable knowledge | Added `docs/resources/_inbox/`, area-segregated `_digests/`, and `/distill-knowledge` |
 | 2026-05-26 | Maintainer operating preference for this template | Branch policy is a project operating constraint rather than a model-behavior research finding | Added default-branch mode for downstream template-maintenance repos and explicit task-branch mode for working/product repos |
 | 2026-05-10 | [Claude Code Skills](https://code.claude.com/docs/en/skills), [Codex Skills](https://developers.openai.com/codex/skills), [Agent Skills Specification](https://agentskills.io/specification), [obra/superpowers Codex integration](https://deepwiki.com/obra/superpowers/5.2-codex-integration) | Mapped current dual-runtime conventions: expanded Claude SKILL.md frontmatter (`when_to_use`, `paths`, `allowed-tools`, `model`, `effort`, `hooks`), Codex hook arrival (v0.128, April 2026), Codex MultiAgentV2 (March 2026), `.agents/skills` discovery | Removed Claude-specific tool names from playbooks; left frontmatter expansion and CI lint as future work |

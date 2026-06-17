@@ -99,6 +99,13 @@ The template encodes a few strong defaults:
 6. Review it.
 7. Repeat until the result is strong enough to ship.
 
+Autonomy is deliberately bounded. The default level is **L1 local development**: local edits, checks,
+iteration, and local commits inside an approved workflow. Higher levels are opt-in ceilings layered on
+top of branch/work rules: L2 may update an approved branch and repair its CI, while L3 may open or
+update draft PRs and validate PR status. No level authorizes merge, deploy, release, ready-for-review,
+force-push/history rewrite, broad connector writes, or secret exposure. See
+[`playbooks/conventions/autonomy-levels.md`](../playbooks/conventions/autonomy-levels.md).
+
 ## Task System Quickstart
 
 The task system's golden path is:
@@ -148,7 +155,8 @@ See [`playbooks/conventions/task-system-quickstart.md`](../playbooks/conventions
 [`playbooks/conventions/generated-artifacts.md`](../playbooks/conventions/generated-artifacts.md),
 [`playbooks/conventions/runbook-convention.md`](../playbooks/conventions/runbook-convention.md),
 [`playbooks/conventions/workbook-convention.md`](../playbooks/conventions/workbook-convention.md), and
-[`playbooks/conventions/adr-convention.md`](../playbooks/conventions/adr-convention.md)
+[`playbooks/conventions/adr-convention.md`](../playbooks/conventions/adr-convention.md),
+[`playbooks/conventions/autonomy-levels.md`](../playbooks/conventions/autonomy-levels.md)
 for the full command map and source-of-truth split.
 
 Use `/audit-todos` periodically to compare active tasks with current code, tests, docs, roadmap,
