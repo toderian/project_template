@@ -33,12 +33,15 @@ work-mode, runtime, and safety rules.
   writes, or secret exposure.
 - New loop-engineering research digest:
   `_base/docs/resources/_digests/global/2026-06-17-loop-engineering-digest.md`.
+- New `playbooks/conventions/agent-loop-recipes.md` documents compact loop recipe fields, example
+  L0-L3 loops, and worktree isolation guidance.
+- `.worktrees/` and `worktrees/` are now ignored local worktree locations.
 - `playbooks/meta/RESEARCH_SNAPSHOT.md` records the doctrine update and source traceability.
 
 **Downstream impact:** additive convention. Existing downstream repos remain valid and continue to
 operate as L1 unless they opt into higher autonomy through the new optional metadata added by this
-update. After merging, review `playbooks/conventions/autonomy-levels.md` before enabling L2 or L3 in a
-project registry or task.
+update. After merging, review `playbooks/conventions/autonomy-levels.md` and
+`playbooks/conventions/agent-loop-recipes.md` before enabling L2 or L3 in a project registry or task.
 
 ### Add uv-based Python tooling environment convention
 

@@ -3,6 +3,8 @@
 # Local-only machine bindings (repos.map, runbook placeholders, environment notes).
 .local/
 .no-commit/
+.worktrees/
+worktrees/
 .temp/
 .tmp/
 temp/

@@ -158,7 +158,8 @@ See [`playbooks/conventions/task-system-quickstart.md`](../playbooks/conventions
 [`playbooks/conventions/runbook-convention.md`](../playbooks/conventions/runbook-convention.md),
 [`playbooks/conventions/workbook-convention.md`](../playbooks/conventions/workbook-convention.md), and
 [`playbooks/conventions/adr-convention.md`](../playbooks/conventions/adr-convention.md),
-[`playbooks/conventions/autonomy-levels.md`](../playbooks/conventions/autonomy-levels.md)
+[`playbooks/conventions/autonomy-levels.md`](../playbooks/conventions/autonomy-levels.md), and
+[`playbooks/conventions/agent-loop-recipes.md`](../playbooks/conventions/agent-loop-recipes.md)
 for the full command map and source-of-truth split.
 
 Use `/audit-todos` periodically to compare active tasks with current code, tests, docs, roadmap,

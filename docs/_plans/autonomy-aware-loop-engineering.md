@@ -152,3 +152,7 @@ Notes:
   L3 and stops before ready-for-review/merge/deploy/release/force-push. Targeted searches confirmed
   the L2/L3 and draft-PR stop-point language. `_base/scripts/check-codex-plugins.sh` and
   `git diff --check` passed.
+- 2026-06-17T10:42:57+03:00: Phase 4 added `playbooks/conventions/agent-loop-recipes.md` with compact
+  fields and L0/L1/L2/L3 examples, documented worktree isolation, ignored `.worktrees/` and
+  `worktrees/`, and linked the convention from `_base/README.md` and `_base/CHANGELOG.md`.
+  `git check-ignore .worktrees/example worktrees/example` and `git diff --check` passed.
