@@ -8,7 +8,8 @@ what is interrupting, what to do now, what's queued next, and what is intentiona
 order you mean to do it.
 
 It sits above the per-change planning skills (`planning-workflow`, `prd-to-plan` plan a single change);
-the roadmap is the portfolio view that decides *which* changes happen and *when*.
+the roadmap is the portfolio view that decides *which* changes happen, in what order, and roughly when
+dated goals should land.
 
 ## Model
 
@@ -20,8 +21,14 @@ the roadmap is the portfolio view that decides *which* changes happen and *when*
   appear in any horizon. `Someday` may also hold an `I-NNN` idea as a parking-lot signal, but raw inbox
   ideas must be promoted through `/triage-inbox` before moving into any other horizon. Keep item lines
   short; the roadmap owns placement and ordering, not task detail.
+- **Milestones** — optional `### Milestone: <name> (target: YYYY-MM-DD)` or
+  `### Milestone: <name> (deadline: YYYY-MM-DD)` headings inside a horizon. `target` is a soft planning
+  date; `deadline` is a hard external commitment. A milestone groups the item bullets that follow it
+  until the next milestone or horizon heading. Do not create a separate top-level `## Milestones`
+  section.
 - **Source of truth** — the task files remain authoritative for status, priority, phases, acceptance
-  criteria, and completion state. The roadmap owns only *placement and ordering*.
+  criteria, optional task-specific dates, and completion state. The roadmap owns *placement, ordering,
+  and goal-level milestone dates*.
 - **Priority split** — task `Priority` stays `high`, `medium`, or `low` metadata; roadmap placement
   decides the actual execution sequence. A high-priority task can be deferred, and a lower-priority task
   can be in `Now` if it unblocks the current plan.
@@ -35,7 +42,9 @@ When the user wants to plan or re-sequence:
 1. Read `docs/tasks_manager/_active.md`, `docs/areas/_overview.md`, and any `I-NNN` ideas worth surfacing
    for `Someday`.
 2. With the user, decide each item's horizon and order within it. Ask about dependencies and what they
-   actually intend to tackle next — don't infer the plan from priority alone.
+   actually intend to tackle next — don't infer the plan from priority alone. Ask for target dates or
+   deadlines only when the user expresses scheduling intent, such as "by August", "launch checklist",
+   "milestone", "deadline", or "target date".
 3. Write `docs/tasks_manager/_roadmap.md` (format below), preserving existing placements the user didn't change.
 
 ### Refresh (keep placement valid without re-planning)
@@ -59,10 +68,14 @@ any items blocked or waiting.
 
 ## Now
 
+### Milestone: Session hardening beta (target: 2026-07-10)
+
 - AUTH-002
 - UI-001
 
 ## Next
+
+### Milestone: Public launch checklist (deadline: 2026-08-01)
 
 - UI-002
 
@@ -75,8 +88,9 @@ any items blocked or waiting.
 - I-007
 ````
 
-Optional notes are fine when they explain planning intent, but the stable part of the format is the ID.
-Do not duplicate task status, phase checklists, or acceptance detail here.
+Optional notes are fine when they explain planning intent, but the stable parts of the format are the
+horizon headings, milestone headings, and item IDs. Do not duplicate task status, phase checklists, or
+acceptance detail here.
 
 ## Relationship to other files
 
@@ -92,6 +106,8 @@ Do not duplicate task status, phase checklists, or acceptance detail here.
 - Horizons reflect the user's actual intent and ordering, not just priority sort.
 - Order within each horizon remains meaningful: the first item is the intended next pickup within that
   horizon.
+- Dated milestones appear only as `### Milestone: <name> (target: YYYY-MM-DD)` or
+  `### Milestone: <name> (deadline: YYYY-MM-DD)` under an existing horizon.
 - Soft thresholds are review pressure only. Mention when a horizon is overloaded during `/roadmap`
   review, but do not treat threshold pressure as validation failure.
 - Every referenced `<PREFIX>-NNN`/`I-NNN` exists; done/cancelled items are off the roadmap, and inbox

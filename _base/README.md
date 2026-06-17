@@ -123,7 +123,9 @@ The task system's golden path is:
 /audit-todos          # report-only audit of active tasks against code/tests/docs
 ```
 
-Task files own status and detail, the roadmap owns placement, and ledgers/area pages are generated.
+Task files own status and detail, the roadmap owns placement plus optional dated milestone headings,
+and ledgers/area pages are generated. Individual task `Target date` / `Deadline` rows are optional and
+should be used only for explicit task-specific scheduling intent.
 The primary knowledge base lives in `docs/resources/CONTEXT.md`, `docs/resources/<area>/summary.md`,
 `docs/resources/<area>/sources.md`, `docs/resources/<area>/dependency-graph.md`,
 `docs/resources/<area>/contracts/<feature-slug>.md`,
@@ -240,7 +242,7 @@ The table below lists the skills authored in this template (base tier). Downstre
 
 | Skill | Bucket | Description |
 |-------|--------|-------------|
-| add-task | productivity | Create a full area-prefixed task in docs/tasks_manager/_todos/ with phases, acceptance criteria, related tests, priority, and optional roadmap placement. Use when the user says "add task", "create task", "file a task", "track this task", or gives clear actionable work that should skip inbox capture. |
+| add-task | productivity | Create a full area-prefixed task in docs/tasks_manager/_todos/ with phases, acceptance criteria, related tests, priority, optional roadmap placement, and dates only when scheduling intent is explicit. Use when the user says "add task", "create task", "file a task", or "track this task". |
 | align | productivity | Check a proposed feature or change against the project's PROJECT.md (vision, goals, scope, constraints) and report ALIGNED, NEEDS_CLARIFICATION, or OUT_OF_SCOPE. Use when starting non-trivial work, when scope feels uncertain, or before planning-workflow. Requires PROJECT.md at the repo root. |
 | audit-todos | productivity | Audit active task files against current repo state to find outdated, completed, obsolete, duplicated, or follow-up-ready work. Use when the user says "audit todos", "audit tasks", "review active tasks", or asks for periodic task backlog health checks. |
 | capture-idea | productivity | Capture an idea into the inbox (docs/tasks_manager/_inbox/) as an I-NNN file with near-zero friction. Use whenever the user says "capture", "add to inbox", "note this idea", "jot down", or shares a feature/bug/idea they want recorded for later — even if they don't explicitly ask to use a skill. |
@@ -277,7 +279,7 @@ The table below lists the skills authored in this template (base tier). Downstre
 | refresh-context | engineering | Refresh the docs-primary knowledge base and detect stale architecture or domain context. Use when the user asks to "refresh context", "reindex context", "update knowledge base", or "check context drift". |
 | request-refactor-plan | engineering | Create a detailed refactor plan with tiny commits via user interview, then file it as a GitHub issue. Use when user wants to plan a refactor, create a refactoring RFC, or break a refactor into safe incremental steps. |
 | reviewer | misc | Two-stage review of implementation work. Use when reviewing completed task output for spec compliance and code quality. |
-| roadmap | productivity | Maintain docs/tasks_manager/_roadmap.md — the placement-only Urgent/Now/Next/Later/Someday ordering for tasks and inbox ideas. Use when the user wants to "plan the roadmap", "what's next", reprioritize/sequence work, schedule tasks, or refresh the roadmap. Distinct from per-change planning (planning-workflow / prd-to-plan). |
+| roadmap | productivity | Maintain docs/tasks_manager/_roadmap.md — the Urgent/Now/Next/Later/Someday ordering plus optional dated milestone headings. Use when the user wants to "plan the roadmap", "what's next", reprioritize/sequence work, schedule tasks, or refresh the roadmap. Distinct from per-change planning. |
 | scaffold-exercises | misc | Create exercise directory structures with sections, problems, solutions, and explainers that pass linting. Use when user wants to scaffold exercises, create exercise stubs, or set up a new course section. |
 | security-review-owasp | engineering | Apply current OWASP standards (Top 10:2025, ASVS 5.0, LLM Top 10 2025, Agentic AI 2026) when writing or reviewing code. Use when reviewing code for security issues, implementing auth/authz, handling user input, designing API endpoints, building AI agent systems, integrating LLMs/RAG, or discussing application security. |
 | setup-pre-commit | engineering | Set up Husky pre-commit hooks with lint-staged (Prettier), type checking, and tests in the current repo. Use when user wants to add pre-commit hooks, set up Husky, configure lint-staged, or add commit-time formatting/typechecking/testing. |

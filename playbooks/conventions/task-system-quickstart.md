@@ -53,11 +53,13 @@ _base/scripts/sync-todo-ledgers.sh --check
   completion harvest, and completion summary. When a downstream project has committed
   `.config/repos.project.md`, tasks may also include optional `Repos` metadata with comma-separated repo slugs.
   Tasks may include optional `Autonomy` metadata (`L0`-`L3`) when they intentionally lower the repo
-  ceiling or request a repo-allowed higher loop level.
+  ceiling or request a repo-allowed higher loop level. Tasks may include optional `Target date` and
+  `Deadline` metadata (`YYYY-MM-DD` or `N/A`) only when the user explicitly provides task-specific
+  scheduling intent.
 - **Roadmap** (`docs/tasks_manager/_roadmap.md`) owns placement and order only: Urgent, Now, Next,
-  Later, Someday. It references task IDs in any horizon; raw inbox IDs may sit only in `Someday` as
-  parking-lot signals until `/triage-inbox` promotes or drops them. It does not duplicate task status
-  or phase detail.
+  Later, Someday. It references task IDs in any horizon and may group them with dated milestone
+  headings inside those horizons; raw inbox IDs may sit only in `Someday` as parking-lot signals until
+  `/triage-inbox` promotes or drops them. It does not duplicate task status or phase detail.
 - **Generated ledgers and area pages** (`docs/tasks_manager/_active.md`, `docs/tasks_manager/_done.md`,
   `docs/areas/_overview.md`, generated blocks in `docs/areas/<slug>.md`) are derived views. Rebuild
   them with `_base/scripts/sync-todo-ledgers.sh`; validate them with `_base/scripts/sync-todo-ledgers.sh --check`.

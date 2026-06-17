@@ -64,6 +64,10 @@ Present the proposed tasks as a numbered list. For each:
   should be stricter than the repo default/max
 - **Type**: `F` / `D` / `C` / `R`
 - **Priority**: high / medium / low
+- **Dates**: optional `Target date` / `Deadline` only when the PRD or user states task-specific dates;
+  otherwise omit
+- **Roadmap milestone**: optional goal-level `target` / `deadline` date only when the user wants the
+  PRD scheduled
 - **Phases**: list of committable steps
 - **Acceptance criteria**: overall criteria for the task to be done
 - **Related tests**: known test files that will be affected or created, or `N/A - <reason>`
@@ -88,6 +92,7 @@ For each approved item, reserve a file in `docs/tasks_manager/_todos/` named
   `Area` (a slug from `docs/tasks_manager/_areas.md`, defining a new row with the user if needed),
   optional `Repos` when inferable from `.config/repos.project.md`,
   optional `Autonomy` only when the task intentionally differs from the repo default/max,
+  optional `Target date` / `Deadline` only when the PRD or user explicitly gives task-specific dates,
   `Source: prd-to-todos`, `Source ref` pointing to the PRD, `Priority`, and `Blocked by` (referencing
   other task IDs or filenames if dependent)
 - Short human-readable title and 2-4 sentence brief
@@ -104,8 +109,10 @@ Reserve each file with `_base/scripts/reserve-work-item.sh task <PREFIX> <TYPE> 
 order so IDs sort naturally within each area. Fill each reserved placeholder immediately. Use the
 current datetime for the `Created` field. After creating the files, run `_base/scripts/sync-todo-ledgers.sh`.
 If the user wants the PRD scheduled, place the new task IDs on `docs/tasks_manager/_roadmap.md` in
-Urgent, Now, Next, Later, or Someday and run the sync again. After all task and roadmap changes are done, run
-`_base/scripts/sync-todo-ledgers.sh --check` and `_base/scripts/check-repos-config.sh`.
+Urgent, Now, Next, Later, or Someday. If the PRD/user gives a goal-level target date or deadline, group
+the IDs under a milestone heading inside the chosen horizon. Run the sync again. After all task and
+roadmap changes are done, run `_base/scripts/sync-todo-ledgers.sh --check` and
+`_base/scripts/check-repos-config.sh`.
 
 ### 7. Report
 
@@ -121,5 +128,7 @@ user that starting any existing task requires the pre-implementation review gate
 - Optional `Repos` metadata uses slugs from `.config/repos.project.md`; repo slugs are not encoded into task IDs,
   filenames, prefixes, or areas.
 - Optional `Autonomy` metadata is one of `L0`-`L3` and does not exceed the resolved repo max.
+- Optional `Target date` / `Deadline` metadata is used only for explicit task-specific dates and uses
+  `YYYY-MM-DD` or `N/A`.
 - Ledgers and area pages are synced and pass `_base/scripts/sync-todo-ledgers.sh --check`.
 - Repo registry and task `Repos` / `Autonomy` metadata pass `_base/scripts/check-repos-config.sh`.

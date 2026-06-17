@@ -5,7 +5,8 @@
 Turn captured ideas into committed work. Inbox capture is deliberately frictionless, so the inbox
 accumulates raw `I-NNN` ideas; triage is the periodic, deliberate pass that decides whether each idea
 should be promoted into a full area-prefixed task or dropped. This is where type, area prefix,
-priority, phases, acceptance criteria, related tests, and optional roadmap placement get assigned.
+priority, phases, acceptance criteria, related tests, and optional scheduling get assigned when the
+user intends to schedule the work.
 
 Follow `playbooks/conventions/inbox-convention.md` (inbox side) and
 `playbooks/conventions/todo-convention.md` (task side).
@@ -81,7 +82,11 @@ For each promoted idea, settle:
   than the repo default, fill optional `Autonomy` metadata with `L0`, `L1`, `L2`, or `L3`. Omit it
   otherwise. The value must not exceed the resolved repo `Autonomy max`.
 - **Priority** — high / medium / low.
-- **Roadmap placement** — leave unscheduled unless the user wants the new task in Urgent, Now, Next, Later, or Someday.
+- **Dates** — add task `Target date` or `Deadline` only when the user or inbox item clearly gives a
+  task-specific soft date or hard commitment. Omit both for normal promoted tasks.
+- **Roadmap placement** — leave unscheduled unless the user wants the new task in Urgent, Now, Next,
+  Later, or Someday. If the scheduling intent is goal-level timing, prefer a roadmap milestone heading
+  over per-task dates.
 
 ### 5. Create the task
 
@@ -91,16 +96,18 @@ the printed path per the task convention's full format:
 - Metadata table including `Task ID`, `Type`, `Area`, `Source: inbox`, `Source ref: I-NNN`, and `Priority`.
 - Optional `Repos` metadata when inferable from `.config/repos.project.md`.
 - Optional `Autonomy` metadata only when the task intentionally differs from the repo default/max.
+- Optional `Target date` / `Deadline` metadata only when task-specific dates were explicitly provided.
 - A short human-readable title and a 2-4 sentence brief.
 - Optional `### Repo scope` section for cross-repo tasks when repo responsibilities need explanation.
 - Phases with per-phase checklists.
 - Acceptance criteria and a Related tests section, or `N/A - <reason>`.
 - Follow-ups, execution log, completion harvest, and completion summary sections.
 
-Then run `_base/scripts/sync-todo-ledgers.sh` to update ledgers and area pages. If the user chose roadmap
-placement, update `docs/tasks_manager/_roadmap.md` and run the sync again. After all task, inbox, and
-roadmap changes are done, run `_base/scripts/sync-todo-ledgers.sh --check` and
-`_base/scripts/check-repos-config.sh`.
+Then run `_base/scripts/sync-todo-ledgers.sh` to update ledgers and area pages. If the user chose
+roadmap placement, update `docs/tasks_manager/_roadmap.md`; when they gave a target date, deadline, or
+milestone, place the task under a dated milestone heading inside the chosen horizon. Run the sync again.
+After all task, inbox, and roadmap changes are done, run `_base/scripts/sync-todo-ledgers.sh --check`
+and `_base/scripts/check-repos-config.sh`.
 
 ### 6. Close out the inbox file
 
@@ -124,6 +131,8 @@ the end to ensure the ledgers and area pages reflect every change, then run
 - Optional `Repos` metadata uses slugs from `.config/repos.project.md`; repo slugs are not encoded into task IDs,
   filenames, prefixes, or areas.
 - Optional `Autonomy` metadata is one of `L0`-`L3` and does not exceed the resolved repo max.
+- Optional `Target date` / `Deadline` metadata is used only for explicit task-specific dates and uses
+  `YYYY-MM-DD` or `N/A`.
 - New areas were confirmed with the user before use and recorded in `docs/tasks_manager/_areas.md`.
 - The inbox contains only `new` ideas afterward; promoted/dropped ones are in `_inbox_archived/`.
 - `docs/tasks_manager/_active.md`, `docs/areas/_overview.md`, and generated per-area blocks are in sync

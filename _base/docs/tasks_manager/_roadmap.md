@@ -5,8 +5,24 @@ The plan of execution - what is **Urgent**, **Now**, **Next**, **Later**, and **
 **Someday**. The horizon (placement) is a deliberate, human-set sequence; it is *not* auto-derived from
 task status or priority.
 
-Keep this file placement-only: one bullet per task ID, or one inbox ID in **Someday** only. Task files
-remain authoritative for status, priority, phases, acceptance criteria, and completion state.
+Keep this file roadmap-level: horizon headings, optional dated milestone headings inside those horizons,
+and one bullet per task ID, or one inbox ID in **Someday** only. Task files remain authoritative for
+status, priority, phases, acceptance criteria, optional task-specific dates, and completion state.
+
+Optional milestones group work inside an existing horizon. Use `target` for soft planning dates and
+`deadline` for hard external commitments:
+
+```md
+### Milestone: Task planning v1 (target: 2026-07-10)
+- T-001
+- T-002
+
+### Milestone: Public launch checklist (deadline: 2026-08-01)
+- T-003
+```
+
+Do not add a separate top-level `## Milestones` section; roadmap order still flows through
+Urgent / Now / Next / Later / Someday.
 
 Soft review thresholds:
 

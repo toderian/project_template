@@ -267,6 +267,18 @@ Omit `Autonomy` to inherit the repo default/max. `Autonomy` may lower the effect
 exceed the resolved repo `Autonomy max`; raise the repo registry deliberately before creating tasks
 that should repeatably run at L2 or L3.
 
+When the user explicitly gives task-specific scheduling intent, add optional date rows near
+`Priority`:
+
+```md
+| Target date | 2026-07-10 |
+| Deadline    | N/A        |
+```
+
+Use `Target date` for soft planning dates and `Deadline` for hard external commitments. Values must be
+`YYYY-MM-DD` or `N/A`. Omit both rows for normal undated tasks; roadmap milestones are the preferred
+place for goal-level dates.
+
 ### Phases
 
 #### Phase 1: Current-state review
@@ -358,6 +370,8 @@ was captured for session expiry telemetry.
 | Last executed | ISO 8601 datetime when implementation/research last happened, or `N/A` |
 | Status | `open`, `in_progress`, `done`, or `cancelled` |
 | Priority | `high`, `medium`, or `low`; roadmap order decides execution sequence |
+| Target date | Optional soft task-specific planning date as `YYYY-MM-DD` or `N/A`; omit unless explicitly provided |
+| Deadline | Optional hard task-specific commitment date as `YYYY-MM-DD` or `N/A`; omit unless explicitly provided |
 | Owner | Agent/user working the task, or `N/A` |
 | Blocked by | Task ID or filename this depends on, or `N/A` |
 | Source | Skill or process that created the task, for example `add-task`, `inbox`, `prd-to-todos`, `manual` |
@@ -419,7 +433,9 @@ Creation steps:
 6. Fill the full template: brief, phases, acceptance criteria, related tests, follow-ups, execution log,
    completion harvest, and completion summary placeholders. Add a `Repos` metadata row when repo scope
    is inferable from `.config/repos.project.md`; omit it when it is not. Add an `Autonomy` row only
-   when the task intentionally differs from the repo default/max.
+   when the task intentionally differs from the repo default/max. Add `Target date` or `Deadline` only
+   when the user explicitly provides task-specific scheduling intent; do not ask for fake dates during
+   ordinary task creation.
 7. Set `Source` and `Source ref`.
 8. Run `_base/scripts/sync-todo-ledgers.sh`.
 9. Run `_base/scripts/check-repos-config.sh` to validate optional task `Repos` / `Autonomy` metadata.
@@ -430,13 +446,18 @@ Keep tasks atomic: one clear deliverable per file.
 ## Roadmap
 
 `docs/tasks_manager/_roadmap.md` is the global execution plan: Urgent, Now, Next, Later, and Someday.
-Placement and order are deliberate human decisions, not derived from status or priority. Priority stays
-`high`, `medium`, or `low`; roadmap order decides the actual execution sequence.
+Placement and order are deliberate human decisions, not derived from status or priority. Optional
+milestone headings inside those horizons carry goal-level dates. Priority stays `high`, `medium`, or
+`low`; roadmap order decides the actual execution sequence.
 
 The roadmap is placement-only. It stores task IDs like `AUTH-001` in the intended horizon and order;
 task IDs may appear in any horizon. Raw inbox ideas like `I-007` may appear only in `Someday` as
 parking-lot signals, and must be promoted through `/triage-inbox` before moving into `Urgent`, `Now`,
-`Next`, or `Later`. Task files remain authoritative for status, phases, priority, and other detail.
+`Next`, or `Later`. It may group work with
+`### Milestone: <name> (target: YYYY-MM-DD)` or
+`### Milestone: <name> (deadline: YYYY-MM-DD)` headings inside an existing horizon, but it must not add
+a separate top-level `## Milestones` section. Task files remain authoritative for status, phases,
+priority, optional task-specific dates, and other detail.
 Ambiguous or missing references reported by
 `_base/scripts/sync-todo-ledgers.sh --check` must be fixed by a human or agent; do not guess which task was
 meant.

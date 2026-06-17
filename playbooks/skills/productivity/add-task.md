@@ -4,8 +4,8 @@
 
 Create a full task directly in `docs/tasks_manager/_todos/` when the work is already clear enough to
 commit to the backlog. This complements `capture-idea`: vague thoughts go to the inbox quickly, while
-clear tasks get area, prefix, priority, phases, acceptance criteria, tests, and optional roadmap
-placement immediately.
+clear tasks get area, prefix, priority, phases, acceptance criteria, tests, and optional scheduling
+metadata only when the user asks for scheduling.
 
 Follow `playbooks/conventions/todo-convention.md` for the file format and lifecycle.
 
@@ -25,6 +25,10 @@ Do not over-interview. Only ask when a required field cannot be inferred safely:
 - type (`F`, `D`, `C`, `R`)
 - priority (`high`, `medium`, `low`)
 - acceptance criteria
+
+Do not ask for target dates or deadlines during ordinary task creation. Add dates only when the user
+explicitly gives scheduling intent such as a target date, deadline, milestone, launch window, or "by"
+date.
 
 ### 2. Check for duplicates and overlap
 
@@ -69,6 +73,8 @@ Create one atomic task. Fill:
 - priority (`high`, `medium`, `low`)
 - optional `Repos` metadata when inferable from `.config/repos.project.md`
 - optional `Autonomy` metadata only when the task intentionally differs from the repo default/max
+- optional `Target date` / `Deadline` metadata only when the user explicitly gives task-specific
+  scheduling intent
 - 2-4 sentence brief
 - phases with checklists
 - acceptance criteria
@@ -106,9 +112,11 @@ _base/scripts/check-repos-config.sh
 ```
 
 If the user wants this scheduled, add the task ID to `docs/tasks_manager/_roadmap.md` under Urgent,
-Now, Next, Later, or Someday in the intended order, then run sync and `--check` again so `docs/areas/_overview.md` and
-generated area blocks reflect the roadmap placement. Run `_base/scripts/check-repos-config.sh` again
-after any task metadata changes.
+Now, Next, Later, or Someday in the intended order. If they gave goal-level timing, place the task
+under a milestone heading such as `### Milestone: <name> (target: YYYY-MM-DD)` or
+`### Milestone: <name> (deadline: YYYY-MM-DD)` inside the chosen horizon. Then run sync and `--check`
+again so `docs/areas/_overview.md` and generated area blocks reflect the roadmap placement. Run
+`_base/scripts/check-repos-config.sh` again after any task metadata changes.
 
 ### 7. Report
 
@@ -130,6 +138,8 @@ review gate in `todo-convention.md`.
 - Optional `Repos` metadata uses slugs from `.config/repos.project.md`; repo slugs are not encoded into task IDs,
   filenames, prefixes, or areas.
 - Optional `Autonomy` metadata is one of `L0`-`L3` and does not exceed the resolved repo max.
+- Optional `Target date` / `Deadline` metadata is used only for explicit task-specific dates and uses
+  `YYYY-MM-DD` or `N/A`.
 - New area rows are user-approved and include a page path.
 - Ledgers and area pages are synced and pass `_base/scripts/sync-todo-ledgers.sh --check`.
 - Repo registry and task `Repos` / `Autonomy` metadata pass `_base/scripts/check-repos-config.sh`.
