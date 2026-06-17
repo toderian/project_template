@@ -47,7 +47,8 @@ This repo is designed to work primarily with **Claude Code** and **OpenAI Codex*
 │       ├── check-skills-sync.sh           # Validates skill/wrapper/table consistency
 │       ├── gen-antigravity-skills.sh      # Generates experimental .agents/skills wrappers
 │       ├── check-antigravity-skills.sh    # Validates generated Antigravity wrappers
-│       └── check-codex-plugins.sh         # Validates bundled Codex plugin manifests/assets
+│       ├── check-codex-plugins.sh         # Validates bundled Codex plugin manifests/assets
+│       └── check-codex-agents.sh          # Validates committed .codex/agents mirrors and ignore rules
 │
 │
 ├── playbooks/                             # Shared workflow logic (single source of truth)
@@ -82,6 +83,8 @@ This repo is designed to work primarily with **Claude Code** and **OpenAI Codex*
 │   │   └── researcher.md
 │   ├── hooks/                             # PreToolUse hook scripts
 │   └── settings.json                      # Hook configuration
+├── .codex/
+│   └── agents/                            # Thin project-scoped Codex agent mirrors
 └── .agents/
     └── skills/                            # Generated Antigravity wrappers (experimental)
         └── <bucket>/<skill-name>/SKILL.md
@@ -159,7 +162,8 @@ See [`playbooks/conventions/task-system-quickstart.md`](../playbooks/conventions
 [`playbooks/conventions/workbook-convention.md`](../playbooks/conventions/workbook-convention.md), and
 [`playbooks/conventions/adr-convention.md`](../playbooks/conventions/adr-convention.md),
 [`playbooks/conventions/autonomy-levels.md`](../playbooks/conventions/autonomy-levels.md), and
-[`playbooks/conventions/agent-loop-recipes.md`](../playbooks/conventions/agent-loop-recipes.md)
+[`playbooks/conventions/agent-loop-recipes.md`](../playbooks/conventions/agent-loop-recipes.md), and
+[`playbooks/conventions/connectors-and-mcp.md`](../playbooks/conventions/connectors-and-mcp.md)
 for the full command map and source-of-truth split.
 
 Use `/audit-todos` periodically to compare active tasks with current code, tests, docs, roadmap,

@@ -2,7 +2,7 @@
 
 ## Status
 
-- State: in_progress
+- State: complete
 - Execution base revision: `0617475`
 - Repo policy: `.config/repos.project.md` is absent; `origin/master` is the configured upstream for
   `master`, and the checkout is on `master`, so this follows the default-branch fallback from
@@ -156,3 +156,40 @@ Notes:
   fields and L0/L1/L2/L3 examples, documented worktree isolation, ignored `.worktrees/` and
   `worktrees/`, and linked the convention from `_base/README.md` and `_base/CHANGELOG.md`.
   `git check-ignore .worktrees/example worktrees/example` and `git diff --check` passed.
+- 2026-06-17T10:42:57+03:00: Phase 5 added `playbooks/conventions/connectors-and-mcp.md`, committed
+  thin `.codex/agents/*.toml` mirrors, changed `.gitignore` so local `.codex/config.toml` remains
+  ignored while agent mirrors are trackable, and added `_base/scripts/check-codex-agents.sh` to
+  `check-template-update.sh`. `_base/scripts/check-codex-agents.sh`,
+  `_base/scripts/check-codex-plugins.sh`, `git check-ignore --no-index .codex/config.toml`,
+  `git check-ignore --no-index .codex/agents/reviewer.toml` (no ignore output), staged whitespace
+  checks, `git diff --check`, and `_base/scripts/check-template-update.sh` passed.
+
+## Final Validation
+
+- `./_base/scripts/check-template-update.sh`: passed.
+- `bash -n _base/scripts/check-repos-config.sh _base/scripts/check-template-update.sh _base/scripts/check-codex-agents.sh`: passed.
+- `git diff --check` and `git diff --cached --check`: passed.
+- `_base/scripts/check-skills-sync.sh`: passed.
+- `_base/scripts/check-antigravity-skills.sh`: passed.
+- `_base/scripts/check-codex-plugins.sh`: passed.
+- `_base/scripts/setup-template-merge-rules.sh --check`: passed.
+- `git check-ignore .worktrees/example worktrees/example`: passed; both paths are ignored.
+- `git check-ignore --no-index .codex/config.toml`: passed; local config is ignored.
+- `git check-ignore --no-index .codex/agents/reviewer.toml`: passed by producing no ignore output;
+  agent mirrors are trackable.
+- Targeted `_base/scripts/check-repos-config.sh` temp fixtures passed for old 8-column registries, new
+  registries with `Autonomy max`, invalid autonomy values, and task `Autonomy` below/equal/above repo
+  max.
+
+## Final Review
+
+Main-thread fallback review, not an independent subagent review.
+
+Result: pass.
+
+- Spec compliance: all five normalized phases are implemented.
+- Checks: final validation passed.
+- Commit shape: five reviewable commits, one per implementation phase.
+- Residual concern: the execute-plan playbook normally requires two independent xhigh reviewers, but
+  this runtime's subagent tool contract only permits delegation when the user explicitly asks for it.
+  No independent subagent review was run; this section records the fallback review honestly.

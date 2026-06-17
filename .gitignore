@@ -1,5 +1,9 @@
 .idea
-.codex
+# Local Codex config/state. Only committed project-scoped agent mirrors are allowed.
+.codex/*
+!.codex/agents/
+.codex/agents/*
+!.codex/agents/*.toml
 # Local-only machine bindings (repos.map, runbook placeholders, environment notes).
 .local/
 .no-commit/

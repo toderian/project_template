@@ -23,7 +23,8 @@ Checks:
   - validates skill/wrapper/table consistency
   - validates generated Antigravity skill wrappers
   - validates bundled Codex plugin manifests
-  - validates optional .config/repos.project.md and task Repos metadata
+  - validates committed Codex agent mirrors and local Codex ignore rules
+  - validates optional .config/repos.project.md and task Repos / Autonomy metadata
   - validates .local/repos.map when present, or always with --local
   - validates task ledgers in --check mode
   - runs git diff --check
@@ -119,7 +120,10 @@ run_check "Antigravity skill wrappers" \
 run_check "Codex plugin manifests" \
   "${REPO_ROOT}/_base/scripts/check-codex-plugins.sh"
 
-run_check "Repo registry and task Repos metadata" \
+run_check "Codex agent mirrors" \
+  "${REPO_ROOT}/_base/scripts/check-codex-agents.sh"
+
+run_check "Repo registry and task Repos / Autonomy metadata" \
   "${REPO_ROOT}/_base/scripts/check-repos-config.sh"
 
 if [[ "${REQUIRE_LOCAL}" -eq 1 || -f "${REPO_ROOT}/.local/repos.map" ]]; then

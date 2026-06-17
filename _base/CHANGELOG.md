@@ -35,13 +35,21 @@ work-mode, runtime, and safety rules.
   `_base/docs/resources/_digests/global/2026-06-17-loop-engineering-digest.md`.
 - New `playbooks/conventions/agent-loop-recipes.md` documents compact loop recipe fields, example
   L0-L3 loops, and worktree isolation guidance.
+- New `playbooks/conventions/connectors-and-mcp.md` documents least-privilege connector and MCP use by
+  autonomy level.
+- New committed `.codex/agents/*.toml` mirrors provide thin project-scoped Codex subagent definitions
+  that point at existing playbooks/personality rules.
+- New `_base/scripts/check-codex-agents.sh` validates that only intended `.codex/agents/*.toml` files
+  are tracked while local Codex config/state remains ignored. `check-template-update.sh` now runs it.
 - `.worktrees/` and `worktrees/` are now ignored local worktree locations.
 - `playbooks/meta/RESEARCH_SNAPSHOT.md` records the doctrine update and source traceability.
 
 **Downstream impact:** additive convention. Existing downstream repos remain valid and continue to
 operate as L1 unless they opt into higher autonomy through the new optional metadata added by this
-update. After merging, review `playbooks/conventions/autonomy-levels.md` and
-`playbooks/conventions/agent-loop-recipes.md` before enabling L2 or L3 in a project registry or task.
+update. After merging, review `playbooks/conventions/autonomy-levels.md`,
+`playbooks/conventions/agent-loop-recipes.md`, and `playbooks/conventions/connectors-and-mcp.md`
+before enabling L2 or L3 in a project registry or task. Local `.codex/config.toml` stays ignored;
+only `.codex/agents/*.toml` mirrors are intended to be committed.
 
 ### Add uv-based Python tooling environment convention
 
