@@ -252,7 +252,7 @@ read_areas() {
 }
 
 # Extract one task's fields as a unit-separated line:
-# taskid type area created updated last_executed status priority owner blocked_by source source_ref title phase_done phase_total
+# taskid type area created updated last_executed status priority owner blocked_by source source_ref target_date deadline title phase_done phase_total
 extract_task() {
   awk '
     function trim(s) { gsub(/^[[:space:]]+|[[:space:]]+$/, "", s); return s }
@@ -271,6 +271,8 @@ extract_task() {
       if (key == "blocked by")    blocked_by = val
       if (key == "source")        source = val
       if (key == "source ref")    source_ref = val
+      if (key == "target date")   target_date = val
+      if (key == "deadline")      deadline = val
       next
     }
     /^## / && title == "" { title = trim(substr($0, 4)) }
@@ -289,10 +291,26 @@ extract_task() {
     }
     END {
       finalize()
-      printf "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%d%s%d\n",
-        taskid, OFS, type, OFS, area, OFS, created, OFS, updated, OFS, last_executed, OFS,
-        status, OFS, priority, OFS, owner, OFS, blocked_by, OFS, source, OFS, source_ref, OFS,
-        title, OFS, done, OFS, total
+      fields[1] = taskid
+      fields[2] = type
+      fields[3] = area
+      fields[4] = created
+      fields[5] = updated
+      fields[6] = last_executed
+      fields[7] = status
+      fields[8] = priority
+      fields[9] = owner
+      fields[10] = blocked_by
+      fields[11] = source
+      fields[12] = source_ref
+      fields[13] = target_date
+      fields[14] = deadline
+      fields[15] = title
+      for (i = 1; i <= 15; i++) {
+        if (i > 1) printf "%s", OFS
+        printf "%s", fields[i]
+      }
+      printf "%s%d%s%d\n", OFS, done, OFS, total
     }
   ' "$1"
 }
@@ -337,6 +355,7 @@ validate_completion_archive() {
 validate_task_metadata() {
   local file="$1" base="$2" taskid="$3" type="$4" area="$5" created="$6" updated="$7" last_executed="$8"
   local status="$9" priority="${10}" owner="${11}" blocked_by="${12}" source="${13}" source_ref="${14}" title="${15}"
+  local target_date="${16}" deadline="${17}"
   local required_missing=0 rel
   rel="$(rel_repo "$file")"
 
@@ -398,6 +417,8 @@ validate_task_metadata() {
   [[ "$created" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})? || -z "$created" ]] || validate_or_warn "task '${base}' has malformed Created '${created}'"
   [[ "$updated" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})? || -z "$updated" ]] || validate_or_warn "task '${base}' has malformed Updated '${updated}'"
   [[ "$last_executed" == "N/A" || "$last_executed" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})? || -z "$last_executed" ]] || validate_or_warn "task '${base}' has malformed Last executed '${last_executed}'"
+  [[ "$target_date" == "N/A" || "$target_date" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ || -z "$target_date" ]] || validate_or_warn "task '${base}' has malformed Target date '${target_date}'"
+  [[ "$deadline" == "N/A" || "$deadline" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ || -z "$deadline" ]] || validate_or_warn "task '${base}' has malformed Deadline '${deadline}'"
 
   if [[ "$required_missing" -eq 0 && -n "$taskid" && -n "$type" ]]; then
     if [[ ! "$base" =~ ^${taskid}-${type}_[a-z0-9]([a-z0-9-]*[a-z0-9])?\.md$ ]]; then
@@ -497,12 +518,12 @@ record_inbox() {
 
 record_task() {
   local file="$1" dir_label="$2"
-  local taskid type area created updated last_executed status priority owner blocked_by source source_ref title done total base prefix expected_area
+  local taskid type area created updated last_executed status priority owner blocked_by source source_ref target_date deadline title done total base prefix expected_area
   base="$(basename "$file")"
 
-  IFS=$'\034' read -r taskid type area created updated last_executed status priority owner blocked_by source source_ref title done total < <(extract_task "$file")
+  IFS=$'\034' read -r taskid type area created updated last_executed status priority owner blocked_by source source_ref target_date deadline title done total < <(extract_task "$file")
 
-  validate_task_metadata "$file" "$base" "$taskid" "$type" "$area" "$created" "$updated" "$last_executed" "$status" "$priority" "$owner" "$blocked_by" "$source" "$source_ref" "$title"
+  validate_task_metadata "$file" "$base" "$taskid" "$type" "$area" "$created" "$updated" "$last_executed" "$status" "$priority" "$owner" "$blocked_by" "$source" "$source_ref" "$title" "$target_date" "$deadline"
 
   if [[ -z "$taskid" ]]; then
     return 0
@@ -668,9 +689,37 @@ write_or_check "${DONE_LEDGER}" "${done_tmp}" "done ledger"
 declare -A ROADMAP_TASK_COUNT ROADMAP_TASK_HORIZON ROADMAP_INBOX_COUNT ROADMAP_INBOX_HORIZON
 declare -a ROADMAP_TASK_IDS ROADMAP_INBOX_IDS
 
+validate_roadmap_milestone() {
+  local line="$1" horizon="$2"
+  local milestone_re='^###[[:space:]]+Milestone:[[:space:]]+.+[[:space:]]\((target|deadline):[[:space:]][0-9]{4}-[0-9]{2}-[0-9]{2}\)[[:space:]]*$'
+  local expected='### Milestone: <name> (target: YYYY-MM-DD) or ### Milestone: <name> (deadline: YYYY-MM-DD)'
+
+  if [[ -z "$horizon" || "$horizon" == "__invalid__" ]]; then
+    validate_or_warn "roadmap milestone heading appears outside an Urgent/Now/Next/Later/Someday horizon: '${line}'"
+  fi
+
+  if [[ ! "$line" =~ $milestone_re ]]; then
+    validate_or_warn "roadmap milestone heading has malformed syntax '${line}'; expected ${expected}"
+  fi
+}
+
 if [[ -f "${ROADMAP}" ]]; then
   horizon=""
+  in_fence=0
   while IFS= read -r line; do
+    fence_line="$(trim "$line")"
+    case "$fence_line" in
+      '```'*|'~~~'*)
+        if [[ "$in_fence" -eq 1 ]]; then
+          in_fence=0
+        else
+          in_fence=1
+        fi
+        continue
+        ;;
+    esac
+    [[ "$in_fence" -eq 0 ]] || continue
+
     case "$line" in
       "## Urgent"|"## Urgent "*) horizon="Urgent"; continue ;;
       "## Now"|"## Now "*) horizon="Now"; continue ;;
@@ -679,6 +728,11 @@ if [[ -f "${ROADMAP}" ]]; then
       "## Someday"|"## Someday "*) horizon="Someday"; continue ;;
       "## "*) horizon="__invalid__"; continue ;;
     esac
+
+    if [[ "$line" =~ ^###[[:space:]]+Milestone ]]; then
+      validate_roadmap_milestone "$line" "$horizon"
+      continue
+    fi
 
     if [[ "$horizon" == "__invalid__" ]]; then
       while IFS= read -r id; do

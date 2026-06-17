@@ -78,6 +78,14 @@ Notes:
   is explicit. Regenerated Antigravity wrappers and the `_base/README.md` skill table. Checks passed:
   `git diff --check`, `_base/scripts/check-skills-sync.sh`, `_base/scripts/gen-skills-table.sh --check`,
   `_base/scripts/gen-antigravity-skills.sh --check`, and `_base/scripts/check-antigravity-skills.sh`.
+  Committed as `docs: add dated roadmap milestone conventions` (`6472333`).
+- 2026-06-17T12:26:58+0300: Phase 2 updated `_base/scripts/sync-todo-ledgers.sh` to validate optional
+  task `Target date` / `Deadline` metadata, validate roadmap milestone headings, and ignore fenced
+  code blocks in roadmap scans. Checks passed: `bash -n _base/scripts/sync-todo-ledgers.sh`,
+  `_base/scripts/sync-todo-ledgers.sh --check`, `git diff --check`, and temporary fixture scenarios
+  covering seeded roadmaps with no live milestones, valid milestone horizon assignment, malformed
+  milestone dates, malformed task target dates, missing roadmap task IDs, duplicate roadmap task IDs,
+  and inbox IDs outside `Someday`.
 
 ## Final Review
 
