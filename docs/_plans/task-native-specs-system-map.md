@@ -66,9 +66,9 @@ Out of scope:
 
 ### Phase 2: New skills and generated skill surfaces
 
-- [ ] Add `task-spec-workflow` playbook and wrappers.
-- [ ] Add `map-system` playbook and wrappers.
-- [ ] Register skills and regenerate README/Antigravity surfaces.
+- [x] Add `task-spec-workflow` playbook and wrappers.
+- [x] Add `map-system` playbook and wrappers.
+- [x] Register skills and regenerate README/Antigravity surfaces.
 
 ### Phase 3: Meta docs, validation, and review
 
@@ -125,3 +125,24 @@ _base/scripts/check-template-update.sh - passed
 ```
 
 **Outcome:** Phase 1 complete.
+
+### 2026-06-18T12:14:32+0300 - Phase 2: New skills and generated skill surfaces
+
+**Actions taken:**
+- Added `task-spec-workflow` and `map-system` engineering playbooks.
+- Added Codex and Claude wrappers and registered both skills in `.claude-plugin/plugin.json`.
+- Regenerated `_base/README.md` skill table and `.agents/skills/` wrappers.
+
+**Decisions made:**
+- Kept both skills in the engineering bucket because they shape implementation and architecture work.
+- Kept `task-spec-workflow` task-manager-native and left heavyweight `spec-workflow` unchanged.
+
+**Test results:**
+```text
+_base/scripts/check-skills-sync.sh - passed
+_base/scripts/gen-skills-table.sh --check - passed
+_base/scripts/gen-antigravity-skills.sh --check - passed
+_base/scripts/check-antigravity-skills.sh - passed
+```
+
+**Outcome:** Phase 2 complete.
