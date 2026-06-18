@@ -16,6 +16,8 @@ Keep these locations distinct:
 - `docs/resources/CONTEXT.md` is the primary domain glossary.
 - Root `CONTEXT.md` is only a pointer or fallback for older repos.
 - Area architecture summaries live at `docs/resources/<area>/summary.md`.
+- The system map lives at `docs/resources/system-map.md` and indexes participant repos, capabilities,
+  critical flows, and cross-repo boundaries with lifecycle status.
 - Cross-repo dependency graphs live at `docs/resources/<area>/dependency-graph.md`.
 - Cross-repo feature contracts live at `docs/resources/<area>/contracts/<feature-slug>.md`.
 - Sanitized operational runbooks live at `docs/resources/<area>/runbooks/<scenario-slug>.md`; local
@@ -78,6 +80,8 @@ List the docs that can drift:
   external storage is configured
 - area summaries: `docs/resources/<area>/summary.md`, or
   `$CONTEXT_DOCS_DIR/resources/<area>/summary.md` when central docs storage is configured
+- system map: `docs/resources/system-map.md`, or `$CONTEXT_DOCS_DIR/resources/system-map.md` when a
+  central docs repo is the canonical home
 - dependency graphs: `docs/resources/<area>/dependency-graph.md`, or
   `$CONTEXT_DOCS_DIR/resources/<area>/dependency-graph.md` when central docs storage is configured
 - feature contracts: `docs/resources/<area>/contracts/*.md`, or
@@ -96,11 +100,12 @@ List the docs that can drift:
 - supporting resources under `docs/resources/`
 - task ledgers, active task files, done task files, execution logs, and completion harvests
 
-Record each context doc's explicit review date if it has one. For area docs, capture participant repos
-and source paths from area summaries, dependency graphs, and feature contracts. For component docs,
-also capture source paths from headers matching `Architectural context for <repo>:<source-path>`.
-When `.config/repos.project.md` exists, verify participant repo names against its slugs and keep source path
-references in `<repo-slug>:<repo-relative-path>` form.
+Record each context doc's explicit review date and lifecycle status if it has one. For area docs,
+capture participant repos and source paths from the system map, area summaries, dependency graphs, and
+feature contracts. For component docs, also capture source paths from headers matching
+`Architectural context for <repo>:<source-path>`. When `.config/repos.project.md` exists, verify
+participant repo names against its slugs and keep source path references in
+`<repo-slug>:<repo-relative-path>` form.
 
 ### 2. Discover the Changed Scope
 
@@ -113,6 +118,8 @@ Build a candidate change set from multiple signals:
 - Active and done task logs, especially completion harvest sections.
 - Participant repos and source paths recorded in area summaries, dependency graphs, and feature
   contracts.
+- Participant repos, capability areas, critical flows, cross-repo boundaries, and drift signals
+  recorded in `docs/resources/system-map.md`.
 - Source paths recorded in component context headers.
 
 Deduplicate the paths and separate code, docs, tasks, tests, generated ledgers, and deleted or moved
@@ -125,6 +132,7 @@ Map changed files to registered areas and known component docs before editing:
 
 - Use the area registry and existing `docs/resources/<area>/summary.md` files to identify area
   ownership.
+- Use `docs/resources/system-map.md` for top-level repo/capability orientation when present.
 - Use existing `docs/resources/<area>/dependency-graph.md` and
   `docs/resources/<area>/contracts/*.md` to identify cross-repo participants and boundaries.
 - Use existing `docs/resources/<area>/runbooks/*.md` only for stable operational procedures and safety
@@ -156,6 +164,8 @@ Edit a doc only when the evidence shows it is stale, incomplete, or pointing at 
 to the configured knowledge root:
 
 - Update `docs/resources/CONTEXT.md` for domain vocabulary, relationships, and resolved ambiguities.
+- Update `docs/resources/system-map.md` when participant repos, capability ownership, critical flows,
+  cross-repo boundaries, status, evidence links, or drift signals changed.
 - Update `docs/resources/<area>/summary.md` for durable area architecture, responsibilities,
   boundaries, and invariants.
 - Update `docs/resources/<area>/dependency-graph.md` for participant repos, package/import names,
@@ -172,8 +182,9 @@ to the configured knowledge root:
 - Leave generated `docs/areas/<area>.md` pages to the generator unless the user explicitly asks for a
   generator or ledger fix.
 
-Do not promote guesses into docs. If the code and task history imply an unresolved architecture
-question, add it to the final follow-up list rather than writing a false certainty.
+Do not promote guesses into docs. A `draft` or `accepted` spec is not current-state evidence. If the
+code and task history imply an unresolved architecture question, add it to the final follow-up list
+rather than writing a false certainty.
 
 ### 6. Report the Refresh
 
@@ -182,6 +193,7 @@ End with a concise report:
 - docs updated, with the evidence source for each
 - docs inspected but skipped because they were current
 - docs skipped because ownership or facts were uncertain
+- spec statuses changed or left unchanged, with evidence
 - follow-up inbox ideas for unresolved architecture questions
 - commands or checks run
 
@@ -199,6 +211,8 @@ Use the shared status vocabulary:
 - The refresh is docs-primary: durable docs under `docs/resources/` are the target, while
   `docs/areas/` remains generated task-status output.
 - Every changed sentence is backed by code, task history, or existing docs.
+- Planned specs (`draft`, `accepted`) are not reported as implemented behavior.
+- Implemented claims have evidence from code, tests, task history, or reviewed docs.
 - Root `CONTEXT.md` is not treated as the primary glossary when `docs/resources/CONTEXT.md` exists.
 - Component paths remain traceable through exact `Architectural context for <repo>:<source-path>`
   headers.

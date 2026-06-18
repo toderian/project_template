@@ -1,7 +1,7 @@
 # <Feature Name> - Feature Contract
 
 > Area: `<area>`
-> Status: draft | accepted | implemented | superseded
+> Status: draft | accepted | partially-implemented | implemented | superseded
 > Last reviewed: YYYY-MM-DD
 
 ## Intent

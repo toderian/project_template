@@ -23,9 +23,9 @@ When a central docs repo is configured through `CONTEXT_DOCS_DIR`, use
 `$CONTEXT_DOCS_DIR/resources/<area>/contracts/<feature-slug>.md` after confirming that the central docs
 repo is the canonical home for the area.
 
-The contract links to `summary.md`, `dependency-graph.md`, and relevant component contexts in the same
-area. It does not replace implementation tasks or PRDs; it defines the shared cross-repo boundary that
-those tasks must satisfy.
+The contract links to `summary.md`, `dependency-graph.md`, `docs/resources/system-map.md`, and
+relevant component contexts in the same area. It does not replace implementation tasks or PRDs; it
+defines the shared cross-repo boundary that those tasks must satisfy.
 
 ## Agent Guidance
 
@@ -43,6 +43,8 @@ When guiding the user, enforce these defaults:
   API/schema/env/Docker compatibility should grow tests or CI checks when the risk justifies it.
 - Link implementation tasks and PRs back to the contract, and run `/refresh-context` during closeout
   when code changes affect recorded boundaries.
+- Keep the contract `Status` honest: `accepted` is the target, `implemented` requires evidence, and
+  mixed rollout states should use `partially-implemented` until all required boundaries are verified.
 - Use repo slugs from `.config/repos.project.md` when that registry exists. If it is missing and the contract
   needs stable repo names, propose creating it from `_base/repos.project.example.md` first.
 - Record source paths as `<repo-slug>:<repo-relative-path>`, never as absolute local checkout paths
@@ -94,7 +96,7 @@ Use this structure:
 # <Feature Name> - Feature Contract
 
 > Area: `<area>`
-> Status: draft | accepted | implemented | superseded
+> Status: draft | accepted | partially-implemented | implemented | superseded
 > Last reviewed: YYYY-MM-DD
 
 ## Intent

@@ -50,6 +50,7 @@ docs/
 │   ├── _digests/         #   curated Markdown summaries of raw sources, segregated by area
 │   ├── _reports/         #   timestamped reports, audits, inventories, and migration proposals
 │   ├── CONTEXT.md        #   primary domain glossary
+│   ├── system-map.md     #   status-aware repo/capability/system index
 │   └── global/
 │       ├── summary.md    #   durable global-area architecture notes
 │       └── runbooks/     #   sanitized cross-cutting operational procedures
@@ -76,6 +77,7 @@ For local checkout paths, copy `_base/repos.map.example` to `.local/repos.map` a
 If `_base/docs/` is unavailable (e.g. a repo that vendored only part of the template), fall back to
 creating the dirs with `.gitkeep` and seeding `_areas.md`/`_active.md`/`_done.md`/`_roadmap.md`,
 `docs/_plans/`, `docs/areas/_overview.md`, `docs/resources/CONTEXT.md`,
+`docs/resources/system-map.md`,
 `docs/resources/_inbox/`, `docs/resources/_digests/`, `docs/resources/_reports/`,
 `docs/resources/global/summary.md`, `docs/resources/global/runbooks/`, root `workbooks/README.md`, and
 a root pointer by hand -
@@ -96,6 +98,7 @@ Report what was created. Remind the user that:
   `/prd-to-todos`, planning)
 - Durable implementation plans live in `docs/_plans/`
 - The primary domain glossary lives in `docs/resources/CONTEXT.md`; root `CONTEXT.md` is only a pointer
+- The status-aware repo/capability picture lives in `docs/resources/system-map.md`
 - Raw docs, notes, and exports can be dropped into `docs/resources/_inbox/`; `/distill-knowledge`
   writes curated Markdown digests under `docs/resources/_digests/` and promotes stable facts into the
   knowledge base
@@ -109,6 +112,8 @@ Report what was created. Remind the user that:
   scripts/support files and reuse declared in `README.md` `Depends on` paths
 - Durable area knowledge lives in `docs/resources/<area>/`; use `/define-area` to index real
   architecture before adding cross-repo feature contracts
+- Use `/map-system` to connect real repos, areas, critical flows, and cross-repo boundaries into
+  `docs/resources/system-map.md`
 - Cross-repo feature contracts live in `docs/resources/<area>/contracts/<feature-slug>.md`
 - Optional repo scope and autonomy ceilings live in committed `.config/repos.project.md`; local
   checkout paths live in ignored `.local/repos.map`

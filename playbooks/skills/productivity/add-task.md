@@ -73,9 +73,13 @@ Create one atomic task. Fill:
 - priority (`high`, `medium`, `low`)
 - optional `Repos` metadata when inferable from `.config/repos.project.md`
 - optional `Autonomy` metadata only when the task intentionally differs from the repo default/max
+- optional `Spec refs` metadata when the request comes from or depends on a task-local spec, PRD,
+  durable contract, system-map entry, area summary, dependency graph, or component context
 - optional `Target date` / `Deadline` metadata only when the user explicitly gives task-specific
   scheduling intent
 - 2-4 sentence brief
+- optional `### Specification` and `### Design` sections when acceptance criteria alone would lose
+  important planned intent
 - phases with checklists
 - acceptance criteria
 - related tests, or `N/A - <reason>`
@@ -138,6 +142,8 @@ review gate in `todo-convention.md`.
 - Optional `Repos` metadata uses slugs from `.config/repos.project.md`; repo slugs are not encoded into task IDs,
   filenames, prefixes, or areas.
 - Optional `Autonomy` metadata is one of `L0`-`L3` and does not exceed the resolved repo max.
+- Optional `Spec refs` points to task-local `self`, an existing durable spec, PRD, plan, or `N/A`;
+  never imply a planned spec is implemented.
 - Optional `Target date` / `Deadline` metadata is used only for explicit task-specific dates and uses
   `YYYY-MM-DD` or `N/A`.
 - New area rows are user-approved and include a page path.

@@ -12,9 +12,10 @@ Read and follow:
 
 Key rules:
 
-- Stage 1: verify spec compliance against acceptance criteria before anything else
+- Stage 1: verify spec compliance against resolved spec sources and acceptance criteria before anything else
 - Stage 2: review code quality only after spec compliance passes
 - Verify independently — do not trust the implementer's self-report
-- End with the structured report format (Status, Spec compliance, Quality issues, Summary)
+- Distinguish planned specs (`draft`, `accepted`) from implemented evidence (`partially-implemented`, `implemented`)
+- End with the structured report format (Status, Spec compliance, Spec sources checked, Quality issues, Summary)
 
 Keep this skill thin. The playbook is the shared workflow and should be updated first when the process changes.

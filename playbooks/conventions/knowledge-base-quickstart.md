@@ -12,6 +12,9 @@ authoritative.
   resolved ambiguities, and example dialogue.
 - The top-level `CONTEXT.md` is a pointer to `docs/resources/CONTEXT.md`. Treat an existing
   substantive root glossary as a legacy fallback and prefer moving future edits to `docs/resources/`.
+- `docs/resources/system-map.md` owns the status-aware system index: participant repos, capability
+  areas, critical flows, cross-repo boundaries, drift signals, and links to the detailed area docs. It
+  is an index, not a dumping ground for every architecture fact.
 - `docs/areas/<area>.md` remains the generated task-status page from `_base/scripts/sync-todo-ledgers.sh`.
   It may include a generated pointer to the durable area context, but agents should not add durable
   architecture notes there.
@@ -59,6 +62,23 @@ authoritative.
 - `CONTEXT_DOCS_DIR` is an external-storage escape hatch for describing a repo you should not write
   into. It is not the normal default for repos that use this template.
 
+## Spec status
+
+Durable specs must say whether they describe a plan or current system reality. Use this status set in
+`system-map.md`, feature contracts, and any durable spec-like doc:
+
+| Status | Meaning |
+|--------|---------|
+| `draft` | Proposed, not approved, and not implementation evidence. |
+| `accepted` | Approved target behavior, not proof that the system already works that way. |
+| `partially-implemented` | Some evidence exists; live and planned parts must be separated. |
+| `implemented` | Verified current behavior with evidence from code, tests, task history, or reviewed docs. |
+| `superseded` | Obsolete; link the replacement or explain why it no longer applies. |
+
+Agents may use `draft` and `accepted` specs as planning inputs. Agents may use `implemented` specs as
+current-state evidence only when the doc records evidence. `partially-implemented` specs require
+extra care: cite the implemented rows separately from the planned rows.
+
 ## Discovery Order
 
 When `CONTEXT_DOCS_DIR` is unset, a skill that needs project language or architecture context should
@@ -66,17 +86,18 @@ look in this order:
 
 1. `docs/resources/CONTEXT.md`
 2. Root `CONTEXT.md` if it points to the docs-primary glossary or if no docs-primary glossary exists
-3. `docs/resources/<area>/summary.md` for the relevant area
-4. `docs/resources/<area>/sources.md` for source provenance, teammate input history, and links to
+3. `docs/resources/system-map.md` for repo/capability orientation and status-aware cross-repo pointers
+4. `docs/resources/<area>/summary.md` for the relevant area
+5. `docs/resources/<area>/sources.md` for source provenance, teammate input history, and links to
    digests or attachments
-5. `docs/resources/<area>/dependency-graph.md` for repo/package relationships and install modes
-6. `docs/resources/<area>/contracts/*.md` for feature-specific cross-repo agreements
-7. `docs/resources/<area>/runbooks/*.md` for known operational setup/debugging procedures
-8. `docs/resources/global/runbooks/*.md` for cross-cutting operational procedures
-9. `docs/resources/<area>/attachments/*.md` or attachment index files for durable source-document metadata
-10. `docs/resources/<area>/components/*/CONTEXT.md` for known component boundaries
-11. `docs/resources/_digests/**/*.md` for source-backed summaries not yet promoted elsewhere
-12. Legacy component context files stored beside source only as fallback evidence
+6. `docs/resources/<area>/dependency-graph.md` for repo/package relationships and install modes
+7. `docs/resources/<area>/contracts/*.md` for feature-specific cross-repo agreements
+8. `docs/resources/<area>/runbooks/*.md` for known operational setup/debugging procedures
+9. `docs/resources/global/runbooks/*.md` for cross-cutting operational procedures
+10. `docs/resources/<area>/attachments/*.md` or attachment index files for durable source-document metadata
+11. `docs/resources/<area>/components/*/CONTEXT.md` for known component boundaries
+12. `docs/resources/_digests/**/*.md` for source-backed summaries not yet promoted elsewhere
+13. Legacy component context files stored beside source only as fallback evidence
 
 Before asking the user to repeat SSH, setup, debugging, service, or deployment-inspection details,
 search the relevant area runbooks and `docs/resources/global/runbooks/`. If a runbook exists, check
@@ -198,6 +219,10 @@ inside an existing registered area do not need a separate area-ownership questio
 
 Use `/define-area` when the area spans repos, packages, install modes, or runtime boundaries. Use
 `/cross-repo-feature` for one concrete feature contract inside an existing area.
+
+Use `/map-system` when the project needs a top-level repo/capability picture or when several area docs
+need to be connected. `system-map.md` should link to area docs and record statuses; it should not
+duplicate the details that belong in summaries, dependency graphs, contracts, or component contexts.
 
 For cross-repo work, agents should guide users toward narrow area boundaries, one canonical docs home,
 explicit version compatibility, first-class env/auth/Docker/runtime boundaries, and a verification

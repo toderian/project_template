@@ -1,5 +1,8 @@
 # Global - Area Summary
 
+> Status: draft
+> Last reviewed: N/A
+
 Durable architecture notes for default, cross-area, and uncategorized work.
 
 Use this file for global responsibilities, cross-cutting flows, key decisions, open questions, and

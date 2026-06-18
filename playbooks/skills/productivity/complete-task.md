@@ -34,6 +34,9 @@ clear.
 For `done`:
 
 - Check every acceptance criterion and phase item that must be complete.
+- Resolve `Spec refs` and task-local spec/design sections. If the task implemented, partially
+  implemented, superseded, or invalidated a durable spec, update that spec's status/evidence or record
+  a follow-up when the update is outside closeout scope.
 - Reconcile the task's phase/progress checkboxes with the actual completed work. Mark only items with
   evidence from code, docs, tests, commits, or execution logs.
 - Run the related tests listed in the task, unless the task says `N/A - <reason>`.
@@ -62,7 +65,7 @@ Complete every row under `## Completion harvest`:
 | Resource updates | docs/resources/... or None |
 | Area updates | docs/areas/... or None |
 | Follow-ups | I-NNN... or None |
-| Notable decisions/deviations | short note or None |
+| Notable decisions/deviations | short note or None, including spec status changes or skipped spec reconciliation |
 ```
 
 Use explicit `None` rows when there is nothing to harvest. If a follow-up is needed, capture it with
@@ -122,4 +125,5 @@ Return:
 - Terminal tasks never remain in `_todos/`.
 - Open or in-progress tasks never move to `_todos_archived/`.
 - Archived tasks have explicit completion harvest rows and a non-empty completion summary.
+- Linked durable specs are reconciled, or an explicit follow-up records why they were not updated.
 - Generated ledgers and area blocks are synced and pass `_base/scripts/sync-todo-ledgers.sh --check`.

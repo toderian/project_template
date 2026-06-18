@@ -55,7 +55,9 @@ _base/scripts/sync-todo-ledgers.sh --check
   Tasks may include optional `Autonomy` metadata (`L0`-`L3`) when they intentionally lower the repo
   ceiling or request a repo-allowed higher loop level. Tasks may include optional `Target date` and
   `Deadline` metadata (`YYYY-MM-DD` or `N/A`) only when the user explicitly provides task-specific
-  scheduling intent.
+  scheduling intent. Tasks may include optional `Spec refs` metadata plus `### Specification` and
+  `### Design` sections when executable work needs a task-local spec. Those sections are planned
+  intent until the task is completed and linked durable specs are reconciled.
 - **Roadmap** (`docs/tasks_manager/_roadmap.md`) owns placement and order only: Urgent, Now, Next,
   Later, Someday. It references task IDs in any horizon and may group them with dated milestone
   headings inside those horizons; raw inbox IDs may sit only in `Someday` as parking-lot signals until
@@ -69,6 +71,9 @@ _base/scripts/sync-todo-ledgers.sh --check
 - **Raw knowledge files** (`docs/resources/_inbox/`) are staging for uploads awaiting
   `/distill-knowledge`; related files from one source event may be grouped in an inbox batch folder,
   and non-Markdown files there stay ignored by default.
+- **System map** (`docs/resources/system-map.md`) is the status-aware index of participant repos,
+  capability areas, critical flows, and cross-repo boundaries. It links to area summaries, dependency
+  graphs, contracts, and component contexts instead of duplicating them.
 - **Area source history** (`docs/resources/<area>/sources.md`) records teammate inputs, call batches,
   uploaded documents, durable attachments, why each source was added, and links to digests, tasks, or
   canonical docs.
@@ -126,13 +131,17 @@ Present the classification, evidence, and recommendation before creating or chan
   It should stay fast: reserve an `I-NNN`, make a best-guess area, and avoid heavy research.
 - Use `/add-task` when the work is clear enough to commit directly to the backlog with type, area,
   priority, phases, acceptance criteria, and tests.
+- Use `/task-spec-workflow` when an existing task or clear idea needs a task-local Specification,
+  Design, acceptance criteria, tests, and spec references before implementation.
 - Use `/triage-inbox` when reviewing captured ideas. It performs discovery, then promotes, drops,
   defers, or appends details to existing work.
 - Use `/prd-to-todos` when a PRD or larger design needs to be split into independently executable
   tasks.
 - Use `/complete-task` when a task is done or intentionally cancelled. It verifies acceptance/tests,
-  fills completion harvest and summary, archives the task, syncs generated views, and runs strict
-  validation.
+  reconciles linked specs, fills completion harvest and summary, archives the task, syncs generated
+  views, and runs strict validation.
+- Use `/map-system` when the project needs a refreshed repo/capability system picture. It updates
+  `docs/resources/system-map.md` and points detailed area work to `/define-area`.
 - Use `/audit-todos` when reviewing active tasks for drift. It classifies active tasks with evidence
   from code, tests, docs, roadmap, ledgers, and resources, then recommends follow-up workflows without
   mutating files by default.

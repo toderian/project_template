@@ -62,6 +62,7 @@ Present the proposed tasks as a numbered list. For each:
   clear
 - **Autonomy**: optional `L0`-`L3` only when the PRD/user explicitly requests a loop level or the task
   should be stricter than the repo default/max
+- **Spec refs**: the PRD path/issue, `self`, or durable docs/contracts each task must satisfy
 - **Type**: `F` / `D` / `C` / `R`
 - **Priority**: high / medium / low
 - **Dates**: optional `Target date` / `Deadline` only when the PRD or user states task-specific dates;
@@ -92,10 +93,13 @@ For each approved item, reserve a file in `docs/tasks_manager/_todos/` named
   `Area` (a slug from `docs/tasks_manager/_areas.md`, defining a new row with the user if needed),
   optional `Repos` when inferable from `.config/repos.project.md`,
   optional `Autonomy` only when the task intentionally differs from the repo default/max,
+  optional `Spec refs` pointing to the PRD and any durable contracts/docs the slice must satisfy,
   optional `Target date` / `Deadline` only when the PRD or user explicitly gives task-specific dates,
   `Source: prd-to-todos`, `Source ref` pointing to the PRD, `Priority`, and `Blocked by` (referencing
   other task IDs or filenames if dependent)
 - Short human-readable title and 2-4 sentence brief
+- Optional `### Specification` / `### Design` sections when the PRD slice needs task-local planned
+  intent beyond acceptance criteria
 - Optional `### Repo scope` section for cross-repo tasks when repo responsibilities need explanation
 - Phases with per-phase checklists
 - Acceptance criteria
@@ -128,6 +132,8 @@ user that starting any existing task requires the pre-implementation review gate
 - Optional `Repos` metadata uses slugs from `.config/repos.project.md`; repo slugs are not encoded into task IDs,
   filenames, prefixes, or areas.
 - Optional `Autonomy` metadata is one of `L0`-`L3` and does not exceed the resolved repo max.
+- Optional `Spec refs` preserves PRD, contract, or durable-doc relationships and does not imply that a
+  planned spec is already implemented.
 - Optional `Target date` / `Deadline` metadata is used only for explicit task-specific dates and uses
   `YYYY-MM-DD` or `N/A`.
 - Ledgers and area pages are synced and pass `_base/scripts/sync-todo-ledgers.sh --check`.

@@ -40,6 +40,7 @@ Read the task or plan file before editing. Extract:
 
 - phase list and phase boundaries
 - phase-level and whole-plan acceptance criteria
+- task-local `### Specification` / `### Design` sections and any `Spec refs` metadata
 - required checks, including related tests and any explicit e2e requirements
 - expected files, components, and user-facing behavior
 - where progress should be recorded
@@ -53,6 +54,20 @@ If phases, acceptance criteria, or checks are missing, normalize the plan before
 normalization changes scope or creates new product decisions, ask the user to approve the normalized
 plan. If it only clarifies obvious execution mechanics, record the clarification in the execution log
 and proceed.
+
+For task files, resolve spec sources before treating the task as executable:
+
+1. Task-local `### Specification` and `### Design`.
+2. `Spec refs` metadata, including `self`, PRDs, plans, `docs/resources/system-map.md`, area summaries,
+   dependency graphs, component contexts, and feature contracts.
+3. Acceptance criteria and related tests.
+4. Relevant durable docs found during current-state review.
+5. Current user instructions.
+
+Record each source and lifecycle status in the execution log. `draft` and `accepted` specs are planned
+intent. `implemented` specs are current-state evidence only when backed by code, tests, task history,
+or reviewed docs. `partially-implemented` specs must be split into live behavior and remaining target
+behavior. `superseded` specs must point to a replacement or be ignored with the uncertainty recorded.
 
 ### 2. Resolve repo branch policy and autonomy
 
@@ -138,6 +153,7 @@ Acceptance criteria:
 - The plan fits the existing architecture and local patterns.
 - Phase boundaries are independently committable and do not hide cross-phase dependencies.
 - Test strategy is sufficient for the stated acceptance criteria.
+- Resolved specs are classified as planned intent vs implemented evidence before code edits.
 - Risks, migrations, rollout concerns, and compatibility constraints are identified.
 Scope fence: read-only; do not edit files.
 Context files: <plan/task file>, affected source files, relevant tests, component docs if present.
@@ -231,6 +247,9 @@ Implementation review brief:
 Task description: Review the completed execution of this approved plan.
 Acceptance criteria:
 - All plan/task acceptance criteria are satisfied.
+- The implementation satisfies every accepted/planned spec source resolved for this task.
+- Current-state claims rely only on implemented or evidence-backed partially-implemented specs, code,
+  tests, or task history.
 - Required checks pass and are meaningful for the changed behavior.
 - Phase commits are scoped and do not include unrelated cleanup.
 - No blocking regressions, security issues, or maintainability problems remain.
@@ -242,6 +261,7 @@ Report:
 ## Spec compliance: PASS | FAIL
 ## Blocking findings:
 ## Non-blocking concerns:
+## Spec sources checked:
 ## Checks reviewed:
 ## Summary:
 ```

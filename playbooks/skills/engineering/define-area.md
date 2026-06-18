@@ -31,6 +31,9 @@ When guiding the user, enforce these defaults:
   which version combinations must remain compatible.
 - Add drift signals that tell future agents when to run `/refresh-context`, such as API schema files,
   env/config definitions, package manifests, Dockerfiles, generated SDK outputs, and contract docs.
+- When an area changes the top-level repo/capability picture, update or recommend updating
+  `docs/resources/system-map.md`. The system map should link to this area's docs and record status; it
+  should not duplicate detailed area facts.
 
 ## Source of Truth
 
@@ -48,6 +51,10 @@ docs/resources/<area>/
 
 `docs/areas/<area>.md` remains the generated task-status page. It is useful work-status evidence, not
 the durable architecture home.
+
+`docs/resources/system-map.md` is the top-level index across areas and repos. Use it to point future
+agents at this area and to distinguish `draft`, `accepted`, `partially-implemented`, `implemented`,
+and `superseded` system-level claims.
 
 When a central docs repo is configured through `CONTEXT_DOCS_DIR`, prefer
 `$CONTEXT_DOCS_DIR/resources/<area>/` as the canonical home for cross-repo area docs after confirming
@@ -102,6 +109,7 @@ Create or update `summary.md` with concise, evidence-backed sections:
 # <Area Name> - Area Summary
 
 > Durable cross-repo context for `<area>`.
+> Status: draft | accepted | partially-implemented | implemented | superseded
 > Last reviewed: YYYY-MM-DD.
 
 ## Responsibility
@@ -137,6 +145,7 @@ agents to follow the area:
 # <Area Name> - Dependency Graph
 
 > Durable dependency map for `<area>`.
+> Status: draft | accepted | partially-implemented | implemented | superseded
 > Last reviewed: YYYY-MM-DD.
 
 ## Repo graph
@@ -168,13 +177,21 @@ the generated `docs/areas/<area>.md` page.
 Task-area registration is useful but not required for read-only architecture indexing. The durable
 area docs remain under `docs/resources/<area>/`.
 
-### 6. Report
+### 6. Update System Map When Needed
+
+If the area adds or changes participant repos, critical flows, cross-repo boundaries, or capability
+ownership, update `docs/resources/system-map.md` or report that `/map-system` should run next. Keep the
+system map as an index with statuses and evidence links. Do not copy full dependency graphs or contract
+details into it.
+
+### 7. Report
 
 End with:
 
 - canonical area docs home
 - repos inspected and repos included
 - files written or refreshed
+- system-map updates made or recommended
 - uncertain ownership or dependency facts
 - suggested next `/cross-repo-feature` contracts, if any
 - commands/checks run

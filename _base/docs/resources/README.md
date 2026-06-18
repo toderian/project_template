@@ -1,9 +1,14 @@
 # Resources
 
-Durable project documentation lives here: the primary domain glossary (`CONTEXT.md`), area summaries
-and dependency graphs under `<area>/`, feature contracts under `<area>/contracts/`, component contexts
-under `<area>/components/<component-slug>/CONTEXT.md`, decisions, runbooks, research notes, and other
-material that explains how the system works.
+Durable project documentation lives here: the primary domain glossary (`CONTEXT.md`), the top-level
+system map (`system-map.md`), area summaries and dependency graphs under `<area>/`, feature contracts
+under `<area>/contracts/`, component contexts under `<area>/components/<component-slug>/CONTEXT.md`,
+decisions, runbooks, research notes, and other material that explains how the system works.
+
+Use `system-map.md` as a status-aware index of participant repos, capability areas, critical flows,
+cross-repo boundaries, and drift signals. Keep detailed architecture facts in the linked area docs.
+Durable specs should distinguish planned intent from implemented behavior with one of these statuses:
+`draft`, `accepted`, `partially-implemented`, `implemented`, or `superseded`.
 
 Repeated operational procedures belong in `docs/resources/<area>/runbooks/<scenario-slug>.md`; use
 `global` for cross-cutting workflows. Committed runbooks are sanitized and use placeholders such as

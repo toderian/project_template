@@ -221,10 +221,46 @@ Validate local checkout mappings too with:
 _base/scripts/check-repos-config.sh --local
 ```
 
+## Spec lifecycle
+
+Specs can describe either planned intent or implemented system behavior. Agents must distinguish those
+states before using a spec as evidence.
+
+Use these statuses for durable specs under `docs/resources/`, including `system-map.md`, area
+summaries when they describe explicit contracts, dependency graphs, component contexts, and feature
+contracts:
+
+| Status | Meaning |
+|--------|---------|
+| `draft` | Proposal or rough design. Do not treat it as approved or implemented. |
+| `accepted` | Approved target behavior. Use it as implementation intent, not current-state evidence. |
+| `partially-implemented` | Some evidence exists. Separate the live behavior from the remaining planned work. |
+| `implemented` | Verified current behavior, backed by code, tests, task history, or other evidence. |
+| `superseded` | Obsolete. Link the replacement or state why it no longer applies. |
+
+Task-local `### Specification` and `### Design` sections are planned intent until the task is completed
+and its linked durable specs are reconciled. A completed task proves only its acceptance criteria and
+recorded changes; it does not automatically make every linked durable spec `implemented`.
+
+Before implementation, agents must resolve spec sources in this order and record the result in the
+execution log:
+
+1. Task-local `### Specification` and `### Design` when present.
+2. Optional `Spec refs` metadata, including `self`, PRDs, plans, `docs/resources/system-map.md`, area
+   summaries, dependency graphs, component contexts, and feature contracts.
+3. Task acceptance criteria and related tests.
+4. Relevant durable docs discovered during the current-state review.
+5. User-provided context from the current request.
+
+For each resolved spec source, record whether it is planned intent (`draft` or `accepted`) or
+current-state evidence (`implemented` or evidence-backed `partially-implemented`). If a source is
+`superseded`, follow the replacement if one is named; otherwise ignore it and record the uncertainty.
+
 ## File format
 
 Every task starts with a metadata table, then a short title, a brief, phases, acceptance criteria,
-related tests, follow-ups, execution log, completion harvest, and completion summary.
+related tests, follow-ups, execution log, completion harvest, and completion summary. Tasks may also
+include optional spec metadata and task-local spec/design sections.
 
 ````markdown
 | Field         | Value                              |
@@ -239,6 +275,7 @@ related tests, follow-ups, execution log, completion harvest, and completion sum
 | Priority      | high                               |
 | Owner         | N/A                                |
 | Blocked by    | N/A                                |
+| Spec refs     | self, docs/resources/auth/contracts/session-validation.md |
 | Source        | add-task                           |
 | Source ref    | N/A                                |
 
@@ -278,6 +315,26 @@ When the user explicitly gives task-specific scheduling intent, add optional dat
 Use `Target date` for soft planning dates and `Deadline` for hard external commitments. Values must be
 `YYYY-MM-DD` or `N/A`. Omit both rows for normal undated tasks; roadmap milestones are the preferred
 place for goal-level dates.
+
+When the task has a local spec or depends on durable specs, add an optional row near `Blocked by`:
+
+```md
+| Spec refs | self, docs/resources/auth/contracts/session-validation.md |
+```
+
+Use `self` when the task contains `### Specification` or `### Design`. Use `N/A` only when explicitly
+helpful for a task created from a spec-like source that does not need a durable reference.
+
+### Specification
+
+Planned behavior for this task: problem, desired behavior, non-goals, constraints, and open questions.
+This section is optional for routine tasks, but use it when acceptance criteria alone would lose
+important intent.
+
+### Design
+
+Planned implementation shape: approach, affected components, data/API/interface changes, test
+strategy, and rollout/reversibility notes. This section is optional and should stay concise.
 
 ### Phases
 
@@ -374,6 +431,7 @@ was captured for session expiry telemetry.
 | Deadline | Optional hard task-specific commitment date as `YYYY-MM-DD` or `N/A`; omit unless explicitly provided |
 | Owner | Agent/user working the task, or `N/A` |
 | Blocked by | Task ID or filename this depends on, or `N/A` |
+| Spec refs | Optional comma-separated references to task-local or durable specs; `self` means this task's `### Specification` or `### Design` sections |
 | Source | Skill or process that created the task, for example `add-task`, `inbox`, `prd-to-todos`, `manual` |
 | Source ref | Origin reference, for example `I-007`, issue number, file path, or `N/A` |
 
@@ -381,6 +439,10 @@ was captured for session expiry telemetry.
 
 - **Title:** the first `##` after metadata is the short human-readable title.
 - **Brief:** 2-4 sentences explaining the user outcome and relevant constraints.
+- **Specification:** optional planned behavior section for tasks whose intent is richer than acceptance
+  criteria alone.
+- **Design:** optional planned implementation section for tasks that need a shared approach before code
+  edits.
 - **Phases:** one or more logical, committable phases with checklists.
 - **Acceptance criteria:** verifiable criteria for marking the whole task done.
 - **Related tests:** list known tests, or write `N/A - <reason>` when tests do not apply.
@@ -402,7 +464,11 @@ depends on current external facts.
 1. **Researcher current-state review** - inspect relevant code, docs, tests, ledgers, and area pages.
    Record what already exists, likely conflicts, and current test coverage. Search externally only when
    the task depends on third-party/current facts that the repo cannot answer.
-2. **Plan-critic freshness/applicability review** - challenge whether the task is still valid, sequenced
+2. **Spec-resolution review** - resolve the task-local spec/design, `Spec refs`, acceptance criteria,
+   related tests, and relevant durable docs. Record each source and lifecycle status. Treat `draft` and
+   `accepted` as planned intent, not live behavior; treat `implemented` as current-state evidence only
+   when backed by code, tests, task history, or reviewed docs.
+3. **Plan-critic freshness/applicability review** - challenge whether the task is still valid, sequenced
    correctly, duplicated, stale, or overlapping later work. Use only the relevant axes from
    `playbooks/conventions/plan-critique.md` for small tasks; run the full rubric for larger or riskier
    work.
@@ -430,12 +496,13 @@ Creation steps:
    only for global/cross-area/default work.
 4. Pick a type (`F`, `D`, `C`, or `R`) and priority (`high`, `medium`, or `low`).
 5. Fill the reserved file in `docs/tasks_manager/_todos/` named `<PREFIX>-NNN-<TYPE>_<desc>.md`.
-6. Fill the full template: brief, phases, acceptance criteria, related tests, follow-ups, execution log,
-   completion harvest, and completion summary placeholders. Add a `Repos` metadata row when repo scope
-   is inferable from `.config/repos.project.md`; omit it when it is not. Add an `Autonomy` row only
-   when the task intentionally differs from the repo default/max. Add `Target date` or `Deadline` only
-   when the user explicitly provides task-specific scheduling intent; do not ask for fake dates during
-   ordinary task creation.
+6. Fill the full template: brief, optional specification/design when useful, phases, acceptance
+   criteria, related tests, follow-ups, execution log, completion harvest, and completion summary
+   placeholders. Add a `Repos` metadata row when repo scope is inferable from
+   `.config/repos.project.md`; omit it when it is not. Add an `Autonomy` row only when the task
+   intentionally differs from the repo default/max. Add `Spec refs` when the task comes from or depends
+   on task-local or durable specs. Add `Target date` or `Deadline` only when the user explicitly
+   provides task-specific scheduling intent; do not ask for fake dates during ordinary task creation.
 7. Set `Source` and `Source ref`.
 8. Run `_base/scripts/sync-todo-ledgers.sh`.
 9. Run `_base/scripts/check-repos-config.sh` to validate optional task `Repos` / `Autonomy` metadata.
@@ -506,17 +573,20 @@ in_progress -> cancelled -> archive
 Prefer `/complete-task` for this workflow. Before changing a task to `done` or `cancelled`:
 
 1. Verify acceptance criteria and related tests.
-2. Append a final execution log entry.
-3. Complete the harvest table:
+2. Reconcile linked specs. If the task implements, partially implements, supersedes, or invalidates a
+   referenced durable spec, update that spec's status/evidence or record an explicit follow-up when the
+   update is outside the closeout scope.
+3. Append a final execution log entry.
+4. Complete the harvest table:
    - Resource updates in `docs/resources/`, or `None`
    - Area updates in `docs/areas/`, or `None`
    - Follow-ups, usually `I-NNN` inbox items, or `None`
    - Notable decisions/deviations, or `None`
-4. Write the completion summary.
-5. Change `Status`.
-6. Move the file to `docs/tasks_manager/_todos_archived/`.
-7. Run `_base/scripts/sync-todo-ledgers.sh`.
-8. Run `_base/scripts/sync-todo-ledgers.sh --check`.
+5. Write the completion summary.
+6. Change `Status`.
+7. Move the file to `docs/tasks_manager/_todos_archived/`.
+8. Run `_base/scripts/sync-todo-ledgers.sh`.
+9. Run `_base/scripts/sync-todo-ledgers.sh --check`.
 
 Claude hooks may block or remind when a terminal task is missing a completion harvest or remains in the
 active `_todos/` directory. Codex has no hooks, so Codex agents must run the same validation manually.
