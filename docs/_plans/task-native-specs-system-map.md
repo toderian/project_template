@@ -72,9 +72,9 @@ Out of scope:
 
 ### Phase 3: Meta docs, validation, and review
 
-- [ ] Update changelog and research snapshot.
-- [ ] Run required validation checks.
-- [ ] Review the implementation against this plan.
+- [x] Update changelog and research snapshot.
+- [x] Run required validation checks.
+- [x] Review the implementation against this plan.
 
 ## Acceptance Criteria
 
@@ -146,3 +146,28 @@ _base/scripts/check-antigravity-skills.sh - passed
 ```
 
 **Outcome:** Phase 2 complete.
+
+### 2026-06-18T12:17:51+0300 - Phase 3: Meta docs, validation, and review
+
+**Actions taken:**
+- Updated `_base/CHANGELOG.md`, `_base/README.md`, `_base/SETUP_INSTRUCTIONS.md`,
+  `playbooks/meta/UPDATE_PLAN.md`, and `playbooks/meta/RESEARCH_SNAPSHOT.md`.
+- Re-ran the template validation suite.
+- Verified docs seeding and sample `Spec refs` task compatibility in temporary worktrees.
+
+**Decisions made:**
+- Bumped `BASE_VERSION` to `2026.06.18.0`.
+- Documented downstream impact as additive behavior tightening with incremental adoption.
+
+**Test results:**
+```text
+_base/scripts/check-skills-sync.sh - passed
+_base/scripts/gen-skills-table.sh --check - passed
+_base/scripts/gen-antigravity-skills.sh --check - passed
+_base/scripts/check-antigravity-skills.sh - passed
+_base/scripts/check-template-update.sh - passed
+temporary seed check - passed
+temporary sample Spec refs task check - passed
+```
+
+**Outcome:** Phase 3 complete.

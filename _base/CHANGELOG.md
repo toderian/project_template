@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.06.17.2
+BASE_VERSION: 2026.06.18.0
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,30 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Add task-native specs and status-aware system mapping
+
+The template now distinguishes planned specs from implemented system reality and gives agents
+task-manager-native workflows for using specs before implementation.
+
+- Tasks may include optional `Spec refs` metadata plus task-local `Specification` and `Design`
+  sections.
+- Durable specs use lifecycle statuses: `draft`, `accepted`, `partially-implemented`, `implemented`,
+  and `superseded`.
+- `execute-plan`, reviewer guidance, and task closeout now resolve spec sources and lifecycle status
+  before implementation/review/archival.
+- New seeded `docs/resources/system-map.md` provides a top-level repo/capability/flow/boundary index.
+- New `task-spec-workflow` skill normalizes a task or clear idea into a task-local implementation
+  spec before code edits.
+- New `map-system` skill creates or refreshes `docs/resources/system-map.md` from repo registry,
+  local checkout map, area docs, contracts, component contexts, and task evidence.
+- `define-area`, `refresh-context`, `cross-repo-feature`, task-system docs, setup docs, and README
+  examples now route system-map/spec lifecycle work consistently.
+
+**Downstream impact:** additive behavior tightening. Existing tasks and docs remain valid; projects can
+adopt `Spec refs`, task-local spec/design sections, and `docs/resources/system-map.md` incrementally.
+After merging, run `/init` or `_base/scripts/seed-docs.sh` to seed `system-map.md` in projects that use
+the docs/task system, and rerun setup/install scripts to refresh the new skills.
 
 ### Require human-runnable artifacts for reusable workflows
 

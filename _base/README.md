@@ -126,12 +126,14 @@ The task system's golden path is:
 Task files own status and detail, the roadmap owns placement plus optional dated milestone headings,
 and ledgers/area pages are generated. Individual task `Target date` / `Deadline` rows are optional and
 should be used only for explicit task-specific scheduling intent.
-The primary knowledge base lives in `docs/resources/CONTEXT.md`, `docs/resources/<area>/summary.md`,
-`docs/resources/<area>/sources.md`, `docs/resources/<area>/dependency-graph.md`,
-`docs/resources/<area>/contracts/<feature-slug>.md`,
+The primary knowledge base lives in `docs/resources/CONTEXT.md`, `docs/resources/system-map.md`,
+`docs/resources/<area>/summary.md`, `docs/resources/<area>/sources.md`,
+`docs/resources/<area>/dependency-graph.md`, `docs/resources/<area>/contracts/<feature-slug>.md`,
 `docs/resources/<area>/runbooks/<scenario-slug>.md`, and
 `docs/resources/<area>/components/<component-slug>/CONTEXT.md`; root `CONTEXT.md` is a
-pointer/fallback.
+pointer/fallback. Durable specs use lifecycle statuses (`draft`, `accepted`,
+`partially-implemented`, `implemented`, `superseded`) so agents can distinguish planned intent from
+current system evidence.
 Projects that span multiple repos can opt into a committed `.config/repos.project.md` registry, created from
 `_base/repos.project.example.md`, plus a gitignored `.local/repos.map` checkout map, created from
 `_base/repos.map.example`. Repo slugs from `.config/repos.project.md` are the stable names for task `Repos`
@@ -764,6 +766,26 @@ Stop when the reviewer passes, or escalate to me after 3 iterations.
 ```
 
 The skill creates `specs/<slug>/` at the project root and populates it with four artifacts (`spec.md`, `design.md`, `tasks.md`, `review.md`). Phase 2 dispatches implementer subagents per task (parallel on Claude Code via the `Task` tool; sequential on Codex via `/implementer`); Phase 3 runs a single reviewer pass (two-stage: spec compliance + code quality) and appends to `review.md`. On a failed review, fix tasks are appended to `tasks.md` and the loop runs again. Full mechanics in [`playbooks/skills/engineering/spec-workflow.md`](../playbooks/skills/engineering/spec-workflow.md).
+
+### Example 6: task-native specs and system mapping
+
+Use [`task-spec-workflow`](../playbooks/skills/engineering/task-spec-workflow.md) when an ordinary task
+needs a task-local spec before implementation, and use
+[`map-system`](../playbooks/skills/engineering/map-system.md) when the project needs a top-level
+repo/capability picture.
+
+```text
+Use /task-spec-workflow on T-004.
+Resolve Spec refs and add task-local Specification, Design, acceptance criteria, and tests.
+Stop before implementation.
+
+Use /map-system for the runtime-platform repos.
+Refresh docs/resources/system-map.md and link detailed area docs.
+```
+
+Task-local specs are planned intent until closeout. Durable specs and system-map rows must carry
+status, and only `implemented` or evidence-backed `partially-implemented` specs may be treated as
+current system behavior.
 
 ## Update workflow
 

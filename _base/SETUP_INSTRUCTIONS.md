@@ -188,7 +188,7 @@ _base/scripts/sync-todo-ledgers.sh
 
 This creates the inbox, flat task directory, area registry with the reserved `T` prefix, global roadmap,
 generated area overview, `docs/_plans/`, `docs/resources/CONTEXT.md`,
-`docs/resources/_inbox/`, area-segregated `docs/resources/_digests/`,
+`docs/resources/system-map.md`, `docs/resources/_inbox/`, area-segregated `docs/resources/_digests/`,
 `docs/resources/global/summary.md`, `docs/resources/global/runbooks/README.md`, `docs/archive/`,
 root `workbooks/README.md` as the workbook index, and a root `CONTEXT.md` pointer if one does not
 already exist. Re-running is safe because `_base/scripts/seed-docs.sh` never overwrites
@@ -196,9 +196,9 @@ downstream-owned task files, area pages, docs, or workbooks.
 
 **Check:** `docs/tasks_manager/_areas.md`, `docs/tasks_manager/_roadmap.md`,
 `docs/areas/_overview.md`, `docs/resources/global/summary.md`, `docs/_plans/`,
-`docs/resources/README.md`, `docs/resources/CONTEXT.md`, `docs/resources/_inbox/README.md`,
-`docs/resources/_digests/README.md`, `docs/resources/global/runbooks/README.md`,
-`docs/archive/README.md`, and `workbooks/README.md` exist, and
+`docs/resources/README.md`, `docs/resources/CONTEXT.md`, `docs/resources/system-map.md`,
+`docs/resources/_inbox/README.md`, `docs/resources/_digests/README.md`,
+`docs/resources/global/runbooks/README.md`, `docs/archive/README.md`, and `workbooks/README.md` exist, and
 `_base/scripts/sync-todo-ledgers.sh` exits 0.
 
 ### 2f — `tools/python/` Python tooling environment (optional)

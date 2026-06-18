@@ -2,7 +2,7 @@
 
 Current research snapshot for this template.
 
-Reviewed on: 2026-06-17.
+Reviewed on: 2026-06-18.
 
 ## What changed this iteration
 
@@ -16,6 +16,10 @@ The current template now leans harder into:
 - an explicit branch/commit policy based on maintainer operating preference: default branch for
   downstream template-maintenance repos, explicit task branches for working/product repos, and
   coherent checkpoint commits
+- task-native spec resolution, with explicit lifecycle status so agents distinguish planned intent
+  from implemented system evidence
+- a top-level system map that indexes repos, capabilities, flows, and cross-repo boundaries without
+  duplicating detailed area docs
 - a raw knowledge ingestion lane based on maintainer operating preference: raw source drops stay in a
   staging inbox, while distilled Markdown digests are segregated by area before stable facts are
   promoted into canonical knowledge-base docs
@@ -122,10 +126,27 @@ Template impact:
   large/generated/reproducible outputs to `artifacts/README.md`
 - strengthened workbook README/script expectations while leaving tiny throwaway inspections inline
 
+### 10. Specs need lifecycle status before agents can safely use them
+
+Recent harness guidance reinforces that specs, sprint contracts, and evaluator criteria help agents
+stay on target, but only when the agent knows whether a document is a target or evidence of current
+behavior. Durable context guidance also supports keeping orientation docs discoverable and concise
+rather than reloading everything into each task. The template now uses task-local specs for executable
+planned intent and status-aware resource docs for system reality.
+
+Template impact:
+
+- added optional task `Spec refs`, `Specification`, and `Design`
+- added durable spec statuses: `draft`, `accepted`, `partially-implemented`, `implemented`,
+  `superseded`
+- added `docs/resources/system-map.md` as a status-aware index
+- added `task-spec-workflow` and `map-system`
+
 ## Sources reviewed
 
 | Date | Source | Why it mattered | Repo consequence |
 | --- | --- | --- | --- |
+| 2026-06-18 | [Anthropic, "Harness design for long-running application development"](https://www.anthropic.com/engineering/harness-design-long-running-apps), [Effective harnesses for long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents), [Effective context engineering for AI agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents), [Equipping agents for the real world with Agent Skills](https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills), [OpenAI Agent Skills - Codex](https://developers.openai.com/codex/skills), and [OpenAI practical guide to building agents](https://openai.com/business/guides-and-resources/a-practical-guide-to-building-ai-agents/) | Rechecked primary guidance on structured specs/contracts, evaluator criteria, context routing, and reusable skills before changing agent doctrine | Added task-native spec resolution, lifecycle statuses for durable specs, a seeded system map, and two shared skills for task specs and system mapping |
 | 2025-10-16 | [Equipping agents for the real world with Agent Skills](https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills) | Shows reusable agent capabilities as organized folders of instructions, scripts, and resources; emphasizes progressive disclosure and scripts as deterministic repeatable tools | Strengthened the workbook convention and base rule so substantial agent-created procedures become documented, runnable repo artifacts |
 | 2026-06-17 | [Addy Osmani, "Loop Engineering"](https://addyosmani.com/blog/loop-engineering/) and current Codex manual subagent/custom-agent docs fetched through `openai-docs` | The template needed to absorb loop-engineering terminology without weakening branch, push, PR, or connector boundaries | Added a loop-engineering digest and autonomy-level convention; L1 remains default, L2/L3 require explicit opt-in |
 | 2026-05-26 | Maintainer knowledge-base operating preference for this template | The project needs a place to drop raw docs/files and a structured distillation path into durable knowledge | Added `docs/resources/_inbox/`, area-segregated `_digests/`, and `/distill-knowledge` |

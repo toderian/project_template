@@ -2,7 +2,7 @@
 
 Repeatable research and template-refresh plan for this repository.
 
-Last executed: 2026-06-17.
+Last executed: 2026-06-18.
 
 ## Purpose
 
@@ -181,7 +181,7 @@ Every completed run should leave behind:
 
 ## Current baseline recommendation
 
-As of 2026-06-17, the template should continue to optimize for:
+As of 2026-06-18, the template should continue to optimize for:
 
 - simple, composable workflows first
 - explicit manager-builder-tester-critic-reviewer passes
@@ -192,6 +192,16 @@ As of 2026-06-17, the template should continue to optimize for:
   discover and rerun
 
 ## Recent executions
+
+### 2026-06-18
+
+Doctrine refresh for task-native specs and status-aware system mapping.
+
+- Promoted the rule that agents must resolve spec sources and lifecycle status before implementation.
+- Added task-local spec/design guidance, optional `Spec refs`, and durable spec statuses.
+- Added a seeded system-map index and two workflows: `task-spec-workflow` and `map-system`.
+- Updated `_base/AGENTS.md`, task/knowledge conventions, execute/review/closeout workflows,
+  `_base/README.md`, `_base/CHANGELOG.md`, and `playbooks/meta/RESEARCH_SNAPSHOT.md`.
 
 ### 2026-06-17
 
