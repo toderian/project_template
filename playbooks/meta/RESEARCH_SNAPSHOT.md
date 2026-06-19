@@ -146,12 +146,12 @@ Template impact:
 
 ### 11. Prompt orchestration should start as a workbook, not a framework default
 
-The downstream evidence points to task-led, workbook-heavy long-running work where the first reliability
-need is resumable orientation: task state, current phase, related workbook commands, artifact/credential
-checks, verification, critique, and checkpointing. The best default is therefore a small read-only
-planning helper plus conventions for prompts, schemas, evals, and traces. LangGraph-style graph
-execution remains the right optional upgrade when state transitions, checkpoint/resume, retries,
-human interrupts, branching, or parallel lanes become real requirements.
+Maintainer downstream operating preference points to task-led, workbook-heavy long-running work where
+the first reliability need is resumable orientation: task state, current phase, related workbook
+commands, artifact/credential checks, verification, critique, and checkpointing. The best default is
+therefore a small read-only planning helper plus conventions for prompts, schemas, evals, and traces.
+LangGraph-style graph execution remains the right optional upgrade when state transitions,
+checkpoint/resume, retries, human interrupts, branching, or parallel lanes become real requirements.
 
 Template impact:
 
@@ -165,7 +165,7 @@ Template impact:
 
 | Date | Source | Why it mattered | Repo consequence |
 | --- | --- | --- | --- |
-| 2026-06-19 | Sanitized downstream RedMesh-style task/workbook synthesis from template-maintenance review, plus existing prompt-orchestration source synthesis | The template needed a practical downstream answer for long tasks without turning every seeded repo into a LangChain/LangGraph app | Added a vendor-neutral prompt orchestration convention and seeded long-task workbook with sanitized synthetic samples |
+| 2026-06-19 | Maintainer operating preference for downstream task/workbook orchestration | The template needed a practical downstream answer for long tasks without turning every seeded repo into a LangChain/LangGraph app | Added a vendor-neutral prompt orchestration convention and seeded long-task workbook with sanitized synthetic samples |
 | 2026-06-18 | [Anthropic, "Harness design for long-running application development"](https://www.anthropic.com/engineering/harness-design-long-running-apps), [Effective harnesses for long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents), [Effective context engineering for AI agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents), [Equipping agents for the real world with Agent Skills](https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills), [OpenAI Agent Skills - Codex](https://developers.openai.com/codex/skills), and [OpenAI practical guide to building agents](https://openai.com/business/guides-and-resources/a-practical-guide-to-building-ai-agents/) | Rechecked primary guidance on structured specs/contracts, evaluator criteria, context routing, and reusable skills before changing agent doctrine | Added task-native spec resolution, lifecycle statuses for durable specs, a seeded system map, and two shared skills for task specs and system mapping |
 | 2025-10-16 | [Equipping agents for the real world with Agent Skills](https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills) | Shows reusable agent capabilities as organized folders of instructions, scripts, and resources; emphasizes progressive disclosure and scripts as deterministic repeatable tools | Strengthened the workbook convention and base rule so substantial agent-created procedures become documented, runnable repo artifacts |
 | 2026-06-17 | [Addy Osmani, "Loop Engineering"](https://addyosmani.com/blog/loop-engineering/) and current Codex manual subagent/custom-agent docs fetched through `openai-docs` | The template needed to absorb loop-engineering terminology without weakening branch, push, PR, or connector boundaries | Added a loop-engineering digest and autonomy-level convention; L1 remains default, L2/L3 require explicit opt-in |
