@@ -31,6 +31,10 @@ it is intentionally shared with another workbook. Workbook-local files may inclu
 - `configs/` for checked-in safe default or sample configuration
 - `samples/` or `examples/` for safe sample inputs and small fixtures
 - `data/`, `assets/`, or `templates/` when the workflow needs committed inputs
+- `prompts/` for committed prompt templates or prompt notes
+- `schemas/` for input, output, trace, or state contracts
+- `evals/` for evaluation fixtures, graders, rubrics, or expected judgments
+- `traces/README.md` for trace location, retention, redaction, and replay guidance
 - `outputs/` for documented example outputs or a README describing generated outputs
 - `support/` for workbook-local helper code or reusable support files
 
@@ -48,6 +52,10 @@ workbooks/<workbook-slug>/
 │   └── <verb>-<object>.<ext>
 ├── configs/              # optional; safe sample/default config only
 ├── samples/              # optional; safe sample inputs or tiny fixtures
+├── prompts/              # optional; committed prompt templates or prompt notes
+├── schemas/              # optional; input/output/state contracts
+├── evals/                # optional; eval fixtures, graders, rubrics, expected judgments
+├── traces/README.md      # optional; trace location, retention, redaction guidance
 ├── outputs/              # optional; documented example output or generated-output notes
 └── support/              # optional; workbook-local helper modules/assets
 ```
@@ -78,6 +86,10 @@ Use `None` when the workbook is self-contained.
 - `scripts/<entrypoint>` - what it runs.
 - `configs/<file>` - what settings it controls, when present.
 - `samples/<file>` - what safe input it demonstrates, when present.
+- `prompts/<file>` - what prompt or prompt family it records, when present.
+- `schemas/<file>` - what contract it validates, when present.
+- `evals/<file>` - what behavior or regression it checks, when present.
+- `traces/README.md` - where traces live, what is redacted, and how replay works, when present.
 - `outputs/` - what the workflow writes or where generated outputs should be stored, when present.
 
 ## How to run/use
@@ -108,6 +120,27 @@ Workbook scripts should be useful to a human without replaying the original agen
   dependency setup inside untracked virtual environments or ad hoc `pip install` steps.
 - Capture the methodology and validation approach in the workbook `README.md`, not only in code
   comments.
+
+## Prompt Orchestration Workbooks
+
+Prompt orchestration workbooks are workbook bundles for long-running or repeatable agent workflows.
+They may include prompts, schemas, eval fixtures, trace documentation, and small planning scripts, but
+they should still follow the same safety and reproducibility rules as any other workbook.
+
+Use a prompt orchestration workbook when the workflow benefits from a durable package around:
+
+- task intake and current-state review
+- prompt-chain or evaluator-loop steps
+- related workbook commands
+- schemas for structured outputs or state transitions
+- eval fixtures, rubrics, or expected judgments
+- trace retention, replay, and redaction guidance
+- checkpoint and handoff notes for future sessions
+
+Keep the first version vendor-neutral when possible. Add LangChain, LangGraph, provider SDKs, or other
+runtime dependencies only in downstream projects that need durable graph state, checkpoint/resume,
+branching, retries, human interrupts, or parallel lanes. See
+`playbooks/conventions/prompt-orchestration.md`.
 
 ## Relationship to Resources
 

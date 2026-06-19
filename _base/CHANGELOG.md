@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.06.18.0
+BASE_VERSION: 2026.06.19.0
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,30 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Add prompt orchestration workbook for downstream long tasks
+
+The template now documents prompt orchestration as a small, task/workbook-backed harness before any
+downstream project reaches for a graph runtime.
+
+- New `playbooks/conventions/prompt-orchestration.md` defines the decision tree for plain prompt
+  scripts, prompt chains, evaluator loops, LangGraph-style workflow graphs, and subagents.
+- The convention maps task prefix families such as `F`, `D`, `C`, `R`, area prefixes like `RMM`,
+  `EGM`, `RM`, `EG`, and global `T` into routing hints for long-task planning.
+- New seeded `_base/workbooks/prompt-orchestration-long-task/` includes a standard-library
+  `scripts/plan_next_slice.py` helper, sanitized synthetic RedMesh-style samples, and sample output.
+- Workbook conventions now allow optional `prompts/`, `schemas/`, `evals/`, and `traces/README.md`
+  folders when a workflow needs prompt/state/eval/trace artifacts.
+- Loop recipes now include an L0 read-only long-task planning loop and an L1 workbook-backed execution
+  loop.
+- LangGraph/LangChain are documented as optional downstream adoption paths for durable branching,
+  checkpoint/resume, retries, human interrupts, and parallel lanes; no default dependency is added.
+
+**Downstream impact:** additive convention and seed workbook. Existing task files and workbooks remain
+valid. Projects with long-running, workbook-heavy tasks can copy or seed
+`workbooks/prompt-orchestration-long-task/` and run its read-only helper before implementation slices.
+Projects should add LangGraph or LangChain only in their own tooling environment when a real graph
+runtime is needed.
 
 ### Add task-native specs and status-aware system mapping
 

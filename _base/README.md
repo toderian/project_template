@@ -158,7 +158,11 @@ sanitized runbooks under `docs/resources/<area>/runbooks/`; real placeholder val
 `.local/runbooks/` binding files.
 Reusable workbook bundles live under root `workbooks/`, one folder per workbook, with workbook-local
 scripts, data, assets, templates, examples, outputs, support files, and dependencies declared in the
-workbook `README.md`.
+workbook `README.md`. Prompt orchestration workbooks are a supported subtype for long-running or
+repeatable agent workflows; they may include committed prompt templates, schemas, eval fixtures, trace
+documentation, and helper scripts. The base template seeds a vendor-neutral
+`prompt-orchestration-long-task/` workbook for planning the next slice from task and workbook state
+without adding LangChain or LangGraph as default dependencies.
 Agents should not leave substantial, repeatable, expensive, or human-reusable workflows only as inline
 shell or Python snippets in a transcript. Turn those workflows into human-runnable artifacts in the
 right lane: workbook bundles for reusable script/support-file sets, runbooks for stable operational
@@ -176,6 +180,7 @@ See [`playbooks/conventions/task-system-quickstart.md`](../playbooks/conventions
 [`playbooks/conventions/adr-convention.md`](../playbooks/conventions/adr-convention.md),
 [`playbooks/conventions/autonomy-levels.md`](../playbooks/conventions/autonomy-levels.md), and
 [`playbooks/conventions/agent-loop-recipes.md`](../playbooks/conventions/agent-loop-recipes.md), and
+[`playbooks/conventions/prompt-orchestration.md`](../playbooks/conventions/prompt-orchestration.md), and
 [`playbooks/conventions/connectors-and-mcp.md`](../playbooks/conventions/connectors-and-mcp.md)
 for the full command map and source-of-truth split.
 
