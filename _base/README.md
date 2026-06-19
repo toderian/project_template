@@ -172,17 +172,17 @@ trains or evaluates a model, the data-prep, training, evaluation, and cleanup co
 `workbooks/<training-slug>/scripts/*.py` or equivalent entrypoints with a README that documents the
 methodology, inputs, outputs, dependencies, and cleanup, while model checkpoints or datasets are
 registered in `artifacts/README.md` when they meet the artifact-registry threshold.
-See [`playbooks/conventions/task-system-quickstart.md`](../playbooks/conventions/task-system-quickstart.md),
-[`playbooks/conventions/knowledge-base-quickstart.md`](../playbooks/conventions/knowledge-base-quickstart.md),
-[`playbooks/conventions/generated-artifacts.md`](../playbooks/conventions/generated-artifacts.md),
-[`playbooks/conventions/runbook-convention.md`](../playbooks/conventions/runbook-convention.md),
-[`playbooks/conventions/workbook-convention.md`](../playbooks/conventions/workbook-convention.md), and
-[`playbooks/conventions/adr-convention.md`](../playbooks/conventions/adr-convention.md),
-[`playbooks/conventions/autonomy-levels.md`](../playbooks/conventions/autonomy-levels.md), and
-[`playbooks/conventions/agent-loop-recipes.md`](../playbooks/conventions/agent-loop-recipes.md), and
-[`playbooks/conventions/prompt-orchestration.md`](../playbooks/conventions/prompt-orchestration.md), and
-[`playbooks/conventions/connectors-and-mcp.md`](../playbooks/conventions/connectors-and-mcp.md)
-for the full command map and source-of-truth split.
+See the full command map and source-of-truth split in
+[`task-system-quickstart.md`](../playbooks/conventions/task-system-quickstart.md),
+[`knowledge-base-quickstart.md`](../playbooks/conventions/knowledge-base-quickstart.md),
+[`generated-artifacts.md`](../playbooks/conventions/generated-artifacts.md),
+[`runbook-convention.md`](../playbooks/conventions/runbook-convention.md),
+[`workbook-convention.md`](../playbooks/conventions/workbook-convention.md),
+[`adr-convention.md`](../playbooks/conventions/adr-convention.md),
+[`autonomy-levels.md`](../playbooks/conventions/autonomy-levels.md),
+[`agent-loop-recipes.md`](../playbooks/conventions/agent-loop-recipes.md),
+[`prompt-orchestration.md`](../playbooks/conventions/prompt-orchestration.md), and
+[`connectors-and-mcp.md`](../playbooks/conventions/connectors-and-mcp.md).
 
 Use `/audit-todos` periodically to compare active tasks with current code, tests, docs, roadmap,
 ledgers, area pages, and resources. It is report-only by default and delegates any closeout, follow-up
