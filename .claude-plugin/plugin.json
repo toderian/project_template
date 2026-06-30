@@ -35,6 +35,7 @@
     "./skills/misc/reviewer",
     "./skills/misc/scaffold-exercises",
     "./skills/misc/triage-issue",
+    "./skills/misc/ui-design-review",
     "./skills/personal/edit-article",
     "./skills/personal/obsidian-vault",
     "./skills/personal/sciwrite",
