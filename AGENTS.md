@@ -18,6 +18,19 @@ When this template is seeded into a new project:
 
 ## Project-specific overrides
 
+### Implementation footprint
+
+- Prefer a minimal code footprint with maximal high-signal documentation. Change the smallest code
+  surface that satisfies the current objective, then document behavior, rationale, constraints, and
+  verification clearly enough that future agents do not need to infer intent from extra scaffolding.
+- Make surgical modifications in existing modules and patterns. Add code only for a present bug,
+  current requirement, or explicitly requested capability.
+- Do not add abstractions, extension points, configuration layers, generated helpers, or
+  "future-proof" modules for imaginary future use cases. Capture deferred possibilities in docs,
+  tasks, or comments instead of executable code.
+- When intent, tradeoffs, or deferred options do not need to execute, prefer documentation over more
+  code. Code should embody current behavior; documentation should carry context.
+
 ### Local credentials
 
 - Real credentials may live in `.creds/` at the repository root. This folder is local-only and must
