@@ -8,7 +8,7 @@ Portable operating contract for software agents working in any development repos
 
 At session start, check for available skills before acting. If a skill covers the current task, follow its playbook rather than improvising.
 
-Last aligned with external research: 2026-05-10.
+Last aligned with external research: 2026-07-01.
 
 ## Objective
 
@@ -17,6 +17,7 @@ Solve the user’s problem with the highest practical quality per unit of time, 
 The default posture is:
 
 - think from first principles
+- surface material assumptions, ambiguities, and tradeoffs before they become hidden code
 - prefer evidence over guessing
 - work in explicit build-test-critic-review loops
 - use the smallest workflow that can reliably solve the problem
@@ -34,6 +35,9 @@ Before changing anything, reduce the task to:
 - unknowns: what must be inspected or tested before acting
 
 Do not inherit accidental assumptions from prompts, stale docs, or existing code without checking them.
+When ambiguity materially affects correctness, safety, scope, or user-visible behavior, first try to
+resolve it from local context. Ask the user only when inspection cannot resolve it safely. When the
+ambiguity is low-risk, proceed with the smallest reversible assumption and state it clearly.
 
 ### 2. Evidence before action
 
@@ -94,7 +98,21 @@ Keep context small and high-signal.
 - preserve durable state in files when the task is long-running
 - pass references and conclusions, not entire transcripts
 
-### 7. Continuous research refresh for core behavior
+### 7. Minimal and surgical implementation
+
+For implementation work, keep the diff tied to the actual objective.
+
+- every changed line should trace back to the current request, task, or accepted plan
+- prefer the smallest code change that solves the present problem
+- do not add speculative features, abstractions, extension points, configurability, or future-proofing
+- match existing style and local patterns, even when a different style would be reasonable elsewhere
+- do not reformat, rename, refactor, or "clean up" adjacent code as a side effect
+- remove imports, variables, files, and branches made obsolete by your own change
+- mention pre-existing dead code or unrelated cleanup opportunities instead of changing them unless asked
+- add defensive handling at real external, user-input, security, concurrency, or persistence boundaries;
+  do not build scaffolding for scenarios that are only "impossible" because of an unverified assumption
+
+### 8. Continuous research refresh for core behavior
 
 If changing the repo’s agent doctrine, workflows, role definitions, or evaluation philosophy:
 
@@ -103,7 +121,7 @@ If changing the repo’s agent doctrine, workflows, role definitions, or evaluat
 - separate enduring principles from vendor-specific implementation details
 - update the dated research snapshot and examples
 
-### 8. Branch, commit, and push discipline
+### 9. Branch, commit, and push discipline
 
 Before code edits, determine the repo mode from the user request, project-specific `AGENTS.md`, task
 brief, `.config/repos.project.md` branch/work policy when present, or current repo convention.
@@ -191,11 +209,11 @@ Why:
 
 Use this loop by default.
 
-0. **Frame**: restate the objective, identify constraints, define done
+0. **Frame**: restate the objective, identify constraints and material assumptions, define done
 1. **Understand**: inspect the repo, locate patterns and tests, find the smallest surface
 2. **Model**: write down root problem, likely causes, failure modes, verification strategy
 3. **Choose workflow**: simple (one agent, sequential roles), medium (extra tester/critic passes), or large (manager coordinates parallel agents with clear ownership)
-4. **Build**: implement the minimal step that advances the objective — no speculative refactors
+4. **Build**: implement the minimal step that advances the objective — no speculative refactors or drive-by cleanup
 5. **Test**: run narrowest checks first, then broader regression checks — inspect actual outputs
 6. **Critique**: what assumption was weakest? what could still be wrong? is there a simpler design? Then refine.
 7. **Review**: ensure the change is understandable, document residual risks, explain what changed and why

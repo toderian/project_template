@@ -96,11 +96,12 @@ The template encodes a few strong defaults:
 
 1. Start from first principles.
 2. Inspect the real repo before acting.
-3. Make the smallest useful change.
-4. Test it.
-5. Critique it.
-6. Review it.
-7. Repeat until the result is strong enough to ship.
+3. Surface material assumptions and ambiguity.
+4. Make the smallest useful, surgical change.
+5. Test it.
+6. Critique it.
+7. Review it.
+8. Repeat until the result is strong enough to ship.
 
 Autonomy is deliberately bounded. The default level is **L1 local development**: local edits, checks,
 iteration, and local commits inside an approved workflow. Higher levels are opt-in ceilings layered on

@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.06.19.0
+BASE_VERSION: 2026.07.01.0
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,26 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Tighten base coding discipline
+
+The base operating contract now makes assumption management and surgical implementation discipline
+explicit.
+
+- Agents should surface material assumptions, ambiguities, and tradeoffs before they become hidden
+  code.
+- Ambiguity should be resolved from local context first; agents ask only when correctness, safety,
+  scope, or user-visible behavior would otherwise be at risk.
+- Implementation diffs should stay tied to the current request, task, or accepted plan.
+- Agents should avoid speculative features, abstractions, configurability, future-proofing, and
+  drive-by cleanup.
+- Agents should clean up code made obsolete by their own change while reporting unrelated cleanup
+  opportunities instead of taking them silently.
+- `_base/README.md` and the research/update meta files now record this doctrine refresh.
+
+**Downstream impact:** behavior tightening only. Downstream projects pulling this update get clearer
+base guidance for minimal, assumption-aware coding work. Existing project-specific `AGENTS.md`
+overrides remain valid and can still loosen or specialize this behavior where appropriate.
 
 ### Add prompt orchestration workbook for downstream long tasks
 

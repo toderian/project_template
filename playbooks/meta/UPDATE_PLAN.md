@@ -2,7 +2,7 @@
 
 Repeatable research and template-refresh plan for this repository.
 
-Last executed: 2026-06-18.
+Last executed: 2026-07-01.
 
 ## Purpose
 
@@ -192,6 +192,19 @@ As of 2026-06-18, the template should continue to optimize for:
   discover and rerun
 
 ## Recent executions
+
+### 2026-07-01
+
+Doctrine refresh for minimal, assumption-aware coding behavior.
+
+- Reviewed the community `multica-ai/andrej-karpathy-skills` guidance and direct local fit through
+  parallel subagent research.
+- Adapted the portable parts into project-owned base doctrine instead of copying the upstream
+  `CLAUDE.md` or adding a person-branded always-on skill.
+- Promoted sharper rules for surfacing material assumptions, asking only when inspection cannot
+  resolve ambiguity safely, keeping diffs surgical, avoiding speculative flexibility, and cleaning up
+  only code made obsolete by the current change.
+- Updated `_base/AGENTS.md`, `_base/README.md`, and `playbooks/meta/RESEARCH_SNAPSHOT.md`.
 
 ### 2026-06-18
 
