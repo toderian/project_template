@@ -8,9 +8,10 @@
 #   3. Fix one or a batch.
 #   4. Re-run. Watch the findings shrink. Stop when clean.
 #
-# Active skills are enumerated in `.claude-plugin/plugin.json`. Anything on
-# disk that isn't in the manifest is flagged as orphan; anything in the
-# manifest that isn't on disk is flagged as missing.
+# The selectable skill library lives in `.agents/skill-library.json`.
+# The active subset lives in `.agents/skills.enabled.json` and is materialized
+# into `.claude-plugin/plugin.json` plus runtime wrapper trees by
+# `_base/scripts/sync-skill-selection.py`.
 #
 # Exits 0 if no BLOCKER or DRIFT findings (STYLE alone does not fail).
 
@@ -54,15 +55,16 @@ esac
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 MANIFEST="$REPO_ROOT/.claude-plugin/plugin.json"
+LIBRARY="$REPO_ROOT/.agents/skill-library.json"
+SELECTION="$REPO_ROOT/.agents/skills.enabled.json"
 PLAYBOOKS_DIR="$REPO_ROOT/playbooks/skills"
 CODEX_SKILLS_DIR="$REPO_ROOT/skills"
 CLAUDE_SKILLS_DIR="$REPO_ROOT/.claude/skills"
 README="$REPO_ROOT/_base/README.md"
 GEN_SCRIPT="$REPO_ROOT/_base/scripts/gen-skills-table.sh"
+SELECTION_SCRIPT="$REPO_ROOT/_base/scripts/sync-skill-selection.py"
 
-# Names that have wrappers in skills/ and .claude/skills/ but no playbook.
-# These are agent definitions; their canonical role file lives in .claude/agents/.
-AGENT_ONLY_NAMES=("implementer" "reviewer")
+AGENT_ONLY_NAMES=()
 
 # Personalities live only in playbooks/personalities/ and must NOT be exposed
 # as skill wrappers (they are role cards, not slash commands).
@@ -126,11 +128,19 @@ quoted_triggers() {
 }
 
 # ----------------------------------------------------------------------------
-# Read the manifest
+# Read the active manifest and selectable library
 # ----------------------------------------------------------------------------
 
 if [[ ! -f "$MANIFEST" ]]; then
   printf 'error: manifest not found at %s\n' "$MANIFEST" >&2
+  exit 2
+fi
+if [[ ! -f "$LIBRARY" ]]; then
+  printf 'error: skill library not found at %s\n' "$LIBRARY" >&2
+  exit 2
+fi
+if [[ ! -f "$SELECTION" ]]; then
+  printf 'error: skill selection not found at %s\n' "$SELECTION" >&2
   exit 2
 fi
 
@@ -151,12 +161,58 @@ PY
 
 mapfile -t MANIFEST_NAMES < <(printf '%s\n' "${!NAME_TO_BUCKET[@]}" | sort)
 
+declare -A LIBRARY_NAME_TO_BUCKET
+while IFS=$'\t' read -r name bucket kind; do
+  LIBRARY_NAME_TO_BUCKET["$name"]="$bucket"
+  if [[ "$kind" == "agent-role" ]]; then
+    AGENT_ONLY_NAMES+=("$name")
+  fi
+done < <(python3 - "$LIBRARY" <<'PY'
+import json, sys
+with open(sys.argv[1]) as f:
+    data = json.load(f)
+for name, skill in sorted(data["skills"].items()):
+    print(f"{name}\t{skill['bucket']}\t{skill.get('kind', 'skill')}")
+PY
+)
+
+mapfile -t LIBRARY_NAMES < <(printf '%s\n' "${!LIBRARY_NAME_TO_BUCKET[@]}" | sort)
+
+if [[ -x "$SELECTION_SCRIPT" ]]; then
+  if "$SELECTION_SCRIPT" --check >/dev/null 2>&1; then
+    :
+  else
+    status=$?
+    if [[ "$status" -eq 1 ]]; then
+      emit DRIFT skill-selection-out-of-sync \
+        "_base/scripts/sync-skill-selection.py" \
+        "generated manifest/wrappers drifted from .agents/skills.enabled.json — run sync-skill-selection.py --sync"
+    else
+      emit BLOCKER skill-selection-check-failed \
+        "_base/scripts/sync-skill-selection.py" \
+        "selection check exited non-zero"
+    fi
+  fi
+else
+  emit BLOCKER missing-skill-selection-script \
+    "_base/scripts/sync-skill-selection.py" \
+    "required to validate active skill selection"
+fi
+
 # ----------------------------------------------------------------------------
-# Check 1: every manifest entry has both wrappers (and a playbook unless agent-only)
+# Check 1: every active manifest entry has both wrappers and belongs to the library
 # ----------------------------------------------------------------------------
 
 for name in "${MANIFEST_NAMES[@]}"; do
   bucket="${NAME_TO_BUCKET[$name]}"
+
+  if [[ -z "${LIBRARY_NAME_TO_BUCKET[$name]+x}" ]]; then
+    emit BLOCKER active-skill-not-in-library ".claude-plugin/plugin.json" \
+      "$name is active but missing from .agents/skill-library.json"
+  elif [[ "${LIBRARY_NAME_TO_BUCKET[$name]}" != "$bucket" ]]; then
+    emit BLOCKER active-skill-bucket-mismatch ".claude-plugin/plugin.json" \
+      "$name is active in $bucket but library places it in ${LIBRARY_NAME_TO_BUCKET[$name]}"
+  fi
 
   codex_wrapper="$CODEX_SKILLS_DIR/$bucket/$name/SKILL.md"
   claude_wrapper="$CLAUDE_SKILLS_DIR/$bucket/$name/SKILL.md"
@@ -180,8 +236,20 @@ for name in "${MANIFEST_NAMES[@]}"; do
   fi
 done
 
+for name in "${LIBRARY_NAMES[@]}"; do
+  bucket="${LIBRARY_NAME_TO_BUCKET[$name]}"
+  if in_array "$name" "${AGENT_ONLY_NAMES[@]}"; then
+    continue
+  fi
+  if [[ ! -f "$PLAYBOOKS_DIR/$bucket/$name.md" ]] && [[ ! -d "$PLAYBOOKS_DIR/$bucket/$name" ]]; then
+    emit BLOCKER missing-library-playbook \
+      "playbooks/skills/$bucket/$name.md" \
+      "library entry has no playbook"
+  fi
+done
+
 # ----------------------------------------------------------------------------
-# Check 2: nothing on filesystem outside the manifest, and buckets are known
+# Check 2: wrapper trees match the active subset; playbooks match the library
 # ----------------------------------------------------------------------------
 
 # Top-level under each skill tree must be a known bucket.
@@ -201,7 +269,9 @@ check_top_level "$CODEX_SKILLS_DIR"  "skills"
 check_top_level "$CLAUDE_SKILLS_DIR" ".claude/skills"
 check_top_level "$PLAYBOOKS_DIR"     "playbooks/skills"
 
-# Wrapper dirs (skills/<bucket>/<name>/, .claude/skills/<bucket>/<name>/)
+# Runtime wrapper dirs (skills/<bucket>/<name>/, .claude/skills/<bucket>/<name>/)
+# must be active. Inactive skills remain available through playbooks plus the
+# skill library, not through runtime wrapper directories.
 scan_wrapper_dirs() {
   local dir="$1" label="$2"
   [[ -d "$dir" ]] || return 0
@@ -215,22 +285,23 @@ scan_wrapper_dirs() {
       emit BLOCKER bucket-mismatch "$label/$bucket/$name/" \
         "manifest places it in ${NAME_TO_BUCKET[$name]}"
     fi
-  done < <(find "$dir" -mindepth 2 -maxdepth 2 -type d 2>/dev/null)
+done < <(find "$dir" -mindepth 2 -maxdepth 2 -type d 2>/dev/null)
 }
 
 scan_wrapper_dirs "$CODEX_SKILLS_DIR"  "skills"
 scan_wrapper_dirs "$CLAUDE_SKILLS_DIR" ".claude/skills"
 
 # Playbook files at the bucket level (playbooks/skills/<bucket>/<name>.md)
+# must be library entries, whether active or inactive.
 while IFS= read -r f; do
   [[ -z "$f" ]] && continue
   bucket="$(basename "$(dirname "$f")")"
   name="$(basename "$f" .md)"
-  if [[ -z "${NAME_TO_BUCKET[$name]+x}" ]]; then
-    emit BLOCKER orphan-on-disk "playbooks/skills/$bucket/$name.md" "not listed in manifest"
-  elif [[ "${NAME_TO_BUCKET[$name]}" != "$bucket" ]]; then
+  if [[ -z "${LIBRARY_NAME_TO_BUCKET[$name]+x}" ]]; then
+    emit BLOCKER orphan-playbook "playbooks/skills/$bucket/$name.md" "not listed in skill library"
+  elif [[ "${LIBRARY_NAME_TO_BUCKET[$name]}" != "$bucket" ]]; then
     emit BLOCKER bucket-mismatch "playbooks/skills/$bucket/$name.md" \
-      "manifest places it in ${NAME_TO_BUCKET[$name]}"
+      "library places it in ${LIBRARY_NAME_TO_BUCKET[$name]}"
   fi
 done < <(find "$PLAYBOOKS_DIR" -mindepth 2 -maxdepth 2 -type f -name '*.md' 2>/dev/null)
 
@@ -410,16 +481,16 @@ if (( total == 0 )); then
   for b in "${BUCKETS[@]}"; do
     bucket_summary+="$b=${BUCKET_COUNTS[$b]:-0} "
   done
-  printf 'OK  manifest has %d skills (%s)\n' \
-    "${#MANIFEST_NAMES[@]}" "${bucket_summary% }"
-  printf 'Metadata summary: manifest skills=%d, codex description chars=%d, claude description chars=%d\n' \
+  printf 'OK  manifest has %d active skills (%s); library has %d skills\n' \
+    "${#MANIFEST_NAMES[@]}" "${bucket_summary% }" "${#LIBRARY_NAMES[@]}"
+  printf 'Metadata summary: active skills=%d, codex description chars=%d, claude description chars=%d\n' \
     "${#MANIFEST_NAMES[@]}" "$codex_description_chars" "$claude_description_chars"
   exit 0
 fi
 
 printf '%d findings  (%d BLOCKER, %d DRIFT, %d STYLE)\n' \
   "$total" "$blocker_count" "$drift_count" "$style_count"
-printf 'Metadata summary: manifest skills=%d, codex description chars=%d, claude description chars=%d\n' \
+printf 'Metadata summary: active skills=%d, codex description chars=%d, claude description chars=%d\n' \
   "${#MANIFEST_NAMES[@]}" "$codex_description_chars" "$claude_description_chars"
 
 if (( blocker_count + drift_count > 0 )); then

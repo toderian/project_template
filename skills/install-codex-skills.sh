@@ -155,8 +155,12 @@ installed=0
 refreshed=0
 skipped=0
 missing=0
+pruned=0
+
+declare -A ACTIVE_NAMES
 
 while IFS=$'\t' read -r name bucket; do
+  ACTIVE_NAMES["$name"]=1
   skill_dir="${SOURCE_SKILLS_DIR}/${bucket}/${name}"
   target_path="${TARGET_SKILLS_DIR}/${name}"
 
@@ -201,8 +205,29 @@ for p in data["skills"]:
 PY
 )
 
+source_resolved="$(resolve_path "${SOURCE_SKILLS_DIR}")"
+while IFS= read -r -d '' entry; do
+  name="$(basename "${entry}")"
+  if [[ "${name}" == ".system" ]]; then
+    continue
+  fi
+  if [[ ! -L "${entry}" ]]; then
+    continue
+  fi
+  resolved="$(resolve_path "${entry}")"
+  if ! path_is_under "${resolved}" "${source_resolved}"; then
+    continue
+  fi
+  if [[ -n "${ACTIVE_NAMES[$name]+x}" ]]; then
+    continue
+  fi
+  rm "${entry}"
+  echo "Pruned inactive ${name} -> ${resolved}"
+  pruned=$((pruned+1))
+done < <(find "${TARGET_SKILLS_DIR}" -mindepth 1 -maxdepth 1 -print0 2>/dev/null)
+
 echo
-echo "Installed ${installed}, refreshed ${refreshed}, skipped ${skipped}, missing ${missing}."
+echo "Installed ${installed}, refreshed ${refreshed}, skipped ${skipped}, pruned ${pruned}, missing ${missing}."
 echo "Restart Codex to pick up newly installed skills."
 
 if (( missing > 0 )); then

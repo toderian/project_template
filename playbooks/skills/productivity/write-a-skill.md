@@ -16,16 +16,24 @@ This playbook combines the dual-tool layout convention used by this template wit
 
 ## Skill Structure
 
-Every skill has three parts: a shared playbook and two thin wrappers. Skills are grouped into buckets (`engineering`, `productivity`, `misc`, `personal`) and enumerated in `.claude-plugin/plugin.json`.
+Every user-facing skill has a shared playbook, library metadata, and generated runtime wrappers. Skills
+are grouped into buckets (`engineering`, `productivity`, `misc`, `personal`) and selectable packs in
+`.agents/skill-library.json`.
 
 ```
 playbooks/skills/<bucket>/<name>.md             # Shared workflow logic (authoritative)
-skills/<bucket>/<name>/SKILL.md                 # Codex wrapper (thin)
-.claude/skills/<bucket>/<name>/SKILL.md         # Claude Code wrapper (thin)
-.claude-plugin/plugin.json                      # active-skill manifest (single source of truth)
+.agents/skill-library.json                      # Selectable skill metadata and packs
+.agents/skills.enabled.json                     # Active profile/packs for this repo
+skills/<bucket>/<name>/SKILL.md                 # Generated Codex wrapper (thin, active only)
+.claude/skills/<bucket>/<name>/SKILL.md         # Generated Claude Code wrapper (thin, active only)
+.agents/skills/<bucket>/<name>/SKILL.md         # Generated Antigravity wrapper (experimental)
+.claude-plugin/plugin.json                      # Generated active-skill manifest
 ```
 
-The active set is enumerated in `.claude-plugin/plugin.json` (one `./skills/<bucket>/<name>` entry per skill). The sync and install scripts read that manifest — skills on disk but not in the manifest are treated as inactive. **The playbook is the single source of truth.** Wrappers just point to it. When changing a workflow, update the playbook first.
+The selectable library is enumerated in `.agents/skill-library.json`. The active set is selected in
+`.agents/skills.enabled.json` and materialized by `_base/scripts/sync-skill-selection.py`.
+**The playbook is the workflow source of truth.** Wrappers are generated active surfaces that point to
+it. When changing a workflow, update the playbook first and regenerate wrappers.
 
 Optional additions in the playbook directory (when SKILL.md exceeds 500 lines or covers multiple distinct domains):
 
@@ -35,11 +43,10 @@ playbooks/skills/<bucket>/<name>/EXAMPLES.md    # Usage examples
 playbooks/skills/<bucket>/<name>/<domain>.md    # Per-domain reference (e.g., aws.md, gcp.md)
 ```
 
-Optional additions in skill directories (when the skill needs deterministic helpers):
+Optional helper scripts belong beside the playbook so every runtime can use the same source:
 
 ```
-skills/<bucket>/<name>/scripts/helper.sh        # Codex utility scripts
-.claude/skills/<bucket>/<name>/scripts/helper.sh # Claude utility scripts
+playbooks/skills/<bucket>/<name>/scripts/helper.sh
 ```
 
 ## Anatomy of a skill
@@ -146,7 +153,10 @@ Input: Added user authentication with JWT tokens
 Output: feat(auth): implement JWT-based authentication
 ```
 
-## Wrapper templates
+## Generated wrapper shape
+
+Do not hand-edit generated runtime wrappers. Add or update the skill in `.agents/skill-library.json`,
+then run `_base/scripts/sync-skill-selection.py --sync`. The generated wrappers have this shape.
 
 ### Codex wrapper
 
@@ -185,14 +195,17 @@ Keep this skill thin. The playbook is the shared workflow and should be updated 
 
 ### Frontmatter fields
 
-- `name:` — required; must match the directory name. Validated by `_base/scripts/check-skills-sync.sh`.
-- `description:` — required; one-line summary surfaced to the user when picking skills. Include `"quoted trigger phrases"` for natural-language invocation; the sync script checks the same quoted set lives on both wrappers (Codex and Claude must not drift).
-- `argument-hint:` — optional. Set when the skill expects free-text arguments from the user (e.g. a path, a topic, or a description). The value is the prompt the runtime shows to collect that argument — phrase it as a short question. Keep it identical on both wrappers. Use sparingly: most skills don't need it, and adding it to a skill that doesn't actually consume an argument creates noise.
-- `disable-model-invocation: true` — Claude-only. Tells Claude to follow the playbook rather than improvising from the description. Always set on Claude wrappers; Codex wrappers don't need it.
+- `name:` — generated from the skill key in `.agents/skill-library.json`.
+- `description:` — required in `.agents/skill-library.json`; one-line summary surfaced to the agent
+  when picking skills. Include concrete trigger phrases.
+- `argument-hint:` — generated from optional `argument_hint` in `.agents/skill-library.json`. Set when
+  the skill expects free-text arguments from the user, such as a path, topic, or description.
+- `disable-model-invocation: true` — generated for Claude wrappers.
 
 ### Keeping descriptions consistent across runtimes
 
-The `check-skills-sync.sh` drift check extracts `"..."` substrings from each description and compares the sets. The two wrappers can phrase their descriptions differently, but the quoted-trigger set must match. Easiest approach: keep the descriptions identical on both wrappers; vary only the body if needed.
+Generated wrappers use the same library description for every runtime, so cross-runtime trigger drift
+is not expected.
 
 ### Playbook template
 
@@ -249,18 +262,17 @@ After drafting, verify:
 
 - [ ] Bucket chosen (`engineering`, `productivity`, `misc`, or `personal`)
 - [ ] Playbook created in `playbooks/skills/<bucket>/<name>.md` (or `<bucket>/<name>/` directory if multi-file)
-- [ ] Codex wrapper created in `skills/<bucket>/<name>/SKILL.md`
-- [ ] Claude wrapper created in `.claude/skills/<bucket>/<name>/SKILL.md` with `disable-model-invocation: true`
-- [ ] Skill added to `.claude-plugin/plugin.json` `skills` array (alphabetical within the bucket)
-- [ ] Both wrappers point to the same playbook
+- [ ] Skill metadata added to `.agents/skill-library.json`
+- [ ] Skill added to one or more packs in `.agents/skill-library.json`
+- [ ] If active by default, the pack or skill is present in `.agents/skills.enabled.json`
+- [ ] `_base/scripts/sync-skill-selection.py --sync` has regenerated wrappers and `.claude-plugin/plugin.json`
 - [ ] Description includes triggers ("Use when…") and is a little pushy about when to fire
-- [ ] Quoted `"..."` trigger phrases in the description are identical between Codex and Claude wrappers (the sync script enforces this)
-- [ ] If the skill takes user arguments, `argument-hint:` is set on both wrappers with the same prompt
-- [ ] Wrapper SKILL.md under 50 lines (logic lives in playbook)
+- [ ] If the skill takes user arguments, `argument_hint` is set in `.agents/skill-library.json`
+- [ ] Generated wrapper SKILL.md files stay thin (logic lives in playbook)
 - [ ] Playbook body under 500 lines (split if longer)
 - [ ] No time-sensitive info embedded in the skill body
 - [ ] Consistent terminology throughout
 - [ ] Concrete examples included where they clarify intent
 - [ ] References go one level deep — clear pointers to bundled files, not three nested layers
 - [ ] The "why" is explained for any non-obvious instruction
-- [ ] `_base/scripts/check-skills-sync.sh` exits 0 and `_base/scripts/gen-skills-table.sh` has been run to update the skill table
+- [ ] `_base/scripts/check-skills-sync.sh` exits 0 and `_base/scripts/gen-skills-table.sh` has been run to update the active skill table

@@ -7,5 +7,5 @@ Read and follow:
 
 - `playbooks/skills/productivity/complete-task.md`
 
-This Antigravity wrapper is generated from `.claude-plugin/plugin.json`.
+This Antigravity wrapper is generated from `.agents/skills.enabled.json`.
 Keep Antigravity support experimental and isolated; update the shared playbook first.

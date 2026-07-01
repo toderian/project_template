@@ -25,6 +25,11 @@ TARGET_CODEX=1
 TARGET_CLAUDE=1
 TARGET_ANTIGRAVITY=0
 FORCE_SETUP=0
+SKILL_PROMPT=1
+SKILL_PROFILE=""
+SKILL_PACKS=""
+SKILL_EXTRA=""
+LIST_SKILLS=0
 
 usage() {
   cat <<'EOF'
@@ -40,6 +45,13 @@ Options:
   --codex-only         Set up only Codex skills/plugins.
   --claude-only        Set up only Claude Code skills/plugins.
   --antigravity-only   Generate only experimental Antigravity skill wrappers.
+  --skills-profile P   Activate a named skill profile before setup
+                       (minimal, recommended, full).
+  --skills PACKS       Activate a comma-separated custom pack list before setup.
+  --extra-skills LIST  Add comma-separated individual skills to --skills.
+  --all-skills         Activate the full skill-library profile.
+  --list-skills        List available skill profiles and packs, then exit.
+  --no-skill-prompt    Do not prompt for optional skill packs; keep current selection.
   --force              Run selected setup even if the matching CLI is not on PATH.
   --help               Show this help.
 
@@ -50,6 +62,11 @@ CLI guards:
   - Antigravity: command named by ANTIGRAVITY_CLI, default "agy"
 
   Use --force to preinstall links/settings on a machine before the CLI exists.
+
+Skill selection:
+  Interactive setup asks which optional skill profile or packs to activate.
+  Non-interactive runs keep the current .agents/skills.enabled.json selection.
+  Use --skills-profile, --skills, or --all-skills for scripted re-selection.
 EOF
 }
 
@@ -75,6 +92,46 @@ while [[ $# -gt 0 ]]; do
       TARGET_CLAUDE=0
       TARGET_ANTIGRAVITY=1
       ;;
+    --skills-profile)
+      if [[ $# -lt 2 || "$2" == --* ]]; then
+        printf '%s requires an argument\n\n' "$1" >&2
+        usage >&2
+        exit 2
+      fi
+      SKILL_PROFILE="$2"
+      SKILL_PROMPT=0
+      shift
+      ;;
+    --skills)
+      if [[ $# -lt 2 || "$2" == --* ]]; then
+        printf '%s requires an argument\n\n' "$1" >&2
+        usage >&2
+        exit 2
+      fi
+      SKILL_PACKS="$2"
+      SKILL_PROMPT=0
+      shift
+      ;;
+    --extra-skills)
+      if [[ $# -lt 2 || "$2" == --* ]]; then
+        printf '%s requires an argument\n\n' "$1" >&2
+        usage >&2
+        exit 2
+      fi
+      SKILL_EXTRA="$2"
+      SKILL_PROMPT=0
+      shift
+      ;;
+    --all-skills)
+      SKILL_PROFILE="full"
+      SKILL_PROMPT=0
+      ;;
+    --list-skills)
+      LIST_SKILLS=1
+      ;;
+    --no-skill-prompt)
+      SKILL_PROMPT=0
+      ;;
     --force)
       FORCE_SETUP=1
       ;;
@@ -99,6 +156,36 @@ run_step() {
   "$@"
 }
 
+sync_skill_selection() {
+  local script="${REPO_ROOT}/_base/scripts/sync-skill-selection.py"
+
+  if [[ "${LIST_SKILLS}" -eq 1 ]]; then
+    "${script}" --list
+    exit 0
+  fi
+
+  if [[ -n "${SKILL_PROFILE}" ]]; then
+    "${script}" --profile "${SKILL_PROFILE}"
+    return
+  fi
+
+  if [[ -n "${SKILL_PACKS}" || -n "${SKILL_EXTRA}" ]]; then
+    local args=(--packs "${SKILL_PACKS}")
+    if [[ -n "${SKILL_EXTRA}" ]]; then
+      args+=(--skills "${SKILL_EXTRA}")
+    fi
+    "${script}" "${args[@]}"
+    return
+  fi
+
+  if [[ "${SKILL_PROMPT}" -eq 1 && -t 0 && -t 1 ]]; then
+    "${script}" --interactive
+    return
+  fi
+
+  "${script}" --sync
+}
+
 cli_path() {
   command -v "$1" 2>/dev/null || true
 }
@@ -119,6 +206,9 @@ require_cli() {
   printf '       Install it, choose a narrower target, or rerun with --force.\n' >&2
   return 1
 }
+
+run_step "Sync active skill selection" \
+  sync_skill_selection
 
 run_step "Validate skill catalog" \
   "${REPO_ROOT}/_base/scripts/check-skills-sync.sh"

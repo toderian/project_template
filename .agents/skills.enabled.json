@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "profile": "recommended",
+  "packs": [
+    "core",
+    "task-management",
+    "ui"
+  ],
+  "skills": []
+}

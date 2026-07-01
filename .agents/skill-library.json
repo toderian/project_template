@@ -1,0 +1,396 @@
+{
+  "description": "Skill library for this template. Runtime wrappers and .claude-plugin/plugin.json are generated from this library plus .agents/skills.enabled.json.",
+  "packs": {
+    "architecture": {
+      "description": "Architecture exploration, refactor planning, critique, and interface design workflows.",
+      "skills": [
+        "design-an-interface",
+        "doubt-driven-development",
+        "grill-me",
+        "grill-with-docs",
+        "improve-codebase-architecture",
+        "request-refactor-plan",
+        "zoom-out"
+      ]
+    },
+    "core": {
+      "description": "Broadly useful coding, debugging, planning, execution, review, and task basics.",
+      "skills": [
+        "add-task",
+        "capture-idea",
+        "complete-task",
+        "diagnose",
+        "execute-plan",
+        "handoff",
+        "init",
+        "performance-optimization",
+        "planning-workflow",
+        "prototype",
+        "roadmap",
+        "security-review-owasp",
+        "spec-workflow",
+        "subagent-protocol",
+        "task-spec-workflow",
+        "tdd"
+      ]
+    },
+    "cross-repo": {
+      "description": "Feature contracts and PR reviews spanning multiple repos or deployable surfaces.",
+      "skills": [
+        "cross-repo-feature",
+        "cross-repo-pr-review"
+      ]
+    },
+    "database": {
+      "description": "Database migration safety review and generation guidance.",
+      "skills": [
+        "migration-safety"
+      ]
+    },
+    "dev-tooling": {
+      "description": "Repository tooling setup and skill-authoring workflows.",
+      "skills": [
+        "setup-pre-commit",
+        "write-a-skill"
+      ]
+    },
+    "docs-knowledge": {
+      "description": "Durable docs, context refresh, component maps, and knowledge distillation.",
+      "skills": [
+        "define-area",
+        "describe-component",
+        "distill-knowledge",
+        "map-system",
+        "refresh-context",
+        "ubiquitous-language"
+      ]
+    },
+    "education": {
+      "description": "Course/exercise scaffolding workflows.",
+      "skills": [
+        "scaffold-exercises"
+      ]
+    },
+    "github": {
+      "description": "GitHub issue triage, issue creation, QA, and PRD-to-issue workflows.",
+      "skills": [
+        "github-triage",
+        "prd-to-issues",
+        "qa",
+        "triage-issue",
+        "write-a-prd"
+      ]
+    },
+    "personal": {
+      "description": "Personal writing, notes, and manuscript-review workflows.",
+      "skills": [
+        "edit-article",
+        "obsidian-vault",
+        "sciwrite"
+      ]
+    },
+    "platform-claude": {
+      "description": "Claude Code-specific setup and guardrail workflows.",
+      "skills": [
+        "git-guardrails-claude-code"
+      ]
+    },
+    "task-management": {
+      "description": "Inbox, roadmap, PRD, backlog, and task-system maintenance workflows.",
+      "skills": [
+        "align",
+        "audit-todos",
+        "capture-idea",
+        "add-task",
+        "complete-task",
+        "prd-to-plan",
+        "prd-to-todos",
+        "roadmap",
+        "squash-workspace-commits",
+        "tidy-repo",
+        "triage-inbox"
+      ]
+    },
+    "typescript": {
+      "description": "Niche TypeScript testing migration helpers.",
+      "skills": [
+        "migrate-to-shoehorn"
+      ]
+    },
+    "ui": {
+      "description": "Frontend creation and rendered UI review skills.",
+      "skills": [
+        "frontend-design",
+        "ui-design-review"
+      ]
+    }
+  },
+  "profiles": {
+    "full": {
+      "description": "Activate every user-facing skill pack in the library.",
+      "packs": [
+        "architecture",
+        "core",
+        "cross-repo",
+        "database",
+        "dev-tooling",
+        "docs-knowledge",
+        "education",
+        "github",
+        "personal",
+        "platform-claude",
+        "task-management",
+        "typescript",
+        "ui"
+      ]
+    },
+    "minimal": {
+      "description": "Small default for code work with task execution discipline.",
+      "packs": [
+        "core"
+      ]
+    },
+    "recommended": {
+      "description": "Core coding workflow plus UI and task-management skills.",
+      "packs": [
+        "core",
+        "task-management",
+        "ui"
+      ]
+    }
+  },
+  "skills": {
+    "add-task": {
+      "bucket": "productivity",
+      "description": "Create a full area-prefixed task in docs/tasks_manager/_todos/ with phases, acceptance criteria, related tests, priority, optional roadmap placement, and dates only when scheduling intent is explicit. Use when the user says \"add task\", \"create task\", \"file a task\", or \"track this task\"."
+    },
+    "align": {
+      "bucket": "productivity",
+      "description": "Check a proposed feature or change against the project's PROJECT.md (vision, goals, scope, constraints) and report ALIGNED, NEEDS_CLARIFICATION, or OUT_OF_SCOPE. Use when the user wants Codex to validate alignment before starting non-trivial work or before planning. Requires PROJECT.md at the repo root."
+    },
+    "audit-todos": {
+      "bucket": "productivity",
+      "description": "Audit active task files against current repo state to find outdated, completed, obsolete, duplicated, or follow-up-ready work. Use when the user says \"audit todos\", \"audit tasks\", \"review active tasks\", or asks for periodic task backlog health checks."
+    },
+    "capture-idea": {
+      "argument_hint": "What's the idea to capture?",
+      "bucket": "productivity",
+      "description": "Capture an idea into the inbox (docs/tasks_manager/_inbox/) as an I-NNN file with near-zero friction. Use whenever the user says \"capture\", \"add to inbox\", \"note this idea\", \"jot down\", or shares a feature/bug/idea they want recorded for later -- even if they don't explicitly ask to use a skill."
+    },
+    "complete-task": {
+      "bucket": "productivity",
+      "description": "Complete or cancel an active task: reconcile progress, fill completion harvest/summary, optionally squash task-owned commits, archive it, and sync ledgers. Use when the user says \"complete task\", \"finish task\", \"close task\", \"cancel task\", asks to archive a done task, or finds completed work still active."
+    },
+    "cross-repo-feature": {
+      "bucket": "engineering",
+      "description": "Capture a concrete feature contract under docs/resources/<area>/contracts/<feature-slug>.md, including repo responsibilities, API/schema/event/env/CLI/Docker boundaries, compatibility, rollout order, and verification. Use when the user says \"cross-repo feature\", \"feature contract\", or asks to coordinate a change across repos."
+    },
+    "cross-repo-pr-review": {
+      "bucket": "engineering",
+      "description": "Review multiple linked pull requests as one cross-repo feature, validating contracts, rollout order, compatibility, CI, and per-PR risks. Use when the user says \"cross-repo PR review\", \"review these PRs together\", \"multi-repo PRs\", or asks to validate PRs across core libraries, backends, UIs, services, or clients."
+    },
+    "define-area": {
+      "bucket": "engineering",
+      "description": "Define or refresh a durable docs/resources/<area>/ context for a domain or product capability, including participant repos, dependency graph, install modes, runtime dependencies, and known docs. Use when the user says \"define area\", \"index area\", \"map area\", or asks to establish cross-repo area knowledge."
+    },
+    "describe-component": {
+      "argument_hint": "Which component/path should I describe?",
+      "bucket": "engineering",
+      "description": "Generate or refresh a docs-primary component CONTEXT.md covering responsibility, public interface, dependencies, owned data, invariants, and tests. Use when the user wants to \"describe a component\", \"document this module/service\", map subsystem boundaries, or onboard/handoff code."
+    },
+    "design-an-interface": {
+      "bucket": "misc",
+      "description": "Generate multiple radically different interface designs for a module using parallel sub-agents when available. Use when the user wants to design an API, explore interface options, compare module shapes, or mentions \"design it twice\"."
+    },
+    "diagnose": {
+      "bucket": "engineering",
+      "description": "Disciplined diagnosis loop for hard bugs and performance regressions. Reproduce -> minimise -> hypothesise -> instrument -> fix -> regression-test. Use when user says \"diagnose this\" / \"debug this\", reports a bug, says something is broken/throwing/failing, or describes a performance regression."
+    },
+    "distill-knowledge": {
+      "argument_hint": "Which raw docs, files, or pasted context should I distill?",
+      "bucket": "engineering",
+      "description": "Distill raw documents, notes, exports, or pasted context into Markdown digests and durable docs/resources knowledge-base updates. Use when the user says \"distill knowledge\", \"process raw docs\", \"summarize these docs\", \"ingest docs\", or points to docs/resources/_inbox/ material."
+    },
+    "doubt-driven-development": {
+      "bucket": "engineering",
+      "description": "Adversarial review for a non-trivial implementation decision before it stands. Use when the user asks to \"doubt\" or stress-test a decision, when correctness matters more than speed, or when the choice crosses module boundaries, asserts something hard to verify, or is hard to reverse."
+    },
+    "edit-article": {
+      "bucket": "personal",
+      "description": "Edit and improve articles by restructuring sections, improving clarity, and tightening prose. Use when the user wants Codex to edit, revise, or improve an article draft."
+    },
+    "execute-plan": {
+      "argument_hint": "Which task file, plan file, or approved plan should I execute?",
+      "bucket": "engineering",
+      "description": "Execute an approved task or implementation plan phase-by-phase, committing each completed phase and running repeated independent reviews. Use when the user says \"execute plan\", \"execute-plan\", or \"/execute-plan\", or points to docs/tasks_manager/_todos/<TASK>.md or docs/_plans/<slug>.md and wants it implemented."
+    },
+    "frontend-design": {
+      "bucket": "misc",
+      "description": "Create distinctive, production-grade frontend interfaces with high design quality and rendered verification. Use when the user asks to build web components, pages, apps, dashboards, games, or redesign/restyle UI. Avoids generic AI aesthetics and verifies responsive, accessible output."
+    },
+    "git-guardrails-claude-code": {
+      "bucket": "misc",
+      "description": "Set up Claude Code hooks to block dangerous git commands (push, reset --hard, clean, branch -D, etc.) before they execute. Use when user wants to prevent destructive git operations, add git safety hooks, or block git push/reset in Claude Code."
+    },
+    "github-triage": {
+      "bucket": "misc",
+      "description": "Triage GitHub issues through a label-based state machine with interactive grilling sessions. Use when user wants to triage issues, review incoming bugs or feature requests, prepare issues for an AFK agent, or manage issue workflow."
+    },
+    "grill-me": {
+      "bucket": "productivity",
+      "description": "Interview the user relentlessly about a plan or design until reaching shared understanding, resolving each branch of the decision tree. Use when the user wants Codex to stress-test a plan, get grilled on their design, or mentions \"grill me\"."
+    },
+    "grill-with-docs": {
+      "bucket": "engineering",
+      "description": "Grilling session that challenges a plan against the existing domain model, sharpens terminology, and updates docs/resources/CONTEXT.md plus ADRs inline as decisions crystallise. Use when the user wants to stress-test a plan against the project's language and documented decisions, when a CONTEXT.md or ADR log exists, or when starting one."
+    },
+    "handoff": {
+      "argument_hint": "What will the next session be used for?",
+      "bucket": "productivity",
+      "description": "Compact the current conversation into a handoff document so a fresh agent can pick up the work. Use when the user wants a session summary written to disk for later continuation, mentions \"handing off\", or is wrapping up a long session."
+    },
+    "implementer": {
+      "bucket": "misc",
+      "description": "Act as an implementer for a single task slice. Use when the user wants Codex to implement focused work from a plan, following the subagent protocol with scope fencing and structured reporting.",
+      "kind": "agent-role"
+    },
+    "improve-codebase-architecture": {
+      "bucket": "engineering",
+      "description": "Explore a codebase to find opportunities for architectural improvement, focusing on making the codebase more testable by deepening shallow modules. Use when the user wants Codex to improve architecture, find refactoring opportunities, consolidate tightly-coupled modules, or make a codebase more AI-navigable."
+    },
+    "init": {
+      "bucket": "misc",
+      "description": "Initialize project idea/task tracking structure. Use when the user wants Codex to set up docs/ with inbox, tasks, areas, durable plans, resources, archive, roadmap, and generated ledgers."
+    },
+    "map-system": {
+      "bucket": "engineering",
+      "description": "Create or refresh docs/resources/system-map.md as the status-aware repo, capability, flow, and boundary index. Use when the user asks to map the system, index working repos, refresh repo/capability architecture, or understand how repos fit together."
+    },
+    "migrate-to-shoehorn": {
+      "bucket": "engineering",
+      "description": "Migrate test files from `as` type assertions to @total-typescript/shoehorn. Use when the user wants Codex to replace `as` in tests or needs partial test data with shoehorn."
+    },
+    "migration-safety": {
+      "bucket": "engineering",
+      "description": "Safety review and generation guidance for reversible database schema migrations. Focuses on production hazards such as table-rewrite locks, unsafe NOT NULL changes, missing concurrent indexes, irreversible drops, backfills, and zero-downtime DDL across PostgreSQL, MySQL, SQLite, Liquibase, or Flyway."
+    },
+    "obsidian-vault": {
+      "bucket": "personal",
+      "description": "Search, create, and manage notes in the Obsidian vault with wikilinks and index notes. Use when the user wants Codex to find, create, or organize notes in Obsidian."
+    },
+    "performance-optimization": {
+      "bucket": "engineering",
+      "description": "Measure-first performance optimization -- profile to find the real hot path, record a baseline, change one thing, and re-measure before keeping it. Use when the user wants Codex to optimize performance, reduce latency or memory, speed something up, or asks \"why is this slow?\" for a known hot path."
+    },
+    "planning-workflow": {
+      "bucket": "productivity",
+      "description": "Seven-step pre-implementation planning workflow. Use when the user wants Codex to plan a non-trivial change before writing code -- multi-file features, multiple plausible approaches, or work that needs scope bounded. Includes a five-axis adversarial critique rubric for plan validation."
+    },
+    "prd-to-issues": {
+      "bucket": "productivity",
+      "description": "Break a PRD into independently-grabbable GitHub issues using tracer-bullet vertical slices. Use when the user wants Codex to convert a PRD to issues, create implementation tickets, or break down a PRD into work items."
+    },
+    "prd-to-plan": {
+      "bucket": "productivity",
+      "description": "Turn a PRD into a multi-phase implementation plan using tracer-bullet vertical slices, saved as docs/_plans/<slug>.md. Use when the user wants Codex to break down a PRD, create an implementation plan, plan phases from a PRD, or mentions \"tracer bullets\"."
+    },
+    "prd-to-todos": {
+      "bucket": "productivity",
+      "description": "Extract actionable tasks from a PRD and create area-prefixed task files. Use when the user wants Codex to convert a PRD into trackable tasks in docs/tasks_manager/_todos/."
+    },
+    "prototype": {
+      "bucket": "engineering",
+      "description": "Build a throwaway prototype before committing to a design: a runnable terminal app for logic/state questions or several UI variations on one route. Use when the user wants to prototype, test a data model or state machine, mock up UI options, or says \"prototype this\", \"let me play with it\", or \"try a few designs\"."
+    },
+    "qa": {
+      "bucket": "productivity",
+      "description": "Interactive QA session where user reports bugs or issues conversationally, and the agent files GitHub issues. Explores the codebase in the background for context and domain language. Use when the user wants Codex to report bugs, do QA, file issues conversationally, or mentions \"QA session\"."
+    },
+    "refresh-context": {
+      "bucket": "engineering",
+      "description": "Refresh the docs-primary knowledge base and detect stale architecture or domain context. Use when the user asks to \"refresh context\", \"reindex context\", \"update knowledge base\", or \"check context drift\"."
+    },
+    "request-refactor-plan": {
+      "bucket": "engineering",
+      "description": "Create a detailed refactor plan with tiny commits via user interview, then file it as a GitHub issue. Use when the user wants Codex to plan a refactor, create a refactoring RFC, or break a refactor into safe incremental steps."
+    },
+    "reviewer": {
+      "bucket": "misc",
+      "description": "Two-stage review of implementation work. Use when the user wants Codex to review completed task output for spec compliance and code quality.",
+      "kind": "agent-role"
+    },
+    "roadmap": {
+      "bucket": "productivity",
+      "description": "Maintain docs/tasks_manager/_roadmap.md -- the Urgent/Now/Next/Later/Someday ordering plus optional dated milestone headings. Use when the user wants to \"plan the roadmap\", \"what's next\", reprioritize/sequence work, schedule tasks, or refresh the roadmap. Distinct from per-change planning."
+    },
+    "scaffold-exercises": {
+      "bucket": "misc",
+      "description": "Create exercise directory structures with sections, problems, solutions, and explainers that pass linting. Use when the user wants Codex to scaffold exercises, create exercise stubs, or set up a new course section."
+    },
+    "sciwrite": {
+      "bucket": "personal",
+      "description": "Review scientific or engineering manuscripts for writing clarity without changing technical claims. Use when user asks for \"sciwrite\", \"review my manuscript\", \"scientific writing review\", \"improve clarity\", \"clean up the prose\", passive voice, clutter, terminology consistency, or journal-submission prose review."
+    },
+    "security-review-owasp": {
+      "bucket": "engineering",
+      "description": "Apply current OWASP standards (Top 10:2025, ASVS 5.0, LLM Top 10 2025, Agentic AI 2026) when writing or reviewing code. Use when reviewing code for security issues, implementing auth/authz, handling user input, designing API endpoints, building AI agent systems, integrating LLMs/RAG, or discussing application security."
+    },
+    "setup-pre-commit": {
+      "bucket": "engineering",
+      "description": "Set up Husky pre-commit hooks with lint-staged (Prettier), type checking, and tests in the current repo. Use when the user wants Codex to add pre-commit hooks, set up Husky, configure lint-staged, or add commit-time formatting/typechecking/testing."
+    },
+    "spec-workflow": {
+      "bucket": "engineering",
+      "description": "Spec-driven planning and implementation loop for a non-trivial engineering item, producing specs/<slug>/ artifacts and review/fix passes. Use when the user asks to \"spec it out\", run a \"spec workflow\" or \"spec-driven\" process, or plan + build + review work too large for the default loop. Avoid trivial edits or exploratory spikes."
+    },
+    "squash-workspace-commits": {
+      "bucket": "productivity",
+      "description": "Squash completed workspace/task commits after validation while protecting unrelated or pushed history. Use when the user says \"squash commits\", \"clean up commits\", \"squash task commits\", or asks to compact agent phase commits after review."
+    },
+    "subagent-protocol": {
+      "bucket": "productivity",
+      "description": "Multi-agent coordination protocol with status vocabulary, dispatch format, and two-stage review. Use when the user wants Codex to dispatch subagents, coordinate multi-agent work, or review implementation output."
+    },
+    "task-spec-workflow": {
+      "bucket": "engineering",
+      "description": "Normalize an existing task or clear implementation idea into task-local Specification, Design, phases, acceptance criteria, tests, and Spec refs. Use when the user asks to spec a task, make a task implementation-ready, or plan task-manager-native spec-driven work before execute-plan."
+    },
+    "tdd": {
+      "bucket": "engineering",
+      "description": "Test-driven development with red-green-refactor loop. Use when the user wants Codex to build features or fix bugs using TDD, mentions \"red-green-refactor\", wants integration tests, or asks for test-first development."
+    },
+    "tidy-repo": {
+      "bucket": "productivity",
+      "description": "Inventory scattered TODOs, loose docs, and orphan files, then propose a non-destructive migration into docs/tasks_manager and docs/resources. Use when the user says \"tidy this repo\", \"systematize\", \"clean up the mess\", or \"organize my tasks/docs\"."
+    },
+    "triage-inbox": {
+      "bucket": "productivity",
+      "description": "Review captured inbox ideas (docs/tasks_manager/_inbox/) and promote worthwhile ones into full area-prefixed tasks, or drop them. Use when the user says \"triage inbox\", \"review the inbox\", \"process my ideas\", \"clear the inbox\", or wants to turn captured ideas into actionable tasks."
+    },
+    "triage-issue": {
+      "bucket": "misc",
+      "description": "Triage a bug or issue through a two-role state machine (category + state) and produce a `ready-for-agent` GitHub issue with a TDD-based fix plan, by exploring the codebase to find the root cause. Use when the user wants to \"triage\" a bug, investigate an issue, file an issue, plan a fix, or move an issue toward `ready-for-agent`."
+    },
+    "ubiquitous-language": {
+      "bucket": "engineering",
+      "description": "Extract a DDD-style ubiquitous language glossary from the current conversation, flagging ambiguities and proposing canonical terms. Saves to UBIQUITOUS_LANGUAGE.md. Use when the user wants Codex to define domain terms, build a glossary, harden terminology, or mentions \"domain model\" or \"DDD\"."
+    },
+    "ui-design-review": {
+      "bucket": "misc",
+      "description": "Review rendered frontend UI for design quality, accessibility, responsiveness, interaction states, and implementation polish. Use when the user asks for UI review, design critique, visual QA, polish pass, responsive audit, accessibility check, or post-build frontend review."
+    },
+    "write-a-prd": {
+      "bucket": "productivity",
+      "description": "Create a PRD through user interview, codebase exploration, and module design, then submit as a GitHub issue. Use when the user wants Codex to write a PRD, create a product requirements document, or plan a new feature."
+    },
+    "write-a-skill": {
+      "bucket": "productivity",
+      "description": "Create new agent skills with proper structure, progressive disclosure, and bundled resources. Use when the user wants Codex to create, write, or build a new skill."
+    },
+    "zoom-out": {
+      "bucket": "engineering",
+      "description": "Step up a layer of abstraction and produce a map of the relevant modules and callers, using the project's domain glossary. Use when starting work in an unfamiliar area of the codebase, when broader context is needed, or when a narrow trace has lost the bigger picture."
+    }
+  },
+  "version": 1
+}

@@ -242,12 +242,26 @@ dependencies, the metadata files do not need to exist.
 
 ## Phase 3 — One-command agent setup
 
-Run the shared setup command. It validates the skill catalog, installs or refreshes Codex skills and
-plugins, links Claude Code skills globally, and installs or refreshes Claude Code plugins. The command
-is idempotent; run it again after each template update. By default it sets up both primary runtimes; use
+Run the shared setup command. It asks which optional skill profile or packs to activate when run in an
+interactive terminal, validates the skill catalog, installs or refreshes Codex skills and plugins,
+links Claude Code skills globally, and installs or refreshes Claude Code plugins. The command is
+idempotent; run it again after each template update. By default it sets up both primary runtimes; use
 `--codex-only` or `--claude-only` for a narrower refresh. It checks that the selected agent CLIs are on
 `PATH` before changing runtime install state; use `--force` only when intentionally preinstalling config
 before the CLI exists. Use `--antigravity-only` only for the experimental wrapper-generation path.
+
+For scripted setup or re-setup, choose skill packs non-interactively:
+
+```bash
+./_base/scripts/setup-agents.sh --skills-profile recommended
+./_base/scripts/setup-agents.sh --skills-profile minimal
+./_base/scripts/setup-agents.sh --all-skills
+./_base/scripts/setup-agents.sh --skills core,ui,github
+./_base/scripts/setup-agents.sh --list-skills
+```
+
+Without a terminal prompt, setup keeps the committed `.agents/skills.enabled.json` selection unless one
+of these flags is passed.
 
 ```bash
 ./_base/scripts/setup-agents.sh
@@ -294,7 +308,7 @@ By default, Claude Code only loads `.claude/skills/` from within this repo. If t
 ./_base/scripts/link-skills.sh
 ```
 
-It reads `.claude-plugin/plugin.json` and symlinks each active skill from `.claude/skills/<bucket>/<name>/` into `~/.claude/skills/<name>/` (flat, like Codex). Re-running is idempotent. To unlink later, `rm ~/.claude/skills/<name>` for the specific skill or `rm -rf ~/.claude/skills` to remove all.
+It reads the generated `.claude-plugin/plugin.json` and symlinks each active skill from `.claude/skills/<bucket>/<name>/` into `~/.claude/skills/<name>/` (flat, like Codex). Re-running is idempotent and prunes symlinks for skills from this repo that are no longer active. To unlink later, `rm ~/.claude/skills/<name>` for the specific skill or `rm -rf ~/.claude/skills` to remove all.
 
 **Check:** `ls ~/.claude/skills/ | wc -l` matches the active-skill count in the manifest (`python3 -c 'import json; print(len(json.load(open(".claude-plugin/plugin.json"))["skills"]))'`).
 
@@ -310,7 +324,8 @@ setup or intentionally doing a partial install.
 ### 4a — Skills
 
 Run the Codex skills installer. It symlinks active `skills/<bucket>/<name>/` entries into flat
-`~/.codex/skills/<name>/` entries.
+`~/.codex/skills/<name>/` entries and prunes symlinks for skills from this repo that are no longer
+active.
 
 ```bash
 ./skills/install-codex-skills.sh
@@ -339,7 +354,7 @@ After both installers finish, tell the user to **restart Codex** so the new skil
 ## Phase 4C — Antigravity setup (experimental)
 
 Skip this phase unless the user explicitly wants to test Antigravity (`agy`). Antigravity support is a
-temporary adapter: it writes generated wrappers under `.agents/skills/` from `.claude-plugin/plugin.json`
+temporary adapter: it writes generated wrappers under `.agents/skills/` from `.agents/skills.enabled.json`
 and does not install plugins, change the manifest schema, or add a root `GEMINI.md`.
 
 Run the opt-in setup target:
@@ -360,7 +375,7 @@ agy --help
 To remove the adapter later:
 
 ```bash
-rm -rf .agents
+rm -rf .agents/skills
 rm _base/scripts/gen-antigravity-skills.sh
 rm _base/scripts/check-antigravity-skills.sh
 ```

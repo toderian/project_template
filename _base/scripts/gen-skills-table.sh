@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
 # Regenerate the "Available skills" table in _base/README.md from the active
-# skills enumerated in `.claude-plugin/plugin.json`. Run after adding,
-# renaming, or removing a skill (or after editing a wrapper description).
+# skills enumerated in `.claude-plugin/plugin.json`. The manifest is generated
+# from `.agents/skills.enabled.json` and `.agents/skill-library.json`.
 #
 # The script preserves everything outside the markers:
 #
@@ -93,16 +93,34 @@ description_for() {
 
   if [[ -f "$wrapper" ]]; then
     local desc
-    desc=$(awk '
-      /^---[[:space:]]*$/ { if (in_fm) { exit } else { in_fm = 1; next } }
-      in_fm && /^description:[[:space:]]*/ {
-        sub(/^description:[[:space:]]*/, "")
-        sub(/^"/, ""); sub(/"$/, "")
-        sub(/^'\''/, ""); sub(/'\''$/, "")
-        print
-        exit
-      }
-    ' "$wrapper")
+    desc=$(python3 - "$wrapper" <<'PY'
+import json, sys
+
+path = sys.argv[1]
+in_frontmatter = False
+with open(path) as f:
+    for raw in f:
+        line = raw.rstrip("\n")
+        if line.strip() == "---":
+            if in_frontmatter:
+                break
+            in_frontmatter = True
+            continue
+        if not in_frontmatter:
+            continue
+        if line.startswith("description:"):
+            value = line.split(":", 1)[1].strip()
+            if len(value) >= 2 and value[0] == value[-1] == '"':
+                try:
+                    value = json.loads(value)
+                except json.JSONDecodeError:
+                    value = value[1:-1]
+            elif len(value) >= 2 and value[0] == value[-1] == "'":
+                value = value[1:-1].replace("''", "'")
+            print(value)
+            break
+PY
+)
     if [[ -n "$desc" ]]; then
       printf '%s' "$desc"
       return

@@ -1,11 +1,9 @@
 ---
 name: frontend-design
-description: Create distinctive, production-grade frontend interfaces with high design quality and rendered verification. Use when the user asks to build web components, pages, apps, dashboards, games, or redesign/restyle UI. Avoids generic AI aesthetics and verifies responsive, accessible output.
+description: "Create distinctive, production-grade frontend interfaces with high design quality and rendered verification. Use when the user asks to build web components, pages, apps, dashboards, games, or redesign/restyle UI. Avoids generic AI aesthetics and verifies responsive, accessible output."
 ---
 
 # Frontend Design
-
-Use this skill to create distinctive, production-grade frontend code that avoids generic AI aesthetics.
 
 Read and follow:
 

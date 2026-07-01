@@ -10,7 +10,7 @@ usage() {
   cat <<'EOF'
 Usage: check-antigravity-skills.sh [OPTION]
 
-Validate that generated .agents/skills/ wrappers match .claude-plugin/plugin.json.
+Validate that generated .agents/skills/ wrappers match the active skill selection.
 
 Options:
   --version    Print version and exit.

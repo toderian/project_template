@@ -61,8 +61,17 @@ installed=0
 refreshed=0
 skipped=0
 missing=0
+pruned=0
+
+path_is_under() {
+  local child="$1" parent="$2"
+  [[ "$child" == "$parent" || "$child" == "$parent/"* ]]
+}
+
+declare -A ACTIVE_NAMES
 
 while IFS=$'\t' read -r name bucket; do
+  ACTIVE_NAMES["$name"]=1
   src="${SOURCE_TREE}/${bucket}/${name}"
   target="${DEST}/${name}"
 
@@ -110,8 +119,26 @@ for p in data["skills"]:
 PY
 )
 
+source_resolved="$(resolve_path "${SOURCE_TREE}")"
+while IFS= read -r -d '' entry; do
+  name="$(basename "${entry}")"
+  if [[ ! -L "${entry}" ]]; then
+    continue
+  fi
+  resolved="$(resolve_path "${entry}")"
+  if ! path_is_under "${resolved}" "${source_resolved}"; then
+    continue
+  fi
+  if [[ -n "${ACTIVE_NAMES[$name]+x}" ]]; then
+    continue
+  fi
+  rm "${entry}"
+  echo "pruned inactive ${name} -> ${resolved}"
+  pruned=$((pruned+1))
+done < <(find "${DEST}" -mindepth 1 -maxdepth 1 -print0 2>/dev/null)
+
 echo
-echo "Linked ${installed}, refreshed ${refreshed}, skipped ${skipped}, missing ${missing}."
+echo "Linked ${installed}, refreshed ${refreshed}, skipped ${skipped}, pruned ${pruned}, missing ${missing}."
 
 if (( missing > 0 )); then
   exit 1

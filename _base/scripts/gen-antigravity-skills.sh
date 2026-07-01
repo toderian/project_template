@@ -12,10 +12,11 @@ usage() {
   cat <<'EOF'
 Usage: gen-antigravity-skills.sh [OPTION]
 
-Generate .agents/skills/ wrappers from .claude-plugin/plugin.json.
+Generate .agents/skills/ wrappers from the active skill selection.
 
 With no option, regenerate wrappers in place. The generated wrappers point to
-the existing shared playbooks and do not change the manifest schema.
+the existing shared playbooks and follow `.agents/skills.enabled.json` through
+the active `.claude-plugin/plugin.json` manifest.
 
 Options:
   --check      Validate that .agents/skills/ is current without writing files.
@@ -64,7 +65,7 @@ agent_only_refs = {
 }
 
 
-def frontmatter_field(path: Path, field: str) -> str:
+def frontmatter_field(path: Path, field: str, required: bool = True) -> str:
     if not path.exists():
         raise SystemExit(f"missing source wrapper: {path.relative_to(repo_root)}")
 
@@ -89,11 +90,13 @@ def frontmatter_field(path: Path, field: str) -> str:
             elif len(value) >= 2 and value[0] == value[-1] == "'":
                 value = value[1:-1].replace("''", "'")
             return value
-    raise SystemExit(f"missing frontmatter field {field!r}: {path.relative_to(repo_root)}")
+    if required:
+        raise SystemExit(f"missing frontmatter field {field!r}: {path.relative_to(repo_root)}")
+    return ""
 
 
 def yaml_string(value: str) -> str:
-    return json.dumps(value, ensure_ascii=False)
+    return json.dumps(value.replace("\n", " "), ensure_ascii=True)
 
 
 def skill_tuples() -> list[tuple[str, str]]:
@@ -127,18 +130,20 @@ def references_for(bucket: str, name: str) -> list[str]:
 def wrapper_content(bucket: str, name: str) -> str:
     source_wrapper = claude_skills_dir / bucket / name / "SKILL.md"
     description = frontmatter_field(source_wrapper, "description")
+    argument_hint = frontmatter_field(source_wrapper, "argument-hint", required=False)
     refs = references_for(bucket, name)
     ref_lines = "\n".join(f"- `{ref}`" for ref in refs)
+    hint_line = f"\nargument-hint: {yaml_string(argument_hint)}" if argument_hint else ""
     return f"""---
 name: {name}
-description: {yaml_string(description)}
+description: {yaml_string(description)}{hint_line}
 ---
 
 Read and follow:
 
 {ref_lines}
 
-This Antigravity wrapper is generated from `.claude-plugin/plugin.json`.
+This Antigravity wrapper is generated from `.agents/skills.enabled.json`.
 Keep Antigravity support experimental and isolated; update the shared playbook first.
 """
 
@@ -172,6 +177,8 @@ except subprocess.CalledProcessError as exc:
     raise SystemExit(exc.returncode) from exc
 
 for tracked_path in tracked:
+    if tracked_path in {".agents/skill-library.json", ".agents/skills.enabled.json"}:
+        continue
     if not tracked_path.startswith(".agents/skills/"):
         findings.append(f"tracked file outside .agents/skills: {tracked_path}")
 

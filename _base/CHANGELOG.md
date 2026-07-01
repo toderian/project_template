@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.07.01.0
+BASE_VERSION: 2026.07.01.1
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,29 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Add selectable skill packs
+
+The template now separates the selectable skill library from the active skills exposed to agents.
+
+- New `.agents/skill-library.json` defines all template skills, optional packs, and setup profiles.
+- New `.agents/skills.enabled.json` records the active profile/packs for a repo.
+- New `_base/scripts/sync-skill-selection.py` generates `.claude-plugin/plugin.json` plus active
+  Codex, Claude Code, and Antigravity wrappers from the selected packs.
+- `setup-agents.sh` now prompts for optional skill profiles/packs in interactive runs and supports
+  `--skills-profile`, `--skills`, `--all-skills`, `--list-skills`, and `--no-skill-prompt`.
+- Codex and Claude skill installers now prune symlinks for skills from this repo that are no longer
+  active.
+- `implementer` and `reviewer` are no longer active skills; they remain agent roles through
+  `.claude/agents/`, `.codex/agents/`, the subagent protocol, and personality cards.
+- The default `recommended` selection keeps core coding, task-management, and UI design/review skills
+  active while moving niche, personal, GitHub-heavy, cross-repo, and platform-specific workflows into
+  optional packs.
+
+**Downstream impact:** behavior change. Projects pulling this update should run
+`./_base/scripts/setup-agents.sh` and choose a profile/packs, or use non-interactive flags such as
+`--skills-profile recommended` or `--all-skills`. Runtime wrapper directories now contain only active
+skills; optional skills remain available through `.agents/skill-library.json` and `playbooks/skills/`.
 
 ### Tighten base coding discipline
 
