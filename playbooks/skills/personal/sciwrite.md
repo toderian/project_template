@@ -11,6 +11,10 @@ This playbook is adapted from
 licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). It has been modified for
 this repository's shared-playbook plus thin-wrapper skill layout.
 
+For requests specifically about "deslop", "de-AI", "make this sound human", or removing AI-style
+prose patterns, use `deslop` as the style-cleanup pass and keep this playbook's scientific integrity
+boundary in force.
+
 ## Non-negotiable boundary
 
 Scientific claims and data are author-owned. Do not silently alter them.

@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.07.01.1
+BASE_VERSION: 2026.07.01.2
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,21 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Add deslop scientific prose cleanup skill
+
+The template now includes an optional `deslop` personal writing skill for removing generic AI-prose
+patterns while preserving author voice, evidence, and technical meaning.
+
+- New `playbooks/skills/personal/deslop.md` adds a compact audit/rewrite/line-edit workflow adapted
+  from `stephenturner/skill-deslop` in original wording, with scientific integrity safeguards.
+- `.agents/skill-library.json` adds `deslop` to the optional `personal` pack.
+- `sciwrite` now points AI-style prose cleanup requests to the companion `deslop` style pass while
+  keeping claim, data, citation, and terminology preservation in force.
+
+**Downstream impact:** additive optional skill. The default `recommended` profile is unchanged, so
+projects do not load this writing skill unless they activate `deslop`, the `personal` pack, or the
+`full` profile during setup or re-setup.
 
 ### Add selectable skill packs
 

@@ -84,6 +84,7 @@
     "personal": {
       "description": "Personal writing, notes, and manuscript-review workflows.",
       "skills": [
+        "deslop",
         "edit-article",
         "obsidian-vault",
         "sciwrite"
@@ -201,6 +202,10 @@
     "design-an-interface": {
       "bucket": "misc",
       "description": "Generate multiple radically different interface designs for a module using parallel sub-agents when available. Use when the user wants to design an API, explore interface options, compare module shapes, or mentions \"design it twice\"."
+    },
+    "deslop": {
+      "bucket": "personal",
+      "description": "Remove generic AI-prose patterns while preserving author voice, evidence, and technical meaning. Use when the user asks to \"deslop\", \"de-AI\", \"make this sound human\", remove AI patterns or tropes, clean up LLM-written prose, or polish scientific manuscripts, abstracts, grant text, cover letters, peer-review responses, and technical articles for natural, specific writing."
     },
     "diagnose": {
       "bucket": "engineering",
