@@ -96,6 +96,12 @@
         "git-guardrails-claude-code"
       ]
     },
+    "simplicity": {
+      "description": "Minimal-correct-change review, over-engineering audits, and simplification debt tracking.",
+      "skills": [
+        "simplicity-review"
+      ]
+    },
     "task-management": {
       "description": "Inbox, roadmap, PRD, backlog, and task-system maintenance workflows.",
       "skills": [
@@ -140,6 +146,7 @@
         "github",
         "personal",
         "platform-claude",
+        "simplicity",
         "task-management",
         "typescript",
         "ui"
@@ -343,6 +350,10 @@
     "setup-pre-commit": {
       "bucket": "engineering",
       "description": "Set up Husky pre-commit hooks with lint-staged (Prettier), type checking, and tests in the current repo. Use when the user wants Codex to add pre-commit hooks, set up Husky, configure lint-staged, or add commit-time formatting/typechecking/testing."
+    },
+    "simplicity-review": {
+      "bucket": "engineering",
+      "description": "Review code changes, plans, dependencies, or whole repos for avoidable complexity using a minimal-correct-change ladder: reuse local code, prefer standard library and native platform features, avoid speculative abstractions, and track deliberate simplification debt. Use when the user asks for simplicity review, over-engineering review, YAGNI review, minimal implementation planning, what can be deleted, what can be replaced with stdlib/native features, or a simplification audit."
     },
     "spec-workflow": {
       "bucket": "engineering",

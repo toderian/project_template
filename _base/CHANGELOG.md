@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.07.01.2
+BASE_VERSION: 2026.07.01.3
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,23 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Add optional simplicity review skill
+
+The template now includes an optional `simplicity-review` engineering skill for minimal-correct-change
+planning, over-engineering diff review, repo-wide simplification audits, and simplification debt
+tracking.
+
+- New `playbooks/skills/engineering/simplicity-review.md` adapts selected workflow ideas from
+  `DietrichGebert/ponytail` in repo-native, neutral wording.
+- `.agents/skill-library.json` adds a new optional `simplicity` pack and includes it in the `full`
+  profile only. The default `recommended` profile is unchanged.
+- `diagnose` now includes a caller-surface check so bug fixes land at the shared root-cause boundary
+  when one exists.
+
+**Downstream impact:** additive optional skill and small debugging-process improvement. Projects do
+not load `simplicity-review` unless they activate the `simplicity` pack, the individual skill, or the
+`full` profile during setup or re-setup.
 
 ### Add deslop scientific prose cleanup skill
 

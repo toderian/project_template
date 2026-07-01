@@ -64,6 +64,17 @@ Confirm:
 
 Do not proceed until you reproduce the bug.
 
+### Caller surface check
+
+Before patching the first failing path, inspect the caller surface for the function, endpoint, query,
+component, or job you are about to touch. A reported bug usually names a symptom, not the only path
+that can trigger it. Search direct callers and sibling routes/jobs/tests so the fix lands at the
+shared boundary when one exists.
+
+Use the smallest root-cause fix that covers the caller surface. One guard in the common function is
+usually better than matching guards in every caller, but only if that shared function is the real
+boundary and the guard is valid for every caller.
+
 ## Phase 3 — Hypothesise
 
 Generate **3–5 ranked hypotheses** before testing any of them. Single-hypothesis generation anchors on the first plausible idea.
