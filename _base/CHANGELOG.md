@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.07.06.8
+BASE_VERSION: 2026.07.06.9
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,27 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Relocate template-dev plans out of `docs/_plans/`
+
+The 6 completed plans documenting the **template's own construction** (`autonomy-aware-loop-engineering.md`,
+`central-artifact-registry.md`, `dated-roadmap-milestones.md`, `human-reusable-workflow-artifacts.md`,
+`safe-workspace-commit-squash-skill.md`, `task-native-specs-system-map.md`) move from `docs/_plans/` to
+`playbooks/meta/template-plans/` (new `README.md` marks them historical). `docs/_plans/` now holds only
+`.gitkeep`, matching the seed skeleton (`_base/docs/_plans/.gitkeep`), so a freshly seeded downstream
+project's durable-plans directory starts empty instead of pre-populated with the template's own
+construction history mislabeled as the project's plans. The `docs/_plans/` **lane** itself is unchanged:
+it remains the durable-plans location for a downstream project's own work, exactly as described in
+`_base/AGENTS.md` and `playbooks/conventions/generated-artifacts.md`.
+
+**Downstream impact:** this is a re-labeling, not a removal — the 6 files still ship downstream, now
+under `playbooks/meta/template-plans/`, clearly marked historical. On merge, an unmodified inherited copy
+of one of the 6 files under `docs/_plans/` deletes cleanly. A copy a downstream repo has **locally
+modified** produces a **modify/delete conflict** instead: Git merge drivers never run for delete-vs-modify
+pairs, so the `docs/** merge=template-keep-local` rule does not protect it. To resolve: keep your modified
+version by re-adding it as a project-owned plan (`git add docs/_plans/<file>`); otherwise accept the
+deletion. `docs/_plans/` itself is untouched as a directory (still tracked via `.gitkeep`) and remains the
+correct place for your project's own durable implementation plans.
 
 ### Tier-0 fast path in `_base/AGENTS.md` and a lighter session-start mandate
 
