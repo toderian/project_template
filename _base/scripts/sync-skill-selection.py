@@ -123,6 +123,11 @@ def load_playbook_skills(root: Path) -> dict[str, Skill]:
             argument_hint = fields.get("argument-hint")
             if argument_hint is not None and not isinstance(argument_hint, str):
                 raise SystemExit(f"{path.relative_to(root)}: frontmatter argument-hint must be a string")
+            if name in skills:
+                raise SystemExit(
+                    f"{path.relative_to(root)}: playbook skill {name} in bucket {bucket!r} "
+                    f"collides with playbook skill {name} in bucket {skills[name].bucket!r}"
+                )
             skills[name] = Skill(
                 name=name,
                 bucket=bucket,

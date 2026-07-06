@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.07.06.9
+BASE_VERSION: 2026.07.06.10
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,21 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Whole-branch review polish: duplicate-skill guard and pointer wording
+
+Three minor fixes from a whole-branch review of the tier-0/dedup remediation work:
+
+- `_base/scripts/sync-skill-selection.py`'s `load_playbook_skills` now raises `SystemExit` naming both
+  buckets if two playbooks in different buckets share the same filename, mirroring the existing
+  `agent_roles` collision guard. No current collision exists; this is a defensive guard against future
+  drift.
+- The tier-0 routing table's multi-repo row in `_base/AGENTS.md` now marks `.config/repos.project.md` as
+  "(downstream, if present)" so an agent working in a bare template checkout doesn't try to open a file
+  that's only created downstream.
+
+**Downstream impact:** none/negligible — a defensive guard that doesn't fire on any existing content, and
+a doc-label clarification. No files move, no rules change owners.
 
 ### Relocate template-dev plans out of `docs/_plans/`
 

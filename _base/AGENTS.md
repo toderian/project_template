@@ -37,7 +37,7 @@ Read this section first. It is the fast path. Load any deeper section below only
 | Roadmap horizons / prioritization | `playbooks/conventions/todo-convention.md` §Roadmap |
 | Autonomy, branch, or commit questions | `playbooks/conventions/autonomy-levels.md` + §"Branch, commit, and push discipline" below |
 | Security-sensitive change | `security-review-owasp` skill |
-| Multi-repo / cross-repo work | `_base/scripts/check-repos-config.sh` + `.config/repos.project.md` |
+| Multi-repo / cross-repo work | `_base/scripts/check-repos-config.sh` + `.config/repos.project.md` (downstream, if present) |
 | Knowledge base / durable notes | `playbooks/conventions/knowledge-base-quickstart.md` |
 | Runbooks | `playbooks/conventions/runbook-convention.md` |
 | Workbooks | `playbooks/conventions/workbook-convention.md` |
