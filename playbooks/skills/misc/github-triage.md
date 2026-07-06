@@ -1,3 +1,8 @@
+---
+name: github-triage
+description: "Triage GitHub issues through a label-based state machine with interactive grilling sessions. Use when user wants to triage issues, review incoming bugs or feature requests, prepare issues for an AFK agent, or manage issue workflow."
+---
+
 # GitHub Issue Triage
 
 Triage issues in the current repo using a label-based state machine. Infer the repo from `git remote`. Use `gh` for all GitHub operations.

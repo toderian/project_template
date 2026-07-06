@@ -1,3 +1,8 @@
+---
+name: squash-workspace-commits
+description: "Squash completed workspace/task commits after validation while protecting unrelated or pushed history. Use when the user says \"squash commits\", \"clean up commits\", \"squash task commits\", or asks to compact agent phase commits after review."
+---
+
 # Squash Workspace Commits
 
 ## Purpose

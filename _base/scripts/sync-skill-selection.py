@@ -2,7 +2,12 @@
 """Synchronize active skill manifests and runtime wrappers.
 
 The durable source is:
-- .agents/skill-library.json: every selectable skill and pack
+- playbooks/skills/<bucket>/<name>.md: the authoritative workflow, whose
+  `---` frontmatter (name, description, optional argument-hint) is the single
+  source of a skill's metadata. Frontmatter string values are JSON-encoded
+  (the same form yaml_string emits) and parsed back with json.loads.
+- .agents/skill-library.json: selection only (packs, profiles) plus the two
+  agent_roles (implementer, reviewer) that have no playbook.
 - .agents/skills.enabled.json: the active profile/packs/extra skills
 
 Generated runtime surfaces are:
@@ -65,43 +70,99 @@ def library_paths(root: Path) -> tuple[Path, Path]:
     return root / ".agents" / "skill-library.json", root / ".agents" / "skills.enabled.json"
 
 
+def decode_frontmatter_value(value: str) -> str:
+    if len(value) >= 2 and value[0] == value[-1] == '"':
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError as exc:
+            raise SystemExit(f"invalid JSON-encoded frontmatter value {value!r}: {exc}") from exc
+    return value
+
+
+def parse_frontmatter(root: Path, path: Path) -> dict[str, str]:
+    rel = path.relative_to(root)
+    lines = path.read_text().splitlines()
+    if not lines or lines[0].strip() != "---":
+        raise SystemExit(f"{rel}: playbook is missing a frontmatter block (must start with '---')")
+    fields: dict[str, str] = {}
+    for line in lines[1:]:
+        if line.strip() == "---":
+            return fields
+        if not line.strip():
+            continue
+        if ":" not in line:
+            raise SystemExit(f"{rel}: malformed frontmatter line: {line!r}")
+        key, _, raw_value = line.partition(":")
+        fields[key.strip()] = decode_frontmatter_value(raw_value.strip())
+    raise SystemExit(f"{rel}: frontmatter block is not terminated by '---'")
+
+
+def load_playbook_skills(root: Path) -> dict[str, Skill]:
+    playbooks_dir = root / "playbooks" / "skills"
+    skills: dict[str, Skill] = {}
+    for bucket in BUCKETS:
+        bucket_dir = playbooks_dir / bucket
+        if not bucket_dir.is_dir():
+            continue
+        # Only bucket-level *.md files are skills; support sub-directories
+        # (tdd/, prototype/, …) are skipped by the non-recursive glob.
+        for path in sorted(bucket_dir.glob("*.md")):
+            name = path.stem
+            fields = parse_frontmatter(root, path)
+            fm_name = fields.get("name")
+            if fm_name != name:
+                raise SystemExit(
+                    f"{path.relative_to(root)}: frontmatter name {fm_name!r} must match filename {name!r}"
+                )
+            description = fields.get("description")
+            if not isinstance(description, str) or not description:
+                raise SystemExit(f"{path.relative_to(root)}: frontmatter description must be a non-empty string")
+            argument_hint = fields.get("argument-hint")
+            if argument_hint is not None and not isinstance(argument_hint, str):
+                raise SystemExit(f"{path.relative_to(root)}: frontmatter argument-hint must be a string")
+            skills[name] = Skill(
+                name=name,
+                bucket=bucket,
+                description=description,
+                argument_hint=argument_hint,
+                kind="skill",
+            )
+    return skills
+
+
 def load_library(root: Path) -> tuple[dict[str, Any], dict[str, Skill]]:
     library_path, _ = library_paths(root)
     library = load_json(library_path)
 
-    raw_skills = library.get("skills")
-    if not isinstance(raw_skills, dict):
-        raise SystemExit(f"{library_path} must contain an object at skills")
+    skills = load_playbook_skills(root)
 
-    skills: dict[str, Skill] = {}
-    for name, raw in raw_skills.items():
+    raw_roles = library.get("agent_roles", {})
+    if not isinstance(raw_roles, dict):
+        raise SystemExit(f"{library_path}: agent_roles must be an object")
+    for name, raw in raw_roles.items():
         if not isinstance(raw, dict):
-            raise SystemExit(f"{library_path}: skills.{name} must be an object")
+            raise SystemExit(f"{library_path}: agent_roles.{name} must be an object")
+        if name in skills:
+            raise SystemExit(f"{library_path}: agent_roles.{name} collides with playbook skill {name}")
         bucket = raw.get("bucket")
         description = raw.get("description")
         if bucket not in BUCKETS:
-            raise SystemExit(f"{library_path}: skills.{name}.bucket must be one of {', '.join(BUCKETS)}")
+            raise SystemExit(f"{library_path}: agent_roles.{name}.bucket must be one of {', '.join(BUCKETS)}")
         if not isinstance(description, str) or not description:
-            raise SystemExit(f"{library_path}: skills.{name}.description must be a non-empty string")
-        argument_hint = raw.get("argument_hint")
-        if argument_hint is not None and not isinstance(argument_hint, str):
-            raise SystemExit(f"{library_path}: skills.{name}.argument_hint must be a string")
-        kind = raw.get("kind", "skill")
-        if kind not in {"skill", "agent-role"}:
-            raise SystemExit(f"{library_path}: skills.{name}.kind must be skill or agent-role")
+            raise SystemExit(f"{library_path}: agent_roles.{name}.description must be a non-empty string")
         skills[name] = Skill(
             name=name,
             bucket=bucket,
             description=description,
-            argument_hint=argument_hint,
-            kind=kind,
+            argument_hint=None,
+            kind="agent-role",
         )
 
-    validate_library(root, library, skills)
+    validate_library(library, skills)
     return library, skills
 
 
-def validate_library(root: Path, library: dict[str, Any], skills: dict[str, Skill]) -> None:
+def validate_library(library: dict[str, Any], skills: dict[str, Skill]) -> None:
     packs = library.get("packs")
     profiles = library.get("profiles")
     if not isinstance(packs, dict) or not packs:
@@ -130,13 +191,6 @@ def validate_library(root: Path, library: dict[str, Any], skills: dict[str, Skil
         for pack_name in profile_packs:
             if pack_name not in packs:
                 raise SystemExit(f"profile {profile_name} references unknown pack {pack_name}")
-
-    for skill in skills.values():
-        if skill.kind == "agent-role":
-            continue
-        playbook = root / skill.playbook_path
-        if not playbook.exists():
-            raise SystemExit(f"library skill {skill.name} is missing playbook {skill.playbook_path}")
 
 
 def load_selection(root: Path) -> dict[str, Any]:
@@ -331,6 +385,12 @@ def write_selection(root: Path, selection: dict[str, Any]) -> None:
     selection_path.write_text(dump_json(selection))
 
 
+def dump_names(skills: dict[str, Skill]) -> None:
+    for name in sorted(skills):
+        skill = skills[name]
+        print(f"{name}\t{skill.bucket}\t{skill.kind}")
+
+
 def print_list(library: dict[str, Any], skills: dict[str, Skill]) -> None:
     print("Profiles:")
     for name, profile in sorted(library["profiles"].items()):
@@ -403,6 +463,11 @@ def main() -> int:
     parser.add_argument("--check", action="store_true", help="validate generated files without writing")
     parser.add_argument("--sync", action="store_true", help="write generated manifest and runtime wrappers")
     parser.add_argument("--list", action="store_true", help="list profiles, packs, and library skills")
+    parser.add_argument(
+        "--dump-names",
+        action="store_true",
+        help="print 'name<TAB>bucket<TAB>kind' for every skill and agent role",
+    )
     parser.add_argument("--interactive", action="store_true", help="prompt for a profile or custom packs")
     parser.add_argument("--profile", help="activate a named profile")
     parser.add_argument("--packs", help="activate comma-separated packs and mark selection custom")
@@ -411,6 +476,10 @@ def main() -> int:
 
     root = repo_root()
     library, skills = load_library(root)
+
+    if args.dump_names:
+        dump_names(skills)
+        return 0
 
     if args.list:
         print_list(library, skills)

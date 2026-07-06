@@ -1,3 +1,8 @@
+---
+name: security-review-owasp
+description: "Apply current OWASP standards (Top 10:2025, ASVS 5.0, LLM Top 10 2025, Agentic AI 2026) when writing or reviewing code. Use when reviewing code for security issues, implementing auth/authz, handling user input, designing API endpoints, building AI agent systems, integrating LLMs/RAG, or discussing application security."
+---
+
 # OWASP Security Review
 
 Apply current OWASP standards when writing or reviewing code. Covers OWASP Top 10:2025, ASVS 5.0, the OWASP LLM Top 10 (2025), and Agentic AI security (2026).

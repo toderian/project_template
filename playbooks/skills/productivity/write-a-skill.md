@@ -1,3 +1,8 @@
+---
+name: write-a-skill
+description: "Create new agent skills with proper structure, progressive disclosure, and bundled resources. Use when the user wants Codex to create, write, or build a new skill."
+---
+
 # Writing Skills
 
 ## Purpose

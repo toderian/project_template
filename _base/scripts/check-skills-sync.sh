@@ -170,14 +170,18 @@ fi
 
 mapfile -t MANIFEST_NAMES < <(printf '%s\n' "${!NAME_TO_BUCKET[@]}" | sort)
 
-library_rows="$(python3 - "$LIBRARY" <<'PY'
-import json, sys
-with open(sys.argv[1]) as f:
-    data = json.load(f)
-for name, skill in sorted(data["skills"].items()):
-    print(f"{name}\t{skill['bucket']}\t{skill.get('kind', 'skill')}")
-PY
-)" || { printf 'error: failed to parse %s\n' "$LIBRARY" >&2; exit 2; }
+# Enumerate every skill (from playbook frontmatter) and agent role via the
+# generator's machine-readable mode: name<TAB>bucket<TAB>kind. Capture first,
+# then check, so a parse/enumeration failure surfaces as a BLOCKER finding the
+# agent can act on rather than a swallowed empty set.
+if library_rows="$("$SELECTION_SCRIPT" --dump-names 2>/dev/null)"; then
+  :
+else
+  emit BLOCKER skill-enumeration-failed \
+    "_base/scripts/sync-skill-selection.py" \
+    "--dump-names failed; a bucket-level playbook likely has malformed or missing frontmatter"
+  library_rows=""
+fi
 
 declare -A LIBRARY_NAME_TO_BUCKET
 if [[ -n "$library_rows" ]]; then
@@ -189,7 +193,10 @@ if [[ -n "$library_rows" ]]; then
   done <<< "$library_rows"
 fi
 
-mapfile -t LIBRARY_NAMES < <(printf '%s\n' "${!LIBRARY_NAME_TO_BUCKET[@]}" | sort)
+LIBRARY_NAMES=()
+if [[ -n "$library_rows" ]]; then
+  mapfile -t LIBRARY_NAMES < <(printf '%s\n' "${!LIBRARY_NAME_TO_BUCKET[@]}" | sort)
+fi
 
 if [[ -x "$SELECTION_SCRIPT" ]]; then
   if "$SELECTION_SCRIPT" --check >/dev/null 2>&1; then
@@ -304,17 +311,28 @@ done < <(find "$dir" -mindepth 2 -maxdepth 2 -type d 2>/dev/null)
 scan_wrapper_dirs "$CODEX_SKILLS_DIR"  "skills"
 scan_wrapper_dirs "$CLAUDE_SKILLS_DIR" ".claude/skills"
 
-# Playbook files at the bucket level (playbooks/skills/<bucket>/<name>.md)
-# must be library entries, whether active or inactive.
+# Every bucket-level playbook (playbooks/skills/<bucket>/<name>.md) is now the
+# single source of its skill metadata, so it MUST open with a --- frontmatter
+# block carrying name + description. (Playbooks are the registry: a stray
+# playbook with frontmatter is a selectable — not orphan — skill, and its
+# bucket comes from its own directory, so the former orphan-playbook and
+# bucket-mismatch checks here are vacuous. Their inverse is enforced instead.)
 while IFS= read -r f; do
   [[ -z "$f" ]] && continue
   bucket="$(basename "$(dirname "$f")")"
   name="$(basename "$f" .md)"
-  if [[ -z "${LIBRARY_NAME_TO_BUCKET[$name]+x}" ]]; then
-    emit BLOCKER orphan-playbook "playbooks/skills/$bucket/$name.md" "not listed in skill library"
-  elif [[ "${LIBRARY_NAME_TO_BUCKET[$name]}" != "$bucket" ]]; then
-    emit BLOCKER bucket-mismatch "playbooks/skills/$bucket/$name.md" \
-      "library places it in ${LIBRARY_NAME_TO_BUCKET[$name]}"
+  if [[ "$(head -1 "$f")" != "---" ]]; then
+    emit BLOCKER playbook-missing-frontmatter "playbooks/skills/$bucket/$name.md" \
+      "bucket-level playbook must open with a --- frontmatter block (name + description)"
+    continue
+  fi
+  if [[ -z "$(fm_field "$f" name)" ]]; then
+    emit BLOCKER playbook-missing-frontmatter "playbooks/skills/$bucket/$name.md" \
+      "frontmatter has no name: field"
+  fi
+  if [[ -z "$(fm_field "$f" description)" ]]; then
+    emit BLOCKER playbook-missing-frontmatter "playbooks/skills/$bucket/$name.md" \
+      "frontmatter has no description: field"
   fi
 done < <(find "$PLAYBOOKS_DIR" -mindepth 2 -maxdepth 2 -type f -name '*.md' 2>/dev/null)
 

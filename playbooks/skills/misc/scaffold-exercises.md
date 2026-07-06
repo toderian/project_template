@@ -1,3 +1,8 @@
+---
+name: scaffold-exercises
+description: "Create exercise directory structures with sections, problems, solutions, and explainers that pass linting. Use when the user wants Codex to scaffold exercises, create exercise stubs, or set up a new course section."
+---
+
 # Scaffold Exercises
 
 ## Purpose

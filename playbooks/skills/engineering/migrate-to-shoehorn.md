@@ -1,3 +1,8 @@
+---
+name: migrate-to-shoehorn
+description: "Migrate test files from `as` type assertions to @total-typescript/shoehorn. Use when the user wants Codex to replace `as` in tests or needs partial test data with shoehorn."
+---
+
 # Migrate to Shoehorn
 
 ## Purpose

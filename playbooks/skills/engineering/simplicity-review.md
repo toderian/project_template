@@ -1,3 +1,8 @@
+---
+name: simplicity-review
+description: "Review code changes, plans, dependencies, or whole repos for avoidable complexity using a minimal-correct-change ladder: reuse local code, prefer standard library and native platform features, avoid speculative abstractions, and track deliberate simplification debt. Use when the user asks for simplicity review, over-engineering review, YAGNI review, minimal implementation planning, what can be deleted, what can be replaced with stdlib/native features, or a simplification audit."
+---
+
 # Simplicity Review
 
 ## Purpose

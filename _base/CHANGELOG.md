@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.07.06.2
+BASE_VERSION: 2026.07.06.3
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,38 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Skill metadata is single-sourced in playbook frontmatter
+
+Each skill's metadata (`description`, optional `argument-hint`) now lives in the frontmatter of its
+playbook at `playbooks/skills/<bucket>/<name>.md`, not in `.agents/skill-library.json`.
+
+- All 56 bucket-level playbooks gained a `---` frontmatter block with `name`, `description`, and (where
+  applicable) `argument-hint`. String values are JSON-encoded — the same form the generator emits — so
+  they round-trip through `json.loads` and reproduce every runtime wrapper byte-for-byte.
+- `_base/scripts/sync-skill-selection.py` now builds each skill from its playbook frontmatter (bucket
+  from the directory, name from the filename), skipping the support sub-directories under
+  `playbooks/skills/*/`. Frontmatter parse errors abort with a clear `SystemExit`. A new `--dump-names`
+  mode prints `name<TAB>bucket<TAB>kind` for every skill and agent role.
+- `.agents/skill-library.json` is slimmed to selection only: `packs`, `profiles`, and a new
+  `agent_roles` object holding the two non-playbook roles (`implementer`, `reviewer`) with their inline
+  `bucket`/`description`. The former top-level `skills` object is removed; normal skills now appear only
+  as names inside packs.
+- `_base/scripts/check-skills-sync.sh` consumes `sync-skill-selection.py --dump-names` instead of
+  parsing the library directly. Because playbooks are now the metadata registry, the old
+  `orphan-playbook` and playbook `bucket-mismatch` checks are vacuous (a stray playbook with frontmatter
+  is a selectable skill, and its bucket is its own directory); they are replaced by their inverse, a
+  BLOCKER `playbook-missing-frontmatter` on any bucket-level playbook lacking a `name`/`description`
+  frontmatter block.
+- Runtime wrappers and `.claude-plugin/plugin.json` are unchanged by this switch (verified
+  byte-identical via `--sync`).
+
+**Downstream impact:** skill descriptions and argument hints are now edited in playbook frontmatter, not
+in `.agents/skill-library.json`. Any downstream local edits to `skills.<name>.description` /
+`argument_hint` in `skill-library.json` will conflict on merge (the whole `skills` object is gone) and
+must be moved into the corresponding `playbooks/skills/<bucket>/<name>.md` frontmatter. Pack/profile
+selection in `skill-library.json` is unaffected. Runtime wrappers and `plugin.json` do not change until a
+project re-runs `sync-skill-selection.py --sync`.
 
 ### Manifest parse failures abort instead of reporting 0 skills
 

@@ -1,3 +1,8 @@
+---
+name: roadmap
+description: "Maintain docs/tasks_manager/_roadmap.md -- the Urgent/Now/Next/Later/Someday ordering plus optional dated milestone headings. Use when the user wants to \"plan the roadmap\", \"what's next\", reprioritize/sequence work, schedule tasks, or refresh the roadmap. Distinct from per-change planning."
+---
+
 # Roadmap
 
 ## Purpose

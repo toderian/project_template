@@ -1,3 +1,8 @@
+---
+name: edit-article
+description: "Edit and improve articles by restructuring sections, improving clarity, and tightening prose. Use when the user wants Codex to edit, revise, or improve an article draft."
+---
+
 # Edit Article
 
 ## Purpose

@@ -1,3 +1,8 @@
+---
+name: zoom-out
+description: "Step up a layer of abstraction and produce a map of the relevant modules and callers, using the project's domain glossary. Use when starting work in an unfamiliar area of the codebase, when broader context is needed, or when a narrow trace has lost the bigger picture."
+---
+
 # Zoom Out
 
 ## Purpose
