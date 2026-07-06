@@ -2,7 +2,7 @@
 
 > **Auto-loaded entrypoint for the agent operating contract.** Both Claude Code and Codex load this file automatically at session start.
 >
-> **First instruction to every agent:** before acting, also read [`_base/AGENTS.md`](./_base/AGENTS.md) in this directory. `_base/AGENTS.md` is the authoritative base contract; this `AGENTS.md` is the downstream-owned entrypoint that may add project-specific overrides below. Treat the two files as a single contract, with overrides in this file taking precedence over the base.
+> **First instruction to every agent:** before acting, read the **Start here (tier 0)** section of [`_base/AGENTS.md`](./_base/AGENTS.md) and follow its routing table — load the deeper sections and conventions it lists only as your current task requires. `_base/AGENTS.md` is the authoritative base contract; this `AGENTS.md` is the downstream-owned entrypoint that may add project-specific overrides below. Treat the two files as a single contract, with overrides in this file taking precedence over the base.
 
 ## How this file is structured
 

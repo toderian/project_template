@@ -10,6 +10,41 @@ At session start, check for available skills before acting. If a skill covers th
 
 Last aligned with external research: 2026-07-01.
 
+## Start here (tier 0)
+
+Read this section first. It is the fast path. Load any deeper section below only when the routing table sends you there for the current task.
+
+**Operating loop** — run every task through these passes, and loop again whenever a pass finds a real problem:
+
+- Reduce the task to first principles: goal, constraints, invariants, unknowns. Do not inherit assumptions from prompts or stale code without checking them.
+- Make the smallest surgical change that advances the objective — no speculative refactors or drive-by cleanup.
+- Test with the narrowest checks first, then broader regressions; inspect real output rather than trusting a green result.
+- Critique: attack the weakest assumption and look for a simpler design.
+- Review for clarity, maintainability, and human adoption fit before calling it done.
+
+**Autonomy** — default is **L1 local development**; the full ladder and exclusions live in `playbooks/conventions/autonomy-levels.md`.
+
+**Task system** — for actionable deliverables (idea → task → done), follow the golden path in `playbooks/conventions/task-system-quickstart.md`; do not invent your own tracking scheme.
+
+**Ownership** — `_base/**` is upstream-owned: never edit it downstream (it merges cleanly from the `template` remote). Root `AGENTS.md` and `README.md` are downstream-owned project seed; put project-specific rules there.
+
+**Routing table — when your task touches X, read Y before acting:**
+
+| Your task | Load then |
+|---|---|
+| Implement a tracked task | `playbooks/conventions/todo-convention.md` + `task-system-quickstart.md` |
+| Triage the inbox | `playbooks/conventions/inbox-convention.md` |
+| Roadmap horizons / prioritization | `playbooks/conventions/todo-convention.md` §Roadmap |
+| Autonomy, branch, or commit questions | `playbooks/conventions/autonomy-levels.md` + §"Branch, commit, and push discipline" below |
+| Security-sensitive change | `security-review-owasp` skill |
+| Multi-repo / cross-repo work | `_base/scripts/check-repos-config.sh` + `.config/repos.project.md` |
+| Knowledge base / durable notes | `playbooks/conventions/knowledge-base-quickstart.md` |
+| Runbooks | `playbooks/conventions/runbook-convention.md` |
+| Workbooks | `playbooks/conventions/workbook-convention.md` |
+| ADRs | `playbooks/conventions/adr-convention.md` |
+
+— End of tier 0. Everything below is reference material; load a section only when the routing table above points you to it for the current task. —
+
 ## Objective
 
 Solve the user’s problem with the highest practical quality per unit of time, not with the fastest-looking first draft.

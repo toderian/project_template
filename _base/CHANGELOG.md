@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.07.06.7
+BASE_VERSION: 2026.07.06.8
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,28 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Tier-0 fast path in `_base/AGENTS.md` and a lighter session-start mandate
+
+`_base/AGENTS.md` now opens with a `## Start here (tier 0)` section: the operating loop in five bullets,
+the L1 autonomy default (linked), the task-system golden-path link, the two-line ownership model, and a
+"when your task touches X → read Y" routing table, closed by an explicit stop marker. The routing table
+sends agents to the single owner file for each concern (todo/inbox/roadmap/autonomy conventions, the
+`security-review-owasp` skill, `check-repos-config.sh` + `.config/repos.project.md`, and the
+knowledge/runbook/workbook/adr conventions) only when the current task needs it. The demoted reference
+sections (Objective, Non-negotiable principles, etc.) are unchanged and remain below the stop marker.
+
+The root `AGENTS.md` seed's first instruction changed from "also read `_base/AGENTS.md`" to "read the
+**Start here (tier 0)** section of `_base/AGENTS.md` and follow its routing table — load deeper sections
+only as the task requires." The mandated session-start read set (root `AGENTS.md` + tier-0 + task-system
+quickstart) is now ~2,250 words instead of the full base contract.
+
+**Downstream impact:** the new tier-0 fast path lives in upstream-owned `_base/AGENTS.md` and flows in
+on merge — every downstream repo gets the lighter session-start mandate and routing table automatically.
+The root `AGENTS.md` mandate change is a **seed-only** change to downstream-owned content: it becomes the
+starting point for newly seeded projects, but existing repos keep their local `AGENTS.md` and may adopt
+the new tier-0 instruction by hand during a template merge. No rules moved owners and no file formats
+changed; deeper sections stay reachable exactly where they were, now loaded on demand.
 
 ### One canonical owner per task-system rule (contract deduplication)
 
