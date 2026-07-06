@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.07.06.13
+BASE_VERSION: 2026.07.06.14
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,34 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Slim the base contract and fix orphaned-convention discoverability
+
+`_base/AGENTS.md` had grown to 520 lines, mostly from restating material that tier-0 or the convention
+files already own. Trimmed to **423 lines (~19% smaller)** by removing duplication only — no
+operational rule was dropped, and the tier-0 fast path is unchanged.
+
+- Deleted `## Objective` and `## Standard operating loop` — both restated the tier-0 operating loop
+  (which was already stated ~5× across the file).
+- Trimmed Principle 9: the five `Work mode` value definitions now point to their canonical owner
+  (`_base/repos.project.example.md`) and the autonomy paragraph to `autonomy-levels.md`; dropped the
+  fenced commit-format template (the prose above it already prescribes the same format). Branch
+  resolution, commit cadence, and the push gate are unchanged.
+- Gutted the second task-system routing list under "Recommended durable artifacts" (it self-declared
+  "do not restate them here" then restated the conventions) down to a one-paragraph pointer.
+- Collapsed the 22-row file-ownership table to the load-bearing rows plus the "everything under
+  `_base/` is upstream-owned" principle; the full per-file inventory now points at `_base/README.md`
+  → "Staying in sync with the template".
+- Compressed the Python-tooling and Codex-subagent-fallback sections; removed the actor-critic
+  re-gloss in Principle 3.
+- **Discoverability fix:** added tier-0 routing rows for previously **orphaned** conventions —
+  `connectors-and-mcp.md` (the base contract had *no* reachable MCP guidance before),
+  `agent-loop-recipes.md`, `prompt-orchestration.md` — plus `generated-artifacts.md` and the
+  human-runnable-workflow section.
+
+**Downstream impact:** `_base/AGENTS.md` is upstream-owned and merges cleanly via
+`git fetch template && git merge` — no conflict, no downstream file changes. All removed content was
+duplication; every rule still resolves to a canonical owner. No skill, wrapper, hook, or config change.
 
 ### Add ratchet, output-offloading, and hook-authoring doctrine to the base contract
 

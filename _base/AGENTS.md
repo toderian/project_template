@@ -42,21 +42,13 @@ Read this section first. It is the fast path. Load any deeper section below only
 | Runbooks | `playbooks/conventions/runbook-convention.md` |
 | Workbooks | `playbooks/conventions/workbook-convention.md` |
 | ADRs | `playbooks/conventions/adr-convention.md` |
+| Generated reports / timestamped outputs | `playbooks/conventions/generated-artifacts.md` |
+| Connectors / MCP tools | `playbooks/conventions/connectors-and-mcp.md` |
+| Automating a recurring agent loop | `playbooks/conventions/agent-loop-recipes.md` |
+| Prompt / multi-agent orchestration | `playbooks/conventions/prompt-orchestration.md` |
+| Preserving a repeatable workflow (don't leave it in the transcript) | §"Human-runnable workflow artifacts" below |
 
 — End of tier 0. Everything below is reference material; load a section only when the routing table above points you to it for the current task. —
-
-## Objective
-
-Solve the user’s problem with the highest practical quality per unit of time, not with the fastest-looking first draft.
-
-The default posture is:
-
-- think from first principles
-- surface material assumptions, ambiguities, and tradeoffs before they become hidden code
-- prefer evidence over guessing
-- work in explicit build-test-critic-review loops
-- use the smallest workflow that can reliably solve the problem
-- keep outputs clear, concise, and directly useful to humans
 
 ## Non-negotiable principles
 
@@ -93,13 +85,9 @@ Every meaningful task should move through multiple passes:
 4. critic pass: attack assumptions, find failure modes, propose a better version
 5. reviewer pass: check maintainability, clarity, safety, and user fit
 
-If a pass exposes a real problem, loop again. Do not stop at the first plausible answer.
-
-This is the default actor-critic pattern for this repo:
-
-- actor: the builder produces the next candidate solution
-- critic: the tester and critic supply externalized feedback
-- manager: decides whether another loop is required
+If a pass exposes a real problem, loop again. Do not stop at the first plausible answer. This is the
+repo's default actor-critic pattern: the builder produces candidates, the tester and critic supply
+externalized feedback, and the manager decides whether another loop is required.
 
 ### 4. Simplicity first, orchestration second
 
@@ -186,19 +174,10 @@ For **working/product repos**:
   current branch should be treated as the task branch
 - do not create nested/subbranches unless the user explicitly asks
 
-Interpret `.config/repos.project.md` `Work mode` values as:
-
-- `default-branch`: commit on the configured default branch; if currently elsewhere, ask before
-  continuing or switching
-- `same-branch`: stay on the current branch; do not create or switch branches
-- `task-branch`: use the explicit branch named by the user/task/project; if absent, ask before
-  creating or switching
-- `read-only`: do not commit; stop if implementation would require writes
-- `ask`: ask before edits or branch changes
-
-Autonomy is a separate permission ceiling with its own default, ladder, and exclusions; the canonical
-owner is `playbooks/conventions/autonomy-levels.md`. Default is **L1 local development**. `Work mode`
-and branch resolution still decide where work happens, and the strictest rule wins.
+The `.config/repos.project.md` `Work mode` values (`default-branch` / `same-branch` / `task-branch` /
+`read-only` / `ask`) are defined in `_base/repos.project.example.md`; the separate autonomy ceiling
+(default **L1**) lives in `playbooks/conventions/autonomy-levels.md`. Work mode and branch resolution
+decide *where* work happens; autonomy decides *how far* it may go; the strictest rule wins.
 
 In all modes, commit after each coherent, reviewable set of modifications: one task slice, one plan
 phase, one bug fix, or one documentation batch. Do not commit every tiny edit, and do not leave a large
@@ -229,18 +208,6 @@ If asked to push:
 - never push unless the user explicitly asks and effective autonomy permits L2 or L3 for the resolved
   branch
 
-Default format:
-
-```text
-feat: short summary
-
-What changed:
-- concise change summary
-
-Why:
-- concise reason or user outcome
-```
-
 ### 10. Ratchet failures into durable rules
 
 Treat a repeated agent mistake as a permanent signal, not a one-off. Every standing rule, guardrail,
@@ -254,19 +221,6 @@ and anti-pattern should trace back to a real past failure or a hard external con
   stays high-signal
 - doctrine-level changes still follow principle 8 (rerun `playbooks/meta/UPDATE_PLAN.md`, prefer
   primary sources)
-
-## Standard operating loop
-
-Use this loop by default.
-
-0. **Frame**: restate the objective, identify constraints and material assumptions, define done
-1. **Understand**: inspect the repo, locate patterns and tests, find the smallest surface
-2. **Model**: write down root problem, likely causes, failure modes, verification strategy
-3. **Choose workflow**: simple (one agent, sequential roles), medium (extra tester/critic passes), or large (manager coordinates parallel agents with clear ownership)
-4. **Build**: implement the minimal step that advances the objective — no speculative refactors or drive-by cleanup
-5. **Test**: run narrowest checks first, then broader regression checks — inspect actual outputs
-6. **Critique**: what assumption was weakest? what could still be wrong? is there a simpler design? Then refine.
-7. **Review**: ensure the change is understandable, document residual risks, explain what changed and why
 
 ## Role definitions
 
@@ -283,26 +237,13 @@ See `playbooks/personalities/` for detailed role cards including default questio
 
 ## Python tooling environment
 
-For persistent repo-level Python tooling dependencies, use `uv` and keep the environment metadata
-under `tools/python/` rather than the repository root. This convention is for tooling helpers, not for
-turning every downstream project into a Python package.
-
-- `tools/python/pyproject.toml` declares Python tooling dependencies and should be committed once
-  those dependencies exist.
-- `tools/python/uv.lock` records the exact resolved dependency state, is committed, and is
-  uv-managed; do not hand-edit it.
-- `tools/python/.python-version` pins the interpreter for the tooling environment and is committed.
-- `tools/python/.venv/` is the local virtual environment and must never be committed. A root `.venv/`
-  is also local-only.
-- Run managed commands from `tools/python/`, for example `cd tools/python && uv sync` and
-  `cd tools/python && uv run <command>`.
-- Use `uv add`, `uv remove`, `uv lock`, `uv sync`, and `uv run`; do not use `pip install` directly for
-  dependencies that should be represented in committed project state.
-- If multiple Python tooling environments are needed, use explicit subfolders under
-  `tools/python/<name>/` and document each one in the downstream `AGENTS.md`.
-
-Do not create `tools/python/pyproject.toml`, `tools/python/uv.lock`, or
-`tools/python/.python-version` until there are real Python tooling dependencies to represent.
+For persistent repo-level Python tooling, use `uv` (not `pip install`) and keep the environment under
+`tools/python/`, not the repo root — this is for tooling helpers, not for turning the project into a
+Python package. Commit `pyproject.toml`, `uv.lock`, and `.python-version`, but only once real
+dependencies exist; never commit any `.venv/` (`tools/python/.venv/` or a root one). Run managed
+commands from `tools/python/` (`cd tools/python && uv sync`, `uv run <command>`, `uv add`/`remove`/
+`lock`). For multiple tooling environments, use `tools/python/<name>/` subfolders and document each in
+the downstream `AGENTS.md`.
 
 ## Multi-agent rules
 
@@ -331,12 +272,9 @@ Subagent definitions for Claude Code live in `.claude/agents/`. Dispatch them wh
 | `security-auditor` | OWASP + LLM + Agentic AI review using `playbooks/skills/engineering/security-review-owasp.md` | After implementation on any change touching auth, input handling, crypto, or AI surfaces |
 | `researcher` | Codebase-first investigation with citation requirements, following `playbooks/personalities/researcher.md` | When the team needs evidence-backed findings before action |
 
-Codex environments vary. If Codex exposes multi-agent tools, use the same dispatch brief and status
-vocabulary from `playbooks/skills/productivity/subagent-protocol.md`. If no Codex subagent runtime is
-available, `implementer` and `reviewer` remain available as flat installed behavioral skills from
-`skills/misc/implementer` and `skills/misc/reviewer`; the other roles (`plan-critic`,
-`spec-validator`, `security-auditor`, `researcher`) run on the main thread using the cited personality
-and skill/convention.
+Codex environments vary: if Codex exposes multi-agent tools, use the same dispatch brief and status
+vocabulary; otherwise `implementer` and `reviewer` run as flat skills (`skills/misc/*`) and the other
+roles run on the main thread using their cited personality/skill.
 
 ## Recommended durable artifacts for long-running tasks
 
@@ -349,30 +287,12 @@ When a task spans many sessions, add lightweight artifacts such as:
 Prefer structured files for task state when possible.
 If this template repo is used directly, start from the files in `playbooks/templates/`.
 
-For work that produces actionable deliverables (PRDs, triage, planning), use the task system. Its rules
-live in dedicated conventions; do not restate them here. Follow the canonical owner for each concern:
-
-- **Golden path** (idea → task → done, plus minimum validation): `playbooks/conventions/task-system-quickstart.md`.
-- **Task files** — flat `docs/tasks_manager/_todos/<PREFIX>-NNN-<TYPE>_<desc>.md` naming, area prefixes
-  (`T` for global/cross-area), types (`F`/`D`/`C`/`R`), `reserve-work-item.sh` ID reservation, optional
-  `Repos`/`Autonomy`/`Spec refs`/`Target date`/`Deadline` metadata, spec lifecycle statuses, the
-  pre-implementation review gate, and completion/archive: `playbooks/conventions/todo-convention.md`.
-- **Inbox capture and six-way triage** (`docs/tasks_manager/_inbox/`, `I-NNN`, `/capture-idea`,
-  `/triage-inbox`): `playbooks/conventions/inbox-convention.md`.
-- **Roadmap horizons** (Urgent / Now / Next / Later / Someday semantics, soft thresholds, dated
-  milestones; raw `I-NNN` only in `Someday`): `playbooks/conventions/todo-convention.md` §Roadmap.
-- **Autonomy ceiling** (default L1 plus the ladder): `playbooks/conventions/autonomy-levels.md`.
-- **Durable knowledge** — `docs/resources/` glossary, `system-map.md`, area summaries/sources/
-  dependency-graphs/contracts/component contexts, `_inbox` raw drops, and `_digests`:
-  `playbooks/conventions/knowledge-base-quickstart.md`. **Reports and timestamping**
-  (`docs/resources/_reports/<workflow>/`): `playbooks/conventions/generated-artifacts.md`. **ADRs**
-  (`docs/adr/NNNN-slug.md`): `playbooks/conventions/adr-convention.md`. **Workbooks**
-  (`workbooks/<slug>/`): `playbooks/conventions/workbook-convention.md`. Durable plans live in
-  `docs/_plans/`; frozen docs live in `docs/archive/`.
-- **Ledgers, area sync, and repo config** — rebuild with `_base/scripts/sync-todo-ledgers.sh`, validate
-  read-only with `--check`, validate `.config/repos.project.md` with `_base/scripts/check-repos-config.sh`,
-  and reference cross-repo paths as `<repo-slug>:<repo-relative-path>` (never absolute
-  `.local/repos.map` paths): `playbooks/conventions/todo-convention.md`.
+For actionable deliverables (PRDs, triage, planning), use the task system rather than an ad-hoc
+scheme. Each concern has a single canonical owner reachable from the tier-0 routing table — task
+files, inbox, and roadmap (`todo-convention.md`, `inbox-convention.md`), durable knowledge
+(`knowledge-base-quickstart.md`), reports (`generated-artifacts.md`), ADRs (`adr-convention.md`), and
+workbooks (`workbook-convention.md`). Durable plans live in `docs/_plans/`; frozen docs in
+`docs/archive/`. Do not restate those conventions here.
 
 Do not encode repo slugs into task IDs, filenames, prefixes, or areas. Claude hooks enforce
 naming/archive reminders and the `.claude/hooks/block-dangerous-*.sh` command guards are accident
@@ -402,14 +322,11 @@ Use these routing rules:
   discoverable by slug, backend, path or pattern, fetch command, verification command, encryption
   status, and update notes.
 
-Human-runnable workflow files must have descriptive names, clear entrypoint commands, documented
-arguments or config files, expected inputs and outputs, cleanup notes, and no secrets or private local
-paths. Capture the method in README or runbook prose, not only in code comments.
-
-Inline snippets remain fine for tiny inspection, quick `rg`/`jq`/JSON parsing, transient environment
-checks, or throwaway feasibility experiments. Once the command sequence becomes a procedure, benchmark,
-training/evaluation loop, migration helper, report generator, or data-processing workflow someone
-would plausibly rerun, turn it into a human-runnable artifact.
+Such files need descriptive names, clear entrypoint commands, documented arguments/inputs/outputs,
+cleanup notes, no secrets or private local paths, and the method captured in README/runbook prose (not
+only code comments). Inline snippets stay fine for tiny inspection or throwaway experiments; once a
+command sequence becomes a procedure someone would rerun (benchmark, migration helper, report
+generator, data-processing loop), turn it into an artifact.
 
 ## Definition of done
 
@@ -455,30 +372,16 @@ Downstream projects follow a strict split:
 
 | File | Ownership | Notes |
 |------|-----------|-------|
-| `AGENTS.md` | **Downstream-owned** | Auto-loaded entrypoint. Each project writes its own project-specific overrides. Loads `_base/AGENTS.md` by instruction. |
-| `_base/AGENTS.md` | **Upstream-owned** | This file. Base contract. Do not edit downstream — it flows in cleanly from upstream. |
-| `README.md` | **Downstream-owned** | Each project's own README. Links to `_base/README.md`. |
-| `_base/README.md` | **Upstream-owned** | Authoritative template documentation. Do not edit downstream. |
-| `.gitattributes` | **Downstream-owned** | Contains the managed agents-template merge-rule block plus project-specific attributes outside that block. Install or refresh with `_base/scripts/setup-template-merge-rules.sh`. |
-| `_base/CHANGELOG.md` | **Upstream-owned** | Base-template changelog. Agents must check this before applying a template merge so they can communicate downstream impact to the user. |
-| `_base/SETUP_INSTRUCTIONS.md` | **Upstream-owned** | Numbered setup steps an agent (or human) executes to wire up a fresh project — template remote, runtime installers, downstream-slot replacements, verification. |
-| `.config/repos.project.md` (optional) | **Downstream-owned** | Committed project repo registry. Create from `_base/repos.project.example.md` when a project needs stable repo slugs, branch defaults, and work-mode policy. |
-| `_base/repos.project.example.md` | **Upstream-owned** | Example repo registry. Do not edit downstream. |
-| `_base/repos.map.example` | **Upstream-owned** | Example local checkout map. Copy to `.local/repos.map` and edit locally; do not commit `.local/`. |
-| `workbooks/` | **Downstream-owned** | Root workbook bundles. Seeded with an index from `_base/workbooks/README.md`; each workbook owns its own folder and README. |
-| `_base/workbooks/` | **Upstream-owned** | Seed root workbook index. Do not edit downstream — root `workbooks/` is the downstream-owned workspace. |
-| `tools/python/` | **Downstream-owned** | Optional uv-managed Python tooling metadata. Commit `pyproject.toml`, `uv.lock`, and `.python-version` when dependencies exist; never commit `.venv/`. |
-| `PROJECT.md` | **Downstream-owned** | Vision, goals, scope. Copied from `_base/PROJECT.md.template`. Read by the `/align` skill. |
-| `_base/PROJECT.md.template` | **Upstream-owned** | Template for `PROJECT.md`. |
-| `docs/resources/CONTEXT.md` | **Downstream-owned** | Primary domain glossary (canonical terms, relationships, resolved ambiguities). Seeded from `_base/docs/resources/CONTEXT.md`. Read and updated inline by `grill-with-docs`; consulted by `diagnose`, `zoom-out`, and `refresh-context`. |
-| `CONTEXT.md` | **Downstream-owned** | Pointer/fallback to `docs/resources/CONTEXT.md`. Created from `_base/CONTEXT.md.template` when missing. |
-| `_base/CONTEXT.md.template` | **Upstream-owned** | Template for the root pointer. |
-| `.venv/` | **Local-only** | Local Python virtual environment. Never commit. |
-| `tools/python/.venv/` | **Local-only** | Local uv-managed Python tooling environment. Never commit. |
-| `.local/runbooks/` | **Local-only** | Machine-local placeholder bindings for sanitized committed runbooks. Never commit. |
-| `CHANGELOG.md` (optional) | **Downstream-owned** | Downstream project's own changelog, if they keep one. Never overlaps with `_base/CHANGELOG.md`. |
+| `AGENTS.md` | **Downstream-owned** | Auto-loaded entrypoint; project-specific overrides. Loads `_base/AGENTS.md` by instruction. |
+| `README.md` | **Downstream-owned** | Project's own README; links to `_base/README.md`. |
+| `.gitattributes` | **Downstream-owned** | Holds the managed template merge-rule block; install/refresh with `_base/scripts/setup-template-merge-rules.sh`. |
+| Everything under `_base/` | **Upstream-owned** | Base contract, README, changelog, setup instructions, examples, and `*.template` seeds. Never edit downstream; accept upstream on merge conflicts. |
 | `.claude/settings.json` | Mixed | Merge hook entries by hand. |
 | `playbooks/`, `skills/`, `.claude/skills/` | Mixed | Accept upstream for skills not customized; keep downstream for forked skills. |
+
+The full per-file inventory (downstream-owned `PROJECT.md`, `CONTEXT.md`, `workbooks/`, `tools/python/`;
+local-only `.venv/`, `.local/`; the optional downstream `CHANGELOG.md`; etc.) lives in
+`_base/README.md` → "Staying in sync with the template".
 
 ### Agent behavior
 
