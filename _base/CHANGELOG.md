@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.07.06.6
+BASE_VERSION: 2026.07.06.7
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,40 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### One canonical owner per task-system rule (contract deduplication)
+
+The same task-system rules were previously restated across `_base/AGENTS.md`, `AGENTS.md`, and several
+`playbooks/**` files, so drift was structural. Each rule now has one canonical owner; the other copies
+are pointers that name the owner file (and section) instead of re-stating the rule.
+
+- **Roadmap horizons** (Urgent/Now/Next/Later/Someday semantics + soft thresholds) now live only in
+  `playbooks/conventions/todo-convention.md` §Roadmap. The soft item thresholds (previously only in the
+  `roadmap` skill) were absorbed there first, then `roadmap.md`, `task-system-quickstart.md`,
+  `add-task.md`, `prd-to-todos.md`, and `init.md` were reduced to pointers.
+- **Inbox six-way triage classification** now lives only in `playbooks/conventions/inbox-convention.md`,
+  enriched with each classification's meaning and archive/promote action (absorbed from
+  `triage-inbox.md` and `task-system-quickstart.md`), which then became pointers.
+- **Python/uv tooling** stays owned by upstream `_base/AGENTS.md`; the root `AGENTS.md` uv section is now
+  a short pointer to it.
+- **Autonomy default (L1) + ladder** stays owned by `playbooks/conventions/autonomy-levels.md`; the
+  `_base/AGENTS.md` restatement is now a one-line pointer.
+- **Task-system directory grammar** — the ~1,200-word `_base/AGENTS.md` mega-paragraph is replaced by a
+  compact pointer block naming the owner conventions (`todo-convention.md`, `task-system-quickstart.md`,
+  `inbox-convention.md`, `autonomy-levels.md`, `knowledge-base-quickstart.md`, `generated-artifacts.md`,
+  `adr-convention.md`, `workbook-convention.md`). No rule was dropped; every fact remains reachable in an
+  owner file.
+
+**Downstream impact:** rule authority for roadmap horizons, inbox triage, autonomy, and the task-system
+directory grammar now lives in mixed-ownership `playbooks/conventions/*` (`todo-convention.md`,
+`inbox-convention.md`, `autonomy-levels.md`, and the knowledge/artifact/adr/workbook conventions) rather
+than in upstream-owned `_base/AGENTS.md`. This is a deliberate ownership downgrade: those conventions
+merge as plain 3-way merges, so a fork that customized them may now diverge from upstream fixes. The
+pointer lines left in upstream `_base/AGENTS.md` and root `AGENTS.md` name the canonical file (and
+section), so downstream agents always learn where the authoritative rule lives. After merging, reconcile
+any locally forked `playbooks/conventions/*` against upstream. No task/inbox file formats changed and no
+skill behavior changed — the skills now link to the convention that owns each rule instead of restating
+it.
 
 ### Merge-driver robustness and full Codex agent coverage
 

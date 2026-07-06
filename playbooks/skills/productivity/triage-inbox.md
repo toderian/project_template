@@ -45,15 +45,10 @@ For each idea, inspect likely matches in:
   only if configured
 - likely code and tests found by searching for the idea's domain terms, filenames, commands, or symbols
 
-Classify each idea as one of:
-
-- **duplicate inbox idea** - the same raw idea already exists in the live or archived inbox.
-- **already tracked task** - an active or archived task already covers the work.
-- **already implemented** - code, docs, or tests show the requested outcome already exists.
-- **obsolete/stale** - the idea no longer applies because the product, architecture, decision record, or
-  task sequence moved on.
-- **related but distinct** - it touches nearby work but still has a separate outcome.
-- **genuinely new** - no meaningful duplicate, implementation, or existing task was found.
+Classify each idea using the six-way scheme defined in
+`playbooks/conventions/inbox-convention.md` (duplicate inbox idea, already tracked task, already
+implemented, obsolete/stale, related but distinct, genuinely new). That convention is the canonical
+owner of each classification's meaning and the archive/promote action it implies.
 
 Present the classification, evidence, and recommendation to the user before promotion decisions. Cite
 task IDs, inbox IDs, docs, code paths, or tests where they affected the recommendation.

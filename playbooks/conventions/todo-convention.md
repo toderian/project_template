@@ -517,6 +517,15 @@ Placement and order are deliberate human decisions, not derived from status or p
 milestone headings inside those horizons carry goal-level dates. Priority stays `high`, `medium`, or
 `low`; roadmap order decides the actual execution sequence.
 
+This is the canonical definition of the horizons and their soft item thresholds. Thresholds are review
+pressure only, not validation failures:
+
+- **Urgent** — interrupting work that displaces the current plan; soft threshold 0-2 items.
+- **Now** — active or immediate-pickup work; soft threshold 1-3 items.
+- **Next** — the committed near-term queue; soft threshold 5-10 items.
+- **Later** — valid committed tasks that are intentionally unscheduled; no threshold.
+- **Someday** — weak-commitment parking lot; no threshold.
+
 The roadmap is placement-only. It stores task IDs like `AUTH-001` in the intended horizon and order;
 task IDs may appear in any horizon. Raw inbox ideas like `I-007` may appear only in `Someday` as
 parking-lot signals, and must be promoted through `/triage-inbox` before moving into `Urgent`, `Now`,

@@ -118,7 +118,8 @@ Reserve each file with `_base/scripts/reserve-work-item.sh task <PREFIX> <TYPE> 
 order so IDs sort naturally within each area. Fill each reserved placeholder immediately. Use the
 current datetime for the `Created` field. After creating the files, run `_base/scripts/sync-todo-ledgers.sh`.
 If the user wants the PRD scheduled, place the new task IDs on `docs/tasks_manager/_roadmap.md` in
-Urgent, Now, Next, Later, or Someday. If the PRD/user gives a goal-level target date or deadline, group
+Urgent, Now, Next, Later, or Someday (horizon semantics and soft thresholds:
+`playbooks/conventions/todo-convention.md` §Roadmap). If the PRD/user gives a goal-level target date or deadline, group
 the IDs under a milestone heading inside the chosen horizon. Run the sync again. After all task and
 roadmap changes are done, run `_base/scripts/sync-todo-ledgers.sh --check` and
 `_base/scripts/check-repos-config.sh`.

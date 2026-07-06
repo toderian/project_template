@@ -58,10 +58,11 @@ _base/scripts/sync-todo-ledgers.sh --check
   scheduling intent. Tasks may include optional `Spec refs` metadata plus `### Specification` and
   `### Design` sections when executable work needs a task-local spec. Those sections are planned
   intent until the task is completed and linked durable specs are reconciled.
-- **Roadmap** (`docs/tasks_manager/_roadmap.md`) owns placement and order only: Urgent, Now, Next,
-  Later, Someday. It references task IDs in any horizon and may group them with dated milestone
-  headings inside those horizons; raw inbox IDs may sit only in `Someday` as parking-lot signals until
-  `/triage-inbox` promotes or drops them. It does not duplicate task status or phase detail.
+- **Roadmap** (`docs/tasks_manager/_roadmap.md`) owns placement and order only. It references task IDs
+  in any horizon and may group them with dated milestone headings inside those horizons; raw inbox IDs
+  may sit only in `Someday` as parking-lot signals until `/triage-inbox` promotes or drops them. It does
+  not duplicate task status or phase detail. Horizon semantics and soft thresholds live in
+  [todo-convention.md](todo-convention.md) §Roadmap.
 - **Generated ledgers and area pages** (`docs/tasks_manager/_active.md`, `docs/tasks_manager/_done.md`,
   `docs/areas/_overview.md`, generated blocks in `docs/areas/<slug>.md`) are derived views. Rebuild
   them with `_base/scripts/sync-todo-ledgers.sh`; validate them with `_base/scripts/sync-todo-ledgers.sh --check`.
@@ -111,17 +112,10 @@ For each idea, inspect likely matches in:
   only if configured
 - likely implementation files and tests
 
-Classify the idea before asking for a decision:
-
-- **duplicate inbox idea** - append useful details to the existing idea if chosen; archive the duplicate
-  with a one-line reason.
-- **already tracked task** - append useful details or a cross-link to the existing task if chosen;
-  archive the inbox idea with a one-line reason.
-- **already implemented** - archive the inbox idea with a one-line reason unless a distinct follow-up
-  remains.
-- **obsolete/stale** - archive the inbox idea with a one-line reason.
-- **related but distinct** - promote only after recording the related IDs, docs, or code paths.
-- **genuinely new** - promote normally if the user wants it committed.
+Classify the idea before asking for a decision, using the six-way scheme defined in
+[inbox-convention.md](inbox-convention.md) (duplicate inbox idea, already tracked task, already
+implemented, obsolete/stale, related but distinct, genuinely new). That convention is the canonical
+owner of what each classification means and the archive/promote action it implies.
 
 Present the classification, evidence, and recommendation before creating or changing any task.
 

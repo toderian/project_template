@@ -121,7 +121,8 @@ _base/scripts/check-repos-config.sh
 ```
 
 If the user wants this scheduled, add the task ID to `docs/tasks_manager/_roadmap.md` under Urgent,
-Now, Next, Later, or Someday in the intended order. If they gave goal-level timing, place the task
+Now, Next, Later, or Someday in the intended order (horizon semantics and soft thresholds:
+`playbooks/conventions/todo-convention.md` §Roadmap). If they gave goal-level timing, place the task
 under a milestone heading such as `### Milestone: <name> (target: YYYY-MM-DD)` or
 `### Milestone: <name> (deadline: YYYY-MM-DD)` inside the chosen horizon. Then run sync and `--check`
 again so `docs/areas/_overview.md` and generated area blocks reflect the roadmap placement. Run

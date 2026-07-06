@@ -98,7 +98,8 @@ Report what was created. Remind the user that:
 - `/capture-idea` records an idea into `docs/tasks_manager/_inbox/` instantly (`I-NNN`)
 - `/add-task` creates a full task directly when the work is already clear
 - `/triage-inbox` promotes inbox ideas into typed, area-prefixed tasks
-- `/roadmap` maintains `docs/tasks_manager/_roadmap.md` — the Urgent/Now/Next/Later/Someday plan of execution
+- `/roadmap` maintains `docs/tasks_manager/_roadmap.md` — the Urgent/Now/Next/Later/Someday plan of
+  execution (horizon semantics: `playbooks/conventions/todo-convention.md` §Roadmap)
 - Any skill can produce tasks following `playbooks/conventions/todo-convention.md` (`/write-a-prd`,
   `/prd-to-todos`, planning)
 - Durable implementation plans live in `docs/_plans/`

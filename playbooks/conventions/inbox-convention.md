@@ -101,8 +101,21 @@ For each `new` idea, first run a discovery gate:
 1. Inspect related inbox ideas (live and archived), active tasks, archived tasks, the roadmap, ledgers,
    area pages, resources, archived docs, `docs/resources/CONTEXT.md`, area summaries, dependency
    graphs, feature contracts, runbooks, component contexts, and likely code/tests.
-2. Classify the idea as **duplicate inbox idea**, **already tracked task**, **already implemented**,
-   **obsolete/stale**, **related but distinct**, or **genuinely new**.
+2. Classify the idea using this six-way scheme. This is the canonical definition of the classification;
+   other files point here rather than restating it.
+
+   - **duplicate inbox idea** — the same raw idea already exists in the live or archived inbox; append
+     any useful detail to the kept idea and archive the duplicate with a one-line reason.
+   - **already tracked task** — an active or archived task already covers the work; append useful detail
+     or a cross-link to that task and archive the inbox idea with a one-line reason.
+   - **already implemented** — code, docs, or tests already show the requested outcome; archive the
+     inbox idea with a one-line reason unless a distinct follow-up remains.
+   - **obsolete/stale** — the idea no longer applies because the product, architecture, decision record,
+     or task sequence moved on; archive with a one-line reason.
+   - **related but distinct** — it touches nearby work but has a separate outcome; promote only after
+     recording the related IDs, docs, or code paths.
+   - **genuinely new** — no meaningful duplicate, implementation, or existing task was found; promote
+     normally if the user wants it committed.
 3. Present the findings, evidence, and recommendation before creating a task.
 
 Then decide:

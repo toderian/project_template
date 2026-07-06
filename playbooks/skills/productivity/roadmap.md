@@ -18,10 +18,9 @@ dated goals should land.
 
 ## Model
 
-- **Horizons** — `Urgent` (interrupting work; soft threshold 0-2 items), `Now` (active/immediate
-  pickup; soft threshold 1-3 items), `Next` (committed near-term queue; soft threshold 5-10 items),
-  `Later` (valid committed tasks, intentionally unscheduled), and `Someday` (weak commitment / parking
-  lot). Placement is a deliberate human decision, never auto-derived from status or priority.
+- **Horizons** — `Urgent`, `Now`, `Next`, `Later`, and `Someday`. Their semantics and soft item
+  thresholds are defined in [todo-convention.md](../../conventions/todo-convention.md) §Roadmap.
+  Placement is a deliberate human decision, never auto-derived from status or priority.
 - **Items** — each line references an area-prefixed task ID such as `AUTH-001` or `T-001`. Task IDs may
   appear in any horizon. `Someday` may also hold an `I-NNN` idea as a parking-lot signal, but raw inbox
   ideas must be promoted through `/triage-inbox` before moving into any other horizon. Keep item lines
