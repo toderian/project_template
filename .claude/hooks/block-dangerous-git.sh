@@ -1,5 +1,7 @@
 #!/bin/bash
 
+command -v jq >/dev/null || { echo "hook requires jq; install jq" >&2; exit 2; }
+
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command')
 
@@ -29,20 +31,29 @@ if echo "$COMMAND" | grep -qE "${GIT_COMMAND_PREFIX}add([[:space:]]|$)"; then
   fi
 fi
 
+# Reuse the boundary-anchored GIT_COMMAND_PREFIX (defined above, already used
+# for the add/commit guards) instead of bare substrings, so quoted text (e.g.
+# a commit message mentioning "git push") and dotfile arguments (e.g.
+# `git checkout .gitignore`) don't false-positive on these patterns.
 DANGEROUS_PATTERNS=(
-  "git push"
-  "git reset --hard"
-  "git clean -fd"
-  "git clean -f"
-  "git branch -D"
-  "git checkout \."
-  "git restore \."
-  "push --force"
-  "reset --hard"
+  "${GIT_COMMAND_PREFIX}push([[:space:]]|$)"
+  "${GIT_COMMAND_PREFIX}reset[[:space:]]+[^;&|]*--hard([[:space:]]|$)"
+  "${GIT_COMMAND_PREFIX}clean[[:space:]]+-[a-zA-Z]*f[a-zA-Z]*([[:space:]]|$)"
+  "${GIT_COMMAND_PREFIX}branch[[:space:]]+[^;&|]*-D([[:space:]]|$)"
+  "${GIT_COMMAND_PREFIX}checkout([[:space:]]+--)?[[:space:]]+\.([[:space:]]|$)"
+  "${GIT_COMMAND_PREFIX}restore([[:space:]]+--)?[[:space:]]+\.([[:space:]]|$)"
 )
 
+# Strip quoted spans before matching DANGEROUS_PATTERNS so free text inside
+# quotes (e.g. a commit message like "Reminder to git push before EOD") can't
+# false-positive. Tradeoff: a dangerous command hidden inside quotes (e.g.
+# passed to `bash -c "..."`) is not caught — acceptable for an accident
+# guardrail; this hook is not a security boundary. Only this matching uses the
+# stripped text; the add/commit guards above/below inspect the full command.
+STRIPPED_COMMAND=$(printf '%s' "$COMMAND" | sed -e 's/"[^"]*"//g' -e "s/'[^']*'//g")
+
 for pattern in "${DANGEROUS_PATTERNS[@]}"; do
-  if echo "$COMMAND" | grep -qE "$pattern"; then
+  if echo "$STRIPPED_COMMAND" | grep -qE "$pattern"; then
     echo "BLOCKED: '$COMMAND' matches dangerous pattern '$pattern'. The user has prevented you from doing this." >&2
     exit 2
   fi

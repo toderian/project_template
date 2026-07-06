@@ -1,5 +1,7 @@
 #!/bin/bash
 
+command -v jq >/dev/null || { echo "hook requires jq; install jq" >&2; exit 2; }
+
 INPUT=$(cat)
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
 

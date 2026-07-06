@@ -7,16 +7,23 @@
 # boundary (start of line, or after ; && || | $( ) so substrings inside quoted
 # arguments (e.g., a commit message body) won't trigger.
 
+command -v jq >/dev/null || { echo "hook requires jq; install jq" >&2; exit 2; }
+
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command')
 
 # Boundary that must precede a dangerous keyword: start of string, or any of
-# the shell statement separators / pipeline operators.
-CB='(^|[;&|]|\$\()[[:space:]]*'
+# the shell statement separators / pipeline operators. Optionally tolerate a
+# wrapper (sudo, env VAR=... assignments, xargs with flags) between the
+# boundary and the actual command, since those are common accidental-danger
+# vectors (e.g. `sudo rm -rf /`, `env FOO=1 rm -rf /`, `... | xargs rm -rf`).
+CB='(^|[;&|]|\$\()[[:space:]]*(sudo[[:space:]]+|env([[:space:]]+[A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*)*[[:space:]]+|xargs([[:space:]]+-[^[:space:]]+)*[[:space:]]+)?'
 
 DANGEROUS_PATTERNS=(
-  # Filesystem destruction
-  "${CB}rm[[:blank:]]+-[a-zA-Z]*r[a-zA-Z]*f?[[:blank:]]+/[[:blank:]]*\$"
+  # Filesystem destruction. The "/" target's end-anchor tolerates trailing
+  # flags (e.g. `rm -rf / --no-preserve-root`) instead of requiring "/" to be
+  # the last token.
+  "${CB}rm[[:blank:]]+-[a-zA-Z]*r[a-zA-Z]*f?[[:blank:]]+/([[:blank:]]+--[a-zA-Z-]+)*[[:blank:]]*\$"
   "${CB}rm[[:blank:]]+-[a-zA-Z]*r[a-zA-Z]*f?[[:blank:]]+/\\*"
   "${CB}rm[[:blank:]]+-rf[[:blank:]]+~/?[[:blank:]]*\$"
   "${CB}find[[:blank:]]+/[[:blank:]].*-delete"

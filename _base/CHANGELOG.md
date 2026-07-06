@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.07.01.3
+BASE_VERSION: 2026.07.06.1
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,41 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Harden Claude Code hooks; fail closed without jq
+
+Hooks fail closed without jq; boundary-anchored git patterns.
+
+- All five `.claude/hooks/*.sh` scripts now check `command -v jq` before doing anything else and exit 2
+  (with an explanatory stderr message) when `jq` is missing, instead of silently extracting an empty
+  value from `jq -r` and falling through to `exit 0` (fail open).
+- `block-dangerous-git.sh`'s `DANGEROUS_PATTERNS` now reuse the existing boundary-anchored
+  `GIT_COMMAND_PREFIX` instead of bare substrings, and quoted spans are stripped from the command
+  before these patterns are matched. Fixes confirmed false positives: a commit message that mentions
+  "git push" anywhere in quoted text no longer blocks, and `git checkout .gitignore` /
+  `git restore .config` no longer block on the dotfile argument (previously `checkout \.` / `restore \.`
+  matched any dotfile path). `git push --force`, `git reset --hard`, `git checkout .` /
+  `git checkout -- .` (bare dot), `git clean -fd`, `git branch -D`, and chained forms
+  (`cd x && git push`) still block. Tradeoff (documented in the hook): a dangerous git command hidden
+  inside quotes (e.g. via `bash -c "..."`) is not caught — acceptable for an accident guardrail.
+- `block-dangerous-bash.sh` now tolerates an optional `sudo`, `env VAR=...`, or `xargs [flags]` wrapper
+  before the dangerous command, closing bypasses like `sudo rm -rf /`, `env FOO=1 rm -rf /`, and
+  `... | xargs rm -rf /`. The `rm -rf /` end-anchor now tolerates trailing flags
+  (`rm -rf / --no-preserve-root`) instead of requiring `/` to be the last token.
+- New `_base/scripts/tests/test-hooks.sh` table-driven harness pipes JSON fixtures into each hook and
+  asserts exit codes: true positives, the confirmed false positives (now allowed), bypass forms (now
+  blocked), and jq-missing fail-closed behavior. `remind-archive-done-todo.sh` fixtures assert
+  PostToolUse reminder/no-reminder semantics (exit 2 there surfaces a reminder; it does not block,
+  since the tool already ran).
+- `_base/AGENTS.md` now states these hooks are accident guardrails, not a security boundary, and
+  require `jq`.
+
+**Downstream impact:** `jq` becomes a hard prerequisite for Claude Code hooks to run at all — without
+it, every hooked Bash/Write/Edit/MultiEdit call is now blocked (fail closed) rather than silently
+unprotected (fail open); install `jq` if a project's environment lacks it. Some previously-blocked
+benign commands (commit messages mentioning "git push", `git checkout`/`git restore` on dotfile paths)
+now pass. New test harness at `_base/scripts/tests/test-hooks.sh` for verifying hook behavior after
+future changes.
 
 ### Add optional simplicity review skill
 
