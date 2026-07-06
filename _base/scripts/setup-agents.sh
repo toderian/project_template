@@ -250,7 +250,7 @@ fi
 
 if [[ "${TARGET_ANTIGRAVITY}" -eq 1 ]]; then
   run_step "Generate experimental Antigravity skill wrappers" \
-    "${REPO_ROOT}/_base/scripts/gen-antigravity-skills.sh"
+    "${REPO_ROOT}/_base/scripts/sync-skill-selection.py" --sync
 
   run_step "Validate experimental Antigravity skill wrappers" \
     "${REPO_ROOT}/_base/scripts/check-antigravity-skills.sh"

@@ -21,13 +21,13 @@ This playbook combines the dual-tool layout convention used by this template wit
 
 ## Skill Structure
 
-Every user-facing skill has a shared playbook, library metadata, and generated runtime wrappers. Skills
-are grouped into buckets (`engineering`, `productivity`, `misc`, `personal`) and selectable packs in
-`.agents/skill-library.json`.
+Every user-facing skill has a shared playbook that carries both its workflow logic and its metadata
+(in `---` frontmatter), plus generated runtime wrappers. Skills are grouped into buckets (`engineering`,
+`productivity`, `misc`, `personal`) and selectable packs in `.agents/skill-library.json`.
 
 ```
-playbooks/skills/<bucket>/<name>.md             # Shared workflow logic (authoritative)
-.agents/skill-library.json                      # Selectable skill metadata and packs
+playbooks/skills/<bucket>/<name>.md             # Shared workflow logic + metadata frontmatter (authoritative)
+.agents/skill-library.json                      # Selection only: packs, profiles, agent roles
 .agents/skills.enabled.json                     # Active profile/packs for this repo
 skills/<bucket>/<name>/SKILL.md                 # Generated Codex wrapper (thin, active only)
 .claude/skills/<bucket>/<name>/SKILL.md         # Generated Claude Code wrapper (thin, active only)
@@ -35,10 +35,12 @@ skills/<bucket>/<name>/SKILL.md                 # Generated Codex wrapper (thin,
 .claude-plugin/plugin.json                      # Generated active-skill manifest
 ```
 
-The selectable library is enumerated in `.agents/skill-library.json`. The active set is selected in
-`.agents/skills.enabled.json` and materialized by `_base/scripts/sync-skill-selection.py`.
-**The playbook is the workflow source of truth.** Wrappers are generated active surfaces that point to
-it. When changing a workflow, update the playbook first and regenerate wrappers.
+The playbook frontmatter (`name`, `description`, optional `argument-hint`) is the single source of a
+skill's metadata. `.agents/skill-library.json` only groups skill names into packs/profiles. The active
+set is selected in `.agents/skills.enabled.json` and materialized by `_base/scripts/sync-skill-selection.py`.
+**The playbook is the source of truth for both workflow and metadata.** Wrappers are generated active
+surfaces that point to it. When changing a workflow or a description, update the playbook first and
+regenerate wrappers.
 
 Optional additions in the playbook directory (when SKILL.md exceeds 500 lines or covers multiple distinct domains):
 
@@ -160,8 +162,9 @@ Output: feat(auth): implement JWT-based authentication
 
 ## Generated wrapper shape
 
-Do not hand-edit generated runtime wrappers. Add or update the skill in `.agents/skill-library.json`,
-then run `_base/scripts/sync-skill-selection.py --sync`. The generated wrappers have this shape.
+Do not hand-edit generated runtime wrappers. Edit the playbook's frontmatter (and add the skill's name
+to a pack in `.agents/skill-library.json` if new), then run `_base/scripts/sync-skill-selection.py --sync`.
+The generated wrappers have this shape.
 
 ### Codex wrapper
 
@@ -200,21 +203,29 @@ Keep this skill thin. The playbook is the shared workflow and should be updated 
 
 ### Frontmatter fields
 
-- `name:` — generated from the skill key in `.agents/skill-library.json`.
-- `description:` — required in `.agents/skill-library.json`; one-line summary surfaced to the agent
-  when picking skills. Include concrete trigger phrases.
-- `argument-hint:` — generated from optional `argument_hint` in `.agents/skill-library.json`. Set when
-  the skill expects free-text arguments from the user, such as a path, topic, or description.
-- `disable-model-invocation: true` — generated for Claude wrappers.
+All three come from the playbook's own frontmatter at `playbooks/skills/<bucket>/<name>.md`:
+
+- `name:` — must match the playbook filename.
+- `description:` — required; a JSON-encoded one-line summary surfaced to the agent when picking skills.
+  Include concrete trigger phrases (embedded quotes are fine — the value is JSON-encoded).
+- `argument-hint:` — optional; set when the skill expects free-text arguments from the user, such as a
+  path, topic, or description.
+- `disable-model-invocation: true` — added by the generator to Claude wrappers only (not in the playbook).
 
 ### Keeping descriptions consistent across runtimes
 
-Generated wrappers use the same library description for every runtime, so cross-runtime trigger drift
-is not expected.
+Generated wrappers use the same playbook-frontmatter description for every runtime, so cross-runtime
+trigger drift is not expected.
 
 ### Playbook template
 
 ```md
+---
+name: skill-name
+description: "Brief description of capability. Use when [specific triggers]."
+# argument-hint: "Free-text prompt for the user — only if the skill takes an argument"
+---
+
 # Skill Name
 
 ## Purpose
@@ -267,12 +278,11 @@ After drafting, verify:
 
 - [ ] Bucket chosen (`engineering`, `productivity`, `misc`, or `personal`)
 - [ ] Playbook created in `playbooks/skills/<bucket>/<name>.md` (or `<bucket>/<name>/` directory if multi-file)
-- [ ] Skill metadata added to `.agents/skill-library.json`
-- [ ] Skill added to one or more packs in `.agents/skill-library.json`
+- [ ] Playbook opens with `---` frontmatter setting `name` and `description` (and `argument-hint` if it takes arguments)
+- [ ] Skill's `name` added to one or more packs in `.agents/skill-library.json`
 - [ ] If active by default, the pack or skill is present in `.agents/skills.enabled.json`
-- [ ] `_base/scripts/sync-skill-selection.py --sync` has regenerated wrappers and `.claude-plugin/plugin.json`
+- [ ] `_base/scripts/sync-skill-selection.py --sync` has regenerated wrappers, the manifest, and the README table
 - [ ] Description includes triggers ("Use when…") and is a little pushy about when to fire
-- [ ] If the skill takes user arguments, `argument_hint` is set in `.agents/skill-library.json`
 - [ ] Generated wrapper SKILL.md files stay thin (logic lives in playbook)
 - [ ] Playbook body under 500 lines (split if longer)
 - [ ] No time-sensitive info embedded in the skill body
@@ -280,4 +290,4 @@ After drafting, verify:
 - [ ] Concrete examples included where they clarify intent
 - [ ] References go one level deep — clear pointers to bundled files, not three nested layers
 - [ ] The "why" is explained for any non-obvious instruction
-- [ ] `_base/scripts/check-skills-sync.sh` exits 0 and `_base/scripts/gen-skills-table.sh` has been run to update the active skill table
+- [ ] `_base/scripts/check-skills-sync.sh` exits 0 (the skills table is regenerated by `sync-skill-selection.py --sync`)

@@ -27,4 +27,4 @@ esac
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-"${SCRIPT_DIR}/gen-antigravity-skills.sh" --check
+"${SCRIPT_DIR}/sync-skill-selection.py" --check

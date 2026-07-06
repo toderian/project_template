@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.07.06.3
+BASE_VERSION: 2026.07.06.4
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,33 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Consolidate skill generation into sync-skill-selection.py; retire bash generators
+
+Skills-table and Antigravity-wrapper generation now live in `sync-skill-selection.py` alongside the
+Codex/Claude wrapper and manifest generation, so one script owns every generated skill surface.
+
+- `sync-skill-selection.py` now generates the `_base/README.md` skills table (between the
+  `<!-- BEGIN skills-table -->` / `<!-- END skills-table -->` markers) from playbook frontmatter, and its
+  `--check` validates it. The table's auto-generated comment now names `sync-skill-selection.py`; the row
+  content is unchanged.
+- `gen-skills-table.sh` and `gen-antigravity-skills.sh` are now thin deprecation shims that forward
+  `--check`/`--sync` to `sync-skill-selection.py` (with a stderr note) and will be deleted next release.
+- `check-antigravity-skills.sh` calls `sync-skill-selection.py --check` directly.
+  `check-skills-sync.sh` drops its `gen-skills-table.sh` subprocess (the table is covered by the
+  `sync-skill-selection.py --check` it already runs). `setup-agents.sh --antigravity-only` calls
+  `sync-skill-selection.py --sync` directly.
+- Docs updated: `_base/README.md` (architecture, "Adding a new skill", validation), `_base/SETUP_INSTRUCTIONS.md`,
+  and `playbooks/skills/productivity/write-a-skill.md` (authoring steps drop the library-metadata and
+  separate-table-generator steps).
+
+**Downstream impact:** `gen-skills-table.sh` and `gen-antigravity-skills.sh` are deprecated shims kept
+for one release only — repoint any local automation, hooks, or aliases to `./_base/scripts/sync-skill-selection.py`
+(`--check` or `--sync`) before they are removed. Note the wider write surface: the old
+`gen-antigravity-skills.sh --sync` wrote only `.agents/skills/`, whereas the shim now forwards to
+`sync-skill-selection.py --sync`, which rewrites all three wrapper trees (`skills/`, `.claude/skills/`,
+`.agents/skills/`) plus `.claude-plugin/plugin.json` and the README skills table. All are regenerated
+from the same source, so an in-sync repo sees no change.
 
 ### Skill metadata is single-sourced in playbook frontmatter
 

@@ -65,8 +65,6 @@ SELECTION="$REPO_ROOT/.agents/skills.enabled.json"
 PLAYBOOKS_DIR="$REPO_ROOT/playbooks/skills"
 CODEX_SKILLS_DIR="$REPO_ROOT/skills"
 CLAUDE_SKILLS_DIR="$REPO_ROOT/.claude/skills"
-README="$REPO_ROOT/_base/README.md"
-GEN_SCRIPT="$REPO_ROOT/_base/scripts/gen-skills-table.sh"
 SELECTION_SCRIPT="$REPO_ROOT/_base/scripts/sync-skill-selection.py"
 
 AGENT_ONLY_NAMES=()
@@ -461,26 +459,9 @@ for name in "${MANIFEST_NAMES[@]}"; do
   fi
 done
 
-# ----------------------------------------------------------------------------
-# Check 6: skills table in _base/README.md is up-to-date
-# ----------------------------------------------------------------------------
-
-if [[ -x "$GEN_SCRIPT" ]]; then
-  if "$GEN_SCRIPT" --check >/dev/null 2>&1; then
-    :
-  else
-    status=$?
-    if [[ "$status" -eq 1 ]]; then
-      emit DRIFT skills-table-out-of-date \
-        "_base/README.md" \
-        "_base/scripts/gen-skills-table.sh --check reported drift — run generator and commit"
-    else
-      emit BLOCKER skills-table-generator-failed \
-        "_base/scripts/gen-skills-table.sh" \
-        "generator exited non-zero in --check mode"
-    fi
-  fi
-fi
+# The _base/README.md skills-table is validated by sync-skill-selection.py
+# --check (run above), which regenerates it from playbook frontmatter in the
+# same pass as the wrappers; no separate table-generator subprocess is needed.
 
 # ----------------------------------------------------------------------------
 # Report
