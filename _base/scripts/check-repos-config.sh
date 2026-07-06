@@ -56,6 +56,11 @@ import sys
 ROOT = Path(sys.argv[1])
 LOCAL_MODE = sys.argv[2] == "1"
 
+# Share the escape-aware table-row splitter with sync_todo_ledgers.py so the two
+# tools agree on how a Markdown row (including escaped `\|`) parses.
+sys.path.insert(0, str(ROOT / "_base" / "scripts" / "lib"))
+from mdtables import is_separator, split_table_row  # noqa: E402
+
 REGISTRY_HEADER_OLD = [
     "Repo",
     "Required",
@@ -101,41 +106,6 @@ def report(path: Path, line: int | None, message: str) -> None:
     if line is not None:
         loc = f"{loc}:{line}"
     errors.append(f"ERROR: {loc}: {message}")
-
-
-def is_escaped_pipe(text: str, index: int) -> bool:
-    backslashes = 0
-    cursor = index - 1
-    while cursor >= 0 and text[cursor] == "\\":
-        backslashes += 1
-        cursor -= 1
-    return backslashes % 2 == 1
-
-
-def split_table_row(line: str) -> list[str]:
-    raw = line.rstrip("\n")
-    cells: list[str] = []
-    current: list[str] = []
-
-    for index, char in enumerate(raw):
-        if char == "|" and not is_escaped_pipe(raw, index):
-            cells.append("".join(current))
-            current = []
-        else:
-            current.append(char)
-
-    cells.append("".join(current))
-
-    if cells and cells[0].strip() == "":
-        cells = cells[1:]
-    if cells and cells[-1].strip() == "":
-        cells = cells[:-1]
-
-    return [cell.strip().replace(r"\|", "|") for cell in cells]
-
-
-def is_separator(cells: list[str]) -> bool:
-    return all(re.fullmatch(r":?-{3,}:?", cell.strip() or "") for cell in cells)
 
 
 def format_headers(headers: list[list[str]]) -> str:

@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.07.06.4
+BASE_VERSION: 2026.07.06.5
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,30 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Ledger generator ported to Python
+
+The task-ledger generator `sync-todo-ledgers.sh` (1,009 lines of bash/awk) is now a thin shim that
+`exec`s the new `sync_todo_ledgers.py`. Behavior, CLI flags, `--check` strict/permissive semantics,
+output text, and marker-delimited generated blocks are preserved; the `_base/scripts/sync-todo-ledgers.sh`
+path stays valid (docs and other scripts still reference it).
+
+- New `_base/scripts/sync_todo_ledgers.py`: the full port (Python stdlib only, matching
+  `sync-skill-selection.py` conventions).
+- New `_base/scripts/lib/mdtables.py`: the shared escape-aware Markdown table-row splitter (plus
+  separator and metadata helpers). `check-repos-config.sh` now imports it instead of carrying its own
+  copy, so the two tools agree on how a row with an escaped pipe (`\|`) parses.
+- Two long-standing defects are fixed by construction: (1) titles are rendered verbatim — the old shell
+  pipeline ran generated rows through `printf '%b'`, which expanded backslash escapes (`\t`, `\n`,
+  Windows paths) inside a task title and corrupted the ledgers; (2) area-registry and task metadata are
+  parsed with the escape-aware splitter, so an escaped pipe in a cell is understood instead of
+  mis-split by awk `FS="|"`.
+
+**Downstream impact:** one-time ledger diffs are possible only for task titles that contain a backslash
+or an area/task metadata cell that contains an escaped pipe (`\|`); such rows were previously corrupted
+and are now rendered correctly. Repos with no backslashes/escaped pipes in titles or metadata see no
+change. To revert, check out the previous commit's `_base/scripts/sync-todo-ledgers.sh` (revert to base
+commit `f867500`).
 
 ### Consolidate skill generation into sync-skill-selection.py; retire bash generators
 
