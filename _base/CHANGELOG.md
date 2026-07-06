@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.07.06.12
+BASE_VERSION: 2026.07.06.13
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,26 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Add ratchet, output-offloading, and hook-authoring doctrine to the base contract
+
+Folds three practices from agent-harness-engineering literature into `_base/AGENTS.md`, each as a
+small addition to existing structure (no new files):
+
+- **Principle 10 — "Ratchet failures into durable rules":** recurring mistakes become durable
+  controls (playbook step, hook, check, anti-pattern, reviewer blocker) at the narrowest layer that
+  catches them; redundant rules get pruned so the contract stays high-signal. Complements principle 8.
+- **Context discipline (principle 6):** new bullet — for large command/tool output, keep only head
+  and tail in context and offload the full output to a scratch file, reading back slices on demand
+  (points at the optional `context-mode` plugin already listed in `_base/README.md`).
+- **Hook-authoring convention:** the existing hooks paragraph now states the rule new hooks must
+  follow — silent on success (`exit 0`, no output), verbose only when blocking (`exit 2` with
+  actionable stderr), with narrowly anchored match patterns.
+
+**Downstream impact:** `_base/AGENTS.md` is upstream-owned and merges cleanly via
+`git fetch template && git merge` — no conflict, no downstream file changes required. These are
+additive doctrine clarifications; the behaviors were already partly practiced (the shipped hooks
+already follow the silent/verbose pattern). No skill, wrapper, hook script, or config changes.
 
 ### Extract `security-review-owasp` into a `security` pack
 

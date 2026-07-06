@@ -132,6 +132,9 @@ Keep context small and high-signal.
 - summarize findings before switching subtasks
 - preserve durable state in files when the task is long-running
 - pass references and conclusions, not entire transcripts
+- for large command or tool output, keep only the head and tail in context and write the full output
+  to a scratch file, then read back the specific slice you need on demand (the optional `context-mode`
+  plugin in `_base/README.md` automates this)
 
 ### 7. Minimal and surgical implementation
 
@@ -237,6 +240,20 @@ What changed:
 Why:
 - concise reason or user outcome
 ```
+
+### 10. Ratchet failures into durable rules
+
+Treat a repeated agent mistake as a permanent signal, not a one-off. Every standing rule, guardrail,
+and anti-pattern should trace back to a real past failure or a hard external constraint.
+
+- when a class of mistake recurs, convert it into a durable control: a playbook step, a hook, a
+  test/pre-commit check, an anti-pattern entry, or a reviewer-subagent blocker — not a one-time fix
+- put each new rule at the narrowest layer that catches it (a hook or check beats prose the agent must
+  remember; a targeted rule beats a broad one that competes for attention)
+- prune the other way too: remove rules that models or tooling have made redundant, so the contract
+  stays high-signal
+- doctrine-level changes still follow principle 8 (rerun `playbooks/meta/UPDATE_PLAN.md`, prefer
+  primary sources)
 
 ## Standard operating loop
 
@@ -360,8 +377,10 @@ live in dedicated conventions; do not restate them here. Follow the canonical ow
 Do not encode repo slugs into task IDs, filenames, prefixes, or areas. Claude hooks enforce
 naming/archive reminders and the `.claude/hooks/block-dangerous-*.sh` command guards are accident
 guardrails (not a security boundary; require `jq`; fail closed rather than no-op); Codex follows the
-same playbooks manually. `/tidy-repo` migrates loose work to the inbox and loose docs to
-`docs/resources/` after approval, never silently deleting files.
+same playbooks manually. When authoring or extending a hook, keep it silent on success (`exit 0`, no
+output) and verbose only when it blocks (`exit 2` with actionable stderr), and anchor match patterns
+narrowly — a false positive costs more attention than it saves. `/tidy-repo` migrates loose work to
+the inbox and loose docs to `docs/resources/` after approval, never silently deleting files.
 
 ## Human-runnable workflow artifacts
 
