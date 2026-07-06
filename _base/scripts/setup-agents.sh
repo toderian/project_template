@@ -213,6 +213,14 @@ run_step "Sync active skill selection" \
 run_step "Validate skill catalog" \
   "${REPO_ROOT}/_base/scripts/check-skills-sync.sh"
 
+# Register the local Git merge drivers and the managed .gitattributes block so
+# template-remote merges honor the upstream/downstream ownership rules. This is
+# a repo-level step, independent of which agent CLIs are targeted; without it a
+# fresh clone would reference undefined drivers and silently fall back to a plain
+# three-way merge.
+run_step "Install template merge rules" \
+  "${REPO_ROOT}/_base/scripts/setup-template-merge-rules.sh"
+
 codex_path="$(cli_path "${CODEX_CLI}")"
 claude_path="$(cli_path "${CLAUDE_CLI}")"
 antigravity_path="$(cli_path "${ANTIGRAVITY_CLI}")"

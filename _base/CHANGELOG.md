@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.07.06.5
+BASE_VERSION: 2026.07.06.6
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,30 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Merge-driver robustness and full Codex agent coverage
+
+`setup-agents.sh` now installs the template merge drivers as a standard step, so the one-command setup
+also registers the local Git merge drivers and the managed `.gitattributes` block. Previously a fresh
+clone that ran only `setup-agents.sh` referenced the `template-keep-local` / `template-keep-upstream`
+drivers without defining them, so Git silently fell back to a plain three-way merge and the
+upstream/downstream ownership rules did not apply.
+
+- `setup-template-merge-rules.sh` now registers the driver command with a repo-relative path
+  (`_base/scripts/template-merge-driver.sh`) instead of an absolute `${REPO_ROOT}` path. Git runs
+  merge-driver commands from the worktree top level, so the relative form stays valid if the checkout
+  is moved or renamed. `--check` accepts either the new relative form or the legacy absolute form, so
+  existing downstream checkouts that already work are not forced to re-register.
+- `check-codex-agents.sh` now derives the expected `.codex/agents/*.toml` mirror set from the
+  `.claude/agents/*.md` basenames instead of a hardcoded list of six, and emits
+  `BLOCKER missing-codex-agent-mirror` for any Claude agent lacking a committed Codex mirror. Adding a
+  new Claude agent without its Codex mirror is now flagged automatically.
+
+**Downstream impact:** rerun `./_base/scripts/setup-agents.sh` once after merging to register the merge
+drivers (fixes the silent no-op on fresh clones). No manual re-registration is needed for checkouts
+that already have the drivers installed — the absolute-path form keeps validating. If you have added
+`.claude/agents/*.md` without a matching `.codex/agents/*.toml`, `check-codex-agents.sh` will now
+report a `missing-codex-agent-mirror` blocker until you add the mirror.
 
 ### Ledger generator ported to Python
 

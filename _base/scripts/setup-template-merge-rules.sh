@@ -81,14 +81,30 @@ _base/** merge=template-keep-upstream
 EOF
 
 check_driver() {
-  local key="$1" expected="$2"
+  # Accept either the current repo-relative registration or the legacy absolute
+  # form so existing downstream checkouts that already work are not forced to
+  # re-register.
+  local key="$1" expected_relative="$2" expected_legacy="$3"
   local actual
 
   actual="$(git -C "${REPO_ROOT}" config --local --get "${key}" || true)"
-  [[ "${actual}" == "${expected}" ]]
+  [[ "${actual}" == "${expected_relative}" || "${actual}" == "${expected_legacy}" ]]
 }
 
 driver_command() {
+  # Repo-relative command. Git runs merge-driver commands from the worktree top
+  # level, so a relative path stays valid if the checkout is moved or renamed.
+  local mode="$1"
+  local driver_script quoted_script
+
+  driver_script="_base/scripts/template-merge-driver.sh"
+  printf -v quoted_script '%q' "${driver_script}"
+  printf '%s %s %%O %%A %%B' "${quoted_script}" "${mode}"
+}
+
+driver_command_legacy() {
+  # Absolute-path form written by older template versions; still accepted by
+  # --check so working downstream checkouts do not report a spurious failure.
   local mode="$1"
   local driver_script quoted_script
 
@@ -145,12 +161,14 @@ PY
 if [[ "${MODE}" == "check" ]]; then
   failures=0
 
-  if ! check_driver "merge.template-keep-local.driver" "$(driver_command keep-local)"; then
+  if ! check_driver "merge.template-keep-local.driver" \
+    "$(driver_command keep-local)" "$(driver_command_legacy keep-local)"; then
     printf 'FAIL  missing local Git merge driver: template-keep-local\n' >&2
     failures=$((failures + 1))
   fi
 
-  if ! check_driver "merge.template-keep-upstream.driver" "$(driver_command keep-upstream)"; then
+  if ! check_driver "merge.template-keep-upstream.driver" \
+    "$(driver_command keep-upstream)" "$(driver_command_legacy keep-upstream)"; then
     printf 'FAIL  missing local Git merge driver: template-keep-upstream\n' >&2
     failures=$((failures + 1))
   fi

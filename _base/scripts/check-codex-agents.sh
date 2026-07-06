@@ -41,13 +41,13 @@ import sys
 
 
 ROOT = Path(sys.argv[1])
+# Every Claude agent under .claude/agents/*.md must have a committed Codex
+# mirror at .codex/agents/<name>.toml. Deriving the expected set from the Claude
+# agents (rather than a hardcoded list) means a newly added agent is flagged
+# automatically instead of silently going unmirrored.
 EXPECTED = {
-    ".codex/agents/implementer.toml",
-    ".codex/agents/plan-critic.toml",
-    ".codex/agents/researcher.toml",
-    ".codex/agents/reviewer.toml",
-    ".codex/agents/security-auditor.toml",
-    ".codex/agents/spec-validator.toml",
+    f".codex/agents/{path.stem}.toml"
+    for path in (ROOT / ".claude" / "agents").glob("*.md")
 }
 ALLOWED_RE = re.compile(r"^\.codex/agents/[A-Za-z0-9_.-]+\.toml$")
 REQUIRED_FIELDS = ("name", "description", "developer_instructions")
@@ -80,7 +80,13 @@ for path in sorted(tracked):
         emit("BLOCKER", "tracked-codex-local-state", path, "only .codex/agents/*.toml may be tracked")
 
 for path in sorted(EXPECTED - tracked):
-    emit("BLOCKER", "missing-codex-agent", path, "expected project-scoped Codex agent mirror")
+    name = Path(path).stem
+    emit(
+        "BLOCKER",
+        "missing-codex-agent-mirror",
+        path,
+        f"no tracked Codex mirror for .claude/agents/{name}.md",
+    )
 
 for path in sorted(tracked & EXPECTED):
     full_path = ROOT / path
