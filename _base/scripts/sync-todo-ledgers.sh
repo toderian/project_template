@@ -20,7 +20,7 @@
 #   docs/areas/_overview.md
 #   marker-delimited blocks in docs/areas/<slug>.md
 #
-# Portable prerequisites: bash, awk, sort, grep, cmp, python3.
+# Portable prerequisites: bash >= 4, awk, sort, grep, cmp, python3.
 
 set -euo pipefail
 
@@ -47,6 +47,11 @@ esac
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+# shellcheck source=lib/require.sh
+source "${SCRIPT_DIR}/lib/require.sh"
+require_bash4
+require_cmd python3 "used to regenerate task ledgers"
+
 DOCS="${REPO_ROOT}/docs"
 TM="${DOCS}/tasks_manager"
 TODOS="${TM}/_todos"

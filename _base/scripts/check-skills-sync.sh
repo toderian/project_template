@@ -54,6 +54,11 @@ case "${1:-}" in
 esac
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=lib/require.sh
+source "$REPO_ROOT/_base/scripts/lib/require.sh"
+require_bash4
+require_cmd python3 "used to parse .claude-plugin/plugin.json and .agents/skill-library.json"
+
 MANIFEST="$REPO_ROOT/.claude-plugin/plugin.json"
 LIBRARY="$REPO_ROOT/.agents/skill-library.json"
 SELECTION="$REPO_ROOT/.agents/skills.enabled.json"
@@ -144,10 +149,7 @@ if [[ ! -f "$SELECTION" ]]; then
   exit 2
 fi
 
-declare -A NAME_TO_BUCKET
-while IFS=$'\t' read -r name bucket; do
-  NAME_TO_BUCKET["$name"]="$bucket"
-done < <(python3 - "$MANIFEST" <<'PY'
+manifest_rows="$(python3 - "$MANIFEST" <<'PY'
 import json, sys
 with open(sys.argv[1]) as f:
     data = json.load(f)
@@ -157,24 +159,35 @@ for p in data["skills"]:
         sys.exit(f"manifest entry malformed: {p}")
     print(f"{parts[2]}\t{parts[1]}")
 PY
-)
+)" || { printf 'error: failed to parse %s\n' "$MANIFEST" >&2; exit 2; }
+
+declare -A NAME_TO_BUCKET
+if [[ -n "$manifest_rows" ]]; then
+  while IFS=$'\t' read -r name bucket; do
+    NAME_TO_BUCKET["$name"]="$bucket"
+  done <<< "$manifest_rows"
+fi
 
 mapfile -t MANIFEST_NAMES < <(printf '%s\n' "${!NAME_TO_BUCKET[@]}" | sort)
 
-declare -A LIBRARY_NAME_TO_BUCKET
-while IFS=$'\t' read -r name bucket kind; do
-  LIBRARY_NAME_TO_BUCKET["$name"]="$bucket"
-  if [[ "$kind" == "agent-role" ]]; then
-    AGENT_ONLY_NAMES+=("$name")
-  fi
-done < <(python3 - "$LIBRARY" <<'PY'
+library_rows="$(python3 - "$LIBRARY" <<'PY'
 import json, sys
 with open(sys.argv[1]) as f:
     data = json.load(f)
 for name, skill in sorted(data["skills"].items()):
     print(f"{name}\t{skill['bucket']}\t{skill.get('kind', 'skill')}")
 PY
-)
+)" || { printf 'error: failed to parse %s\n' "$LIBRARY" >&2; exit 2; }
+
+declare -A LIBRARY_NAME_TO_BUCKET
+if [[ -n "$library_rows" ]]; then
+  while IFS=$'\t' read -r name bucket kind; do
+    LIBRARY_NAME_TO_BUCKET["$name"]="$bucket"
+    if [[ "$kind" == "agent-role" ]]; then
+      AGENT_ONLY_NAMES+=("$name")
+    fi
+  done <<< "$library_rows"
+fi
 
 mapfile -t LIBRARY_NAMES < <(printf '%s\n' "${!LIBRARY_NAME_TO_BUCKET[@]}" | sort)
 

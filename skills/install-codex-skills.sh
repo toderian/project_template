@@ -25,6 +25,10 @@ EOF
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+# shellcheck source=../_base/scripts/lib/require.sh
+source "${REPO_ROOT}/_base/scripts/lib/require.sh"
+require_bash4
+require_cmd python3 "used to parse .claude-plugin/plugin.json"
 
 # Source project.env if it exists
 if [[ -f "${REPO_ROOT}/project.env" ]]; then
@@ -159,41 +163,7 @@ pruned=0
 
 declare -A ACTIVE_NAMES
 
-while IFS=$'\t' read -r name bucket; do
-  ACTIVE_NAMES["$name"]=1
-  skill_dir="${SOURCE_SKILLS_DIR}/${bucket}/${name}"
-  target_path="${TARGET_SKILLS_DIR}/${name}"
-
-  if [[ ! -d "${skill_dir}" ]]; then
-    echo "Missing source for ${name}: ${skill_dir}" >&2
-    missing=$((missing+1))
-    continue
-  fi
-
-  if [[ -L "${target_path}" ]]; then
-    # Existing symlink — refresh in case the source moved (e.g. bucket change)
-    current="$(resolve_path "${target_path}" || true)"
-    desired="$(resolve_path "${skill_dir}")"
-    if [[ "${current}" == "${desired}" ]]; then
-      skipped=$((skipped+1))
-      continue
-    fi
-    ln -sfn "${skill_dir}" "${target_path}"
-    echo "Refreshed ${name} -> ${target_path}"
-    refreshed=$((refreshed+1))
-    continue
-  fi
-
-  if [[ -e "${target_path}" ]]; then
-    echo "Skipping ${name}: ${target_path} exists and is not a symlink"
-    skipped=$((skipped+1))
-    continue
-  fi
-
-  ln -s "${skill_dir}" "${target_path}"
-  echo "Installed ${name} -> ${target_path}"
-  installed=$((installed+1))
-done < <(python3 - "${MANIFEST}" <<'PY'
+manifest_rows="$(python3 - "${MANIFEST}" <<'PY'
 import json, sys
 with open(sys.argv[1]) as f:
     data = json.load(f)
@@ -203,7 +173,45 @@ for p in data["skills"]:
         sys.exit(f"manifest entry malformed: {p}")
     print(f"{parts[2]}\t{parts[1]}")
 PY
-)
+)" || { echo "error: failed to parse ${MANIFEST}" >&2; exit 2; }
+
+if [[ -n "${manifest_rows}" ]]; then
+  while IFS=$'\t' read -r name bucket; do
+    ACTIVE_NAMES["$name"]=1
+    skill_dir="${SOURCE_SKILLS_DIR}/${bucket}/${name}"
+    target_path="${TARGET_SKILLS_DIR}/${name}"
+
+    if [[ ! -d "${skill_dir}" ]]; then
+      echo "Missing source for ${name}: ${skill_dir}" >&2
+      missing=$((missing+1))
+      continue
+    fi
+
+    if [[ -L "${target_path}" ]]; then
+      # Existing symlink — refresh in case the source moved (e.g. bucket change)
+      current="$(resolve_path "${target_path}" || true)"
+      desired="$(resolve_path "${skill_dir}")"
+      if [[ "${current}" == "${desired}" ]]; then
+        skipped=$((skipped+1))
+        continue
+      fi
+      ln -sfn "${skill_dir}" "${target_path}"
+      echo "Refreshed ${name} -> ${target_path}"
+      refreshed=$((refreshed+1))
+      continue
+    fi
+
+    if [[ -e "${target_path}" ]]; then
+      echo "Skipping ${name}: ${target_path} exists and is not a symlink"
+      skipped=$((skipped+1))
+      continue
+    fi
+
+    ln -s "${skill_dir}" "${target_path}"
+    echo "Installed ${name} -> ${target_path}"
+    installed=$((installed+1))
+  done <<< "${manifest_rows}"
+fi
 
 source_resolved="$(resolve_path "${SOURCE_SKILLS_DIR}")"
 while IFS= read -r -d '' entry; do

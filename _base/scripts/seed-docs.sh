@@ -7,6 +7,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+# shellcheck source=lib/require.sh
+source "${SCRIPT_DIR}/lib/require.sh"
+require_cmd python3 "used to seed docs/ and workbooks/ from _base/"
 
 python3 - "${REPO_ROOT}" <<'PY'
 from pathlib import Path

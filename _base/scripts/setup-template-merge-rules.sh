@@ -45,6 +45,10 @@ done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+# shellcheck source=lib/require.sh
+source "${SCRIPT_DIR}/lib/require.sh"
+require_cmd python3 "used to update the managed .gitattributes block"
+
 ATTRIBUTES_FILE="${REPO_ROOT}/.gitattributes"
 
 read -r -d '' MANAGED_BLOCK <<'EOF' || true

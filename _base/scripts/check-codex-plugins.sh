@@ -10,6 +10,10 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=lib/require.sh
+source "${REPO_ROOT}/_base/scripts/lib/require.sh"
+require_cmd python3 "used to validate bundled Codex plugin manifests"
+
 PLUGINS_DIR="${REPO_ROOT}/_base/plugins"
 
 python3 - "${PLUGINS_DIR}" "${REPO_ROOT}" <<'PY'

@@ -27,6 +27,9 @@ case "${1:-}" in
 esac
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=lib/require.sh
+source "${REPO_ROOT}/_base/scripts/lib/require.sh"
+require_cmd python3 "used to validate .codex/agents/*.toml mirrors"
 
 python3 - "${REPO_ROOT}" <<'PY'
 from __future__ import annotations

@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.07.06.1
+BASE_VERSION: 2026.07.06.2
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,40 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Manifest parse failures abort instead of reporting 0 skills
+
+Manifest parse failures abort instead of reporting 0 skills.
+
+- `_base/scripts/link-skills.sh`, `skills/install-codex-skills.sh`, and `_base/scripts/check-skills-sync.sh`
+  all parsed `.claude-plugin/plugin.json` (and, for `check-skills-sync.sh`, `.agents/skill-library.json`)
+  via `done < <(python3 …)`. Under `set -e`, a `sys.exit(...)` failure inside that process substitution
+  was swallowed — the `while` loop simply saw EOF with zero lines, so `check-skills-sync.sh` printed
+  `OK  manifest has 0 active skills` and exited 0 on a malformed or corrupted manifest, and the two
+  install scripts silently linked/installed nothing. All three now capture the Python output first
+  (`out=$(python3 …) || { echo "…" >&2; exit 2; }`) and iterate over the captured text, so a JSON parse
+  error or a malformed manifest entry now aborts with a clear `error: failed to parse …` message and
+  exit code 2 instead of reporting success on an empty set.
+- `_base/scripts/reserve-work-item.sh`'s `reserve_file()` treated any noclobber-write failure as a
+  filename collision and looped forever trying the next ID. It now dies immediately with "cannot create
+  … (permissions/disk?)" when the target path doesn't already exist (the only real collision case), and
+  both reservation loops carry a 1000-attempt backstop as a last resort.
+- New `_base/scripts/lib/require.sh` provides `require_bash4` and `require_cmd <name> [hint]`. It is now
+  sourced by every `_base/scripts/*.sh` (and `skills/install-codex-skills.sh`) that actually uses
+  `declare -A`/`mapfile` (bash ≥ 4) or hard-depends on `python3`, so missing prerequisites fail with a
+  one-line explanation instead of a bash syntax error or a Python traceback. `_base/scripts/gen-skills-table.sh`
+  is intentionally excluded (its parser is being replaced in a follow-up change).
+- `_base/scripts/sync-todo-ledgers.sh`'s stale "Portable prerequisites: bash" header comment now says
+  "bash >= 4" (it uses `declare -A` throughout). `_base/scripts/check-repos-config.sh`'s header already
+  named `python3`; left unchanged since it does not use any bash ≥ 4 feature.
+- `_base/SETUP_INSTRUCTIONS.md` already had a "Phase 0 — Prerequisites" table naming `bash` ≥ 4, `python3`,
+  `git`, and `jq` (for Claude Code hooks); no further declaration was needed there.
+
+**Downstream impact:** none unless a project's `.claude-plugin/plugin.json` or `.agents/skill-library.json`
+is already corrupt or malformed — those cases now correctly fail loud (exit 2) instead of silently
+reporting zero active skills. Environments lacking `bash` ≥ 4 or `python3` now get a one-line error from
+the affected `_base/scripts/*.sh` instead of a bash syntax error or Python traceback; no behavior changes
+for environments that already meet the (always-implicit) prerequisites.
 
 ### Harden Claude Code hooks; fail closed without jq
 

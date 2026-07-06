@@ -35,6 +35,9 @@ case "${1:-}" in
 esac
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=lib/require.sh
+source "${REPO_ROOT}/_base/scripts/lib/require.sh"
+require_cmd python3 "used to generate .agents/skills/ wrappers"
 
 python3 - "$REPO_ROOT" "$CHECK_MODE" <<'PY'
 from __future__ import annotations

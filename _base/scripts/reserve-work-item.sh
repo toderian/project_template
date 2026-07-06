@@ -136,20 +136,36 @@ acquire_lock() {
   trap 'rmdir "${LOCK_DIR}" 2>/dev/null || true' EXIT
 }
 
+# Reservation loops call this in a `while true` loop keyed on an incrementing
+# numeric ID; a real filename collision (path already exists) means "try the
+# next ID." Any other reservation failure (permissions, read-only filesystem,
+# full disk, etc.) is not a collision and must not be treated as one — looping
+# forever on it would hang the caller. Distinguish the two by checking whether
+# the path exists after the noclobber write fails.
 reserve_file() {
   local path="$1"
   if (set -o noclobber; : > "$path") 2>/dev/null; then
     printf '%s\n' "$(rel_repo "$path")"
     return 0
   fi
-  return 1
+  if [[ -e "$path" ]]; then
+    return 1
+  fi
+  die "cannot create $(rel_repo "$path") (permissions/disk full?)"
 }
 
+# Backstop against an unbounded loop if id_exists()/reserve_file() somehow
+# keeps reporting collisions (e.g. a corrupted ledger) without ever hitting
+# the die() above.
+readonly MAX_RESERVE_ATTEMPTS=1000
+
 reserve_inbox() {
-  local slug="$1" n id path
+  local slug="$1" n id path attempts=0
   validate_slug "$slug"
   n=$(($(highest_inbox_id) + 1))
   while true; do
+    attempts=$((attempts + 1))
+    (( attempts <= MAX_RESERVE_ATTEMPTS )) || die "gave up after ${MAX_RESERVE_ATTEMPTS} attempts to reserve an inbox ID"
     id="I-$(pad_id "$n")"
     if id_exists "$id"; then
       n=$((n + 1))
@@ -162,12 +178,14 @@ reserve_inbox() {
 }
 
 reserve_task() {
-  local prefix="$1" type="$2" slug="$3" n id path
+  local prefix="$1" type="$2" slug="$3" n id path attempts=0
   validate_prefix_registered "$prefix"
   [[ "$type" =~ ^[FDCR]$ ]] || die "type must be one of F, D, C, R"
   validate_slug "$slug"
   n=$(($(highest_task_id "$prefix") + 1))
   while true; do
+    attempts=$((attempts + 1))
+    (( attempts <= MAX_RESERVE_ATTEMPTS )) || die "gave up after ${MAX_RESERVE_ATTEMPTS} attempts to reserve a task ID"
     id="${prefix}-$(pad_id "$n")"
     if id_exists "$id"; then
       n=$((n + 1))
