@@ -16,35 +16,30 @@ other docs. It is a maintenance workflow, not a brainstorming workflow.
 
 ## Source of Truth
 
-Keep these locations distinct:
+The full path taxonomy — what lives under `docs/resources/` (glossary, `system-map.md`, area
+`summary.md`/`dependency-graph.md`/`contracts/`/`runbooks/`/`attachments/`/`components/`, `_inbox`,
+`_digests`) — is owned by `playbooks/conventions/knowledge-base-quickstart.md` §"Source of truth
+split". Follow it rather than re-deriving paths here. Refresh-specific reminders:
 
-- `docs/resources/CONTEXT.md` is the primary domain glossary.
-- Root `CONTEXT.md` is only a pointer or fallback for older repos.
-- Area architecture summaries live at `docs/resources/<area>/summary.md`.
-- The system map lives at `docs/resources/system-map.md` and indexes participant repos, capabilities,
-  critical flows, and cross-repo boundaries with lifecycle status.
-- Cross-repo dependency graphs live at `docs/resources/<area>/dependency-graph.md`.
-- Cross-repo feature contracts live at `docs/resources/<area>/contracts/<feature-slug>.md`.
-- Sanitized operational runbooks live at `docs/resources/<area>/runbooks/<scenario-slug>.md`; local
-  placeholder values live under `.local/runbooks/` and must not be cited in committed docs.
-- Durable committed source documents and binaries live under `docs/resources/<area>/attachments/` with
-  nearby Markdown metadata or an attachment index documenting purpose, provenance, area or owner, and
-  update guidance.
-- Generated area status pages remain at `docs/areas/<area>.md`; do not hand-edit generated status
-  pages when the ledger generator owns them.
-- Component contexts live at
-  `docs/resources/<area>/components/<component-slug>/CONTEXT.md`.
-- `.config/repos.project.md`, when present, owns stable repo slugs and branch/work policy defaults. `.local/repos.map`
-  maps those slugs to machine-local absolute checkout paths and must not be cited in committed docs.
-- Raw source drops live at `docs/resources/_inbox/` and curated source digests live under
-  `docs/resources/_digests/<area-or-bucket>/`. Refresh uses digests as evidence; raw inbox processing
-  belongs to `/distill-knowledge`.
-- `CONTEXT_DOCS_DIR` is an external-storage escape hatch for repos whose context docs cannot live in
-  the source repo, and it may also point at a central docs repo for shared cross-repo area docs. When
-  set for repo-specific context, use `$CONTEXT_DOCS_DIR/<source-repo>/` as the writable knowledge root
-  for glossary and component context updates. When set as the canonical central docs home for an area,
-  use `$CONTEXT_DOCS_DIR/resources/<area>/` for area summaries, dependency graphs, contracts,
-  runbooks, and component contexts.
+- `docs/resources/CONTEXT.md` is the primary domain glossary; root `CONTEXT.md` is only a
+  pointer/legacy fallback.
+- Generated `docs/areas/<area>.md` pages belong to the ledger generator — never hand-edit them.
+- Refresh uses curated `docs/resources/_digests/` as evidence; raw `_inbox/` processing belongs to
+  `/distill-knowledge`.
+- `.local/runbooks/` and `.local/repos.map` hold machine-local values and must not be cited in
+  committed docs.
+
+**`CONTEXT_DOCS_DIR` (stated once; applies everywhere below).** This is the external-storage escape
+hatch for the writable knowledge root:
+
+- **unset** → use the repo's in-repo `docs/resources/...` paths (the default for template repos);
+- **set as the canonical central docs home for an area** → write area docs (summaries, dependency
+  graphs, contracts, runbooks, component contexts) under `$CONTEXT_DOCS_DIR/resources/<area>/`;
+- **set only for repo-specific external context** → write that repo's context docs under
+  `$CONTEXT_DOCS_DIR/<source-repo>/`.
+
+In both external modes, treat in-repo docs as fallback evidence. The path lists below are written for
+the unset case; remap them per this rule when `CONTEXT_DOCS_DIR` is set.
 
 ## Component Slugs
 
@@ -62,47 +57,24 @@ The component doc header must preserve the exact source path, not the slug:
 ```
 
 For cross-area or default components, write under `docs/resources/global/components/...` unless a
-registered area clearly owns the component. If `CONTEXT_DOCS_DIR` is configured as the canonical area
-docs home, write the same area/component shape under `$CONTEXT_DOCS_DIR/resources/...`; for
-repo-specific external context, write under `$CONTEXT_DOCS_DIR/<source-repo>/resources/...`.
+registered area clearly owns the component (remapped per the `CONTEXT_DOCS_DIR` rule above when set).
 
 ## Process
 
 ### 1. Inventory the Current Knowledge Base
 
-First determine the writable knowledge root:
+Determine the writable knowledge root per the `CONTEXT_DOCS_DIR` rule above, then list the docs that
+can drift (in-repo paths shown; remap when `CONTEXT_DOCS_DIR` is set):
 
-- If `CONTEXT_DOCS_DIR` is unset, use the repo's docs-primary paths.
-- If `CONTEXT_DOCS_DIR` is set as the canonical central docs repo for the area, use
-  `$CONTEXT_DOCS_DIR/resources/<area>/` for area docs and treat in-repo docs as fallback evidence.
-- If `CONTEXT_DOCS_DIR` is set only for repo-specific external context, use
-  `$CONTEXT_DOCS_DIR/<source-repo>/` for that repo's context docs and treat in-repo docs as fallback
-  evidence.
-
-List the docs that can drift:
-
-- domain glossary: `docs/resources/CONTEXT.md`, or `$CONTEXT_DOCS_DIR/<source-repo>/CONTEXT.md` when
-  external storage is configured
-- area summaries: `docs/resources/<area>/summary.md`, or
-  `$CONTEXT_DOCS_DIR/resources/<area>/summary.md` when central docs storage is configured
-- system map: `docs/resources/system-map.md`, or `$CONTEXT_DOCS_DIR/resources/system-map.md` when a
-  central docs repo is the canonical home
-- dependency graphs: `docs/resources/<area>/dependency-graph.md`, or
-  `$CONTEXT_DOCS_DIR/resources/<area>/dependency-graph.md` when central docs storage is configured
-- feature contracts: `docs/resources/<area>/contracts/*.md`, or
-  `$CONTEXT_DOCS_DIR/resources/<area>/contracts/*.md` when central docs storage is configured
-- operational runbooks: `docs/resources/<area>/runbooks/*.md` and
-  `docs/resources/global/runbooks/*.md`, or `$CONTEXT_DOCS_DIR/resources/<area>/runbooks/*.md` for
-  central area docs, or `$CONTEXT_DOCS_DIR/<source-repo>/resources/<area>/runbooks/*.md` for
-  repo-specific external context
-- attachment metadata and indexes under `docs/resources/<area>/attachments/*.md`, or the equivalent
-  configured external context path
-- component contexts: `docs/resources/<area>/components/*/CONTEXT.md`, or
-  `$CONTEXT_DOCS_DIR/resources/<area>/components/*/CONTEXT.md` for central area docs, or
-  `$CONTEXT_DOCS_DIR/<source-repo>/resources/<area>/components/*/CONTEXT.md` for repo-specific
-  external context
-- source digests under `docs/resources/_digests/**/*.md`
-- supporting resources under `docs/resources/`
+- domain glossary: `docs/resources/CONTEXT.md`
+- area summaries: `docs/resources/<area>/summary.md`
+- system map: `docs/resources/system-map.md`
+- dependency graphs: `docs/resources/<area>/dependency-graph.md`
+- feature contracts: `docs/resources/<area>/contracts/*.md`
+- operational runbooks: `docs/resources/<area>/runbooks/*.md` and `docs/resources/global/runbooks/*.md`
+- attachment metadata and indexes: `docs/resources/<area>/attachments/*.md`
+- component contexts: `docs/resources/<area>/components/*/CONTEXT.md`
+- source digests: `docs/resources/_digests/**/*.md`, plus supporting resources under `docs/resources/`
 - task ledgers, active task files, done task files, execution logs, and completion harvests
 
 Record each context doc's explicit review date and lifecycle status if it has one. For area docs,

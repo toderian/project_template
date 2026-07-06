@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.07.06.14
+BASE_VERSION: 2026.07.06.15
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,35 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### De-duplicate two skill families against their canonical conventions
+
+Several skill playbooks inlined procedure that a convention file already owns. Removed the duplication
+by cross-linking to the canonical owner — **−124 net lines across 8 playbooks**, no workflow, template,
+or frontmatter change (skill wrappers stay byte-identical; `check-skills-sync` unchanged).
+
+- **Docs-knowledge taxonomy** — `refresh-context`, `define-area`, `map-system`, `distill-knowledge`,
+  and `describe-component` each restated the `docs/resources/` path taxonomy (and, in some,
+  `CONTEXT_DOCS_DIR` two or more times). They now cross-link
+  `playbooks/conventions/knowledge-base-quickstart.md` §"Source of truth split" and state the
+  `CONTEXT_DOCS_DIR` dual-mode rule once. `refresh-context` alone dropped from 227→198 lines
+  (`CONTEXT_DOCS_DIR` mentions 21→8). Load-bearing templates (`summary.md`/`dependency-graph.md`
+  skeletons, the digest template, component `CONTEXT.md` shape, the `Architectural context for
+  <repo>:<source-path>` header, slug derivation) were kept inline.
+- **Task-creation ritual** — `triage-inbox` and `prd-to-todos` restated `add-task`'s reserve →
+  field-rules → sync procedure. They now delegate task creation to `add-task` (steps 3–6) and keep
+  only their distinct front-half (inbox classification / PRD slicing) plus source-specific metadata
+  (`Source`, `Spec refs`, `Blocked by`).
+- **Discovery-gate scan** — `add-task`, `triage-inbox`, and `prd-to-todos` inlined the same
+  duplicate-check scan; they now cite `playbooks/conventions/task-system-quickstart.md`
+  §"Discovery gate" (the canonical owner). `init` and `tidy-repo` were left as-is — they don't
+  duplicate that scan.
+
+**Downstream impact:** these playbooks are Mixed-ownership (`playbooks/`). A downstream repo that has
+**not** forked them accepts the leaner upstream version cleanly on merge. A repo that **forked** any of
+the 8 files will get a normal merge conflict there — reconcile by keeping the fork's customizations and
+adopting the cross-link where it applies. No behavior change: every delegated rule still resolves to
+its canonical owner, and all cited anchors exist.
 
 ### Slim the base contract and fix orphaned-convention discoverability
 

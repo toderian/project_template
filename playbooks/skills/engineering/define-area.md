@@ -42,30 +42,23 @@ When guiding the user, enforce these defaults:
 
 ## Source of Truth
 
-The canonical in-repo area knowledge root is:
+The full path taxonomy — what lives under `docs/resources/<area>/` (`summary.md`, `dependency-graph.md`,
+`attachments/`, `contracts/`, `runbooks/`, `components/`) — is owned by
+`playbooks/conventions/knowledge-base-quickstart.md` §"Source of truth split". Follow it rather than
+re-deriving paths here. Area-specific reminders:
 
-```text
-docs/resources/<area>/
-├── summary.md
-├── dependency-graph.md
-├── attachments/
-├── contracts/
-├── runbooks/
-└── components/
-```
+- `docs/areas/<area>.md` remains the generated task-status page. It is useful work-status evidence, not
+  the durable architecture home.
+- `docs/resources/system-map.md` is the top-level index across areas and repos. Use it to point future
+  agents at this area and to distinguish `draft`, `accepted`, `partially-implemented`, `implemented`,
+  and `superseded` system-level claims.
 
-`docs/areas/<area>.md` remains the generated task-status page. It is useful work-status evidence, not
-the durable architecture home.
-
-`docs/resources/system-map.md` is the top-level index across areas and repos. Use it to point future
-agents at this area and to distinguish `draft`, `accepted`, `partially-implemented`, `implemented`,
-and `superseded` system-level claims.
-
-When a central docs repo is configured through `CONTEXT_DOCS_DIR`, prefer
-`$CONTEXT_DOCS_DIR/resources/<area>/` as the canonical home for cross-repo area docs after confirming
-that the directory is meant to be shared project knowledge, including sanitized operational runbooks.
-Existing per-source external context under `$CONTEXT_DOCS_DIR/<source-repo>/...` may still be read as
-fallback evidence.
+**`CONTEXT_DOCS_DIR` (stated once; applies everywhere below).** unset → use in-repo
+`docs/resources/<area>/` paths; configured as the canonical central docs home for an area → prefer
+`$CONTEXT_DOCS_DIR/resources/<area>/` as the home for cross-repo area docs, including sanitized
+operational runbooks, after confirming that the directory is meant to be shared project knowledge;
+configured only for repo-specific external context → existing docs under
+`$CONTEXT_DOCS_DIR/<source-repo>/...` may still be read as fallback evidence.
 
 ## Process
 

@@ -27,23 +27,12 @@ empty, say so and stop.
 
 ### 2. Discovery gate, per idea
 
-Before deciding whether to promote an idea, inspect the current project state. The goal is not
+Before deciding whether to promote an idea, run the discovery scan from
+`playbooks/conventions/task-system-quickstart.md` §"Discovery gate" (inbox + archived inbox, active +
+archived tasks, roadmap/ledgers/`_active.md`/`_done.md`/area pages, `docs/resources/` + `docs/archive/`
+and their area docs, `CONTEXT_DOCS_DIR` if configured, and likely code/tests). The goal is not
 exhaustive proof; it is enough evidence to avoid creating tasks for duplicate, already tracked, already
 implemented, obsolete, or stale work.
-
-For each idea, inspect likely matches in:
-
-- `docs/tasks_manager/_inbox/` and `docs/tasks_manager/_inbox_archived/`
-- `docs/tasks_manager/_todos/` and `docs/tasks_manager/_todos_archived/`
-- `docs/tasks_manager/_roadmap.md`, `docs/tasks_manager/_active.md`, and `docs/tasks_manager/_done.md`
-- `docs/areas/_overview.md` and relevant `docs/areas/<slug>.md` pages
-- `docs/resources/` and `docs/archive/`
-- `docs/resources/CONTEXT.md`, area summaries under `docs/resources/<area>/summary.md`, dependency
-  graphs under `docs/resources/<area>/dependency-graph.md`, feature contracts under
-  `docs/resources/<area>/contracts/*.md`, runbooks under `docs/resources/<area>/runbooks/*.md`,
-  component contexts under `docs/resources/<area>/components/*/CONTEXT.md`, and `CONTEXT_DOCS_DIR`
-  only if configured
-- likely code and tests found by searching for the idea's domain terms, filenames, commands, or symbols
 
 Classify each idea using the six-way scheme defined in
 `playbooks/conventions/inbox-convention.md` (duplicate inbox idea, already tracked task, already
@@ -59,7 +48,7 @@ Present the ideas to the user and decide each:
 
 - **Promote** — worth doing and not already covered. Continue to step 4.
 - **Drop** — duplicate, obsolete, already implemented, stale, or out of scope. Set the inbox file's
-  `Status: dropped`, add a one-line reason in the body, and archive it (step 6).
+  `Status: dropped`, add a one-line reason in the body, and archive it (step 5).
 - **Defer** — keep it as `new` for a later pass. Leave it untouched.
 - **Append to existing** — when the idea is already tracked by another inbox idea or task, append useful
   detail or a cross-link to that existing file, then drop and archive the current inbox idea with a
@@ -67,49 +56,21 @@ Present the ideas to the user and decide each:
 
 Let the user steer; don't unilaterally drop ideas. Batch the decisions in one exchange where possible.
 
-### 4. Shape each promotion
+### 4. Shape and create each promoted task
 
-For each promoted idea, settle:
+For each promoted idea, create the task exactly as `add-task` does — its steps 3–6 are the canonical
+ritual for area/prefix, type, priority, the optional `Repos`/`Autonomy`/`Spec refs`/date metadata, the
+full `todo-convention.md` file shape, `reserve-work-item.sh` reservation, and the
+`sync-todo-ledgers.sh` + `--check` + `check-repos-config.sh` sync. Do not restate those field rules
+here. Triage-specific overrides:
 
-- **Type** — `F` feature, `D` debug/bug, `C` chore/refactor, `R` research/spike.
-- **Area and prefix** — pick a row from `docs/tasks_manager/_areas.md`. If none fits, this is the
-  moment to define a new area with the user: propose an area slug, uppercase prefix, one-line
-  description, and page path, confirm, append it to `_areas.md`, then use it.
-- **Repos** — if `.config/repos.project.md` exists and the relevant repo slugs are inferable, fill optional
-  `Repos` metadata with comma-separated slugs. If not inferable, omit the row. Do not encode repo
-  slugs into task IDs, filenames, prefixes, or areas.
-- **Autonomy** — if the user explicitly asks for a loop autonomy level, or the task should be stricter
-  than the repo default, fill optional `Autonomy` metadata with `L0`, `L1`, `L2`, or `L3`. Omit it
-  otherwise. The value must not exceed the resolved repo `Autonomy max`.
-- **Priority** — high / medium / low.
-- **Dates** — add task `Target date` or `Deadline` only when the user or inbox item clearly gives a
-  task-specific soft date or hard commitment. Omit both for normal promoted tasks.
-- **Roadmap placement** — leave unscheduled unless the user wants the new task in Urgent, Now, Next,
-  Later, or Someday. If the scheduling intent is goal-level timing, prefer a roadmap milestone heading
-  over per-task dates.
+- set `Source: inbox` and `Source ref: I-NNN` on the promoted task so the trail back is preserved
+- if no area fits, this is the moment to define a new area with the user (propose slug, uppercase
+  prefix, one-line description, and page path; confirm; append to `_areas.md`; then use it)
+- leave the task unscheduled unless the user wants roadmap placement; for goal-level timing prefer a
+  roadmap milestone heading over per-task dates
 
-### 5. Create the task
-
-Reserve the task file with `_base/scripts/reserve-work-item.sh task <PREFIX> <TYPE> <short-desc>`, then fill
-the printed path per the task convention's full format:
-
-- Metadata table including `Task ID`, `Type`, `Area`, `Source: inbox`, `Source ref: I-NNN`, and `Priority`.
-- Optional `Repos` metadata when inferable from `.config/repos.project.md`.
-- Optional `Autonomy` metadata only when the task intentionally differs from the repo default/max.
-- Optional `Target date` / `Deadline` metadata only when task-specific dates were explicitly provided.
-- A short human-readable title and a 2-4 sentence brief.
-- Optional `### Repo scope` section for cross-repo tasks when repo responsibilities need explanation.
-- Phases with per-phase checklists.
-- Acceptance criteria and a Related tests section, or `N/A - <reason>`.
-- Follow-ups, execution log, completion harvest, and completion summary sections.
-
-Then run `_base/scripts/sync-todo-ledgers.sh` to update ledgers and area pages. If the user chose
-roadmap placement, update `docs/tasks_manager/_roadmap.md`; when they gave a target date, deadline, or
-milestone, place the task under a dated milestone heading inside the chosen horizon. Run the sync again.
-After all task, inbox, and roadmap changes are done, run `_base/scripts/sync-todo-ledgers.sh --check`
-and `_base/scripts/check-repos-config.sh`.
-
-### 6. Close out the inbox file
+### 5. Close out the inbox file
 
 Set the inbox file's `Status` to `promoted` (or `dropped`) and move it to `docs/tasks_manager/_inbox_archived/`, so
 the inbox only ever shows live ideas. The promoted task's `Source ref: I-NNN` preserves the trail back.
@@ -117,7 +78,7 @@ the inbox only ever shows live ideas. The promoted task's `Source ref: I-NNN` pr
 For dropped duplicates, obsolete ideas, and already implemented ideas, include the one-line reason in
 the archived inbox file. For appended ideas, mention the file that received the useful details.
 
-### 7. Report
+### 6. Report
 
 Summarize how many ideas were promoted (with their new task IDs, types, areas, and roadmap placement)
 and how many were dropped, deferred, or appended to existing work. Run `_base/scripts/sync-todo-ledgers.sh` at

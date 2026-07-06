@@ -20,25 +20,10 @@ Raw material is not authoritative. The output of this skill is:
 
 ## Knowledge lanes
 
-Use these locations consistently:
-
-- `docs/resources/_inbox/` - raw knowledge drop zone. Files or source batch folders here are waiting
-  to be distilled.
-- `docs/resources/_digests/<area>/` - curated Markdown summaries of one source or one small source
-  batch, segregated by owning area.
-- `docs/resources/_digests/_cross-area/` - digests that materially affect multiple areas.
-- `docs/resources/_digests/_uncategorized/` - digests whose area is not known yet.
-- `docs/resources/CONTEXT.md` - canonical domain glossary.
-- `docs/resources/<area>/summary.md` - durable area architecture knowledge.
-- `docs/resources/<area>/sources.md` - area source history for teammate inputs, call batches,
-  uploaded documents, durable attachments, why each was added, and links to digests, tasks, or
-  canonical docs.
-- `docs/resources/<area>/dependency-graph.md` - cross-repo/package dependencies.
-- `docs/resources/<area>/contracts/<feature-slug>.md` - concrete feature contracts.
-- `docs/resources/<area>/runbooks/<scenario-slug>.md` - sanitized reusable operational procedures.
-- `docs/resources/<area>/attachments/` - durable committed source documents and binaries with nearby
-  Markdown metadata or an attachment index.
-- `docs/resources/<area>/components/<component-slug>/CONTEXT.md` - component context.
+The full path taxonomy — what lives under `docs/resources/` (glossary, area summary/sources/
+dependency-graph/contracts/runbooks/attachments/components, `_inbox`, `_digests`) — is owned by
+`playbooks/conventions/knowledge-base-quickstart.md` §"Source of truth split". Follow it rather than
+re-deriving paths here.
 
 The raw inbox is a staging area, not a place future agents should rely on for context. Preserve
 important facts by writing a digest and promoting durable facts into the appropriate knowledge file.

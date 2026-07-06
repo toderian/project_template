@@ -15,14 +15,13 @@ or refresh architecture after teammates changed code or docs.
 
 ## Source of Truth
 
-The system map is an index. It links to detailed sources instead of duplicating them:
+The system map is an index. The full taxonomy of what each linked doc owns — `.config/repos.project.md`,
+`docs/resources/<area>/summary.md`, `dependency-graph.md`, `contracts/*.md`, and `components/*/CONTEXT.md`
+— is owned by `playbooks/conventions/knowledge-base-quickstart.md` §"Source of truth split". Follow it
+rather than re-deriving paths here. The system map links to those sources instead of duplicating them,
+plus:
 
-- `.config/repos.project.md` for stable repo slugs and repo policy
 - `.local/repos.map` for local checkout paths, never committed or cited directly
-- `docs/resources/<area>/summary.md` for area responsibilities
-- `docs/resources/<area>/dependency-graph.md` for repo/package/runtime relationships
-- `docs/resources/<area>/contracts/*.md` for concrete feature contracts
-- `docs/resources/<area>/components/*/CONTEXT.md` for component boundaries
 - task completion harvests and execution logs for implementation evidence
 
 Use lifecycle statuses consistently: `draft`, `accepted`, `partially-implemented`, `implemented`, and

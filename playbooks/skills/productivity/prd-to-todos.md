@@ -45,13 +45,10 @@ Each phase should:
 
 ### 4. Check for existing work
 
-Before asking the user to approve task creation, compare the proposed slices against:
-
-- `docs/tasks_manager/_inbox/` and `docs/tasks_manager/_inbox_archived/`
-- `docs/tasks_manager/_todos/` and `docs/tasks_manager/_todos_archived/`
-- `docs/tasks_manager/_roadmap.md`, ledgers, and area pages
-- `docs/resources/`, `docs/archive/`, `docs/resources/CONTEXT.md`, area summaries, runbooks,
-  component contexts, and likely code/tests
+Before asking the user to approve task creation, run the discovery scan from
+`playbooks/conventions/task-system-quickstart.md` §"Discovery gate" against the proposed slices (inbox
++ archived, active + archived tasks, roadmap/ledgers/area pages, `docs/resources/` + `docs/archive/`
+and their area docs, and likely code/tests).
 
 If a slice is already captured, tracked, implemented, obsolete, or related-but-distinct, show the
 evidence with the proposed task list. Ask whether to skip it, append detail to the existing item, link
@@ -90,39 +87,20 @@ Iterate until approved.
 
 ### 6. Create task files
 
-For each approved item, reserve a file in `docs/tasks_manager/_todos/` named
-`<PREFIX>-NNN-<TYPE>_<short-desc>.md` and fill it following the full format in
-`playbooks/conventions/todo-convention.md`, including:
+For each approved slice, create the task exactly as `add-task` does — its steps 3–6 are the canonical
+ritual for area/prefix, type, priority, the optional `Repos`/`Autonomy`/`Spec refs`/date metadata, the
+full `todo-convention.md` file shape, `reserve-work-item.sh` reservation, and the
+`sync-todo-ledgers.sh` + `--check` + `check-repos-config.sh` sync. Do not restate those field rules
+here. PRD-specific overrides:
 
-- Metadata table with `Task ID` (next id for the area's prefix), `Type` (`F`/`D`/`C`/`R`),
-  `Area` (a slug from `docs/tasks_manager/_areas.md`, defining a new row with the user if needed),
-  optional `Repos` when inferable from `.config/repos.project.md`,
-  optional `Autonomy` only when the task intentionally differs from the repo default/max,
-  optional `Spec refs` pointing to the PRD and any durable contracts/docs the slice must satisfy,
-  optional `Target date` / `Deadline` only when the PRD or user explicitly gives task-specific dates,
-  `Source: prd-to-todos`, `Source ref` pointing to the PRD, `Priority`, and `Blocked by` (referencing
-  other task IDs or filenames if dependent)
-- Short human-readable title and 2-4 sentence brief
-- Optional `### Specification` / `### Design` sections when the PRD slice needs task-local planned
-  intent beyond acceptance criteria
-- Optional `### Repo scope` section for cross-repo tasks when repo responsibilities need explanation
-- Phases with per-phase checklists
-- Acceptance criteria
-- Related tests section (list known tests, or `N/A - <reason>`)
-- Follow-ups section
-- Empty execution log section (will be filled during execution)
-- Completion harvest placeholder with explicit `None` rows
-- Completion summary placeholder
-
-Reserve each file with `_base/scripts/reserve-work-item.sh task <PREFIX> <TYPE> <short-desc>` in dependency
-order so IDs sort naturally within each area. Fill each reserved placeholder immediately. Use the
-current datetime for the `Created` field. After creating the files, run `_base/scripts/sync-todo-ledgers.sh`.
-If the user wants the PRD scheduled, place the new task IDs on `docs/tasks_manager/_roadmap.md` in
-Urgent, Now, Next, Later, or Someday (horizon semantics and soft thresholds:
-`playbooks/conventions/todo-convention.md` §Roadmap). If the PRD/user gives a goal-level target date or deadline, group
-the IDs under a milestone heading inside the chosen horizon. Run the sync again. After all task and
-roadmap changes are done, run `_base/scripts/sync-todo-ledgers.sh --check` and
-`_base/scripts/check-repos-config.sh`.
+- set `Source: prd-to-todos` and `Source ref` to the PRD path/issue; set `Spec refs` to the PRD and any
+  durable contracts/docs the slice must satisfy
+- add `Blocked by` referencing other task IDs/filenames when slices depend on each other, and reserve
+  files in dependency order so IDs sort naturally within each area
+- add `### Specification` / `### Design` sections when the PRD slice needs task-local planned intent
+  beyond acceptance criteria
+- place the new task IDs on the roadmap only if the user wants the PRD scheduled (milestone heading for
+  goal-level timing)
 
 ### 7. Report
 

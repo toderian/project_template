@@ -37,16 +37,9 @@ date.
 
 ### 2. Check for duplicates and overlap
 
-Scan:
-
-- `docs/tasks_manager/_inbox/`
-- `docs/tasks_manager/_inbox_archived/`
-- `docs/tasks_manager/_todos/`
-- `docs/tasks_manager/_todos_archived/`
-- `docs/tasks_manager/_roadmap.md`
-- `docs/areas/_overview.md` and relevant `docs/areas/<slug>.md` pages, if they exist
-- `docs/resources/`, `docs/archive/`, `docs/resources/CONTEXT.md`, area summaries, runbooks,
-  component contexts, and likely code/tests when the task appears tied to existing behavior
+Run the discovery scan from `playbooks/conventions/task-system-quickstart.md` §"Discovery gate"
+(inbox and archived inbox, active and archived tasks, `_roadmap.md`, ledgers, area pages,
+`docs/resources/` + `docs/archive/`, and likely code/tests when the task ties to existing behavior).
 
 If the work appears already captured, tracked, or implemented, report the matching `I-NNN`, task ID,
 doc, or code path and ask whether to append detail, link the existing item, or create a distinct task.

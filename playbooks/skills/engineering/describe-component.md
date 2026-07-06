@@ -70,15 +70,12 @@ suggest running `grill-with-docs` - don't silently define it in the component do
 
 ### 5. Determine where to store it
 
-Template-inherited repos use a docs-primary layout. Store component contexts under:
-
-```text
-docs/resources/<area>/components/<component-slug>/CONTEXT.md
-```
-
-The area comes from `docs/tasks_manager/_areas.md` when a registered area clearly owns the component.
-Use `global` for cross-area, shared, or default components. Ask before creating a new area or
-materially changing which area owns a component.
+The path taxonomy for where component contexts live — the
+`docs/resources/<area>/components/<component-slug>/CONTEXT.md` path, area ownership, and the `global`
+fallback for cross-area/shared/default components — is owned by
+`playbooks/conventions/knowledge-base-quickstart.md` §"Source of truth split". Follow it rather than
+re-deriving paths here. Ask before creating a new area or materially changing which area owns a
+component.
 
 Derive `<component-slug>` from the source path:
 
@@ -93,15 +90,13 @@ Every component doc must record the exact source path in its header:
 > Architectural context for <repo>:<source-path>
 ```
 
-Read `CONTEXT_DOCS_DIR` from `project.env` at the repo root and follow it silently only when it is set.
-This is an external-storage escape hatch for describing a repo you should not write into, and it may
-also point at a central docs repo for shared cross-repo area docs. If the central docs repo is the
-canonical home for the area, store component docs under
-`$CONTEXT_DOCS_DIR/resources/<area>/components/<component-slug>/CONTEXT.md`. For repo-specific external
-context, store docs under
-`$CONTEXT_DOCS_DIR/<source-repo>/resources/<area>/components/<component-slug>/CONTEXT.md`. Keep the
-same source-path header either way. Do not use `CONTEXT_DOCS_DIR` as the normal default for this
-template.
+**`CONTEXT_DOCS_DIR`** (read from `project.env` at the repo root; follow silently only when set) is the
+external-storage escape hatch for the writable knowledge root: unset -> use the in-repo path above; set
+as the canonical central docs home for the area -> store under
+`$CONTEXT_DOCS_DIR/resources/<area>/components/<component-slug>/CONTEXT.md`; set only for repo-specific
+external context -> store under
+`$CONTEXT_DOCS_DIR/<source-repo>/resources/<area>/components/<component-slug>/CONTEXT.md`. Keep the same
+source-path header either way. Do not use `CONTEXT_DOCS_DIR` as the normal default for this template.
 
 ### 6. Draft, confirm, write
 
