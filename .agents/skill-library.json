@@ -27,7 +27,6 @@
         "planning-workflow",
         "prototype",
         "roadmap",
-        "security-review-owasp",
         "spec-workflow",
         "subagent-protocol",
         "task-spec-workflow",
@@ -81,19 +80,22 @@
         "write-a-prd"
       ]
     },
-    "personal": {
-      "description": "Personal writing, notes, and manuscript-review workflows.",
+    "obsidian": {
+      "description": "Obsidian vault note-management workflows.",
       "skills": [
-        "deslop",
-        "edit-article",
-        "obsidian-vault",
-        "sciwrite"
+        "obsidian-vault"
       ]
     },
     "platform-claude": {
       "description": "Claude Code-specific setup and guardrail workflows.",
       "skills": [
         "git-guardrails-claude-code"
+      ]
+    },
+    "security": {
+      "description": "Security review and secure-coding workflows (OWASP Top 10, ASVS, LLM/Agentic AI).",
+      "skills": [
+        "security-review-owasp"
       ]
     },
     "simplicity": {
@@ -130,6 +132,14 @@
         "frontend-design",
         "ui-design-review"
       ]
+    },
+    "writing": {
+      "description": "Personal writing and manuscript-review workflows: deslopping, article editing, and scientific writing.",
+      "skills": [
+        "deslop",
+        "edit-article",
+        "sciwrite"
+      ]
     }
   },
   "profiles": {
@@ -144,12 +154,14 @@
         "docs-knowledge",
         "education",
         "github",
-        "personal",
+        "obsidian",
         "platform-claude",
+        "security",
         "simplicity",
         "task-management",
         "typescript",
-        "ui"
+        "ui",
+        "writing"
       ]
     },
     "minimal": {
@@ -162,6 +174,7 @@
       "description": "Core coding workflow plus UI and task-management skills.",
       "packs": [
         "core",
+        "security",
         "task-management",
         "ui"
       ]

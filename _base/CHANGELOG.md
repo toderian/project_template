@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.07.06.10
+BASE_VERSION: 2026.07.06.12
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,51 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Extract `security-review-owasp` into a `security` pack
+
+`security-review-owasp` was the one heavier engineering skill bundled into the always-on `core`
+pack, forcing every `minimal`-profile project (and any custom selection that picks `core`) to carry
+it. It now lives in its own `security` pack in `.agents/skill-library.json`, so security review is an
+explicit opt-in.
+
+- `core` no longer lists `security-review-owasp` (16 → 15 skills).
+- New `security` pack — `security-review-owasp` (OWASP Top 10 / ASVS / LLM / Agentic AI review).
+- The `recommended` and `full` profiles now include `security`, so their effective skill set is
+  unchanged; `minimal` stays `core`-only and no longer includes security review.
+
+This is a pack-taxonomy (selection) change only: the skill keeps its `engineering` **bucket** and
+its `playbooks/skills/engineering/security-review-owasp.md` playbook, and no wrapper,
+`.claude-plugin/plugin.json` entry, or README skills-table row changes — the default `recommended`
+active set is identical (security review now arrives via `security` instead of `core`).
+
+**Downstream impact:** `core` no longer includes `security-review-owasp`. Repos on `recommended` or
+`full` are unaffected — the new `security` pack (which both profiles include) delivers it. Repos on
+the `minimal` profile, or any custom `.agents/skills.enabled.json` that relied on `core` for security
+review, drop the skill on merge; add `security` to their pack selection (e.g.
+`./_base/scripts/setup-agents.sh --skills ...,security`) to restore it. No playbook, wrapper,
+`plugin.json` entry, bucket, or skill description changes.
+
+### Split the `personal` pack into `writing` and `obsidian`
+
+The `personal` selection pack previously bundled four skills (`deslop`, `edit-article`, `sciwrite`,
+`obsidian-vault`), so a project could not activate the writing skills without also pulling in the
+Obsidian workflow. `.agents/skill-library.json` now replaces `personal` with two focused packs:
+
+- `writing` — `deslop`, `edit-article`, `sciwrite` (personal writing and manuscript review).
+- `obsidian` — `obsidian-vault` (Obsidian vault note management).
+
+The `full` profile now lists both new packs in place of `personal`. This is a pack-taxonomy (selection)
+change only: the skills keep their `personal` **bucket** (their `playbooks/skills/personal/` directory
+and any generated wrapper path are unchanged), and no playbook, wrapper, `.claude-plugin/plugin.json`
+entry, or README skills-table row changes — the `personal` pack was not in the default `recommended`
+selection, so no active surface moves.
+
+**Downstream impact:** the `personal` pack name no longer exists. A downstream repo whose
+`.agents/skills.enabled.json` lists `personal` (directly or via a custom profile) must replace it with
+`writing`, `obsidian`, or both — otherwise `sync-skill-selection.py`/`check-skills-sync.sh` will report
+the unknown pack. Repos on the `recommended` or `minimal` profile are unaffected. Skill descriptions,
+buckets, and runtime wrappers are unchanged.
 
 ### Whole-branch review polish: duplicate-skill guard and pointer wording
 

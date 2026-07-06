@@ -247,7 +247,7 @@ playbooks/skills/<bucket>/<name>.md      →  shared workflow logic + metadata f
 
 Each skill's metadata (`description`, optional `argument-hint`) lives in the `---` frontmatter of its
 playbook at `playbooks/skills/<bucket>/<name>.md` — the single source of truth. `.agents/skill-library.json`
-holds selection only: the packs (`core`, `ui`, `task-management`, `github`, `personal`, `platform-claude`,
+holds selection only: the packs (`core`, `ui`, `task-management`, `github`, `security`, `writing`, `obsidian`, `platform-claude`,
 …) that group skills by name, the setup profiles, and the two agent roles (`implementer`, `reviewer`) that
 have no playbook. The active selection lives in `.agents/skills.enabled.json`.
 `_base/scripts/sync-skill-selection.py` reads the playbook frontmatter plus that selection and materializes

@@ -3,6 +3,7 @@
   "profile": "recommended",
   "packs": [
     "core",
+    "security",
     "task-management",
     "ui"
   ],
