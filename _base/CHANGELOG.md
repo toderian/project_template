@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.07.06.15
+BASE_VERSION: 2026.07.07.0
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,27 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Add manual pxpipe bootstrap guidance
+
+Adds `pxpipe-proxy` as an optional third-party tool in `_base/plugins/bootstrap-third-party.sh` and
+the base setup docs, without adding any standing agent instruction or default routing behavior.
+
+- New `INSTALL_PXPIPE=1` gate in `bootstrap-third-party.sh`; default is off. When enabled, the script
+  smoke-checks `npx -y pxpipe-proxy@<version> --help` and prints manual session commands instead of
+  starting a long-running proxy.
+- New `PXPIPE_VERSION` override for users who want to pin or advance the package used by the npx
+  command.
+- `_base/README.md`, `_base/SETUP_INSTRUCTIONS.md`, and `_base/project.env.example` now document the
+  opt-in path and the safety boundary: pxpipe can reduce request tokens by imaging eligible bulky
+  context, but dense imaged context is lossy for byte-exact strings, so agents should use it only when
+  explicitly asked.
+
+**Downstream impact:** `_base/**` is upstream-owned and merges cleanly via
+`git fetch template && git merge`. Normal setup behavior is unchanged because pxpipe is off by
+default. Downstream users who want it can run
+`INSTALL_PXPIPE=1 ./_base/plugins/bootstrap-third-party.sh`, then start `npx -y pxpipe-proxy@latest`
+and launch the desired agent/client with the printed base-URL override.
 
 ### De-duplicate two skill families against their canonical conventions
 

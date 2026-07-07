@@ -391,7 +391,10 @@ Gemini as a runtime.
 
 ## Phase 5 — Third-party tools (optional, dual-runtime)
 
-A handful of upstream tools ship their own multi-platform installers. Run this script if you want them — toggle individual sections via env vars (`INSTALL_GSD=0`, `INSTALL_CONTEXT_MODE=0`, `INSTALL_CLAUDE_MEM=0`).
+A handful of upstream tools ship their own multi-platform installers or runtime entrypoints. Run this
+script if you want them — toggle default-on sections via env vars (`INSTALL_GSD=0`,
+`INSTALL_CONTEXT_MODE=0`, `INSTALL_CLAUDE_MEM=0`). `pxpipe-proxy` is deliberately off by default;
+enable its smoke check and session commands only when explicitly wanted with `INSTALL_PXPIPE=1`.
 
 ```bash
 ./_base/plugins/bootstrap-third-party.sh
@@ -399,7 +402,10 @@ A handful of upstream tools ship their own multi-platform installers. Run this s
 
 Some entries here only print marketplace-install hints rather than executing them; that is by design (the upstream tools' own install flow is the source of truth). Read the output and follow any hints that apply to your runtime.
 
-**Check:** the script's exit code is 0. Sections that needed user action are clearly logged.
+**Check:** the script's exit code is 0. Sections that needed user action are clearly logged. If
+`INSTALL_PXPIPE=1` was used, the output includes the local proxy command plus the
+`ANTHROPIC_BASE_URL` / `OPENAI_BASE_URL` session overrides; normal setup does not auto-route agents
+through pxpipe.
 
 ---
 

@@ -479,9 +479,16 @@ Some upstream tools ship multi-platform installers and don't fit the `playbooks/
 |------|--------------|--------------|
 | `get-shit-done-cc` | Spec-driven dev workflow (researchers/planners/executors) | `npx get-shit-done-cc --claude --global` and `--codex --global` |
 | `context-mode` | MCP server + hooks that sandbox tool output (~98% context savings on Claude, ~60% on Codex) | `/plugin marketplace add mksglu/context-mode` |
+| `pxpipe-proxy` | Local API proxy that images eligible bulky request context to reduce input tokens; lossy for exact strings, so manual opt-in only | `INSTALL_PXPIPE=1 ./_base/plugins/bootstrap-third-party.sh`, then `npx -y pxpipe-proxy@latest` |
 | `claude-mem` | Cross-session memory via MCP; ships both `.claude-plugin/` and `.codex-plugin/` | `/plugin marketplace add thedotmack/claude-mem` |
 
-Run `./_base/plugins/bootstrap-third-party.sh` to install the npm-based ones and print the marketplace commands for the others. Toggle each section with env vars (`INSTALL_GSD`, `INSTALL_CONTEXT_MODE`, `INSTALL_CLAUDE_MEM`).
+Run `./_base/plugins/bootstrap-third-party.sh` to install the npm-based ones and print the marketplace commands for the others. Toggle default-on sections with env vars (`INSTALL_GSD`, `INSTALL_CONTEXT_MODE`, `INSTALL_CLAUDE_MEM`). `pxpipe-proxy` is off by default because it rewrites eligible request context as images; enable its smoke check and session commands only when explicitly wanted:
+
+```bash
+INSTALL_PXPIPE=1 ./_base/plugins/bootstrap-third-party.sh
+npx -y pxpipe-proxy@latest
+ANTHROPIC_BASE_URL=http://127.0.0.1:47821 claude
+```
 
 ## Quick start
 
