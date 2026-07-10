@@ -134,8 +134,9 @@
       ]
     },
     "writing": {
-      "description": "Personal writing and manuscript-review workflows: deslopping, article editing, and scientific writing.",
+      "description": "Personal writing and manuscript-review workflows: academic humanizing, deslopping, article editing, and scientific writing.",
       "skills": [
+        "academic-humanizer",
         "deslop",
         "edit-article",
         "sciwrite"
