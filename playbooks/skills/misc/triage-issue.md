@@ -13,20 +13,10 @@ The output is an issue that has cleared triage: it carries a clear category labe
 
 ## Triage roles
 
-Two-role labelling. Every triaged issue should carry exactly one **category** role and one **state** role.
-
-Two **category** roles:
-
-- `bug` — something is broken
-- `enhancement` — new feature or improvement
-
-Five **state** roles:
-
-- `needs-triage` — maintainer needs to evaluate
-- `needs-info` — waiting on reporter for more information
-- `ready-for-agent` — fully specified, ready for an AFK agent to implement
-- `ready-for-human` — needs human implementation (judgment calls, external access, manual testing)
-- `wontfix` — will not be actioned
+Two-role labelling. Every triaged issue should carry exactly one **category** role and one **state**
+role. Canonical taxonomy (2 category roles, 5 state roles) is owned by `github-triage`'s
+[`## Labels`](github-triage.md#labels) table — same roles here, just named `bug`/`enhancement`
+for category and `needs-triage`/`needs-info`/`ready-for-agent`/`ready-for-human`/`wontfix` for state.
 
 These are canonical role names — the actual label strings used by the project's issue tracker may differ. If the project has a mapping doc (e.g. `docs/agents/triage-labels.md`), use it; otherwise propose the canonical names to the maintainer.
 
