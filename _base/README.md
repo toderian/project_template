@@ -47,7 +47,8 @@ This repo is designed to work primarily with **Claude Code** and **OpenAI Codex*
 │       ├── check-skills-sync.sh           # Validates skill/wrapper/table consistency
 │       ├── check-antigravity-skills.sh    # Validates generated Antigravity wrappers
 │       ├── check-codex-plugins.sh         # Validates bundled Codex plugin manifests/assets
-│       └── check-codex-agents.sh          # Validates committed .codex/agents mirrors and ignore rules
+│       ├── check-codex-agents.sh          # Validates committed .codex/agents mirrors and ignore rules
+│       └── lint-shell.sh                  # Optional: shellcheck pass over template-owned scripts
 │
 │
 ├── playbooks/                             # Shared workflow logic (single source of truth)
@@ -367,6 +368,14 @@ isn't installed), and bypass it for one commit with `git commit --no-verify`. Th
 `.git/hooks/pre-commit` is a thin wrapper that execs the tracked `_base/scripts/git-hooks/pre-commit`
 script, so the actual check list stays in version control and updates cleanly from the template
 remote — edit that file, not the generated hook.
+
+`_base/scripts/lint-shell.sh` runs `shellcheck` (at `--severity=style`, its strictest bar) over
+template-owned, repo-authored shell scripts — `_base/scripts/`, `_base/scripts/git-hooks/`,
+`.claude/hooks/`, `skills/`, and the top level of `_base/plugins/` (vendored plugin subdirectories such
+as `_base/plugins/superpowers/` are excluded; that's upstream content, not maintained here). Like the
+pre-commit hook, it's **optional**: it prints `SKIP` and exits 0 when `shellcheck` isn't on `PATH`,
+rather than failing `check-template-update.sh` or blocking commits. Install `shellcheck` from your
+package manager to enable it.
 
 `_base/scripts/check-template-update.sh` is the standard read-only, agent-runtime-independent
 post-merge verifier for downstream repos. It prints the current `BASE_VERSION`, validates the template

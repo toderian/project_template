@@ -41,7 +41,7 @@ EOF
 rel_repo() {
   local path="$1"
   if [[ "$path" == "${REPO_ROOT}/"* ]]; then
-    printf '%s' "${path#${REPO_ROOT}/}"
+    printf '%s' "${path#"${REPO_ROOT}"/}"
   else
     printf '%s' "$path"
   fi

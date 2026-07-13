@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.07.13.0
+BASE_VERSION: 2026.07.13.1
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,33 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Add optional shellcheck lint check
+
+Adds `_base/scripts/lint-shell.sh`, an optional `shellcheck` pass (at `--severity=style`, the strictest
+bar) over template-owned, repo-authored shell scripts: `_base/scripts/` (including the extension-less
+`_base/scripts/git-hooks/` hook bodies), `.claude/hooks/`, `skills/`, and the top level of
+`_base/plugins/` (vendored plugin subdirectories such as `_base/plugins/superpowers/` are excluded —
+that's upstream content, not maintained here). Wired into `check-template-update.sh` as a new "Shell
+lint (shellcheck)" check, and therefore into the opt-in pre-commit hook that already runs
+`check-template-update.sh`.
+
+- Skips cleanly (`SKIP`, exit 0) when `shellcheck` isn't installed, matching the existing optional-tool
+  pattern (`uv`, `agy`) — it is never required for `check-template-update.sh` to pass.
+- `check_shell_syntax()` in `check-template-update.sh` gained `.claude/hooks` as a scan root and now
+  also covers `_base/scripts/git-hooks/`: both were previously outside every syntax check despite
+  `.claude/hooks/*.sh` being the highest-stakes shell code in the repo (the Claude Code PreToolUse
+  safety hooks) and `_base/scripts/git-hooks/pre-commit` being new from the prior entry.
+- Running shellcheck at its strictest bar across the full scope surfaced six real (if minor) findings —
+  three `SC2295` unquoted-pattern-expansion cases in path trimming (`reserve-work-item.sh`,
+  `check-skills-sync.sh` ×2, `.claude/hooks/remind-archive-done-todo.sh`) and three `SC2155`
+  declare-and-assign-together cases in `check-skills-sync.sh` — all fixed as small, behavior-preserving
+  edits in this change so the check starts green.
+- `_base/SETUP_INSTRUCTIONS.md` Phase 0 lists `shellcheck` as an optional prerequisite.
+
+**Downstream impact:** none for repos without `shellcheck` installed — the new check reports `SKIP`.
+Repos that have it get one more (skippable, non-required) verification, both in
+`check-template-update.sh` and in the opt-in pre-commit hook from the previous entry.
 
 ### Add opt-in local pre-commit hook
 

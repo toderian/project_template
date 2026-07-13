@@ -34,7 +34,7 @@ STATUS=$(grep -iE '^\|[[:space:]]*Status[[:space:]]*\|' "$FILE_PATH" \
 if echo "$STATUS" | grep -qE "$TERMINAL_RE"; then
   BASENAME=$(basename "$FILE_PATH")
   DIR=$(dirname "$FILE_PATH")
-  ARCHIVE_DIR="${DIR%/$LAYER}/$ARCHIVE"
+  ARCHIVE_DIR="${DIR%/"$LAYER"}/$ARCHIVE"
 
   if [ "$LAYER" = "_todos" ]; then
     missing=""

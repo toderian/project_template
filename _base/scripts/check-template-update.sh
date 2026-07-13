@@ -21,6 +21,7 @@ Checks:
   - validates template merge rules and local Git merge drivers
   - reports whether the opt-in local pre-commit hook is installed (never required)
   - syntax-checks template shell scripts
+  - lints template shell scripts with shellcheck when it is installed (never required)
   - validates skill/wrapper/table consistency
   - validates generated Antigravity skill wrappers
   - validates bundled Codex plugin manifests
@@ -90,6 +91,7 @@ check_shell_syntax() {
     "${REPO_ROOT}/_base/scripts"
     "${REPO_ROOT}/_base/plugins"
     "${REPO_ROOT}/skills"
+    "${REPO_ROOT}/.claude/hooks"
   )
 
   for root in "${roots[@]}"; do
@@ -127,6 +129,9 @@ run_check "Local pre-commit hook" \
 
 run_check "Template shell syntax" \
   check_shell_syntax
+
+run_check "Shell lint (shellcheck)" \
+  "${REPO_ROOT}/_base/scripts/lint-shell.sh"
 
 run_check "Skill catalog" \
   "${REPO_ROOT}/_base/scripts/check-skills-sync.sh"

@@ -276,7 +276,8 @@ check_top_level() {
   [[ -d "$dir" ]] || return 0
   while IFS= read -r d; do
     [[ -z "$d" ]] && continue
-    local bucket="$(basename "$d")"
+    local bucket
+    bucket="$(basename "$d")"
     if ! in_array "$bucket" "${BUCKETS[@]}"; then
       emit BLOCKER unknown-bucket "$label/$bucket/" "expected one of: ${BUCKETS[*]}"
     fi
@@ -295,8 +296,9 @@ scan_wrapper_dirs() {
   [[ -d "$dir" ]] || return 0
   while IFS= read -r d; do
     [[ -z "$d" ]] && continue
-    local bucket="$(basename "$(dirname "$d")")"
-    local name="$(basename "$d")"
+    local bucket name
+    bucket="$(basename "$(dirname "$d")")"
+    name="$(basename "$d")"
     if [[ -z "${NAME_TO_BUCKET[$name]+x}" ]]; then
       emit BLOCKER orphan-on-disk "$label/$bucket/$name/" "not listed in manifest"
     elif [[ "${NAME_TO_BUCKET[$name]}" != "$bucket" ]]; then
@@ -337,7 +339,7 @@ done < <(find "$PLAYBOOKS_DIR" -mindepth 2 -maxdepth 2 -type f -name '*.md' 2>/d
 # Stray files at the top level of playbooks/skills/ (legacy flat layout)
 while IFS= read -r f; do
   [[ -z "$f" ]] && continue
-  rel="${f#$REPO_ROOT/}"
+  rel="${f#"$REPO_ROOT"/}"
   emit BLOCKER unbucketed-playbook "$rel" \
     "playbooks must live under a bucket dir (${BUCKETS[*]})"
 done < <(find "$PLAYBOOKS_DIR" -mindepth 1 -maxdepth 1 -type f -name '*.md' 2>/dev/null)

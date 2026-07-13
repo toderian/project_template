@@ -30,6 +30,7 @@ Phases 0, 1, 2, 3, 5, and 6 are idempotent — running them again on the same pr
 | `uv` | optional; only when configuring repo-level Python tooling dependencies | `uv --version` |
 | `agy` | optional; only for experimental Antigravity wrapper checks | `agy --version` |
 | `gh` | optional; only if you want to operate on issues/PRs | `gh --version` |
+| `shellcheck` | optional; enables the shell lint check in `check-template-update.sh` and the local pre-commit hook | `shellcheck --version` |
 
 The primary runtime CLI (`claude` or `codex`) is implicitly available — you, the agent reading this,
 are it. No separate check needed. Check `agy` only when running the experimental Antigravity phase.
