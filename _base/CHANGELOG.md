@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.07.13.1
+BASE_VERSION: 2026.07.13.3
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,67 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### De-duplicate the skill catalog: grill-me family, prd-to-*, and three other pairs
+
+An audit of the skill catalog for real functional overlap (57 playbooks read in full) surfaced five
+findings, all fixed here. `grill-me` is preserved as the explicit canonical hub the rest of its family
+now cites, per an explicit steer to keep it rather than merge it away.
+
+- `write-a-prd` step 3 and `grill-with-docs`'s "The interview" section both independently restated
+  `grill-me`'s base walk-the-design-tree technique instead of citing it (`grill-with-docs`'s version was
+  found during this fix, not just `write-a-prd`'s, which the audit flagged). Both now delegate to
+  `grill-me`; `grill-me.md` itself is unchanged.
+- New `playbooks/conventions/vertical-slicing.md` is the canonical slice-rules + quiz-pattern doc for
+  `prd-to-plan` and `prd-to-issues` (both active in the default `recommended` profile — the
+  highest-priority finding), which previously carried the same `<vertical-slice-rules>` block
+  near-verbatim; `prd-to-todos` gets a lighter pointer for its tracer-bullet framing. Each skill keeps
+  its own destination-specific "quiz the user" fields and output template.
+- `improve-codebase-architecture` step 5 now cites `design-an-interface`'s parallel-exploration
+  constraint template instead of re-deriving 3 of its 4 constraints; its own 4th (ports & adapters) and
+  all the genuinely different surrounding structure (technical brief, dependency-strategy output,
+  opinionated recommendation) are unchanged.
+- `deslop` and `academic-humanizer` get a one-line cross-reference between their structurally parallel
+  "protect content before style" steps instead of a merge — they're independently adapted from two
+  different, differently-licensed upstream projects, and each skill's own header already states it uses
+  original wording rather than vendoring the other's files, so a shared convention doc would work
+  against that deliberate separation.
+- `triage-issue` now cites `github-triage`'s `## Labels` table as the canonical 2-category/5-state
+  taxonomy instead of restating it; the two skills' differing interaction styles (interactive grilling
+  vs. hands-off TDD fix-plan) are unchanged — that's a real, intentional product distinction.
+
+**Downstream impact:** no behavioral change — no skill's frontmatter or active selection changed, and
+`check-skills-sync.sh` stays green throughout. Repos that forked any of the touched playbooks
+(`write-a-prd`, `grill-with-docs`, `prd-to-plan`, `prd-to-issues`, `prd-to-todos`,
+`improve-codebase-architecture`, `deslop`, `academic-humanizer`, `triage-issue`) get a normal merge
+conflict to reconcile there, same as any mixed-ownership playbook change.
+
+### Fix Codex agent-mirror parity, an escape-unsafe validator, and a `.gitignore` glob
+
+Three correctness fixes surfaced by an audit of previously-unreviewed scripts and agent definitions:
+
+- `.codex/agents/spec-validator.toml` had compressed the "Context purity" MUST-NOT-read list — the
+  actual mechanism behind spec-validator's independence guarantee — to one vague sentence; restored in
+  full. All six `.codex/agents/*.toml` files were also missing the "do not read AGENTS.md / scan the
+  skills directory" context-discipline instruction present in every `.claude/agents/*.md`; added,
+  matching each role's own wording. Fixed the reverse drift too: `.claude/agents/security-auditor.md`
+  was missing a `connectors-and-mcp.md` citation the Codex side already had, and
+  `.claude/agents/spec-validator.md` was missing a `tester.md` citation the Codex side already had.
+- `_base/scripts/sync_todo_ledgers.py`'s `validate_completion_archive()` was the one function in the
+  file that regexed raw line text instead of using the shared escape-aware `mdtables` helpers every
+  other row-parser there already uses, so a `Notable decisions/deviations` cell starting with an
+  escaped pipe (`\|`) was misreported as missing. Rewritten to use `mdtables.metadata_pairs()`, same
+  validation semantics, now escape-aware. Reproduced the false positive against the pre-fix code and
+  confirmed it's resolved.
+- `.gitignore`'s `.claude/settings.local.json` entry was an exact-string match that didn't cover Claude
+  Code's own atomic-write temp files (`.claude/settings.local.json.tmp.<pid>.<hash>`, observed live);
+  changed to `.claude/settings.local.json*`.
+
+**Downstream impact:** none automatic (`_base/**` merges cleanly). Repos that dispatch `spec-validator`
+or other subagents via Codex now get the same context guarantees Claude Code dispatch already had.
+`check-codex-agents.sh` still only validates that a Codex mirror file exists, not prose parity, so this
+class of drift isn't yet mechanically caught going forward — noted as a possible future follow-up, not
+addressed in this change.
 
 ### Add optional shellcheck lint check
 
