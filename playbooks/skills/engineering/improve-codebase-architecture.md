@@ -52,11 +52,8 @@ Show this to the user, then immediately proceed to Step 5. The user reads and th
 
 Spawn 3+ parallel design explorations — one per constraint. Use whatever parallel-dispatch mechanism the host runtime offers (Claude Code's `Agent` tool, Codex's MultiAgentV2 workers, or sequentially as a fallback if neither is available). Each must produce a **radically different** interface for the deepened module.
 
-Prompt each exploration with a separate technical brief (file paths, coupling details, dependency category, what's being hidden). This brief is independent of the user-facing explanation in Step 4. Give each one a different design constraint:
+Prompt each exploration with a separate technical brief (file paths, coupling details, dependency category, what's being hidden). This brief is independent of the user-facing explanation in Step 4. Start from the same constraint set `design-an-interface` uses (`playbooks/skills/misc/design-an-interface.md` step 2 — minimize the interface, maximize flexibility, optimize for the common case), and add this architecture-specific constraint when applicable:
 
-- Exploration 1: "Minimize the interface — aim for 1-3 entry points max"
-- Exploration 2: "Maximize flexibility — support many use cases and extension"
-- Exploration 3: "Optimize for the most common caller — make the default case trivial"
 - Exploration 4 (if applicable): "Design around the ports & adapters pattern for cross-boundary dependencies"
 
 Each exploration outputs:
