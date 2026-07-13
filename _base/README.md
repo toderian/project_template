@@ -37,15 +37,14 @@ This repo is designed to work primarily with **Claude Code** and **OpenAI Codex*
 │   └── scripts/                           # Template-owned setup, task-system, and validation scripts
 │       ├── setup-agents.sh                # One-command Claude + Codex refresh; optional Antigravity wrapper generation
 │       ├── setup-template-merge-rules.sh  # Configures template/downstream merge drivers
+│       ├── install-git-hooks.sh           # Opt-in: installs the local pre-commit verification hook
 │       ├── link-skills.sh                 # Links Claude Code skills into ~/.claude/skills
 │       ├── seed-docs.sh                   # Seeds docs/ and workbooks/ without overwriting
 │       ├── reserve-work-item.sh           # Atomically reserves task/inbox filenames
 │       ├── sync-todo-ledgers.sh           # Regenerates task ledgers and generated area blocks
 │       ├── check-template-update.sh       # One-command read-only verification after template pulls
 │       ├── check-repos-config.sh          # Validates optional .config/repos.project.md and .local/repos.map
-│       ├── gen-skills-table.sh            # Deprecated shim → sync-skill-selection.py (removed next release)
 │       ├── check-skills-sync.sh           # Validates skill/wrapper/table consistency
-│       ├── gen-antigravity-skills.sh      # Deprecated shim → sync-skill-selection.py (removed next release)
 │       ├── check-antigravity-skills.sh    # Validates generated Antigravity wrappers
 │       ├── check-codex-plugins.sh         # Validates bundled Codex plugin manifests/assets
 │       └── check-codex-agents.sh          # Validates committed .codex/agents mirrors and ignore rules
@@ -358,6 +357,17 @@ when the merge or cherry-pick head comes from the `template` remote, and otherwi
 three-way file merging. Run the setup script once during downstream setup, and rerun it if
 `check-template-update.sh` reports missing merge rules.
 
+`_base/scripts/install-git-hooks.sh` installs an **opt-in** local `pre-commit` hook that runs
+`check-template-update.sh` and `_base/scripts/tests/test-hooks.sh` before every commit in this
+checkout, blocking the commit if either fails. It is not wired into `setup-agents.sh` — installing it
+is a deliberate per-repo choice, since it changes commit behavior. Install it with
+`./_base/scripts/install-git-hooks.sh`, verify it with `./_base/scripts/install-git-hooks.sh --check`
+(also folded into `check-template-update.sh`, which reports `SKIP` rather than failing when the hook
+isn't installed), and bypass it for one commit with `git commit --no-verify`. The generated
+`.git/hooks/pre-commit` is a thin wrapper that execs the tracked `_base/scripts/git-hooks/pre-commit`
+script, so the actual check list stays in version control and updates cleanly from the template
+remote — edit that file, not the generated hook.
+
 `_base/scripts/check-template-update.sh` is the standard read-only, agent-runtime-independent
 post-merge verifier for downstream repos. It prints the current `BASE_VERSION`, validates the template
 merge rules, syntax-checks template shell scripts, runs the template validation checks including
@@ -482,7 +492,7 @@ Some upstream tools ship multi-platform installers and don't fit the `playbooks/
 | `pxpipe-proxy` | Local API proxy that images eligible bulky request context to reduce input tokens; lossy for exact strings, so manual opt-in only | `INSTALL_PXPIPE=1 ./_base/plugins/bootstrap-third-party.sh`, then `npx -y pxpipe-proxy@latest` |
 | `claude-mem` | Cross-session memory via MCP; ships both `.claude-plugin/` and `.codex-plugin/` | `/plugin marketplace add thedotmack/claude-mem` |
 
-Run `./_base/plugins/bootstrap-third-party.sh` to install the npm-based ones and print the marketplace commands for the others. Toggle default-on sections with env vars (`INSTALL_GSD`, `INSTALL_CONTEXT_MODE`, `INSTALL_CLAUDE_MEM`). `pxpipe-proxy` is off by default because it rewrites eligible request context as images; enable its smoke check and session commands only when explicitly wanted:
+Run `./_base/plugins/bootstrap-third-party.sh` to install the npm-based ones and print the marketplace commands for the others. Toggle default-on sections with env vars (`INSTALL_GSD`, `INSTALL_CONTEXT_MODE`, `INSTALL_CLAUDE_MEM`); `GSD_VERSION` pins (or advances) the `get-shit-done-cc` release installed, defaulting to `latest`, mirroring `PXPIPE_VERSION` below. `pxpipe-proxy` is off by default because it rewrites eligible request context as images; enable its smoke check and session commands only when explicitly wanted:
 
 ```bash
 INSTALL_PXPIPE=1 ./_base/plugins/bootstrap-third-party.sh
@@ -671,6 +681,8 @@ Each repo file falls into one of three buckets:
 - `tools/python/.venv/` — never committed; local uv-managed Python tooling environment.
 - `.local/repos.map` — never committed; machine-local checkout paths for repo slugs in `.config/repos.project.md`.
 - `.local/runbooks/` — never committed; machine-local placeholder bindings for sanitized runbooks.
+- `.git/hooks/pre-commit` — never committed (nothing under `.git/` is); generated locally by
+  `_base/scripts/install-git-hooks.sh` from the tracked `_base/scripts/git-hooks/pre-commit` body.
 - `PROJECT.md` — downstream-owned alignment doc, if seeded from `_base/PROJECT.md.template`. The template flows in cleanly; the seeded `PROJECT.md` is the project's own and is not touched by template pulls.
 
 ### Template merge rules

@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.07.10.0
+BASE_VERSION: 2026.07.13.0
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,47 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Add opt-in local pre-commit hook
+
+Adds `_base/scripts/install-git-hooks.sh` and the tracked hook body
+`_base/scripts/git-hooks/pre-commit`, so a checkout can opt into a `pre-commit` hook that runs
+`check-template-update.sh` and `_base/scripts/tests/test-hooks.sh` before every commit, blocking the
+commit on failure (bypass with `git commit --no-verify`).
+
+- `.git/hooks/pre-commit` is a generated wrapper that execs the tracked script, so the actual check
+  list lives in version control and updates cleanly from the template remote.
+- `check-template-update.sh` gained a "Local pre-commit hook" check that reports `SKIP` when the hook
+  isn't installed and only fails if it's installed but broken — installing it stays a deliberate
+  per-repo choice.
+- Not wired into `setup-agents.sh`: this changes commit behavior, so it ships as a separate,
+  explicitly-run installer rather than part of the one-command setup flow.
+
+**Downstream impact:** `_base/**` merges in cleanly; nothing changes automatically. Repos that want the
+hook run `./_base/scripts/install-git-hooks.sh` once per checkout. Repos that don't are unaffected —
+`check-template-update.sh` reports `SKIP` for the new check instead of failing.
+
+### Remove deprecated skills-table/antigravity generation shims
+
+Deletes `_base/scripts/gen-skills-table.sh` and `_base/scripts/gen-antigravity-skills.sh`. Both were
+thin forwarding shims to `sync-skill-selection.py`, already marked "removed next release" in the README
+and a prior changelog entry, and unreferenced by `check-skills-sync.sh` / `check-antigravity-skills.sh`
+or any other script.
+
+**Downstream impact:** if any local automation (shell aliases, a downstream `AGENTS.md` rule, a
+personal script) still calls `gen-skills-table.sh` or `gen-antigravity-skills.sh` directly, switch it to
+`_base/scripts/sync-skill-selection.py --check` / `--sync`. Normal skill sync and validation
+(`check-skills-sync.sh`, `setup-agents.sh`) are unaffected — they never called these shims.
+
+### Pin get-shit-done-cc version in third-party bootstrap
+
+`_base/plugins/bootstrap-third-party.sh` previously hardcoded `get-shit-done-cc@latest` with no
+override, unlike `pxpipe-proxy`, which already supported `PXPIPE_VERSION`. Adds a matching
+`GSD_VERSION` env var (default `latest`) so a known-good release can be pinned instead of always
+floating to whatever npm currently serves.
+
+**Downstream impact:** none by default (`GSD_VERSION` defaults to `latest`, same behavior as before).
+Set `GSD_VERSION=<version>` before running `bootstrap-third-party.sh` to pin a specific release.
 
 ### Add inactive academic-humanizer writing skill
 

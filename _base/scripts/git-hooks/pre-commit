@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+#
+# Local pre-commit checks for this template repo (and any downstream repo that
+# opts in via _base/scripts/install-git-hooks.sh).
+#
+# The generated .git/hooks/pre-commit execs this tracked script, so the check
+# list lives in version control and updates cleanly from the template remote.
+# Edit this file, not .git/hooks/pre-commit.
+#
+# Bypass in an emergency with: git commit --no-verify
+
+set -uo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+
+FAILED=0
+
+"${REPO_ROOT}/_base/scripts/check-template-update.sh" || FAILED=1
+"${REPO_ROOT}/_base/scripts/tests/test-hooks.sh" || FAILED=1
+
+if [[ "${FAILED}" -ne 0 ]]; then
+  printf '\npre-commit: template checks failed. Fix the reported issues and re-commit, or bypass this\n' >&2
+  printf 'one time with: git commit --no-verify\n' >&2
+  exit 1
+fi
+
+exit 0

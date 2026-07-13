@@ -24,6 +24,7 @@ if [[ -f "${REPO_ROOT}/project.env" ]]; then
 fi
 
 INSTALL_GSD="${INSTALL_GSD:-1}"
+GSD_VERSION="${GSD_VERSION:-latest}"
 INSTALL_CONTEXT_MODE="${INSTALL_CONTEXT_MODE:-1}"
 INSTALL_CLAUDE_MEM="${INSTALL_CLAUDE_MEM:-1}"
 INSTALL_PXPIPE="${INSTALL_PXPIPE:-0}"
@@ -44,8 +45,8 @@ require() {
 if [[ "${INSTALL_GSD}" == "1" ]]; then
   log "get-shit-done-cc"
   if require npx; then
-    npx -y get-shit-done-cc@latest --claude --global || warn "claude install failed"
-    npx -y get-shit-done-cc@latest --codex --global || warn "codex install failed"
+    npx -y "get-shit-done-cc@${GSD_VERSION}" --claude --global || warn "claude install failed"
+    npx -y "get-shit-done-cc@${GSD_VERSION}" --codex --global || warn "codex install failed"
   fi
 fi
 

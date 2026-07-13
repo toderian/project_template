@@ -19,6 +19,7 @@ Run the standard read-only checks after pulling or merging template updates.
 Checks:
   - reports BASE_VERSION from _base/CHANGELOG.md
   - validates template merge rules and local Git merge drivers
+  - reports whether the opt-in local pre-commit hook is installed (never required)
   - syntax-checks template shell scripts
   - validates skill/wrapper/table consistency
   - validates generated Antigravity skill wrappers
@@ -107,6 +108,9 @@ print_base_version
 
 run_check "Template merge rules" \
   "${REPO_ROOT}/_base/scripts/setup-template-merge-rules.sh" --check
+
+run_check "Local pre-commit hook" \
+  "${REPO_ROOT}/_base/scripts/install-git-hooks.sh" --check
 
 run_check "Template shell syntax" \
   check_shell_syntax
