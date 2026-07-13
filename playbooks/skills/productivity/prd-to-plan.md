@@ -33,15 +33,7 @@ These go in the plan header so every phase can reference them.
 
 ### 4. Draft vertical slices
 
-Break the PRD into **tracer bullet** phases. Each phase is a thin vertical slice that cuts through ALL integration layers end-to-end, NOT a horizontal slice of one layer.
-
-<vertical-slice-rules>
-- Each slice delivers a narrow but COMPLETE path through every layer (schema, API, UI, tests)
-- A completed slice is demoable or verifiable on its own
-- Prefer many thin slices over few thick ones
-- Do NOT include specific file names, function names, or implementation details that are likely to change as later phases are built
-- DO include durable decisions: route paths, schema shapes, data model names
-</vertical-slice-rules>
+Break the PRD into **tracer bullet** phases. Each phase is a thin vertical slice that cuts through ALL integration layers end-to-end, NOT a horizontal slice of one layer. Follow the slice rules in [`playbooks/conventions/vertical-slicing.md`](../../conventions/vertical-slicing.md).
 
 ### 5. Quiz the user
 

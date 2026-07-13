@@ -25,7 +25,10 @@ Ask the user for the PRD source. It can be:
 
 ### 2. Extract vertical slices
 
-Break the PRD into actionable items. Prefer vertical slices (end-to-end through all layers) over horizontal slices (one layer at a time).
+Break the PRD into actionable items. Prefer vertical slices (end-to-end through all layers) over
+horizontal slices (one layer at a time) — see
+[`playbooks/conventions/vertical-slicing.md`](../../conventions/vertical-slicing.md) for the shared
+tracer-bullet framing `prd-to-plan` and `prd-to-issues` also use.
 
 Each item should be:
 
