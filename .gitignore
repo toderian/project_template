@@ -34,5 +34,8 @@ AGENT_DECISIONS.md
 # GitHub triage knowledge base (repo-specific, not template content)
 .out-of-scope/
 
-# Local Claude Code settings (per-machine permission allowlist, hooks, etc.)
-.claude/settings.local.json
+# Local Claude Code settings (per-machine permission allowlist, hooks, etc.).
+# The trailing * also covers the harness's own atomic-write temp files
+# (.claude/settings.local.json.tmp.<pid>.<hash>), which briefly exist on disk
+# during a write-then-rename and would otherwise not match.
+.claude/settings.local.json*
