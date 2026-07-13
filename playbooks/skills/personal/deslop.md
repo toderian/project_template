@@ -55,6 +55,10 @@ the target venue or audience would materially change the edit.
 
 ### 2. Protect meaning before style
 
+See also `academic-humanizer`'s "Protect content before style" step for the funding-proposal/manuscript
+variant of this same idea (numbers, named entities, citations, uncertainty language) — kept separate
+here because the two skills adapt different upstream projects with independent wording.
+
 Before rewriting, mark the claims that cannot drift:
 
 - numerical values, units, thresholds, sample sizes, dates, and statistical results

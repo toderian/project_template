@@ -57,6 +57,10 @@ brief question before rewriting.
 
 ### 2. Protect content before style
 
+See also `deslop`'s "Protect meaning before style" step for the general-prose variant of this same idea
+— kept separate here because these two skills adapt different upstream projects with independent
+wording.
+
 Before editing, mark the content that cannot drift:
 
 - numerical values, units, statistics, dates, thresholds, sample sizes, and reported effects
