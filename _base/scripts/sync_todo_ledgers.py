@@ -383,35 +383,26 @@ class Generator:
                 f"archived task '{taskid}' in {rel} is missing a Completion harvest section"
             )
             return
-        if not re.search(
-            r"^\|[ \t\r\f\v]*Resource updates[ \t\r\f\v]*\|[ \t\r\f\v]*(None|N/A|docs/resources/[^|\n]+)[ \t\r\f\v]*\|",
-            text,
-            re.MULTILINE | re.IGNORECASE,
-        ):
+        harvest: dict[str, str] = {}
+        for key, value in mdtables.metadata_pairs(text.split("\n")):
+            harvest.setdefault(key.lower(), value)
+
+        def field_ok(key: str, pattern: str) -> bool:
+            return re.fullmatch(pattern, harvest.get(key, ""), re.IGNORECASE) is not None
+
+        if not field_ok("resource updates", r"None|N/A|docs/resources/.+"):
             self.validate_or_warn(
                 f"archived task '{taskid}' in {rel} is missing explicit Completion harvest Resource updates"
             )
-        if not re.search(
-            r"^\|[ \t\r\f\v]*Area updates[ \t\r\f\v]*\|[ \t\r\f\v]*(None|N/A|docs/areas/[^|\n]+)[ \t\r\f\v]*\|",
-            text,
-            re.MULTILINE | re.IGNORECASE,
-        ):
+        if not field_ok("area updates", r"None|N/A|docs/areas/.+"):
             self.validate_or_warn(
                 f"archived task '{taskid}' in {rel} is missing explicit Completion harvest Area updates"
             )
-        if not re.search(
-            r"^\|[ \t\r\f\v]*Follow-ups[ \t\r\f\v]*\|[ \t\r\f\v]*(None|N/A|I-[0-9]{3,}[^|\n]*)[ \t\r\f\v]*\|",
-            text,
-            re.MULTILINE | re.IGNORECASE,
-        ):
+        if not field_ok("follow-ups", r"None|N/A|I-[0-9]{3,}.*"):
             self.validate_or_warn(
                 f"archived task '{taskid}' in {rel} is missing explicit Completion harvest Follow-ups"
             )
-        if not re.search(
-            r"^\|[ \t\r\f\v]*Notable decisions/deviations[ \t\r\f\v]*\|[ \t\r\f\v]*(None|N/A|[^|\n]*[A-Za-z0-9][^|\n]*)[ \t\r\f\v]*\|",
-            text,
-            re.MULTILINE | re.IGNORECASE,
-        ):
+        if not field_ok("notable decisions/deviations", r"None|N/A|.*[A-Za-z0-9].*"):
             self.validate_or_warn(
                 f"archived task '{taskid}' in {rel} is missing explicit Completion harvest Notable decisions/deviations"
             )
