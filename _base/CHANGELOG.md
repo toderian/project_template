@@ -1,6 +1,6 @@
 # Changelog (base)
 
-BASE_VERSION: 2026.07.13.3
+BASE_VERSION: 2026.07.13.4
 
 > This is `_base/CHANGELOG.md`: the changelog for **base-template** changes only.
 > Downstream projects may keep their own `CHANGELOG.md` for changes they make on top of the template; the two files never overlap.
@@ -19,6 +19,34 @@ This file is **upstream-owned**: do not edit it in a downstream project. It upda
 For exhaustive history, use `git log` against the `template` remote.
 
 ## Unreleased
+
+### Fix task-type misclassification in the prompt-orchestration workbook
+
+An audit of previously-unreviewed `playbooks/personalities/`, `playbooks/templates/`,
+`playbooks/conventions/`, and the prompt-orchestration workbook found one real bug, reproduced live:
+`plan_next_slice.py`'s `classify_task()` treated the task filename's leading `<PREFIX>` (area) segment as
+if it were the `<TYPE>` (feature/debug/chore/research) segment. Per `todo-convention.md`'s actual
+grammar (`<PREFIX>-<NNN>-<TYPE>_<description>.md`), `<TYPE>` is the *third* segment, not the first — so
+any task whose area prefix happened to collide with `F`/`D`/`C`/`R`/`T` (all legal, unreserved
+single-letter area prefixes except `T`) was silently misclassified. Example: a debug task
+`F-001-D_fix-render-bug.md` in an area prefixed `F` was reported as `feature/product slice` instead of
+`defect/diagnosis`, and the actual `D` type letter in the filename was never inspected.
+
+- `_base/workbooks/prompt-orchestration-long-task/scripts/plan_next_slice.py`: `classify_task()`
+  rewritten to correctly parse `<PREFIX>` and `<TYPE>` as distinct segments per the real grammar,
+  classify by `<TYPE>`, and fall back to an area-only classification when no `<TYPE>` segment is present
+  (as with the workbook's own `samples/RMM-010-...` and `samples/EGM-013-...`, which predate the
+  `<TYPE>_` suffix convention and still classify sensibly under the fix).
+- `playbooks/conventions/prompt-orchestration.md`'s "Task Taxonomy" table and
+  `_base/workbooks/prompt-orchestration-long-task/README.md`'s classification list both described the
+  same incorrect "prefix family" model as the buggy script (independently, not because either sourced
+  the other) — both corrected to describe `<TYPE>` as the routing driver and cite
+  `todo-convention.md` as authoritative, rather than restating an incorrect model.
+
+**Downstream impact:** `_base/**` merges cleanly. This only affects the heuristic orientation brief
+`plan_next_slice.py` prints (not `sync-todo-ledgers.sh`, task validation, or any state-mutating path) —
+worst case before this fix was a human/agent briefly misreading a task's kind before checking the file
+itself.
 
 ### De-duplicate the skill catalog: grill-me family, prd-to-*, and three other pairs
 

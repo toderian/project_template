@@ -33,16 +33,20 @@ Default path:
 
 ## Task Taxonomy
 
-Task prefixes are routing hints, not a replacement for task files or area docs.
+Task filenames follow `<PREFIX>-<NNN>-<TYPE>_<short-description>.md` (`playbooks/conventions/todo-convention.md`
+§"File naming" is authoritative). `<TYPE>` — the third segment, not the leading `<PREFIX>` — is the
+routing hint below; `<PREFIX>` is the task's area (`T` reserved for global/cross-area work, e.g.
+`T-001-R_evaluate-ci.md`). Task types are routing hints, not a replacement for task files or area docs.
 
-| Prefix family | Typical meaning | Orchestration implication |
+| Type | Typical meaning | Orchestration implication |
 | --- | --- | --- |
-| `F-*` | Feature or product slice | Start from acceptance criteria, current phase, related workbook, tests, and rollout notes |
-| `D-*` | Defect, diagnosis, or debug correction | Start from reproduction, observed failure, minimal fix hypothesis, regression test, and verification |
-| `C-*` | Chore, cleanup, convention, or infrastructure | Start from affected conventions, compatibility, migration risk, and template/downstream impact |
-| `R-*` | Research, report, or resource distillation | Start from source inventory, provenance, synthesis target, and follow-up task criteria |
-| `<AREA>-*` | Area-scoped task such as `RMM-*`, `EGM-*`, `RM-*`, or `EG-*` | Read the area summary, component docs, related contracts/runbooks, and repo registry rows for that area |
-| `T-*` | Global template or cross-area task | Read template conventions, global resources, setup/check scripts, and downstream impact docs |
+| `F` | Feature or product slice | Start from acceptance criteria, current phase, related workbook, tests, and rollout notes |
+| `D` | Defect, diagnosis, or debug correction | Start from reproduction, observed failure, minimal fix hypothesis, regression test, and verification |
+| `C` | Chore, cleanup, convention, or infrastructure | Start from affected conventions, compatibility, migration risk, and template/downstream impact |
+| `R` | Research, report, or resource distillation | Start from source inventory, provenance, synthesis target, and follow-up task criteria |
+
+Also read the task's area (the `<PREFIX>` segment, e.g. `RMM`, `EGM`) for area-specific context: area
+summary, component docs, related contracts/runbooks, and repo registry rows for that area.
 
 When a task combines families, route by the riskiest remaining work. For example, a model/eval feature
 with artifact outputs should use feature acceptance criteria plus evaluation and artifact-registry

@@ -81,14 +81,20 @@ intake -> current-state review -> classify task -> select next phase -> gather w
 The script is deliberately heuristic. It is meant to reduce context loss before a long-task session,
 not to replace task ownership, planning judgment, `/execute-plan`, or `/complete-task`.
 
-Task classification uses the task filename prefix as a routing hint:
+Task classification uses the task filename's `<TYPE>` segment as a routing hint — the third segment of
+`<PREFIX>-<NNN>-<TYPE>_<description>.md`, not the leading `<PREFIX>` (see
+`playbooks/conventions/todo-convention.md` for the authoritative grammar; `<PREFIX>` and `<TYPE>` are
+both drawn from a small alphabet and can look identical in isolation, e.g. an `F`-prefixed area and an
+`F` feature type):
 
-- `F-*` feature/product slices
-- `D-*` defects or diagnosis
-- `C-*` chores/conventions/infrastructure
-- `R-*` research/report/resource work
-- area prefixes such as `RMM-*`, `EGM-*`, `RM-*`, and `EG-*` for area-scoped downstream work
-- `T-*` global template or cross-area work
+- `F` feature/product slices
+- `D` defects or diagnosis
+- `C` chores/conventions/infrastructure
+- `R` research/report/resource work
+- the sample tasks in `samples/` (`RMM-010-...`, `EGM-013-...`) don't carry a `<TYPE>` segment, so the
+  script falls back to reporting them as area-scoped work by `<PREFIX>` (`RMM`, `EGM`) instead
+- `T` is the reserved `<PREFIX>` for global/cross-area work; it still carries its own `<TYPE>` segment
+  (e.g. `T-001-R_evaluate-ci.md` is research-typed, not a distinct classification of its own)
 
 LangGraph adoption should remain downstream-specific. Add it only when the plain workbook loop cannot
 represent required state transitions, resumability, retries, human interrupts, or parallel lanes.

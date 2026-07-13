@@ -18,6 +18,33 @@ CHECKBOX_RE = re.compile(r"^(?P<indent>\s*)[-*]\s+\[(?P<mark>[ xX])\]\s+(?P<text
 HEADING_RE = re.compile(r"^(?P<marks>#{1,6})\s+(?P<title>.+?)\s*$")
 FENCE_RE = re.compile(r"^```(?P<lang>[A-Za-z0-9_-]*)\s*$")
 
+# Matches <PREFIX>-<NNN>-<rest>, the todo-convention.md file-naming grammar
+# (playbooks/conventions/todo-convention.md #File naming): <PREFIX>-<NNN>-<TYPE>_<description>.md.
+# <PREFIX> is the task's area (or T for global/cross-area); <TYPE> is the leading letter of <rest>,
+# before the underscore -- it is NOT the same field as <PREFIX>, even though both are drawn from a
+# small alphabet and can collide (an area prefix of "F" and a TYPE of "F" look identical in isolation).
+TASK_STEM_RE = re.compile(r"^(?P<prefix>[A-Za-z][A-Za-z0-9]*)-(?P<num>\d+)-(?P<rest>.+)$")
+TASK_TYPE_RE = re.compile(r"^(?P<type>[A-Za-z])_")
+
+TASK_TYPE_LABELS: dict[str, tuple[str, str]] = {
+    "F": (
+        "feature/product slice",
+        "Use acceptance criteria, tests, rollout notes, and related workbook commands.",
+    ),
+    "D": (
+        "defect/diagnosis",
+        "Use reproduction evidence, minimal fix hypothesis, and regression verification.",
+    ),
+    "C": (
+        "chore/convention/infrastructure",
+        "Use compatibility, migration risk, and downstream impact checks.",
+    ),
+    "R": (
+        "research/report/resource",
+        "Use source inventory, provenance, synthesis target, and follow-up criteria.",
+    ),
+}
+
 
 @dataclass(frozen=True)
 class Checkbox:
@@ -141,20 +168,21 @@ def parse_command_blocks(text: str) -> list[CommandBlock]:
 
 def classify_task(task_path: Path) -> tuple[str, str]:
     stem = task_path.stem
-    prefix = stem.split("-", 1)[0].upper() if "-" in stem else stem.upper()
-    if prefix in {"F", "FEATURE"}:
-        return "feature/product slice", "Use acceptance criteria, tests, rollout notes, and related workbook commands."
-    if prefix in {"D", "BUG", "DEFECT"}:
-        return "defect/diagnosis", "Use reproduction evidence, minimal fix hypothesis, and regression verification."
-    if prefix in {"C", "CHORE"}:
-        return "chore/convention/infrastructure", "Use compatibility, migration risk, and downstream impact checks."
-    if prefix in {"R", "RESEARCH"}:
-        return "research/report/resource", "Use source inventory, provenance, synthesis target, and follow-up criteria."
-    if prefix == "T":
-        return "global template/cross-area", "Use template conventions, setup checks, and downstream impact notes."
-    if re.fullmatch(r"[A-Z]{2,5}", prefix):
-        return f"area-scoped task ({prefix})", "Read area docs, repo registry rows, contracts, runbooks, and workbook state."
-    return "uncategorized task", "Classify manually from task purpose, acceptance criteria, and current phase."
+    match = TASK_STEM_RE.match(stem)
+    if not match:
+        return "uncategorized task", "Classify manually from task purpose, acceptance criteria, and current phase."
+
+    prefix = match.group("prefix").upper()
+    area = "global/cross-area" if prefix == "T" else f"area {prefix}"
+
+    type_match = TASK_TYPE_RE.match(match.group("rest"))
+    if type_match:
+        label = TASK_TYPE_LABELS.get(type_match.group("type").upper())
+        if label:
+            kind, guidance = label
+            return f"{kind} ({area})", guidance
+
+    return f"area-scoped task ({area})", "Read area docs, repo registry rows, contracts, runbooks, and workbook state."
 
 
 def select_next_phase(boxes: list[Checkbox]) -> Checkbox | None:
