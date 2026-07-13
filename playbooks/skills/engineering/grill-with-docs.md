@@ -15,11 +15,10 @@ Use this instead of plain `grill-me` when the project already has — or is star
 
 ## The interview
 
-Interview the user relentlessly about every aspect of the plan until you reach a shared understanding. Walk down each branch of the design tree, resolving dependencies between decisions one-by-one. For each question, provide your recommended answer.
-
-Ask the questions one at a time, waiting for feedback on each question before continuing.
-
-If a question can be answered by exploring the codebase, explore the codebase instead.
+Run `grill-me`'s base interview technique (`playbooks/skills/productivity/grill-me.md`, Workflow steps
+2–4: walk the design tree one question at a time, providing a recommended answer for each; resolve
+dependencies between decisions; explore the codebase instead of asking when a question can be answered
+that way). Everything below is what this skill adds on top of that base technique.
 
 ## Domain awareness
 
