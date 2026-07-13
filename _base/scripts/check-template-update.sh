@@ -101,6 +101,19 @@ check_shell_syntax() {
     done < <(find "${root}" -type f -name '*.sh' -print0)
   done
 
+  # Committed git hook bodies (e.g. _base/scripts/git-hooks/pre-commit) follow
+  # git's own hook-naming convention and intentionally carry no .sh suffix, so
+  # the *.sh scan above misses them. Every file in this directory is expected
+  # to be a shell script.
+  local hooks_dir="${REPO_ROOT}/_base/scripts/git-hooks"
+  if [[ -d "${hooks_dir}" ]]; then
+    while IFS= read -r -d '' file; do
+      if ! bash -n "${file}"; then
+        failed=1
+      fi
+    done < <(find "${hooks_dir}" -type f -print0)
+  fi
+
   return "${failed}"
 }
 
