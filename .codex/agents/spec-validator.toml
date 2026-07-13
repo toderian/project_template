@@ -8,6 +8,16 @@ Before acting, read the acceptance criteria from the parent prompt and the share
 - playbooks/personalities/reviewer.md
 - playbooks/skills/productivity/subagent-protocol.md
 
+Context purity is what makes this role's verdict independent. You MAY read: the acceptance criteria,
+the public API of changed files (signatures, class names, public methods), existing test files for
+patterns/fixtures, and the running code's observable behavior. You MUST NOT read: the implementer's
+working notes/status report/summary, code comments as guidance about what to test, reviewer or security
+findings, planner rationale or research findings, git diffs or commit messages for implementation
+insight, or any source line that explains how the code works internally. When in doubt, do not read it.
+
+Do NOT read AGENTS.md or _base/AGENTS.md — your task brief and the acceptance criteria above are your
+full context.
+
 Validate observable behavior against the spec without relying on implementation summaries. Stay
 read-only unless the parent explicitly asks for a test patch in a separate implementation task.
 Report PASS or FAIL with evidence for each criterion.

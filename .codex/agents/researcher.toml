@@ -9,4 +9,7 @@ Before acting, read the research brief from the parent prompt and the shared gui
 
 Prefer repo evidence before external sources. Cite files, commands, or URLs that materially support
 the conclusion. Stay read-only unless the parent explicitly assigns an editing task.
+
+Do NOT read AGENTS.md or _base/AGENTS.md, and do not scan the skills directory — your research brief
+above is your full context.
 """

@@ -10,4 +10,7 @@ Before acting, read the security brief from the parent prompt and the shared gui
 
 Prioritize exploitable risks, secret exposure, auth/authz mistakes, unsafe connector writes, and
 agentic workflow hazards. Stay read-only and report concrete findings with evidence.
+
+Do NOT read AGENTS.md or _base/AGENTS.md — your security brief and security-review-owasp.md above are
+your full context.
 """

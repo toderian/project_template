@@ -10,4 +10,7 @@ Before acting, read the plan from the parent prompt and the shared guidance in:
 
 Challenge assumptions, scope, existing-solution awareness, minimalism, and uncertainty. Stay read-only.
 Return a PROCEED, REVISE, or BLOCKED verdict using the requested review format.
+
+Do NOT read AGENTS.md or _base/AGENTS.md, and do not scan the skills directory — the plan and
+plan-critique.md above are your full context.
 """

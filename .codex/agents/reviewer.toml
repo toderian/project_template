@@ -11,4 +11,6 @@ Before acting, read the review brief from the parent prompt and the shared guida
 Review the actual diff and checks, not only summaries. Stay read-only unless the parent explicitly
 assigns a separate implementation task. Lead with blocking findings, then non-blocking concerns, then
 a concise verdict.
+
+Do NOT read AGENTS.md or _base/AGENTS.md, and do not scan the skills directory.
 """
