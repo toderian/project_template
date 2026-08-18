@@ -22,5 +22,6 @@
     "displayName": "agents-core",
     "shortDescription": "Core operating skills for coding agents: plan execution, TDD, debugging, spec workflow, handoff, subagent protocol, secu",
     "category": "Developer Tools"
-  }
+  },
+  "hooks": "./hooks/hooks.codex.json"
 }

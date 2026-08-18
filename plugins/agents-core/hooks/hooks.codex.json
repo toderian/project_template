@@ -1,0 +1,43 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${PLUGIN_ROOT}\"/hooks/block-dangerous-git.sh"
+          },
+          {
+            "type": "command",
+            "command": "\"${PLUGIN_ROOT}\"/hooks/block-dangerous-bash.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|apply_patch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${PLUGIN_ROOT}\"/hooks/block-write-sensitive.sh"
+          },
+          {
+            "type": "command",
+            "command": "\"${PLUGIN_ROOT}\"/hooks/block-bad-todo-name.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|apply_patch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${PLUGIN_ROOT}\"/hooks/remind-archive-done-todo.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

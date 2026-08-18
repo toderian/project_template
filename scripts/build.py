@@ -63,7 +63,7 @@ def render_codex_plugin(p: dict) -> str:
         out["hooks"] = "./hooks/hooks.codex.json"
     return json.dumps({k: v for k, v in out.items() if v is not None}, indent=2) + "\n"
 
-def render_codex_hooks(claude_hooks: dict) -> dict:      # filled in Task 3
+def render_codex_hooks(claude_hooks: dict) -> dict:
     text = json.dumps(claude_hooks)
     text = text.replace("${CLAUDE_PLUGIN_ROOT}", "${PLUGIN_ROOT}").replace("MultiEdit|", "")
     return json.loads(text)
