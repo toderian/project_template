@@ -20,11 +20,11 @@ check_path() {
     */docs/tasks_manager/_todos/*|docs/tasks_manager/_todos/*)
       LAYER="_todos"; ARCHIVE="_todos_archived"
       TERMINAL_RE='^(done|cancelled)$'
-      CONVENTION="playbooks/conventions/todo-convention.md" ;;
+      CONVENTION="the task-ledger skill (references/todo-convention.md)" ;;
     */docs/tasks_manager/_inbox/*|docs/tasks_manager/_inbox/*)
       LAYER="_inbox"; ARCHIVE="_inbox_archived"
       TERMINAL_RE='^(promoted|dropped)$'
-      CONVENTION="playbooks/conventions/inbox-convention.md" ;;
+      CONVENTION="the task-ledger skill (references/inbox-convention.md)" ;;
     *) return 0 ;;
   esac
 
@@ -67,7 +67,7 @@ check_path() {
       if [ -n "${missing}" ]; then
         echo "BLOCKED: '${BASENAME}' has Status: ${STATUS} but is missing required completion archive fields:${missing}" >&2
         echo "Before archiving, complete '## Completion harvest' with docs/resources updates or None, docs/areas updates or None, follow-ups or None, notable decisions/deviations or None, plus '## Completion summary'." >&2
-        echo "See playbooks/conventions/todo-convention.md." >&2
+        echo "See the task-ledger skill: references/todo-convention.md." >&2
         return 2
       fi
     fi
