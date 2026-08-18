@@ -84,9 +84,9 @@ the archived inbox file. For appended ideas, mention the file that received the 
 ### 6. Report
 
 Summarize how many ideas were promoted (with their new task IDs, types, areas, and roadmap placement)
-and how many were dropped, deferred, or appended to existing work. Run `at ledger` at
+and how many were dropped, deferred, or appended to existing work. Run `at ledger sync` at
 the end to ensure the ledgers and area pages reflect every change, then run
-`at ledger` --check` and `at repos-check`.
+`at ledger check` and `at repos-check`.
 
 ## Quality bar
 
@@ -100,7 +100,7 @@ the end to ensure the ledgers and area pages reflect every change, then run
 - New areas were confirmed with the user before use and recorded in `docs/tasks_manager/_areas.md`.
 - The inbox contains only `new` ideas afterward; promoted/dropped ones are in `_inbox_archived/`.
 - `docs/tasks_manager/_active.md`, `docs/areas/_overview.md`, and generated per-area blocks are in sync
-  and pass `at ledger` --check`.
+  and pass `at ledger check`.
 - Repo registry and task `Repos` / `Autonomy` metadata pass `at repos-check`.
 - The discovery gate ran before task creation, and each promoted idea was checked for duplicates,
   existing tasks, already implemented behavior, stale context, related work, and relevant docs/code/tests.

@@ -99,8 +99,8 @@ Move the file to `docs/tasks_manager/_todos_archived/` without changing its base
 Run:
 
 ```bash
-`at ledger`
-`at ledger` --check
+at ledger sync
+at ledger check
 ```
 
 If `--check` reports completion-harvest, status-directory, roadmap, or stale-ledger errors, fix them
@@ -134,4 +134,4 @@ Return:
 - Open or in-progress tasks never move to `_todos_archived/`.
 - Archived tasks have explicit completion harvest rows and a non-empty completion summary.
 - Linked durable specs are reconciled, or an explicit follow-up records why they were not updated.
-- Generated ledgers and area blocks are synced and pass `at ledger` --check`.
+- Generated ledgers and area blocks are synced and pass `at ledger check`.

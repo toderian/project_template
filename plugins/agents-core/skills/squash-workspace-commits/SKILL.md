@@ -37,7 +37,7 @@ history is better than a clever rewrite with unclear ownership.
 Run the bundled audit helper before planning any rewrite:
 
 ```bash
-python3 `squash-workspace-commits` skill references/audit-range.py \
+python3 references/audit-range.py \
   [--task-id TASK] [--base REF] [--head REF] [--select SHA]... [--json]
 ```
 

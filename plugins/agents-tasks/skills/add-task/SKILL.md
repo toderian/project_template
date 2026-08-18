@@ -92,7 +92,7 @@ Create one atomic task. Fill:
 
 Use `Source: add-task`. Set `Source ref` to an issue, PRD, inbox idea, conversation note, or `N/A`.
 After choosing the type and short description, reserve the task file with
-`at reserve` task <PREFIX> <TYPE> <short-description>`. The helper creates the
+`at reserve task <PREFIX> <TYPE> <short-description>`. The helper creates the
 placeholder atomically so parallel agents cannot claim the same ID.
 
 ### 5. Write the file
@@ -100,7 +100,7 @@ placeholder atomically so parallel agents cannot claim the same ID.
 Fill the reserved path printed by:
 
 ```text
-`at reserve` task <PREFIX> <TYPE> <short-description>
+at reserve task <PREFIX> <TYPE> <short-description>
 ```
 
 Use the template shape from `todo-convention.md`. Keep the short description lowercase, hyphenated, and
@@ -111,9 +111,9 @@ under 50 characters.
 Run:
 
 ```bash
-`at ledger`
-`at ledger` --check
-`at repos-check`
+at ledger sync
+at ledger check
+at repos-check
 ```
 
 If the user wants this scheduled, add the task ID to `docs/tasks_manager/_roadmap.md` under Urgent,
@@ -149,6 +149,6 @@ review gate in `todo-convention.md`.
 - Optional `Target date` / `Deadline` metadata is used only for explicit task-specific dates and uses
   `YYYY-MM-DD` or `N/A`.
 - New area rows are user-approved and include a page path.
-- Ledgers and area pages are synced and pass `at ledger` --check`.
+- Ledgers and area pages are synced and pass `at ledger check`.
 - Repo registry and task `Repos` / `Autonomy` metadata pass `at repos-check`.
 - Roadmap placement is explicit; the skill does not silently schedule work.

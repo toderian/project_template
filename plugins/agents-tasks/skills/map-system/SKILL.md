@@ -41,8 +41,8 @@ Decide whether the run is:
 - a drift check after recent teammate changes
 
 If `.config/repos.project.md` exists, validate it with `at repos-check`. If local
-checkout inspection is needed, validate `.local/repos.map` with `at repos-check`
---local`. If no repo registry exists, inspect only the current repo unless the user explicitly names
+checkout inspection is needed, validate `.local/repos.map` with `at repos-check --local`. If no repo
+registry exists, inspect only the current repo unless the user explicitly names
 other checkouts.
 
 ### 2. Gather Evidence

@@ -96,9 +96,9 @@ can proceed.
 Run:
 
 ```bash
-`at ledger`
-`at ledger` --check
-`at repos-check`
+at ledger sync
+at ledger check
+at repos-check
 ```
 
 If `docs/tasks_manager/` is absent, run `init` before using this workflow.

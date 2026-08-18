@@ -126,5 +126,5 @@ the `task-ledger` skill (references/todo-convention.md).
   planned spec is already implemented.
 - Optional `Target date` / `Deadline` metadata is used only for explicit task-specific dates and uses
   `YYYY-MM-DD` or `N/A`.
-- Ledgers and area pages are synced and pass `at ledger` --check`.
+- Ledgers and area pages are synced and pass `at ledger check`.
 - Repo registry and task `Repos` / `Autonomy` metadata pass `at repos-check`.

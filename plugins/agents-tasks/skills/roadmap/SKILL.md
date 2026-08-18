@@ -120,5 +120,5 @@ acceptance detail here.
 - Every referenced `<PREFIX>-NNN`/`I-NNN` exists; done/cancelled items are off the roadmap, and inbox
   IDs appear only in `Someday`.
 - Roadmap lines are placement references, not copied task state.
-- Ambiguous or missing task references reported by `at ledger` --check` are
+- Ambiguous or missing task references reported by `at ledger check` are
   reconciled rather than guessed.

@@ -129,4 +129,4 @@ Report what was created. Remind the user that:
 - Tasks are typed `F`/`D`/`C`/`R` and classified by `Area` + `Prefix` (see
   `docs/tasks_manager/_areas.md`)
 - Completed tasks move to `_todos_archived/` and get a row in `docs/tasks_manager/_done.md`;
-  `/complete-task` performs the closeout, and `at ledger` --check` validates the result
+  `/complete-task` performs the closeout, and `at ledger check` validates the result

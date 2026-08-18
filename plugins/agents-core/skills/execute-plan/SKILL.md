@@ -87,7 +87,7 @@ This is mandatory even when the task looks single-repo.
 2. If the task or plan has `Repos` metadata, use those repo slugs as the execution scope. If no `Repos`
    metadata exists, treat the current repo as the execution scope.
 3. If cross-repo execution requires local checkout paths, validate `.local/repos.map` with
-   `at repos-check` --local` before editing another checkout.
+   `at repos-check --local` before editing another checkout.
 4. For each repo in scope, record the resolved `Default branch`, `Integration branch`, and
    `Work mode` in the execution log.
 5. Resolve effective autonomy using the `git-discipline` skill (references/autonomy-levels.md) and record the repo
