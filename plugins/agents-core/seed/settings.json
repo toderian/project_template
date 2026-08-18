@@ -1,0 +1,22 @@
+{
+  "extraKnownMarketplaces": {
+    "agents-template": {
+      "source": {
+        "source": "github",
+        "repo": "toderian/project_template"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "agents-core@agents-template": true
+  },
+  "permissions": {
+    "deny": [
+      "Read(./.creds/**)",
+      "Edit(./.creds/**)",
+      "Write(./.creds/**)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)"
+    ]
+  }
+}

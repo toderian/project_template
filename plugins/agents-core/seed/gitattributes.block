@@ -1,0 +1,14 @@
+# Managed by `at init` (agents-template). Keep project-specific attributes and
+# Git LFS rules outside this block.
+
+*.pdf binary
+*.docx binary
+*.xlsx binary
+*.pptx binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.zip binary
+*.gz binary
+*.tar binary
