@@ -50,7 +50,11 @@ at doctor                     # check the repo against the contract
 `--with-artifacts`, `--with-workbooks`, `--with-repos`, `--all`.
 
 Coming from the pre-1.0 template (a repo with vendored `_base` and `playbooks` trees
-and a `template` git remote)? Use `at migrate` — it is a dry run by default. See [`docs/migration.md`](docs/migration.md).
+and a `template` git remote)? Use `at migrate` — it is a dry run by default. Flags:
+`--yes`, `--commit`, `--keep-tasks`, `--no-tasks`, `--allow-untracked` (run it with untracked
+files in the tree — build output, a huge attachments dir, a WIP file you are not ready to
+commit — without stashing or committing them first; `--commit` never sweeps them in). See
+[`docs/migration.md`](docs/migration.md).
 
 ## Plugins
 

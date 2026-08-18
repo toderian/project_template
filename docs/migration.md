@@ -36,6 +36,15 @@ anything of your own inside them — a project playbook such as
 delete the listed paths (or adopt them into a plugin of your own), then re-run. The check runs
 before anything is written, so an abort leaves the repo exactly as it was.
 
+If the only dirtiness is untracked files — a build output, a huge attachments tree, a WIP file
+you are not ready to commit — pass `--allow-untracked` instead of stashing or committing them:
+`git status --porcelain` may contain any number of `??` entries, but a single tracked
+modification or staged change still refuses with the same message. With `--allow-untracked`,
+`--commit` never runs `git add -A`; it stages tracked changes (`git add -u`) plus the exact
+paths migration itself created or rewrote, one by one, then asserts none of those staged paths
+were on the pre-migration untracked list before it commits. Your untracked files are never
+staged, removed or swept into the migration commit.
+
 ## 3. Apply it
 
 ```bash

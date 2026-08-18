@@ -419,6 +419,68 @@ else
   echo "SKIP: light downstream migration (no clone source at $LIGHT_SRC)"
 fi
 
+# --- at migrate --allow-untracked: untracked-only dirtiness -----------------
+# Real targets carry untracked paths that must never be committed or removed
+# (a multi-GB untracked attachments tree, a WIP task file mid-draft). `at
+# migrate` must be usable there without stashing or committing them first.
+if [[ -d "$LIGHT_SRC/.git" ]]; then
+  UNTRACKED="$WORKDIR/light-untracked"
+  clone_legacy "$LIGHT_SRC" "$UNTRACKED"
+  cd "$UNTRACKED" || exit 1
+
+  printf 'scratch\n' > wip.txt
+  mkdir -p data
+  printf '\x00\x01' > data/blob.bin
+
+  NOFLAG_OUT="$(at migrate --yes 2>&1)"; NOFLAG_RC=$?
+  assert_eq "$NOFLAG_RC" "1" "untracked-only dirtiness still refuses without --allow-untracked"
+  assert_stdout_contains "$NOFLAG_OUT" "working tree" \
+    "the refusal without --allow-untracked names the dirty working tree"
+  assert_exists "$UNTRACKED/_base" "the refused run changed nothing"
+  assert_exists "$UNTRACKED/wip.txt" "the refused run left the untracked file alone"
+
+  ALLOW_OUT="$(at migrate --allow-untracked --yes --commit 2>&1)"; ALLOW_RC=$?
+  assert_eq "$ALLOW_RC" "0" \
+    "--allow-untracked --yes --commit succeeds with untracked-only dirtiness: $ALLOW_OUT"
+  assert_stdout_contains "$ALLOW_OUT" "2 untracked path(s) left alone" \
+    "migrate prints the count of untracked paths it is leaving alone"
+  assert_exists "$UNTRACKED/wip.txt" "wip.txt is still on disk after migrate"
+  assert_exists "$UNTRACKED/data/blob.bin" "data/blob.bin is still on disk after migrate"
+  assert_eq "$(git ls-files wip.txt data | wc -l | tr -d ' ')" "0" \
+    "wip.txt and data/ are still untracked after migrate"
+  LEAKED_IN_COMMIT="$(git show --name-only HEAD | grep -cE '^(wip\.txt|data/)' || true)"
+  assert_eq "$LEAKED_IN_COMMIT" "0" "the migration commit does not contain wip.txt or data/"
+  UNTRACKED_STATUS="$(git status --porcelain)"
+  assert_eq "$UNTRACKED_STATUS" "$(printf '?? data/\n?? wip.txt')" \
+    "after migrate, git status --porcelain shows exactly the pre-existing untracked paths"
+  assert_eq "$(git ls-files .no-commit | wc -l | tr -d ' ')" "0" \
+    "the pre-migration copies stay untracked even with --allow-untracked"
+  assert_contains .gitignore ".no-commit/" \
+    "the managed .gitignore block still ignores .no-commit/ (pre-migration copies stay ignored)"
+  assert_eq "$(git log -1 --format=%s)" "chore: migrate to agents-template plugins" \
+    "the --allow-untracked migration still commits under the documented subject"
+else
+  echo "SKIP: at migrate --allow-untracked (no clone source at $LIGHT_SRC)"
+fi
+
+# a tracked modification alongside --allow-untracked still refuses (only
+# untracked-only dirtiness is exempt from the clean-tree precondition)
+if [[ -d "$LIGHT_SRC/.git" ]]; then
+  TRACKEDDIRTY="$WORKDIR/light-tracked-dirty"
+  clone_legacy "$LIGHT_SRC" "$TRACKEDDIRTY"
+  cd "$TRACKEDDIRTY" || exit 1
+
+  printf '\nlocal edit\n' >> README.md
+  TRACKED_OUT="$(at migrate --allow-untracked --yes 2>&1)"; TRACKED_RC=$?
+  assert_eq "$TRACKED_RC" "1" \
+    "a tracked modification still refuses even with --allow-untracked"
+  assert_stdout_contains "$TRACKED_OUT" "working tree" \
+    "the refusal with a tracked modification names the dirty working tree"
+  assert_exists "$TRACKEDDIRTY/_base" "the refused run changed nothing"
+else
+  echo "SKIP: at migrate --allow-untracked tracked-dirty refusal (no clone source at $LIGHT_SRC)"
+fi
+
 # --- heavy downstream (task ledger, LFS, project rules) ---------------------
 if [[ -d "$HEAVY_SRC/.git" ]]; then
   HEAVY="$WORKDIR/heavy"

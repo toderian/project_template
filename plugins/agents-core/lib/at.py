@@ -1029,6 +1029,21 @@ def _label(repo: Path, path: Path) -> str:
     return rel + "/" if path.is_dir() else rel
 
 
+def _path_was_untracked(path: str, untracked_before: list[str]) -> bool:
+    """True if `path` (from `git diff --name-only`) is, or falls inside, one
+    of the pre-migration `??` entries. `git status --porcelain` collapses a
+    wholly-untracked directory to a single `dir/` entry, so a directory entry
+    matches both itself and anything staged from underneath it.
+    """
+    for entry in untracked_before:
+        if entry.endswith("/"):
+            if path == entry[:-1] or path.startswith(entry):
+                return True
+        elif path == entry:
+            return True
+    return False
+
+
 def cmd_migrate(args: argparse.Namespace) -> int:
     repo = repo_root()
     if args.keep_tasks and args.no_tasks:
@@ -1042,9 +1057,10 @@ def cmd_migrate(args: argparse.Namespace) -> int:
     if branch not in DEFAULT_BRANCHES:
         die(f"on branch `{branch}` — migrate from the default branch "
             f"({' or '.join('`' + b + '`' for b in DEFAULT_BRANCHES)})")
-    dirty = _git(repo, "status", "--porcelain").stdout.splitlines()
-    if dirty:
-        die(f"the working tree is not clean ({len(dirty)} changed or untracked path(s)); "
+    status_lines = _git(repo, "status", "--porcelain").stdout.splitlines()
+    tracked_dirty = [line for line in status_lines if not line.startswith("??")]
+    if tracked_dirty or (status_lines and not args.allow_untracked):
+        die(f"the working tree is not clean ({len(status_lines)} changed or untracked path(s)); "
             "commit or stash first — migration rewrites tracked files")
     foreign = foreign_template_files(repo)
     if foreign:
@@ -1053,6 +1069,11 @@ def cmd_migrate(args: argparse.Namespace) -> int:
             + "\n".join(f"  {path}" for path in foreign)
             + "\nmove or delete these first (or adopt them into a plugin), "
               "then re-run `at migrate`")
+
+    # Pre-migration untracked (`??`) set, computed once: `--allow-untracked` lets
+    # these survive alongside a dirty-tree refusal, but they must never be staged
+    # or removed by anything migrate does below.
+    untracked_before = [line[3:] for line in status_lines if line.startswith("??")]
 
     with_tasks = (repo / "docs" / "tasks_manager" / "_todos").is_dir()
     if args.keep_tasks:
@@ -1110,6 +1131,9 @@ def cmd_migrate(args: argparse.Namespace) -> int:
                                         ("--with-repos", with_repos)) if on]
 
     print(f"at migrate: {repo}")
+    if untracked_before:
+        print(f"  ignore   {len(untracked_before)} untracked path(s) left alone "
+              "(--allow-untracked)")
     for path in removals:
         print(f"  remove   {_label(repo, path)}")
     for remote in remotes:
@@ -1212,8 +1236,24 @@ def cmd_migrate(args: argparse.Namespace) -> int:
             "Added or updated:", *[f"- {entry}" for entry in added], "",
             COMMIT_TRAILER, "",
         ])
-        if _git(repo, "add", "-A").returncode != 0:
-            die("`git add -A` failed; commit by hand")
+        # Never `git add -A`: that would sweep up untracked paths the caller
+        # explicitly asked to leave alone (--allow-untracked). Stage tracked
+        # changes only, plus the exact paths migrate itself created or merged.
+        if _git(repo, "add", "-u").returncode != 0:
+            die("`git add -u` failed; commit by hand")
+        for rel in added:
+            if _git(repo, "add", "--", rel).returncode != 0:
+                die(f"`git add -- {rel}` failed; commit by hand")
+
+        staged = _git_out(repo, "diff", "--cached", "--name-only").splitlines()
+        leaked = sorted(path for path in staged
+                        if _path_was_untracked(path, untracked_before))
+        if leaked:
+            _git(repo, "reset", "-q")
+            die("refusing to commit: these path(s) were untracked before `at migrate` ran and "
+                "must not be swept into the migration commit (unstaged, nothing committed):\n"
+                + "\n".join(f"  {path}" for path in leaked))
+
         commit = subprocess.run(["git", "-C", str(repo), "commit", "-n", "-F", "-"],
                                 input=body, text=True, capture_output=True, check=False)
         if commit.returncode != 0:
@@ -1313,6 +1353,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_migrate.add_argument("--keep-tasks", action="store_true",
                            help="seed the task ledger even without docs/tasks_manager/_todos")
     p_migrate.add_argument("--no-tasks", action="store_true", help="never seed the task ledger")
+    p_migrate.add_argument("--allow-untracked", action="store_true",
+                           help="allow a working tree with untracked-only dirtiness (git status "
+                                "--porcelain has only `??` entries); --commit never `git add -A`s "
+                                "them, it stages only tracked changes and paths migrate itself "
+                                "created or merged")
     p_migrate.set_defaults(func=cmd_migrate)
 
     p_ledger = sub.add_parser("ledger", help="sync | check | rotate-log <TASK_ID>")
