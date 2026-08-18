@@ -51,8 +51,23 @@ fi
 CURRENT="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["version"])' "${MANIFESTS[0]}")"
 echo "release: $CURRENT -> $VERSION (${#MANIFESTS[@]} plugins)"
 
+# Between the version bump and the commit, a failure (build or tests) would leave
+# bumped manifests behind. The tree was verified clean above, so everything the
+# checkout discards is ours.
+ROLLBACK=0
+rollback_on_failure() {
+  local rc=$?
+  if [[ "$rc" != 0 && "$ROLLBACK" == 1 ]]; then
+    echo "release: failed; restoring version $CURRENT" >&2
+    git checkout -- . || true
+  fi
+  return "$rc"
+}
+trap rollback_on_failure EXIT
+
 say "set version to $VERSION in ${MANIFESTS[*]}"
 if [[ "$DRY_RUN" == 0 ]]; then
+  ROLLBACK=1
   python3 - "$VERSION" "${MANIFESTS[@]}" <<'PY'
 import json, sys
 version, paths = sys.argv[1], sys.argv[2:]
@@ -85,6 +100,7 @@ Checks: python3 scripts/build.py; bash scripts/tests/run-all.sh.
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
 EOF
+  ROLLBACK=0
 fi
 
 say "git tag -a $TAG -m 'agents-template $VERSION'"

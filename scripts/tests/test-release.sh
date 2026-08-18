@@ -90,6 +90,15 @@ if [[ "$FULL" != "0" ]]; then
   if grep -q "git push && git push --tags" <<<"$REAL_OUT"; then pass; else fail "release prints the push hint"; fi
   OUT="$(AT_RELEASE_TEST=1 bash scripts/release.sh "$NEW_VERSION" 2>&1)"; RC=$?
   assert_eq "$RC" "1" "release refuses an existing tag"
+
+  # a failing suite must not leave a half-applied version bump behind
+  sed -i '2i exit 1  # sabotage' scripts/tests/run-all.sh
+  git commit -qam "sabotage the suite"
+  OUT="$(AT_RELEASE_TEST=1 bash scripts/release.sh 1.0.2 2>&1)"; RC=$?
+  assert_eq "$RC" "1" "release fails when the suite fails"
+  assert_eq "$(versions)" "$EXPECT_NEW" "a failed release restores the manifests"
+  assert_eq "$(git status --porcelain | wc -l | tr -d ' ')" "0" "a failed release leaves a clean tree"
+  assert_eq "$(git tag -l v1.0.2)" "" "a failed release creates no tag"
 else
   echo "SKIP: real release run (AT_RELEASE_TEST_FULL=0)"
 fi

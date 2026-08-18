@@ -83,7 +83,7 @@ bash scripts/tests/run-all.sh     # build check + plugin validation + hook/ledge
 ```
 
 Sources of truth and the rules for changing them are in [`AGENTS.md`](AGENTS.md).
-The pre-commit hook runs `run-all.sh`; CI runs the same suite minus `claude plugin validate`.
+The pre-commit hook runs `run-all.sh`; CI runs every part of it that does not need the CLI.
 
 Release:
 

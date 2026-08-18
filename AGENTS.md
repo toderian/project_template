@@ -25,7 +25,7 @@ bash scripts/tests/run-all.sh     # build --check, plugin validation, hook/ledge
 ```
 
 The pre-commit hook runs `run-all.sh`; do not bypass it with `-n` — fix the cause. CI
-(`.github/workflows/check.yml`) runs the same suite minus `claude plugin validate` (no CLI).
+(`.github/workflows/check.yml`) runs every part of it that does not need the Claude Code CLI.
 
 Commit messages: `type: summary`, then `What changed:` / `Why:` / `Checks:` sections.
 
