@@ -1,6 +1,6 @@
 ---
 name: simplicity-review
-description: "Review code, plans, dependencies, or repos for avoidable complexity: reuse local code, prefer stdlib/native features, avoid speculative abstractions. Use when the user asks for a simplicity, over-engineering, or YAGNI review, or what can be deleted/replaced with stdlib."
+description: "Review code, plans, dependencies, or repos for avoidable complexity: reuse local code, prefer stdlib/native, avoid speculative abstractions. Use when the user asks for a simplicity, over-engineering, or YAGNI review, minimal implementation planning, what can be deleted/replaced with stdlib, or a simplification audit."
 metadata:
   source: playbooks/skills/engineering/simplicity-review.md
   pack: simplicity

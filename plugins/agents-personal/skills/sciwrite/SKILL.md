@@ -1,6 +1,6 @@
 ---
 name: sciwrite
-description: "Review scientific or engineering manuscripts for writing clarity without changing technical claims. Use when the user asks for \"sciwrite\", \"review my manuscript\", \"improve clarity\", \"clean up the prose\", passive voice, clutter, or journal-submission prose review."
+description: "Review scientific or engineering manuscripts for writing clarity without changing technical claims. Use when the user asks for \"sciwrite\", \"review my manuscript\", \"scientific writing review\", \"improve clarity\", \"clean up the prose\", passive voice, clutter, or journal-submission prose review."
 metadata:
   source: playbooks/skills/personal/sciwrite.md
   pack: writing

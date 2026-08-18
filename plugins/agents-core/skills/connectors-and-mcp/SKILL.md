@@ -1,6 +1,6 @@
 ---
 name: connectors-and-mcp
-description: "Least-privilege rules for connectors and MCP servers (GitHub, Drive, Slack, databases, cloud consoles) by autonomy level, with secrets handling and stop points. Use before reading/writing a live external system via a connector/MCP server, or when choosing which one."
+description: "Least-privilege rules for connectors and MCP servers (GitHub, Google Drive, Slack, Linear, databases, internal APIs, cloud consoles) by autonomy level, with secrets handling and stop points. Use before reading/writing a live external system via a connector/MCP server, or when choosing which one."
 metadata:
   source: playbooks/conventions/connectors-and-mcp.md
 ---
