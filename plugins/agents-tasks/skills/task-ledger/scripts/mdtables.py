@@ -1,7 +1,7 @@
 """Escape-aware Markdown table parsing helpers (stdlib only).
 
 The single source of truth for splitting a Markdown table row into cells,
-shared by `check-repos-config.sh`'s embedded validator and
+shared by `check_repos_config.sh`'s embedded validator and
 `sync_todo_ledgers.py`. Unlike a naive `split("|")`/awk `FS="|"`, this
 understands backslash-escaped pipes (`\\|`) so a cell may legitimately contain
 a literal pipe, and both tools agree on the parse.

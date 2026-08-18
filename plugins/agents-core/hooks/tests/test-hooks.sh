@@ -165,6 +165,16 @@ run_case "write: secrets path blocks" "${WRITE_HOOK}" \
   "$(file_payload 'config/secrets/prod.yaml')" 2
 run_case "write: .env.example stays allowed" "${WRITE_HOOK}" \
   "$(file_payload '.env.example')" 0
+
+# .creds/ blocks unconditionally, even under the example/sample/template
+# allowlist — a real secret file never carries one of those suffixes, but a
+# path under .creds/ is never a committed scaffold either way.
+run_case "write: .creds/config.example blocks" "${WRITE_HOOK}" \
+  "$(file_payload '.creds/config.example')" 2
+run_case "write: .creds/x.template blocks" "${WRITE_HOOK}" \
+  "$(file_payload '.creds/x.template')" 2
+run_case "write: config/app.env.example stays allowed" "${WRITE_HOOK}" \
+  "$(file_payload 'config/app.env.example')" 0
 run_case "write: ordinary source file stays allowed" "${WRITE_HOOK}" \
   "$(file_payload 'src/index.js')" 0
 run_case "write: jq missing fails closed" "${WRITE_HOOK}" \
@@ -194,6 +204,11 @@ run_case "apply_patch: '*** Update File: src/app.py' stays allowed" "${WRITE_HOO
 -old
 +new
 *** End Patch')" 0
+run_case "apply_patch: '*** Add File: .creds/token.example' blocks" "${WRITE_HOOK}" \
+  "$(apply_patch_payload '*** Begin Patch
+*** Add File: .creds/token.example
++x
+*** End Patch')" 2
 
 # ---------------------------------------------------------------------------
 # block-bad-todo-name.sh

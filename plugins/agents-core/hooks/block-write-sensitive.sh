@@ -11,7 +11,12 @@ INPUT=$(cat)
 # Segment-anchored: a sensitive word only blocks when it is (or starts) a
 # whole path segment — "docs/secrets-rotation.md" is fine, "secrets/x" or
 # "config/credentials/prod.json" is not.
-SEGMENT_PATTERN='(^|/)(\.creds|\.env(\..*)?|secrets?|credentials?)(/|$)'
+SEGMENT_PATTERN='(^|/)(\.env(\..*)?|secrets?|credentials?)(/|$)'
+
+# .creds/ is checked separately, before the example/sample/template
+# allowlist below: unlike .env.example, a file under .creds/ is never a
+# committed non-secret scaffold — block it unconditionally.
+CREDS_PATTERN='(^|/)\.creds(/|$)'
 
 # Whole-basename patterns for well-known private-key file shapes.
 BASENAME_PATTERN='^(id_rsa|id_ed25519|.*\.pem|.*\.key|.*\.p12|.*\.agekey)$'
@@ -36,6 +41,11 @@ is_allowlisted() {
 
 while IFS= read -r FILE_PATH; do
   [ -z "${FILE_PATH}" ] && continue
+
+  if echo "${FILE_PATH}" | grep -qE "${CREDS_PATTERN}"; then
+    echo "BLOCKED: refused to write to sensitive path '${FILE_PATH}' (matched: ${CREDS_PATTERN}). ${PROTECTED_SUMMARY}" >&2
+    exit 2
+  fi
 
   if is_allowlisted "${FILE_PATH}"; then
     continue

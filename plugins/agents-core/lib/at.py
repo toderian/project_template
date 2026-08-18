@@ -192,12 +192,21 @@ def merge_managed_block(dst_path: Path, block_text: str,
     return "merged" if existed else "created"
 
 
+RETIRED_DENY_RULES = frozenset({
+    # Claude's permission engine only matches `Edit(path)` for write tools, so
+    # a `Write(...)` deny entry is a silent no-op that just prints a warning.
+    # `Edit(./.creds/**)` already covers the intent; drop this if an
+    # already-seeded repo still carries it.
+    "Write(./.creds/**)",
+})
+
+
 def merge_settings_json(dst_path: Path, seed_json: dict) -> str:
     """Deep-merge only the keys this template manages; never drop user keys.
 
     Managed: `extraKnownMarketplaces` and `enabledPlugins` (missing keys added),
-    `permissions.deny` (union, existing order kept). Returns 'created',
-    'merged' or 'kept'.
+    `permissions.deny` (union, existing order kept, retired rules dropped).
+    Returns 'created', 'merged' or 'kept'.
     """
     existed = dst_path.exists()
     data: dict = {}
@@ -233,6 +242,12 @@ def merge_settings_json(dst_path: Path, seed_json: dict) -> str:
         for rule in deny:
             if rule not in current:
                 current.append(rule)
+
+    existing_permissions = data.get("permissions")
+    if isinstance(existing_permissions, dict) and isinstance(existing_permissions.get("deny"), list):
+        existing_permissions["deny"] = [
+            rule for rule in existing_permissions["deny"] if rule not in RETIRED_DENY_RULES
+        ]
 
     if existed and json.dumps(data, sort_keys=True) == before:
         return "kept"
@@ -1180,8 +1195,8 @@ def cmd_migrate(args: argparse.Namespace) -> int:
               f"AGENTS.md → {DOMAIN_SLOT_HEADING}")
     for line in leftovers:
         print(f"  review   preserved rule still mentions `_base/`: {line}")
-    for warning in warnings:
-        print(f"  WARN     {warning}")
+    # WARN lines already printed once in the plan block above; the summary
+    # does not repeat them.
 
     if args.commit:
         added = sorted({rel for rel, status in report if status != "kept"}

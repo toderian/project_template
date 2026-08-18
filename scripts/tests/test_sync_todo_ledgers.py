@@ -19,6 +19,21 @@ class Ledger(unittest.TestCase):
         self.assertTrue((tmp / "docs/tasks_manager/_logs/TST-002.md").exists())
         task = next((tmp / "docs/tasks_manager/_todos").glob("TST-002-*.md")).read_text()
         self.assertIn("_logs/TST-002.md", task); self.assertLess(task.count("\n"), 120)
+    def test_rotate_log_is_idempotent(self):
+        p1, tmp = run("ledger-minimal", "rotate-log", "TST-002")
+        self.assertEqual(p1.returncode, 0, p1.stderr)
+        log_path = tmp / "docs/tasks_manager/_logs/TST-002.md"
+        lines_after_first = log_path.read_text().count("\n")
+        p2 = subprocess.run(
+            ["python3", str(SCRIPT), "--root", str(tmp), "rotate-log", "TST-002"],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(p2.returncode, 0, p2.stderr)
+        lines_after_second = log_path.read_text().count("\n")
+        self.assertEqual(lines_after_first, lines_after_second)
+        self.assertEqual(log_path.read_text().count("# Execution log — TST-002"), 1)
+        task = next((tmp / "docs/tasks_manager/_todos").glob("TST-002-*.md")).read_text()
+        self.assertEqual(task.count("See [_logs/TST-002.md]"), 1)
     def test_missing_harvest_is_warning_not_error(self):
         # ledger-legacy has a second archived task without harvest section
         p, _ = run("ledger-legacy", "--check"); self.assertEqual(p.returncode, 0); self.assertIn("Completion harvest", p.stderr)

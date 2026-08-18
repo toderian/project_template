@@ -25,6 +25,7 @@ Apply the plan-critique convention: ${CLAUDE_PLUGIN_ROOT}/skills/planning-workfl
 - attack the plan as if it were probably incomplete
 - identify the weakest assumption in the chain
 - search for edge cases, simpler alternatives, and hidden regressions
+- require another pass when evidence is weak
 - distinguish between "looks plausible" and "is robust"
 - ground every concern in evidence — a grep result, a file path, a citation
 - pressure for minimalism: every new file, abstraction, or dependency must justify itself

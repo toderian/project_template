@@ -115,6 +115,16 @@ at init --all >/dev/null 2>&1
 KEPT="$(python3 -c 'import json;d=json.load(open(".claude/settings.json"));print(d.get("model"), "Bash(rm -rf /*)" in d["permissions"]["deny"])')"
 assert_eq "$KEPT" "opus True" "at init keeps unmanaged settings.json keys"
 
+# a retired no-op deny rule from an already-seeded repo self-heals on re-init
+python3 -c 'import json,pathlib
+p = pathlib.Path(".claude/settings.json")
+d = json.loads(p.read_text())
+d["permissions"]["deny"].append("Write(./.creds/**)")
+p.write_text(json.dumps(d, indent=2) + "\n")'
+at init --all >/dev/null 2>&1
+RETIRED_GONE="$(python3 -c 'import json;d=json.load(open(".claude/settings.json"));print("Write(./.creds/**)" in d["permissions"]["deny"])')"
+assert_eq "$RETIRED_GONE" "False" "at init drops the retired Write(./.creds/**) deny rule"
+
 # --- at doctor --------------------------------------------------------------
 DOCTOR_OUT="$(at doctor 2>&1)"
 DOCTOR_RC=$?
@@ -538,6 +548,10 @@ cd "$NOHEADING" || exit 1
 NOHEAD_OUT="$(at migrate --yes 2>&1)"; NOHEAD_RC=$?
 assert_eq "$NOHEAD_RC" "0" "at migrate survives an AGENTS.md with no overrides heading: $NOHEAD_OUT"
 assert_stdout_contains "$NOHEAD_OUT" "WARN" "migrate warns when it can not tell rules from boilerplate"
+# `  WARN` (2 leading spaces) is migrate's own warning line; unindented `WARN`
+# further down is unrelated output from the `at doctor` run migrate triggers.
+assert_eq "$(printf '%s\n' "$NOHEAD_OUT" | grep -c '^  WARN')" "1" \
+  "the migrate WARN line is printed exactly once, not once in the plan and again in the summary"
 assert_stdout_contains "$NOHEAD_OUT" ".no-commit/AGENTS.md.pre-migration" \
   "the warning points at the saved copy to hand-merge"
 assert_eq "$(grep -c 'published vault history' AGENTS.md)" "0" \
