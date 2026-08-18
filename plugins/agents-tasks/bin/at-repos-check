@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Thin wrapper: validate .config/repos.project.md in the current repo.
+set -euo pipefail
+HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+exec bash "$HERE/../skills/task-ledger/scripts/check_repos_config.sh" --root "$(git rev-parse --show-toplevel)" "$@"

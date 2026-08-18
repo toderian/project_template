@@ -101,7 +101,7 @@ at ledger check
 at repos-check
 ```
 
-If `docs/tasks_manager/` is absent, run `init` before using this workflow.
+If `docs/tasks_manager/` is absent, run `setup-project` before using this workflow.
 
 ## Quality Bar
 

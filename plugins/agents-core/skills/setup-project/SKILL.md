@@ -1,132 +1,79 @@
 ---
 name: setup-project
-description: "Initialize project idea/task tracking structure. Use when the user wants to set up docs/ with inbox, tasks, areas, durable plans, resources, archive, roadmap, and generated ledgers."
+description: "Seed a repository with the agent contract: run `at init` for the pieces the project needs, fill the Project section of AGENTS.md with the human, then verify with `at doctor`. Use when setting up a new repo, adopting the template in an existing one, or when AGENTS.md still has unfilled TODO-FILL slots."
+disable-model-invocation: true
 metadata:
   source: playbooks/skills/misc/init.md
   pack: core
 ---
 
-# Init
+# Setup Project
 
 ## Purpose
 
-Initialize the project's `docs/` layout: the **task manager** (`docs/tasks_manager/` - inbox capture
-layer, committed tasks, areas registry, ledgers, and roadmap), **areas** (`docs/areas/` - generated
-area task-status pages), **plans** (`docs/_plans/` - durable implementation plans), **resources**
-(`docs/resources/` - project documentation, the primary domain glossary, durable area contexts,
-feature contracts, component contexts, sanitized operational runbooks, and timestamped reports), and
-**archive** (`docs/archive/` - frozen docs/resources). It also seeds root `workbooks/README.md` as the
-index for workbook bundles. Seeded via `at init --with-tasks --with-workbooks` from the templates
-bundled with the `agents-tasks` plugin.
+Turn a plain repository into one an agent can work in: the downstream-owned `AGENTS.md` contract
+(plus `CLAUDE.md`, settings, ignore blocks, role mirrors) and, optionally, the task ledger, artifact
+registry, workbook index and repo registry. `at init` writes the files; this skill is about the part
+only a human can supply — what this project actually is.
 
 ## Process
 
-### 1. Check existing structure
+### 1. Seed the files
 
-Look for the `docs/` layout below. If `docs/tasks_manager/` already exists, report what's there and
-skip creating those; only fill in what's missing. Never overwrite existing ledgers, roadmap, area
-pages, or the areas registry.
-
-### 2. Seed the structure from the template
-
-The canonical templates are bundled with the `agents-tasks` plugin's seed directory. Copy them into the
-working repo rather than hand-authoring the files — this keeps every project's structure identical and
-lets the template evolve upstream. Copy without clobbering anything already present:
+Run `at init` with the flags for what the project needs (skip a flag and nothing for it is written):
 
 ```bash
-at init --with-tasks --with-workbooks
+at init --with-tasks --with-artifacts --with-workbooks --with-repos   # or: at init --all
 ```
 
-Resulting layout:
+- `--with-tasks` — `docs/tasks_manager/` (inbox, tasks, archives, logs, areas registry, roadmap,
+  ledgers), `docs/areas/`, `docs/resources/`. Take it whenever the project will track work.
+- `--with-artifacts` — `artifacts/README.md`, the registry for large/generated/encrypted files.
+- `--with-workbooks` — `workbooks/README.md`, the index for repeatable workflow bundles.
+- `--with-repos` — `.config/repos.project.md`, the repo registry for multi-repo work.
 
+`at init` is idempotent and never overwrites a file you own: it reports `created` / `kept` / `merged`
+per file. Re-run it any time; only `.codex/agents/*.toml` (generated role mirrors) are refreshed.
+
+### 2. Fill the Project section of AGENTS.md — with the human
+
+The seeded `AGENTS.md` ends with a **Project** section of `TODO-FILL` slots. Interview the user (and
+read the repo: README, CI config, package manifests, existing docs) and replace each comment with
+real content. Do not guess — an invented command or invariant is worse than an empty slot.
+
+- **Summary** — what this repo is, who uses it, and the one thing an agent must not break.
+- **Commands** — the real test / lint / build / run commands, verified by running them, plus their
+  gotchas (needs a database, slow suite, fast subset).
+- **Domain rules and invariants** — what must stay true after any change: data that may never be
+  rewritten, ordering guarantees, compatibility windows, regulatory constraints.
+- **Repos and areas** — the areas of this codebase and their non-obvious constraints; for multi-repo
+  work, point at `.config/repos.project.md` and name the repos that matter.
+- **People and coordination** — who to involve for which change, review expectations, and what needs
+  a human decision.
+
+Keep the file under 200 lines: it is always in context. Detail that only some tasks need belongs in
+`docs/resources/`, a runbook, or a skill — not here.
+
+### 3. Verify
+
+```bash
+at doctor
 ```
-docs/
-├── _plans/              # durable implementation plans
-├── tasks_manager/        # seeded via `at init --with-tasks`
-│   ├── _areas.md         #   area registry: Area | Prefix | Description | Page
-│   ├── _roadmap.md       #   Urgent/Now/Next/Later/Someday plan of execution
-│   ├── _active.md        #   open + in_progress ledger
-│   ├── _done.md          #   completed/cancelled ledger
-│   ├── _inbox/           #   raw captured ideas (I-NNN)
-│   ├── _inbox_archived/
-│   ├── _todos/           #   active tasks (<PREFIX>-NNN)
-│   └── _todos_archived/
-├── areas/
-│   ├── _overview.md      #   generated from areas + tasks + roadmap
-│   └── global.md         #   generated global-area task status
-├── resources/            # project docs (architecture, glossary, component contexts, runbooks)
-│   ├── _inbox/           #   raw knowledge drops waiting for /distill-knowledge
-│   ├── _digests/         #   curated Markdown summaries of raw sources, segregated by area
-│   ├── _reports/         #   timestamped reports, audits, inventories, and migration proposals
-│   ├── CONTEXT.md        #   primary domain glossary
-│   ├── system-map.md     #   status-aware repo/capability/system index
-│   └── global/
-│       ├── summary.md    #   durable global-area architecture notes
-│       └── runbooks/     #   sanitized cross-cutting operational procedures
-└── archive/              # frozen docs/resources
 
-workbooks/
-└── README.md             # root workbook index and README shape
-```
+Fix every `ERROR`; the `TODO-FILL` warning disappears once the Project slots are filled. With
+`--with-tasks`, `at doctor` also runs the ledger check.
 
-The root `CONTEXT.md`, if missing, is created as a pointer to `docs/resources/CONTEXT.md`. The
-`.gitkeep` files come along with the copy so the empty dirs stay tracked by git. Workbook folders are
-created under root `workbooks/`, one folder per reusable working bundle. After seeding, run
-`at ledger` to confirm the ledgers are valid.
+### 4. Report
 
-Stable repo slugs and optional autonomy ceilings are normally set up earlier via `at init --with-repos`,
-before docs and tasks are created. If `/setup-project` is the first moment a multi-repo need is
-discovered, run `at init --with-repos` to create `.config/repos.project.md` from the bundled template,
-edit it for the downstream project, and commit it. Existing 8-column registries remain valid and
-default to `Autonomy max: L1`; do not migrate downstream-owned registries without user approval.
-For local checkout paths, keep an uncommitted repos map under `.local/repos.map` and edit it locally;
-`.local/` is gitignored and should not be committed.
+Tell the user what was created, what they still need to fill, and the entry points they now have:
+`capture-idea` to record an idea, `add-task` when the work is already clear, `triage-inbox` to promote
+ideas into tasks, `roadmap` to sequence them, `execute-plan` to implement one. Structure and
+conventions for the seeded `docs/` tree live in the `task-ledger` and `knowledge-base` skills;
+workbook shape in `workbook`; the artifact registry in `artifacts-registry`.
 
-If the plugin's seed templates are unavailable (e.g. a repo that vendored only part of the template), fall back to
-creating the dirs with `.gitkeep` and seeding `_areas.md`/`_active.md`/`_done.md`/`_roadmap.md`,
-`docs/_plans/`, `docs/areas/_overview.md`, `docs/resources/CONTEXT.md`,
-`docs/resources/system-map.md`,
-`docs/resources/_inbox/`, `docs/resources/_digests/`, `docs/resources/_reports/`,
-`docs/resources/global/summary.md`, `docs/resources/global/runbooks/`, root `workbooks/README.md`, and
-a root pointer by hand -
-see the `task-ledger` skill (references/todo-convention.md),
-the `task-ledger` skill (references/inbox-convention.md), and
-the `knowledge-base` skill for the exact shapes. Use
-the `workbook` skill for workbook folder and README requirements.
+## Quality Bar
 
-### 3. Confirm
-
-Report what was created. Remind the user that:
-
-- `/capture-idea` records an idea into `docs/tasks_manager/_inbox/` instantly (`I-NNN`)
-- `/add-task` creates a full task directly when the work is already clear
-- `/triage-inbox` promotes inbox ideas into typed, area-prefixed tasks
-- `/roadmap` maintains `docs/tasks_manager/_roadmap.md` — the Urgent/Now/Next/Later/Someday plan of
-  execution (horizon semantics: the `task-ledger` skill (references/todo-convention.md) §Roadmap)
-- Any skill can produce tasks following the `task-ledger` skill (references/todo-convention.md) (`/write-a-prd`,
-  `/prd-to-todos`, planning)
-- Durable implementation plans live in `docs/_plans/`
-- The primary domain glossary lives in `docs/resources/CONTEXT.md`; root `CONTEXT.md` is only a pointer
-- The status-aware repo/capability picture lives in `docs/resources/system-map.md`
-- Raw docs, notes, and exports can be dropped into `docs/resources/_inbox/`; `/distill-knowledge`
-  writes curated Markdown digests under `docs/resources/_digests/` and promotes stable facts into the
-  knowledge base
-- Long-lived committed `.docx`, PDF, spreadsheet, diagram, and similar source documents live under
-  `docs/resources/<area>/attachments/` with nearby Markdown metadata or an attachment index
-- Rerunnable reports and audits go under `docs/resources/_reports/<workflow>/` with timestamped
-  filenames
-- Reusable operational procedures go under `docs/resources/<area>/runbooks/` with committed
-  placeholders; real values live in ignored `.local/runbooks/` binding files
-- Workbook bundles live under root `workbooks/`, one folder per workbook, with workbook-local
-  scripts/support files and reuse declared in `README.md` `Depends on` paths
-- Durable area knowledge lives in `docs/resources/<area>/`; use `/define-area` to index real
-  architecture before adding cross-repo feature contracts
-- Use `/map-system` to connect real repos, areas, critical flows, and cross-repo boundaries into
-  `docs/resources/system-map.md`
-- Cross-repo feature contracts live in `docs/resources/<area>/contracts/<feature-slug>.md`
-- Optional repo scope and autonomy ceilings live in committed `.config/repos.project.md`; local
-  checkout paths live in ignored `.local/repos.map`
-- Tasks are typed `F`/`D`/`C`/`R` and classified by `Area` + `Prefix` (see
-  `docs/tasks_manager/_areas.md`)
-- Completed tasks move to `_todos_archived/` and get a row in `docs/tasks_manager/_done.md`;
-  `/complete-task` performs the closeout, and `at ledger check` validates the result
+- Every `TODO-FILL` slot is either filled with verified content or explicitly deferred with the user.
+- Commands in `AGENTS.md` were run at least once and work as written.
+- `at doctor` exits 0.
+- Nothing the project already owned was overwritten.

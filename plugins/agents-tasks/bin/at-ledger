@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Thin wrapper: run the task-ledger sync/check script against the current repo.
+set -euo pipefail
+HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+exec python3 "$HERE/../skills/task-ledger/scripts/sync_todo_ledgers.py" --root "$(git rev-parse --show-toplevel)" "$@"

@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Thin wrapper: reserve an inbox idea or task filename in the current repo.
+set -euo pipefail
+HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+exec bash "$HERE/../skills/task-ledger/scripts/reserve_work_item.sh" --root "$(git rev-parse --show-toplevel)" "$@"
