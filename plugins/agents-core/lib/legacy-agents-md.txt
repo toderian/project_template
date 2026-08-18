@@ -1,0 +1,65 @@
+;; Normalised text of every block that the pre-plugin template's downstream-owned
+;; AGENTS.md ever shipped, one block per line (whitespace collapsed, lower-cased).
+;; `at migrate` drops a block of a legacy AGENTS.md when it matches a line here and
+;; keeps everything else as the project's own rules, so a downstream that is one or
+;; two template versions behind still migrates cleanly.
+;;
+;; Frozen legacy data: the era this describes ended with the plugin restructure.
+;; Produced from this repo's history with the block splitter in lib/at.py:
+;;   for rev in $(git log --format=%h ce68eeb..bd38129 -- AGENTS.md) ce68eeb; do
+;;     git show $rev:AGENTS.md > hist/$rev.md
+;;   done
+;; then `_norm_unit()` over `md_units()` of every file, sorted and de-duplicated.
+;; Lines starting with `;;` are comments.
+# agents.md
+## how this file is structured
+## per-directory overrides (monorepos)
+## project-specific overrides
+### artifact registry
+### implementation footprint
+### local credentials
+### python tooling environments
+### saved prompts
+- `_base/agents.md` is **upstream-owned**: do not edit it downstream. it updates cleanly via `git fetch template && git merge`.
+- `agents.md` (this file) is **downstream-owned**: each project replaces or extends the "project-specific overrides" section below with its own rules. future template improvements to `agents.md` will be rare; when they happen, downstream projects merge by hand.
+- `agents.md` (this file) is **downstream-owned**: each project replaces the "project-specific overrides" section below with its own rules. future template improvements to `agents.md` will be rare; when they happen, downstream projects merge by hand.
+- `agents_base.md` is **upstream-owned**: do not edit it downstream. it updates cleanly via `git fetch template && git merge`.
+- agents may read files in `.creds/` only when credentialed access is required for the task. prefer explicit filenames from the user; if discovery is needed, list filenames without printing file contents.
+- areas of the code that have non-obvious constraints
+- before committing anything from `.prompts/`, review it for credentials, private data, copied sensitive context, or other material that should not be preserved in git. being in `.prompts/` does not make a prompt safe to commit.
+- before committing new git lfs artifacts, run `git lfs track "<path-or-pattern>"`, keep the `.gitattributes` lfs pattern narrow and per-artifact, and place project-specific lfs rules outside the managed agents-template block, preferably after `# end agents-template merge rules`. commit the updated `.gitattributes` and the `artifacts/readme.md` registry entry in the same change.
+- before using git lfs artifacts, run `git lfs install`, then fetch only the needed registry entries with `git lfs pull --include="<path-or-pattern>"`. verify registry drift with `git lfs ls-files --name-only` and confirm every tracked path is represented in `artifacts/readme.md`.
+- do not add abstractions, extension points, configuration layers, generated helpers, or "future-proof" modules for imaginary future use cases. capture deferred possibilities in docs, tasks, or comments instead of executable code.
+- do not create `tools/python/pyproject.toml`, `tools/python/uv.lock`, or `tools/python/.python-version` until there are real python tooling dependencies to represent.
+- domain language and key invariants unique to this codebase
+- for encrypted artifacts, use `age` by default. commit only encrypted files such as `*.age` through git lfs, store private keys under `.creds/lfs/<artifact-slug>.agekey`, and keep decrypted outputs under ignored local paths such as `.local/artifacts/<artifact-slug>/`. never print, summarize, or commit private keys or plaintext secrets.
+- if a project needs multiple python tooling environments, create explicit subfolders such as `tools/python/<name>/` and document each environment in the downstream `agents.md`.
+- keep `tools/python/.venv/` local-only and uncommitted; the root `.gitignore` ignores it. a root `.venv/` is also ignored for local scratch environments.
+- keep the default python tooling environment under `tools/python/`, not at the repo root: `tools/python/pyproject.toml` declares tooling dependencies, `tools/python/uv.lock` records the exact resolved dependency state, and `tools/python/.python-version` pins the interpreter. commit those files once python tooling dependencies exist.
+- large, external, generated, encrypted, or reproducible artifacts must be discoverable through [`artifacts/readme.md`](./artifacts/readme.md). before walking the repository for artifacts, read that registry for the artifact slug, backend, path or pattern, fetch command, verification command, encryption status, and update notes.
+- make surgical modifications in existing modules and patterns. add code only for a present bug, current requirement, or explicitly requested capability.
+- never echo, paste, summarize, commit, or copy credential values from `.creds/` into tracked files, docs, logs, prompts, final answers, or task artifacts. if a needed credential is missing, state the expected `.creds/<filename>` path without inventing a value.
+- people, teams, or stakeholders to coordinate with for certain changes
+- prefer a minimal code footprint with maximal high-signal documentation. change the smallest code surface that satisfies the current objective, then document behavior, rationale, constraints, and verification clearly enough that future agents do not need to infer intent from extra scaffolding.
+- prompts that should remain local-only belong under `.no-commit/.prompts/`.
+- real credentials may live in `.creds/` at the repository root. this folder is local-only and must remain uncommitted; the root `.gitignore` ignores `.creds/`.
+- repo-specific commands (test, lint, deploy) and their gotchas
+- reusable or historically useful prompts that should travel with the repository belong under `.prompts/`. this directory is intentionally committable; do not add prompts there unless their contents are meant to become part of project history.
+- run `uv` commands from `tools/python/`, for example `cd tools/python && uv sync`. use `uv add`, `uv remove`, `uv lock`, `uv sync`, and `uv run` for managed tooling dependencies and commands.
+- use `artifacts/lfs/<artifact-slug>/` as the default home for new git lfs-managed artifacts. files may live elsewhere only when colocating with source, docs, or tests is materially clearer, and they must still be listed in `artifacts/readme.md`.
+- use `uv` (not `pip install`) for persistent repo-level python tooling, kept under `tools/python/` rather than the repo root. the authoritative rules — committed `pyproject.toml`/`uv.lock`/ `.python-version`, the local-only `.venv/`, running commands from `tools/python/`, multi-environment layout, and not creating metadata files before real dependencies exist — live in [`_base/agents.md`](./_base/agents.md) → "python tooling environment". add project-specific tooling notes here only when they differ from that base rule.
+- use `uv` for persistent repo-level python tooling dependencies. do not use `pip install` directly for dependencies that should be represented in committed project state.
+- when intent, tradeoffs, or deferred options do not need to execute, prefer documentation over more code. code should embody current behavior; documentation should carry context.
+> **auto-loaded entrypoint for the agent operating contract.** both claude code and codex load this file automatically at session start. > > **first instruction to every agent:** before acting, also read [`_base/agents.md`](./_base/agents.md) in this directory. `_base/agents.md` is the authoritative base contract; this `agents.md` is the downstream-owned entrypoint that may add project-specific overrides below. treat the two files as a single contract, with overrides in this file taking precedence over the base.
+> **auto-loaded entrypoint for the agent operating contract.** both claude code and codex load this file automatically at session start. > > **first instruction to every agent:** before acting, also read [`agents_base.md`](./agents_base.md) in this directory. `agents_base.md` is the authoritative base contract; this `agents.md` is the downstream-owned entrypoint that may add project-specific overrides below. treat the two files as a single contract, with overrides in this file taking precedence over the base.
+> **auto-loaded entrypoint for the agent operating contract.** both claude code and codex load this file automatically at session start. > > **first instruction to every agent:** before acting, read the **start here (tier 0)** section of [`_base/agents.md`](./_base/agents.md) and follow its routing table — load the deeper sections and conventions it lists only as your current task requires. `_base/agents.md` is the authoritative base contract; this `agents.md` is the downstream-owned entrypoint that may add project-specific overrides below. treat the two files as a single contract, with overrides in this file taking precedence over the base.
+_none for the base template itself._
+anything not listed here falls through to `_base/agents.md`.
+anything not listed here falls through to `agents_base.md`.
+downstream projects, replace or extend this section with rules that are specific to your project — for example:
+downstream projects, replace this section with rules that are specific to your project — for example:
+for monorepos, place an `agents.md` in any subdirectory to override or extend the root contract for that area. subdirectory files should reference the root contract (this file + `_base/agents.md`) and specify only what differs. supported by claude code; codex reads only the root `agents.md`.
+for monorepos, place an `agents.md` in any subdirectory to override or extend the root contract for that area. subdirectory files should reference the root contract (this file + `agents_base.md`) and specify only what differs. supported by claude code; codex reads only the root `agents.md`.
+this is the **base template's** `agents.md`. it is intentionally minimal because the template itself has no project-specific overrides to make.
+this is the **base template's** `agents.md`. it is intentionally small and contains only the downstream-owned conventions that should seed new projects.
+when this template is seeded into a new project:

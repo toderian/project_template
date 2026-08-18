@@ -65,7 +65,7 @@ assert_eq "$INIT_RC" "0" "at init --all exits 0: $INIT_OUT"
 for f in AGENTS.md CLAUDE.md .claude/settings.json .codex/agents/implementer.toml \
          docs/tasks_manager/_todos docs/tasks_manager/_areas.md docs/tasks_manager/_roadmap.md \
          docs/tasks_manager/_logs docs/areas/_overview.md docs/resources/CONTEXT.md \
-         artifacts/README.md workbooks/README.md .config/repos.project.md; do
+         docs/_plans/.gitkeep artifacts/README.md workbooks/README.md .config/repos.project.md; do
   assert_exists "$PROJECT/$f" "at init --all creates $f"
 done
 
@@ -194,8 +194,12 @@ assert_eq "$EXPECTED_VERSION" "1.0.0" "plugin version is 1.0.0"
 # --- usage errors -----------------------------------------------------------
 at frobnicate >/dev/null 2>&1
 assert_eq "$?" "2" "unknown subcommand exits 2"
-at migrate >/dev/null 2>&1
-assert_eq "$?" "2" "at migrate is a Task 8 stub (exit 2)"
+MIGRATE_NOLEGACY="$(at migrate --yes 2>&1)"
+MIGRATE_NOLEGACY_RC=$?
+assert_eq "$MIGRATE_NOLEGACY_RC" "1" "at migrate refuses a repo with no legacy layout"
+assert_stdout_contains "$MIGRATE_NOLEGACY" "at init" "the refusal points at at init"
+at migrate --keep-tasks --no-tasks >/dev/null 2>&1
+assert_eq "$?" "2" "at migrate rejects --keep-tasks with --no-tasks"
 
 # --- at init without opt-in flags ------------------------------------------
 PROJECT2="$WORKDIR/project2"
@@ -301,6 +305,163 @@ assert_stdout_contains "$CANDIDATES" "$FAKEHOME/.claude/skills/old-skill" "symli
 assert_stdout_contains "$CANDIDATES" "$FAKEHOME/.agents/skills/legacy-wrapper" "symlink into a legacy skills/<bucket>/ tree is a candidate"
 assert_stdout_lacks "$CANDIDATES" "keep-me" "symlink into a non-template repo is not a candidate"
 assert_stdout_lacks "$CANDIDATES" "hand-written" "a real directory is not a candidate"
+
+# --- at migrate: real legacy downstreams (read-only clones) ------------------
+# Sources are only ever `git clone`d; the originals are never touched. Each case
+# is skipped with a SKIP line when its source is not present on this machine.
+LIGHT_SRC="${AT_TEST_LIGHT_SRC:-/home/vi/work/vitalii/repos/models_playground}"
+HEAVY_SRC="${AT_TEST_HEAVY_SRC:-/home/vi/work/ratio1/projects/project_r1_redmesh}"
+FOREIGN_SRC="${AT_TEST_FOREIGN_SRC:-/home/vi/work/ratio1/projects/project_r1_edge_node}"
+LEDGER_SCRIPT="$REPO/plugins/agents-tasks/skills/task-ledger/scripts/sync_todo_ledgers.py"
+
+clone_legacy() { # clone_legacy <src> <dst>
+  GIT_LFS_SKIP_SMUDGE=1 git clone -q "$1" "$2" || return 1
+  git -C "$2" config user.email "test@example.com"
+  git -C "$2" config user.name "at test"
+  # a clone has no `template` remote of its own; the real downstreams do
+  git -C "$2" remote add template git@github.com:toderian/project_template.git
+  git -C "$2" config merge.template-keep-local.driver "true"
+}
+
+# --- light downstream (no task ledger) --------------------------------------
+if [[ -d "$LIGHT_SRC/.git" ]]; then
+  LIGHT="$WORKDIR/light"
+  clone_legacy "$LIGHT_SRC" "$LIGHT"
+  cd "$LIGHT" || exit 1
+
+  DRY_OUT="$(at migrate 2>&1)"; DRY_RC=$?
+  assert_eq "$DRY_RC" "0" "at migrate is a dry run by default: $DRY_OUT"
+  assert_stdout_contains "$DRY_OUT" "dry run" "the default run says nothing changed"
+  assert_stdout_contains "$DRY_OUT" "_base/" "the plan names the legacy trees it would remove"
+  assert_eq "$(git status --porcelain | wc -l | tr -d ' ')" "0" "a dry run leaves the tree clean"
+  assert_exists "$LIGHT/_base" "a dry run keeps _base/"
+  assert_eq "$(git branch --list 'backup/pre-plugin-migration-*' | wc -l | tr -d ' ')" "0" \
+    "a dry run creates no backup branch"
+
+  printf 'scratch\n' > dirty.txt
+  DIRTY_OUT="$(at migrate --yes 2>&1)"; DIRTY_RC=$?
+  assert_eq "$DIRTY_RC" "1" "at migrate refuses a dirty working tree"
+  assert_stdout_contains "$DIRTY_OUT" "working tree" "the refusal names the dirty working tree"
+  assert_exists "$LIGHT/_base" "the refused run changed nothing"
+  rm dirty.txt
+
+  # a downstream's own subagent, its own .agents/ entry, and a template CONTEXT.md stub
+  mkdir -p .claude/agents .agents/plugins
+  printf -- '---\nname: custom-role\ndescription: a local subagent\n---\n\nBody.\n' \
+    > .claude/agents/custom-role.md
+  printf '{"name": "local-marketplace"}\n' > .agents/plugins/marketplace.json
+  printf '# Context\n\nSeeded from the template; replace with real domain terms.\n' > CONTEXT.md
+  git add -A >/dev/null 2>&1
+  git commit -qm "local additions"
+
+  MIG_OUT="$(at migrate --yes --commit 2>&1)"; MIG_RC=$?
+  assert_eq "$MIG_RC" "0" "at migrate --yes --commit exits 0 on a light downstream: $MIG_OUT"
+  for p in _base playbooks skills .claude/hooks .claude/skills .claude-plugin \
+           .agents/skills .agents/skill-library.json .agents/skills.enabled.json \
+           .claude/agents/implementer.md; do
+    assert_missing "$LIGHT/$p" "migrate removes $p"
+  done
+  assert_eq "$(git remote | grep -c '^template$')" "0" "migrate drops the template remote"
+  assert_eq "$(git config --get merge.template-keep-local.driver)" "" \
+    "migrate unsets the template merge drivers"
+  assert_eq "$(grep -c 'template-keep' .gitattributes)" "0" "migrate strips the merge-driver rules"
+  assert_contains .gitattributes "*.pdf binary" "migrate applies the managed .gitattributes block"
+  assert_contains .gitignore "# BEGIN agents-template" "migrate applies the managed .gitignore block"
+  assert_eq "$(head -n 1 CLAUDE.md)" "@AGENTS.md" "migrate writes CLAUDE.md"
+  LIGHT_LINES="$(wc -l < AGENTS.md | tr -d ' ')"
+  if [[ "$LIGHT_LINES" -le 200 ]]; then pass; else fail "migrated AGENTS.md is $LIGHT_LINES lines (> 200)"; fi
+  assert_eq "$(head -n 1 README.md)" "# light" "an all-template README is replaced by a project stub"
+  assert_exists "$LIGHT/.no-commit/AGENTS.md.pre-migration" "migrate keeps the old AGENTS.md"
+  assert_exists "$LIGHT/.no-commit/README.md.pre-migration" "migrate keeps the old README.md"
+  assert_eq "$(git ls-files .no-commit | wc -l | tr -d ' ')" "0" "the pre-migration copies stay untracked"
+  assert_exists "$LIGHT/docs/_plans/.gitkeep" "migrate seeds docs/_plans/"
+  assert_exists "$LIGHT/.claude/agents/custom-role.md" "migrate keeps a downstream's own subagent"
+  assert_exists "$LIGHT/.agents/plugins/marketplace.json" "migrate keeps other .agents/ entries"
+  assert_missing "$LIGHT/CONTEXT.md" "migrate removes a template CONTEXT.md stub"
+  assert_eq "$(grep -c '.claude/hooks/' .claude/settings.json)" "0" \
+    "migrate drops settings.json hooks that point at .claude/hooks/"
+  LIGHT_PLUGINS="$(python3 -c 'import json;d=json.load(open(".claude/settings.json"))["enabledPlugins"];print(d.get("agents-core@agents-template"), "agents-tasks@agents-template" in d)')"
+  assert_eq "$LIGHT_PLUGINS" "True False" "migrate enables agents-core only (no task ledger here)"
+  if diff -q .codex/agents/implementer.toml "$REPO/plugins/agents-core/codex/agents/implementer.toml" >/dev/null; then
+    pass
+  else
+    fail "migrate regenerates .codex/agents/*.toml from the plugin"
+  fi
+  assert_eq "$(git branch --list 'backup/pre-plugin-migration-*' | wc -l | tr -d ' ')" "1" \
+    "migrate creates one backup branch"
+  assert_eq "$(git status --porcelain | wc -l | tr -d ' ')" "0" "migrate --commit leaves a clean tree"
+  assert_eq "$(git log -1 --format=%s)" "chore: migrate to agents-template plugins" \
+    "migrate --commit uses the documented subject"
+  assert_stdout_contains "$(git log -1 --format=%B)" "Co-Authored-By" "the migration commit carries the trailer"
+  at doctor >/dev/null 2>&1
+  assert_eq "$?" "0" "at doctor exits 0 on the migrated light downstream"
+else
+  echo "SKIP: light downstream migration (no clone source at $LIGHT_SRC)"
+fi
+
+# --- heavy downstream (task ledger, LFS, project rules) ---------------------
+if [[ -d "$HEAVY_SRC/.git" ]]; then
+  HEAVY="$WORKDIR/heavy"
+  clone_legacy "$HEAVY_SRC" "$HEAVY"
+  cd "$HEAVY" || exit 1
+
+  LFS_BEFORE="$(grep -c 'filter=lfs' .gitattributes)"
+  TODOS_BEFORE="$(find docs/tasks_manager/_todos -type f | wc -l | tr -d ' ')"
+  LEDGER_ERR_BEFORE="$(python3 "$LEDGER_SCRIPT" --check --root "$HEAVY" 2>&1 | grep -c 'ERROR' || true)"
+
+  HEAVY_OUT="$(at migrate --yes --commit 2>&1)"; HEAVY_RC=$?
+  assert_eq "$HEAVY_RC" "0" "at migrate --yes --commit exits 0 on a heavy downstream: $HEAVY_OUT"
+  for p in _base playbooks skills .claude/hooks .claude/skills .claude-plugin \
+           .agents/skills .agents/skill-library.json .agents/skills.enabled.json; do
+    assert_missing "$HEAVY/$p" "heavy migrate removes $p"
+  done
+  assert_eq "$(git remote | grep -c '^template$')" "0" "heavy migrate drops the template remote"
+  assert_eq "$(grep -c 'template-keep' .gitattributes)" "0" "heavy migrate strips the merge-driver rules"
+  assert_eq "$(grep -c 'filter=lfs' .gitattributes)" "$LFS_BEFORE" \
+    "heavy migrate keeps every project Git LFS rule"
+  assert_eq "$(grep -c '.claude/hooks/' .claude/settings.json)" "0" \
+    "heavy migrate drops settings.json hooks that point at .claude/hooks/"
+  assert_contains AGENTS.md "docs/resources/CONTEXT.md" "heavy migrate preserves the project rules"
+  assert_contains AGENTS.md "at ledger check" "a preserved rule is repointed at the at CLI"
+  assert_eq "$(grep -c '_base/' AGENTS.md)" "0" "no preserved rule still points into _base/"
+  HEAVY_LINES="$(wc -l < AGENTS.md | tr -d ' ')"
+  if [[ "$HEAVY_LINES" -le 200 ]]; then pass; else fail "migrated AGENTS.md is $HEAVY_LINES lines (> 200)"; fi
+  assert_exists "$HEAVY/.no-commit/AGENTS.md.pre-migration" "heavy migrate keeps the old AGENTS.md"
+  assert_eq "$(find docs/tasks_manager/_todos -type f | wc -l | tr -d ' ')" "$TODOS_BEFORE" \
+    "heavy migrate leaves the task ledger alone"
+  HEAVY_PLUGINS="$(python3 -c 'import json;d=json.load(open(".claude/settings.json"))["enabledPlugins"];print(d.get("agents-core@agents-template"), d.get("agents-tasks@agents-template"))')"
+  assert_eq "$HEAVY_PLUGINS" "True True" "heavy migrate enables agents-core and agents-tasks"
+  assert_exists "$HEAVY/CONTEXT.md" "heavy migrate keeps a CONTEXT.md that is not the template stub"
+  assert_exists "$HEAVY/.config/repos.project.md" "heavy migrate keeps the repo registry"
+  assert_exists "$HEAVY/workbooks/README.md" "heavy migrate keeps the workbooks registry"
+  assert_eq "$(git branch --list 'backup/pre-plugin-migration-*' | wc -l | tr -d ' ')" "1" \
+    "heavy migrate creates one backup branch"
+  assert_eq "$(git status --porcelain | wc -l | tr -d ' ')" "0" "heavy migrate --commit leaves a clean tree"
+  LEDGER_ERR_AFTER="$(at ledger check 2>&1 | grep -c 'ERROR' || true)"
+  assert_eq "$LEDGER_ERR_AFTER" "$LEDGER_ERR_BEFORE" "heavy migrate adds no ledger errors"
+  at doctor >/dev/null 2>&1
+  assert_eq "$?" "0" "at doctor exits 0 on the migrated heavy downstream"
+else
+  echo "SKIP: heavy downstream migration (no clone source at $HEAVY_SRC)"
+fi
+
+# --- downstream with foreign files under skills/ ----------------------------
+if [[ -d "$FOREIGN_SRC/.git" ]]; then
+  FOREIGN="$WORKDIR/foreign"
+  clone_legacy "$FOREIGN_SRC" "$FOREIGN"
+  cd "$FOREIGN" || exit 1
+
+  FOREIGN_OUT="$(at migrate --yes 2>&1)"; FOREIGN_RC=$?
+  assert_eq "$FOREIGN_RC" "1" "at migrate aborts on foreign files under skills/"
+  assert_stdout_contains "$FOREIGN_OUT" "skills/watch.py" "the abort names the first foreign file"
+  assert_stdout_contains "$FOREIGN_OUT" "skills/run_container_app.py" "the abort names the second foreign file"
+  assert_exists "$FOREIGN/_base" "the aborted run changed nothing"
+  assert_eq "$(git status --porcelain | wc -l | tr -d ' ')" "0" "the aborted run leaves the tree clean"
+  assert_eq "$(git branch --list 'backup/pre-plugin-migration-*' | wc -l | tr -d ' ')" "0" \
+    "the aborted run creates no backup branch"
+else
+  echo "SKIP: foreign-file migration abort (no clone source at $FOREIGN_SRC)"
+fi
 
 # --- summary ----------------------------------------------------------------
 cd "$REPO" || exit 1
