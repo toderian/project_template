@@ -39,11 +39,17 @@ before anything is written, so an abort leaves the repo exactly as it was.
 If the only dirtiness is untracked files — a build output, a huge attachments tree, a WIP file
 you are not ready to commit — pass `--allow-untracked` instead of stashing or committing them:
 `git status --porcelain` may contain any number of `??` entries, but a single tracked
-modification or staged change still refuses with the same message. With `--allow-untracked`,
-`--commit` never runs `git add -A`; it stages tracked changes (`git add -u`) plus the exact
-paths migration itself created or rewrote, one by one, then asserts none of those staged paths
-were on the pre-migration untracked list before it commits. Your untracked files are never
-staged, removed or swept into the migration commit.
+modification or staged change still refuses with the same message. Untracked files are never
+staged or committed; if any of them lie inside a tree migrate removes (`_base/`, `.claude/hooks/`,
+and the rest of the list above), migrate refuses instead of deleting them — move them out first,
+the same way it refuses on a downstream-authored file inside `playbooks/`/`skills/`. With
+`--allow-untracked`, `--commit` never runs `git add -A`; it stages tracked changes (`git add -u`)
+plus the exact paths migration itself created or rewrote, force-added one by one (`git add -f`,
+since a downstream's own `.gitignore` may ignore a path migration manages regardless of that
+local rule), then asserts none of the newly staged paths were on the pre-migration untracked list
+— excluding the paths migration itself just staged, so seeding its own files into a directory
+that happened to be untracked before is never mistaken for a leak. Any add failure or a genuine
+leak unstages everything (`git reset -q`) before it dies; nothing is committed.
 
 ## 3. Apply it
 

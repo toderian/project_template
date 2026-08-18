@@ -1029,19 +1029,43 @@ def _label(repo: Path, path: Path) -> str:
     return rel + "/" if path.is_dir() else rel
 
 
-def _path_was_untracked(path: str, untracked_before: list[str]) -> bool:
-    """True if `path` (from `git diff --name-only`) is, or falls inside, one
-    of the pre-migration `??` entries. `git status --porcelain` collapses a
-    wholly-untracked directory to a single `dir/` entry, so a directory entry
-    matches both itself and anything staged from underneath it.
+def _norm_dir(path: str) -> str:
+    """Strip a trailing slash — git's porcelain marker for a directory
+    collapsed to one entry because everything under it shares one status."""
+    return path[:-1] if path.endswith("/") else path
+
+
+def _path_matches_any(path: str, entries: list[str]) -> bool:
+    """True if `path` equals, or is nested inside, any entry in `entries`.
+
+    Used both ways: is an untracked path inside a tree migrate deletes, and
+    is a staged path (from `git diff --name-only`) one that was untracked
+    before migrate started. A directory entry (trailing slash — git's
+    porcelain marker for a directory collapsed because everything under it
+    shares one status) matches both itself and anything nested under it.
     """
-    for entry in untracked_before:
-        if entry.endswith("/"):
-            if path == entry[:-1] or path.startswith(entry):
-                return True
-        elif path == entry:
+    norm_path = _norm_dir(path)
+    for entry in entries:
+        norm_entry = _norm_dir(entry)
+        if norm_path == norm_entry or norm_path.startswith(norm_entry + "/"):
             return True
     return False
+
+
+def _leaked_untracked_paths(staged: list[str], own_paths: set[str],
+                            untracked_before: list[str]) -> list[str]:
+    """Staged paths that were untracked before `at migrate` started and are
+    not among the paths migrate itself created, merged or rewrote (`own_paths`).
+
+    A last-resort safety net right before `--commit` commits anything: without
+    the `own_paths` exclusion, a pre-existing untracked path that migrate
+    deliberately overwrites or creates itself (e.g. an untracked `.codex/`
+    directory before migrate seeds `.codex/agents/*.toml` into it) would
+    false-positive here, aborting after the whole tree has already been
+    rewritten.
+    """
+    return sorted(path for path in staged
+                  if path not in own_paths and _path_matches_any(path, untracked_before))
 
 
 def cmd_migrate(args: argparse.Namespace) -> int:
@@ -1057,11 +1081,20 @@ def cmd_migrate(args: argparse.Namespace) -> int:
     if branch not in DEFAULT_BRANCHES:
         die(f"on branch `{branch}` — migrate from the default branch "
             f"({' or '.join('`' + b + '`' for b in DEFAULT_BRANCHES)})")
-    status_lines = _git(repo, "status", "--porcelain").stdout.splitlines()
-    tracked_dirty = [line for line in status_lines if not line.startswith("??")]
-    if tracked_dirty or (status_lines and not args.allow_untracked):
-        die(f"the working tree is not clean ({len(status_lines)} changed or untracked path(s)); "
-            "commit or stash first — migration rewrites tracked files")
+    # `-z`: NUL-delimited, so an untracked path is never C-quoted/escaped —
+    # no unescaping needed to recover the real path.
+    status_out = _git(repo, "status", "--porcelain", "-z").stdout
+    status_entries = [entry for entry in status_out.split("\0") if entry]
+    tracked_dirty = [entry for entry in status_entries if not entry.startswith("??")]
+    # Pre-migration untracked (`??`) set, computed once, right after the
+    # precondition that reads it: `--allow-untracked` lets these survive
+    # alongside a dirty-tree refusal, but they must never be staged, removed,
+    # or otherwise touched by anything migrate does below.
+    untracked_before = [entry[3:] for entry in status_entries if entry.startswith("??")]
+    if tracked_dirty or (untracked_before and not args.allow_untracked):
+        die(f"the working tree is not clean ({len(tracked_dirty)} tracked change(s), "
+            f"{len(untracked_before)} untracked path(s)); commit or stash first — migration "
+            "rewrites tracked files")
     foreign = foreign_template_files(repo)
     if foreign:
         die("these files live in trees this migration deletes, but no version of the template "
@@ -1070,10 +1103,19 @@ def cmd_migrate(args: argparse.Namespace) -> int:
             + "\nmove or delete these first (or adopt them into a plugin), "
               "then re-run `at migrate`")
 
-    # Pre-migration untracked (`??`) set, computed once: `--allow-untracked` lets
-    # these survive alongside a dirty-tree refusal, but they must never be staged
-    # or removed by anything migrate does below.
-    untracked_before = [line[3:] for line in status_lines if line.startswith("??")]
+    removals = migration_removals(repo)
+    if untracked_before:
+        # An untracked file inside a tree migrate deletes would otherwise be
+        # silently destroyed by `_remove()`/`shutil.rmtree` below — refuse
+        # instead, the same way `foreign_template_files` refuses on a
+        # downstream-authored file inside skills/playbooks trees.
+        removal_labels = [_label(repo, path) for path in removals]
+        blocked = sorted({entry for entry in untracked_before
+                          if _path_matches_any(entry, removal_labels)})
+        if blocked:
+            die("these untracked path(s) live inside a tree `at migrate` deletes; move them out "
+                "first — migrate will not delete untracked files:\n"
+                + "\n".join(f"  {path}" for path in blocked))
 
     with_tasks = (repo / "docs" / "tasks_manager" / "_todos").is_dir()
     if args.keep_tasks:
@@ -1088,7 +1130,6 @@ def cmd_migrate(args: argparse.Namespace) -> int:
             "registry) but agents-tasks is not installed "
             "(run: claude plugin install agents-tasks@agents-template, or set AT_TASKS_ROOT)")
 
-    removals = migration_removals(repo)
     remotes = template_remotes(repo)
     old_agents = (repo / "AGENTS.md").read_text() if (repo / "AGENTS.md").exists() else ""
     old_readme = (repo / "README.md").read_text() if (repo / "README.md").exists() else ""
@@ -1132,8 +1173,8 @@ def cmd_migrate(args: argparse.Namespace) -> int:
 
     print(f"at migrate: {repo}")
     if untracked_before:
-        print(f"  ignore   {len(untracked_before)} untracked path(s) left alone "
-              "(--allow-untracked)")
+        print(f"  ignore   {len(untracked_before)} untracked path(s) (--allow-untracked): "
+              "never staged or committed")
     for path in removals:
         print(f"  remove   {_label(repo, path)}")
     for remote in remotes:
@@ -1238,16 +1279,20 @@ def cmd_migrate(args: argparse.Namespace) -> int:
         ])
         # Never `git add -A`: that would sweep up untracked paths the caller
         # explicitly asked to leave alone (--allow-untracked). Stage tracked
-        # changes only, plus the exact paths migrate itself created or merged.
+        # changes only, plus the exact paths migrate itself created or merged
+        # — force-added (`-f`), since a downstream's own `.gitignore` may
+        # ignore a path migrate manages regardless of that local rule (e.g.
+        # a `.claude/` or `.codex/` line added outside the managed block).
         if _git(repo, "add", "-u").returncode != 0:
+            _git(repo, "reset", "-q")
             die("`git add -u` failed; commit by hand")
         for rel in added:
-            if _git(repo, "add", "--", rel).returncode != 0:
-                die(f"`git add -- {rel}` failed; commit by hand")
+            if _git(repo, "add", "-f", "--", rel).returncode != 0:
+                _git(repo, "reset", "-q")
+                die(f"`git add -f -- {rel}` failed; commit by hand")
 
         staged = _git_out(repo, "diff", "--cached", "--name-only").splitlines()
-        leaked = sorted(path for path in staged
-                        if _path_was_untracked(path, untracked_before))
+        leaked = _leaked_untracked_paths(staged, set(added), untracked_before)
         if leaked:
             _git(repo, "reset", "-q")
             die("refusing to commit: these path(s) were untracked before `at migrate` ran and "

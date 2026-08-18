@@ -317,6 +317,27 @@ assert_stdout_contains "$CANDIDATES" "$FAKEHOME/.agents/skills/legacy-wrapper" "
 assert_stdout_lacks "$CANDIDATES" "keep-me" "symlink into a non-template repo is not a candidate"
 assert_stdout_lacks "$CANDIDATES" "hand-written" "a real directory is not a candidate"
 
+# _leaked_untracked_paths: the last-resort safety check `at migrate --commit`
+# runs right before it commits. Exercise the pure function directly with a
+# synthetic staged list — this legitimately drives its die-branch logic
+# (a genuinely leaked path) alongside the exclusion that stops it from
+# false-positiving on migrate's own managed paths (see IMPORTANT 3 below).
+LEAK_CHECK="$(python3 - "$AT_PY" <<'PY'
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("at", sys.argv[1])
+at = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(at)
+
+staged = ["CLAUDE.md", "wip.txt", "data/blob.bin", ".codex/agents/plan-critic.toml"]
+own_paths = {"CLAUDE.md", ".codex/agents/plan-critic.toml"}
+untracked_before = ["wip.txt", "data/", ".codex/"]
+for path in at._leaked_untracked_paths(staged, own_paths, untracked_before):
+    print(path)
+PY
+)"
+assert_eq "$LEAK_CHECK" "$(printf 'data/blob.bin\nwip.txt')" \
+  "_leaked_untracked_paths flags genuinely leaked paths and excludes migrate's own managed path"
+
 # --- at migrate: real legacy downstreams (read-only clones) ------------------
 # Sources are only ever `git clone`d; the originals are never touched. Each case
 # is skipped with a SKIP line when its source is not present on this machine.
@@ -419,6 +440,26 @@ else
   echo "SKIP: light downstream migration (no clone source at $LIGHT_SRC)"
 fi
 
+# --- at migrate --commit on a downstream that locally gitignores .claude/ ---
+# A downstream's own `.gitignore` may ignore a path migrate itself manages
+# (its own local convention, unrelated to the managed block) — `--commit`
+# must still stage and commit that path; it is force-added on purpose.
+if [[ -d "$LIGHT_SRC/.git" ]]; then
+  GITIGNORED="$WORKDIR/light-gitignored-claude"
+  clone_legacy "$LIGHT_SRC" "$GITIGNORED"
+  cd "$GITIGNORED" || exit 1
+  printf '\n.claude/\n' >> .gitignore
+  git add .gitignore
+  git commit -qm "locally ignore .claude/ (simulates a downstream's own rule)"
+  GI_OUT="$(at migrate --yes --commit 2>&1)"; GI_RC=$?
+  assert_eq "$GI_RC" "0" \
+    "migrate succeeds when the downstream's own .gitignore ignores .claude/: $GI_OUT"
+  assert_stdout_contains "$(git show --name-only HEAD)" ".claude/settings.json" \
+    "the migration commit includes .claude/settings.json even though it is locally gitignored"
+else
+  echo "SKIP: migrate with a locally gitignored .claude/ (no clone source at $LIGHT_SRC)"
+fi
+
 # --- at migrate --allow-untracked: untracked-only dirtiness -----------------
 # Real targets carry untracked paths that must never be committed or removed
 # (a multi-GB untracked attachments tree, a WIP task file mid-draft). `at
@@ -442,7 +483,7 @@ if [[ -d "$LIGHT_SRC/.git" ]]; then
   ALLOW_OUT="$(at migrate --allow-untracked --yes --commit 2>&1)"; ALLOW_RC=$?
   assert_eq "$ALLOW_RC" "0" \
     "--allow-untracked --yes --commit succeeds with untracked-only dirtiness: $ALLOW_OUT"
-  assert_stdout_contains "$ALLOW_OUT" "2 untracked path(s) left alone" \
+  assert_stdout_contains "$ALLOW_OUT" "2 untracked path(s)" \
     "migrate prints the count of untracked paths it is leaving alone"
   assert_exists "$UNTRACKED/wip.txt" "wip.txt is still on disk after migrate"
   assert_exists "$UNTRACKED/data/blob.bin" "data/blob.bin is still on disk after migrate"
@@ -643,6 +684,89 @@ assert_stdout_lacks "$PB_OUT" "conventions/todo-convention.md" "a template conve
 assert_exists "$FOREIGNPB/_base" "the aborted playbook run changed nothing"
 assert_eq "$(git branch --list 'backup/pre-plugin-migration-*' | wc -l | tr -d ' ')" "0" \
   "the aborted playbook run creates no backup branch"
+
+# an untracked file living inside a tree migrate deletes must refuse instead
+# of being silently destroyed by `_remove()`/`shutil.rmtree`
+UNTRACKEDINSIDE="$WORKDIR/legacy-untracked-inside-removal"
+make_legacy_repo "$UNTRACKEDINSIDE"
+mkdir -p "$UNTRACKEDINSIDE/.claude/hooks"
+printf '#!/bin/bash\necho legacy\n' > "$UNTRACKEDINSIDE/.claude/hooks/legacy-hook.sh"
+git -C "$UNTRACKEDINSIDE" add -A >/dev/null 2>&1
+git -C "$UNTRACKEDINSIDE" commit -qm init
+cd "$UNTRACKEDINSIDE" || exit 1
+printf 'private notes\n' > _base/local-notes.md
+printf '#!/bin/bash\necho mine\n' > .claude/hooks/my-own-hook.sh
+GUARD_OUT="$(at migrate --allow-untracked --yes 2>&1)"; GUARD_RC=$?
+assert_eq "$GUARD_RC" "1" \
+  "migrate refuses when an untracked file lives inside a tree it deletes"
+assert_stdout_contains "$GUARD_OUT" "_base/local-notes.md" \
+  "the refusal names the untracked file under _base/"
+assert_stdout_contains "$GUARD_OUT" ".claude/hooks/my-own-hook.sh" \
+  "the refusal names the untracked file under .claude/hooks/"
+assert_exists "$UNTRACKEDINSIDE/_base/local-notes.md" \
+  "the untracked file under _base/ was not deleted"
+assert_exists "$UNTRACKEDINSIDE/.claude/hooks/my-own-hook.sh" \
+  "the untracked file under .claude/hooks/ was not deleted"
+assert_exists "$UNTRACKEDINSIDE/_base" "the refused run left _base/ in place"
+assert_eq "$(git branch --list 'backup/pre-plugin-migration-*' | wc -l | tr -d ' ')" "0" \
+  "no backup branch is created when migrate refuses on an untracked file inside a removed tree"
+
+# a foreign untracked file sharing a not-yet-tracked .codex/ directory with
+# the six .codex/agents/*.toml migrate itself seeds must not false-positive
+# the leak check (IMPORTANT 3): migrate created those paths itself.
+LEAKCODEX="$WORKDIR/legacy-leak-codex"
+make_legacy_repo "$LEAKCODEX"
+git -C "$LEAKCODEX" add -A >/dev/null 2>&1
+git -C "$LEAKCODEX" commit -qm init
+cd "$LEAKCODEX" || exit 1
+mkdir -p .codex/agents
+printf 'not a template file\n' > .codex/agents/README.txt
+if [[ "$(git status --porcelain)" == "?? .codex/" ]]; then
+  pass
+else
+  fail ".codex/ collapses to one untracked entry before migrate runs (fixture assumption)"
+fi
+LEAKCODEX_OUT="$(at migrate --allow-untracked --yes --commit 2>&1)"; LEAKCODEX_RC=$?
+assert_eq "$LEAKCODEX_RC" "0" \
+  "migrate succeeds when a foreign untracked file shares a collapsed dir with paths it seeds: $LEAKCODEX_OUT"
+LEAKCODEX_COMMIT="$(git show --name-only HEAD)"
+assert_stdout_contains "$LEAKCODEX_COMMIT" ".codex/agents/plan-critic.toml" \
+  "the six generated .codex/agents/*.toml are in the commit"
+assert_stdout_lacks "$LEAKCODEX_COMMIT" ".codex/agents/README.txt" \
+  "the foreign untracked file is not in the commit"
+assert_eq "$(git ls-files .codex/agents/README.txt | wc -l | tr -d ' ')" "0" \
+  ".codex/agents/README.txt is still untracked after migrate"
+assert_exists "$LEAKCODEX/.codex/agents/README.txt" \
+  ".codex/agents/README.txt still exists on disk"
+
+# an untracked WIP task file sharing a not-yet-tracked docs/tasks_manager/
+# tree with the ledger files migrate seeds must survive untouched — proves
+# the leak-check exclusion holds across a whole freshly-seeded tree, not
+# just a single directory. The process exit code is not asserted here:
+# `at doctor`'s embedded ledger check correctly flags the freshly-added,
+# never-synced task as stale (run `at ledger sync`) — an orthogonal, correct
+# signal unrelated to the leak check. "Succeeds" here means the migration
+# commit happens and the leak check does not false-positive on its own
+# seeded files.
+LEAKWIP="$WORKDIR/legacy-leak-wip-task"
+make_legacy_repo "$LEAKWIP"
+git -C "$LEAKWIP" add -A >/dev/null 2>&1
+git -C "$LEAKWIP" commit -qm init
+cd "$LEAKWIP" || exit 1
+mkdir -p docs/tasks_manager/_todos
+printf '# scratch WIP notes, not a real task file\n' > docs/tasks_manager/_todos/WIP-999-F_wip.md
+LEAKWIP_OUT="$(at migrate --allow-untracked --yes --commit 2>&1)"
+assert_stdout_contains "$LEAKWIP_OUT" "committed" \
+  "migrate commits despite an untracked WIP file sharing the freshly-seeded docs/tasks_manager/ tree"
+assert_stdout_lacks "$LEAKWIP_OUT" "refusing to commit" \
+  "the leak check does not false-positive on migrate's own freshly-seeded ledger files"
+LEAKWIP_COMMIT="$(git show --name-only HEAD)"
+assert_stdout_lacks "$LEAKWIP_COMMIT" "WIP-999-F_wip.md" \
+  "the untracked WIP task file is not in the commit"
+assert_eq "$(git ls-files docs/tasks_manager/_todos/WIP-999-F_wip.md | wc -l | tr -d ' ')" "0" \
+  "the WIP task file is still untracked after migrate"
+assert_exists "$LEAKWIP/docs/tasks_manager/_todos/WIP-999-F_wip.md" \
+  "the WIP task file still exists on disk"
 
 # --- downstream with its own playbook skill (real repo) ---------------------
 if [[ -d "$WRITING_SRC/.git" ]]; then
