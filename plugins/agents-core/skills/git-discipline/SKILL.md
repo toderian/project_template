@@ -1,15 +1,104 @@
 ---
 name: git-discipline
-description: "Git workflow discipline and autonomy-level permission ceilings for agent loops. Use when deciding how far an agent may proceed without asking again, or how to branch, commit, and push safely."
+description: "Branch, commit, squash and push rules plus the autonomy ladder (L0-L3). Use when deciding where to commit, whether to branch, how to write commit messages, when squashing task commits, or when a push/force/reset is being considered."
 metadata:
-  source: playbooks/conventions/autonomy-levels.md
+  source: [_base/AGENTS.md, playbooks/conventions/autonomy-levels.md]
 ---
 
 # Git Discipline
 
-This skill's body is being filled in by a later task (Task 6 of the plugin restructure). For now it
-holds the following reference material, moved here from the old conventions directory (see
-`metadata.source` above):
+## Purpose
 
-- `references/autonomy-levels.md` — autonomy levels (L0-L3+) that define how far an agent loop may
-  proceed without asking again, layered on top of branch, repo, task, and runtime rules.
+Canonical branch, commit, and push rules for agent work, plus the autonomy ladder (L0-L3) that caps how
+far an agent loop may go without asking again. Other skills point here instead of restating these rules.
+
+## Determine repo mode
+
+Before code edits, determine the repo mode from the user request, project-specific `AGENTS.md`, task
+metadata, `.config/repos.project.md` when present, or current repo convention. `.config/repos.project.md`
+is a default registry; explicit user instructions, task files, and repo-specific `AGENTS.md` override it.
+
+If no `.config/repos.project.md` exists in a template-inherited downstream repo, default to the repo's
+configured default branch (`main` or `master`). If already on a non-default branch, ask before
+continuing. Do not create a feature/task branch merely because commits will be made.
+
+**Downstream template-maintenance repos**: work directly on the default branch. Do not create feature
+branches unless the user explicitly asks or host/CI policy requires it. If the session starts on a
+non-default branch, ask before continuing or switching.
+
+**Working/product repos**: work on the current/default branch unless a user instruction, task file,
+issue, repo-specific `AGENTS.md`, or `.config/repos.project.md` row says `task-branch`. When
+`task-branch` mode applies and no task branch is defined, ask for one, or ask whether the current branch
+should be treated as the task branch. Do not create nested/subbranches unless the user explicitly asks.
+
+`Work mode` values (`default-branch` / `same-branch` / `task-branch` / `read-only` / `ask`) and the
+`Autonomy max` ceiling are recorded per repo in `.config/repos.project.md`; work mode decides *where*
+work happens, autonomy decides *how far* it may go, and the strictest rule wins.
+
+## Commit discipline
+
+Commit after each coherent, reviewable slice: one task slice, one plan phase, one bug fix, or one
+documentation batch. Do not commit every tiny edit, and do not leave a large completed task as one
+uncommitted dump.
+
+When asked to commit:
+
+- use a concise conventional summary line with a prefix such as `feat:`, `fix:`, or `chore:`
+- always include a commit body, not only a one-line summary
+- structure the body as What changed / Why / Checks, each a few high-signal lines
+- stage only files that belong to the completed slice; never sweep in unrelated dirty changes
+- run relevant checks first, or state clearly why they could not be run
+
+Example:
+
+```text
+feat: add retry backoff to sync client
+
+What changed:
+- Added exponential backoff with jitter to the sync client retry loop.
+
+Why:
+- Transient network errors were causing immediate retries and rate-limit bans.
+
+Checks:
+- npm test: pass
+- manual retry simulation: pass
+```
+
+Task progress files are part of the work. When implementing a tracked task, update phase checkboxes,
+`Updated`, `Last executed`, and the append-only execution log as work progresses.
+
+## Push discipline
+
+Pushing is a human action. The `block-dangerous-git` hook refuses `git push` in any form, `reset --hard`,
+`clean -f*`, `branch -D`, `checkout .` / `restore .`, forced `git add`, and staging `.creds/` or
+`.venv/` paths at every autonomy level, including L2 and L3. No autonomy level, task instruction, or
+user phrasing bypasses the hook; if a push is genuinely needed, the user runs it or explicitly confirms
+the exact command at the time of action.
+
+If asked to prepare a push-ready commit, make sure the local commit message already follows the format
+above. Autonomy L2/L3 governs when an agent may propose pushing or repair CI on an approved branch, not
+whether the hook allows the command to execute — the hook's refusal is not something to work around.
+
+## Squashing
+
+Once a task is fully implemented, validated, and reviewed, its own phase/review commits may be squashed
+into a single final task commit. Route that cleanup through the `squash-workspace-commits` skill: audit
+first, squash only safely identifiable task commits, preserve the important commit-message details, and
+never rewrite pushed/shared history without explicit user approval.
+
+## Autonomy ladder
+
+Autonomy levels cap how far an agent loop may proceed without asking again, layered on top of the
+branch/work-mode rules above. Default is **L1**. See `references/autonomy-levels.md` for the full
+ladder (L0 read-only inspection through L3 draft-PR validation), the explicit exclusions (merge, deploy,
+release, force-push, history rewrite, mark-ready-for-review), and the resolution precedence when repo,
+task, and user autonomy signals conflict.
+
+## Quality bar
+
+- Branch/work-mode decisions are recorded before edits, not assumed.
+- Commits are conventional, sliced, and carry a What changed / Why / Checks body.
+- No push, force-op, or history rewrite is attempted; the hook and this skill agree pushing is a human
+  action.
+- Squashes go through `squash-workspace-commits`; ad hoc history rewrites do not.
