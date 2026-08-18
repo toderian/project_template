@@ -1082,8 +1082,13 @@ class Generator:
             return 1
 
         body_text = "\n".join(lines[start + 1 : end]).strip("\n")
-        if body_text == "":
-            print(f"'{taskid}' execution log is already empty; nothing to rotate")
+        pointer = f"See [_logs/{taskid}.md](../_logs/{taskid}.md). New entries go there."
+        if body_text in ("", pointer):
+            # Either genuinely empty, or already rotated and untouched since
+            # (the section body is only the pointer we left last time) --
+            # nothing new to move, and re-rotating would just duplicate the
+            # pointer text into the log file.
+            print(f"'{taskid}' execution log has nothing new to rotate")
             return 0
 
         logs_dir = self.tm / "_logs"
@@ -1097,7 +1102,6 @@ class Generator:
             new_log_text = header + "\n\n" + body_text + "\n"
         log_path.write_text(new_log_text, encoding="utf-8")
 
-        pointer = f"See [_logs/{taskid}.md](../_logs/{taskid}.md). New entries go there."
         new_lines = lines[: start + 1] + ["", pointer, ""] + lines[end:]
         path.write_text("\n".join(new_lines), encoding="utf-8")
 
