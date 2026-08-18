@@ -28,9 +28,13 @@ at migrate --dry-run
 rewrite, keep and seed is listed.
 
 It refuses to go further when the working tree is dirty, when you are not on `master`/`main`,
-when there is no `_base/`/`playbooks/` tree to migrate, or when `skills/` holds files that are
-not part of a template skill tree. That last one is deliberate — move or delete those files
-yourself (they are your project's, not the template's), then re-run.
+when there is no `_base/`/`playbooks/` tree to migrate, or when one of the trees it deletes
+(`playbooks/`, `skills/`, `.claude/skills/`, `.agents/skills/`) holds a file no version of the
+template ever shipped. That last one is deliberate: migration deletes those trees whole, so
+anything of your own inside them — a project playbook such as
+`playbooks/skills/personal/my-thing.md` and its sidecar scripts — has to come out first. Move or
+delete the listed paths (or adopt them into a plugin of your own), then re-run. The check runs
+before anything is written, so an abort leaves the repo exactly as it was.
 
 ## 3. Apply it
 
@@ -45,15 +49,21 @@ What happens, in order:
    `.agents/skills/`, `.agents/skill-library.json`, `.agents/skills.enabled.json`,
    `.claude/hooks/`, `.claude-plugin/`, the six template subagents in `.claude/agents/`, and a
    `CONTEXT.md` that is still the template stub. Your own files in those directories stay.
-3. The `template` git remote and the `merge.template-keep-*` git config are removed, and the
+3. Remotes that point at the template are removed — one named `template` or `templates`, or any
+   remote whose fetch URL ends in `toderian/project_template.git` or `/project_template`; the
+   plan lists them by name, and your own remotes are untouched. The `merge.template-keep-*` git
+   config goes too, and the
    `# BEGIN agents-template merge rules` block plus every `merge=template-keep-*` line leave
    `.gitattributes`. Project rules in that file — Git LFS patterns especially — are untouched.
 4. `.claude/settings.json` loses the hook entries that ran scripts from `.claude/hooks/`
    (hooks now come from the plugin); every other key you set survives.
 5. `AGENTS.md` becomes the ≤ 200-line plugin seed. Your project rules are carried over into
-   `## Project` → `### Domain rules and invariants`: everything the old file said that was not
-   template boilerplate, with references to deleted `_base/` scripts repointed at the `at` CLI.
-   The complete old file is saved to `.no-commit/AGENTS.md.pre-migration` (gitignored).
+   `## Project` → `### Domain rules and invariants`: everything under the old file's
+   `## Project-specific overrides` heading (any capitalisation) that was not template
+   boilerplate, with references to deleted `_base/` scripts repointed at the `at` CLI. If the old
+   file has no such heading, nothing is carried over and migrate prints a WARN — merge your rules
+   in by hand afterwards. Either way the complete old file is saved to
+   `.no-commit/AGENTS.md.pre-migration` (gitignored).
 6. A `README.md` that is still the template's is replaced by a short project stub, or trimmed
    down to your own content when your README was appended below the template's. A README that
    was already your own is left alone. The old file is saved to
@@ -95,4 +105,5 @@ If a harness still shows the old skills, they are stale global symlinks — see
 ## 6. Repos that were never seeded from the template
 
 There is nothing to migrate: run `at init` (with the `--with-*` flags you want), add
-`CLAUDE.md`, and `git remote remove template` if one is set.
+`CLAUDE.md`, and remove the template remote (`git remote remove template`, or `templates` —
+check `git remote -v`) if one is set.

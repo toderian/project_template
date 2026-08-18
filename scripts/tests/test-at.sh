@@ -312,6 +312,7 @@ assert_stdout_lacks "$CANDIDATES" "hand-written" "a real directory is not a cand
 LIGHT_SRC="${AT_TEST_LIGHT_SRC:-/home/vi/work/vitalii/repos/models_playground}"
 HEAVY_SRC="${AT_TEST_HEAVY_SRC:-/home/vi/work/ratio1/projects/project_r1_redmesh}"
 FOREIGN_SRC="${AT_TEST_FOREIGN_SRC:-/home/vi/work/ratio1/projects/project_r1_edge_node}"
+WRITING_SRC="${AT_TEST_WRITING_SRC:-/home/vi/work/vitalii/repos/project_technical_writing}"
 LEDGER_SCRIPT="$REPO/plugins/agents-tasks/skills/task-ledger/scripts/sync_todo_ledgers.py"
 
 clone_legacy() { # clone_legacy <src> <dst>
@@ -337,6 +338,9 @@ if [[ -d "$LIGHT_SRC/.git" ]]; then
   assert_exists "$LIGHT/_base" "a dry run keeps _base/"
   assert_eq "$(git branch --list 'backup/pre-plugin-migration-*' | wc -l | tr -d ' ')" "0" \
     "a dry run creates no backup branch"
+  assert_eq "$(git remote | grep -c '^template$')" "1" "a dry run keeps the template remote"
+  assert_eq "$(git config --get merge.template-keep-local.driver)" "true" \
+    "a dry run keeps the template merge drivers"
 
   printf 'scratch\n' > dirty.txt
   DIRTY_OUT="$(at migrate --yes 2>&1)"; DIRTY_RC=$?
@@ -351,6 +355,8 @@ if [[ -d "$LIGHT_SRC/.git" ]]; then
     > .claude/agents/custom-role.md
   printf '{"name": "local-marketplace"}\n' > .agents/plugins/marketplace.json
   printf '# Context\n\nSeeded from the template; replace with real domain terms.\n' > CONTEXT.md
+  git remote add templates https://github.com/toderian/project_template.git
+  git remote add upstream-tpl git@github.com:toderian/project_template.git
   git add -A >/dev/null 2>&1
   git commit -qm "local additions"
 
@@ -362,6 +368,9 @@ if [[ -d "$LIGHT_SRC/.git" ]]; then
     assert_missing "$LIGHT/$p" "migrate removes $p"
   done
   assert_eq "$(git remote | grep -c '^template$')" "0" "migrate drops the template remote"
+  assert_eq "$(git remote | grep -c '^templates$')" "0" "migrate drops a templates-named remote"
+  assert_eq "$(git remote | grep -c '^upstream-tpl$')" "0" "migrate drops a remote by its template URL"
+  assert_eq "$(git remote | grep -c '^origin$')" "1" "migrate keeps the project's own remote"
   assert_eq "$(git config --get merge.template-keep-local.driver)" "" \
     "migrate unsets the template merge drivers"
   assert_eq "$(grep -c 'template-keep' .gitattributes)" "0" "migrate strips the merge-driver rules"
@@ -461,6 +470,114 @@ if [[ -d "$FOREIGN_SRC/.git" ]]; then
     "the aborted run creates no backup branch"
 else
   echo "SKIP: foreign-file migration abort (no clone source at $FOREIGN_SRC)"
+fi
+
+# --- at migrate: synthetic legacy repos --------------------------------------
+SEED_AGENTS="$REPO/plugins/agents-core/seed/AGENTS.md"
+SEED_H2="$(grep -c '^## ' "$SEED_AGENTS")"
+
+make_legacy_repo() { # make_legacy_repo <dir>
+  mkdir -p "$1/_base" "$1/playbooks"
+  printf '# base contract\n' > "$1/_base/AGENTS.md"
+  printf '# Playbooks\n' > "$1/playbooks/README.md"
+  git -C "$1" init -q .
+  git -C "$1" config user.email "test@example.com"
+  git -C "$1" config user.name "at test"
+}
+
+# a legacy AGENTS.md with title-case headings (bootstrap_work's shape)
+TITLECASE="$WORKDIR/legacy-titlecase"
+make_legacy_repo "$TITLECASE"
+cat > "$TITLECASE/AGENTS.md" <<'LEGACY'
+# AGENTS.md
+
+> Auto-loaded entrypoint for the agent operating contract. Both Claude Code and
+> Codex load this file automatically at session start.
+>
+> Before acting, also read [`_base/AGENTS.md`](./_base/AGENTS.md).
+
+## Project-Specific Overrides
+
+### Repository Purpose
+
+- Bootstrap rule: `workspace.yml` defines the workspace manifest.
+
+## Per-Directory Overrides
+
+For monorepos, place an `AGENTS.md` in any subdirectory to override the root contract.
+LEGACY
+git -C "$TITLECASE" add -A >/dev/null 2>&1
+git -C "$TITLECASE" commit -qm init
+cd "$TITLECASE" || exit 1
+TITLE_OUT="$(at migrate --yes 2>&1)"; TITLE_RC=$?
+assert_eq "$TITLE_RC" "0" "at migrate handles a title-case overrides heading: $TITLE_OUT"
+assert_contains AGENTS.md "workspace.yml" "a project rule under a title-case heading survives"
+assert_eq "$(grep -c 'Auto-loaded entrypoint' AGENTS.md)" "0" "the template preamble blockquote is dropped"
+assert_eq "$(grep -ci 'per-directory overrides' AGENTS.md)" "0" "the per-directory section is dropped"
+assert_contains AGENTS.md "### People and coordination" "the seed's later project slots survive"
+assert_eq "$(grep -c '^## ' AGENTS.md)" "$SEED_H2" "no extra H2 is injected into the seed"
+TITLE_LINES="$(wc -l < AGENTS.md | tr -d ' ')"
+if [[ "$TITLE_LINES" -le 200 ]]; then pass; else fail "migrated AGENTS.md is $TITLE_LINES lines (> 200)"; fi
+
+# a legacy AGENTS.md with no overrides heading at all
+NOHEADING="$WORKDIR/legacy-noheading"
+make_legacy_repo "$NOHEADING"
+cat > "$NOHEADING/AGENTS.md" <<'LEGACY'
+# AGENTS.md
+
+> Auto-loaded entrypoint for the agent operating contract.
+
+## House rules
+
+- Never rewrite the published vault history.
+LEGACY
+git -C "$NOHEADING" add -A >/dev/null 2>&1
+git -C "$NOHEADING" commit -qm init
+cd "$NOHEADING" || exit 1
+NOHEAD_OUT="$(at migrate --yes 2>&1)"; NOHEAD_RC=$?
+assert_eq "$NOHEAD_RC" "0" "at migrate survives an AGENTS.md with no overrides heading: $NOHEAD_OUT"
+assert_stdout_contains "$NOHEAD_OUT" "WARN" "migrate warns when it can not tell rules from boilerplate"
+assert_stdout_contains "$NOHEAD_OUT" ".no-commit/AGENTS.md.pre-migration" \
+  "the warning points at the saved copy to hand-merge"
+assert_eq "$(grep -c 'published vault history' AGENTS.md)" "0" \
+  "nothing is preserved when the overrides heading is missing"
+if diff -q AGENTS.md "$SEED_AGENTS" >/dev/null; then pass; else fail "AGENTS.md is the untouched seed"; fi
+assert_exists "$NOHEADING/.no-commit/AGENTS.md.pre-migration" "the old AGENTS.md is still saved"
+
+# downstream-authored content inside playbooks/ aborts the migration
+FOREIGNPB="$WORKDIR/legacy-foreign-playbook"
+make_legacy_repo "$FOREIGNPB"
+mkdir -p "$FOREIGNPB/playbooks/skills/personal/my-thing/scripts" \
+         "$FOREIGNPB/playbooks/skills/engineering" "$FOREIGNPB/playbooks/conventions"
+printf '# My Thing\n' > "$FOREIGNPB/playbooks/skills/personal/my-thing.md"
+printf 'echo hi\n' > "$FOREIGNPB/playbooks/skills/personal/my-thing/scripts/run.sh"
+printf '# tdd\n' > "$FOREIGNPB/playbooks/skills/engineering/tdd.md"
+printf '# todo\n' > "$FOREIGNPB/playbooks/conventions/todo-convention.md"
+git -C "$FOREIGNPB" add -A >/dev/null 2>&1
+git -C "$FOREIGNPB" commit -qm init
+cd "$FOREIGNPB" || exit 1
+PB_OUT="$(at migrate --yes 2>&1)"; PB_RC=$?
+assert_eq "$PB_RC" "1" "at migrate aborts on downstream-authored playbooks"
+assert_stdout_contains "$PB_OUT" "playbooks/skills/personal/my-thing.md" "the abort names the foreign playbook"
+assert_stdout_contains "$PB_OUT" "playbooks/skills/personal/my-thing/scripts/run.sh" \
+  "the abort names the foreign playbook's sidecar"
+assert_stdout_lacks "$PB_OUT" "playbooks/skills/engineering/tdd.md" "a template playbook is not flagged"
+assert_stdout_lacks "$PB_OUT" "conventions/todo-convention.md" "a template convention is not flagged"
+assert_exists "$FOREIGNPB/_base" "the aborted playbook run changed nothing"
+assert_eq "$(git branch --list 'backup/pre-plugin-migration-*' | wc -l | tr -d ' ')" "0" \
+  "the aborted playbook run creates no backup branch"
+
+# --- downstream with its own playbook skill (real repo) ---------------------
+if [[ -d "$WRITING_SRC/.git" ]]; then
+  WRITING="$WORKDIR/writing"
+  clone_legacy "$WRITING_SRC" "$WRITING"
+  cd "$WRITING" || exit 1
+  WRITING_OUT="$(at migrate --dry-run 2>&1)"; WRITING_RC=$?
+  assert_eq "$WRITING_RC" "1" "at migrate aborts on a downstream that authored its own playbook"
+  assert_stdout_contains "$WRITING_OUT" "google-docs-refine" "the abort names the downstream's own skill"
+  assert_eq "$(git status --porcelain | wc -l | tr -d ' ')" "0" "the aborted dry run leaves the tree clean"
+else
+  echo "SKIP: downstream-authored playbook abort (no clone source at $WRITING_SRC)"
 fi
 
 # --- summary ----------------------------------------------------------------

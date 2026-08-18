@@ -522,9 +522,52 @@ DEFAULT_BRANCHES = ("master", "main")
 TEMPLATE_ROLE_AGENTS = frozenset({
     "implementer", "reviewer", "researcher", "plan-critic", "security-auditor", "spec-validator",
 })
-# `skills/` is only ever deleted when every file under it is one of these.
+# A legacy skill tree is only ever deleted when every file under it is one of these
+# or belongs to a skill the template itself shipped (KNOWN_LEGACY_SKILL_NAMES).
 TEMPLATE_SKILL_FILES = frozenset({
     "SKILL.md", "README.md", ".gitkeep", "install-codex-skills.sh", "link-skills.sh",
+})
+LEGACY_SKILL_TREES = ("skills", ".claude/skills", ".agents/skills")
+
+# Frozen: every skill the pre-plugin template ever shipped (57 playbook skills plus the
+# two generated role wrappers). The legacy set can no longer grow, so this list is final;
+# a skill directory or playbook whose name is missing here is the downstream's own.
+KNOWN_LEGACY_SKILL_NAMES = frozenset({
+    "academic-humanizer", "add-task", "align", "audit-todos", "capture-idea", "complete-task",
+    "cross-repo-feature", "cross-repo-pr-review", "define-area", "describe-component",
+    "design-an-interface", "deslop", "diagnose", "distill-knowledge", "doubt-driven-development",
+    "edit-article", "execute-plan", "frontend-design", "git-guardrails-claude-code",
+    "github-triage", "grill-me", "grill-with-docs", "handoff", "implementer",
+    "improve-codebase-architecture", "init", "map-system", "migrate-to-shoehorn",
+    "migration-safety", "obsidian-vault", "performance-optimization", "planning-workflow",
+    "prd-to-issues", "prd-to-plan", "prd-to-todos", "prototype", "qa", "refresh-context",
+    "request-refactor-plan", "reviewer", "roadmap", "scaffold-exercises", "sciwrite",
+    "security-review-owasp", "setup-pre-commit", "simplicity-review", "spec-workflow",
+    "squash-workspace-commits", "subagent-protocol", "task-spec-workflow", "tdd", "tidy-repo",
+    "triage-inbox", "triage-issue", "ubiquitous-language", "ui-design-review", "write-a-prd",
+    "write-a-skill", "zoom-out"
+})
+
+# Frozen: `playbooks/conventions/`, `playbooks/personalities/` and `playbooks/templates/`.
+KNOWN_LEGACY_CONVENTIONS = frozenset({
+    "adr-convention.md", "agent-loop-recipes.md", "autonomy-levels.md", "connectors-and-mcp.md",
+    "generated-artifacts.md", "inbox-convention.md", "knowledge-base-quickstart.md",
+    "plan-critique.md", "prompt-orchestration.md", "runbook-convention.md",
+    "task-system-quickstart.md", "test-taxonomy.md", "todo-convention.md", "vertical-slicing.md",
+    "workbook-convention.md"
+})
+
+
+KNOWN_LEGACY_PERSONALITIES = frozenset({
+    "builder.md", "critic.md", "manager.md", "researcher.md", "reviewer.md", "tester.md"
+})
+
+
+KNOWN_LEGACY_TEMPLATES = frozenset({
+    "AGENT_DECISIONS.template.md", "AGENT_PROGRESS.template.md", "AGENT_TASKS.template.json",
+    "adr.template.md", "area-sources.template.md", "cross-repo-area-summary.template.md",
+    "cross-repo-dependency-graph.template.md", "cross-repo-feature-contract.template.md",
+    "resource-inbox-batch.template.md", "runbook.local.template.md", "runbook.template.md"
 })
 LEGACY_TREES = ("_base", "playbooks", "skills", ".claude/skills", ".claude/hooks",
                 ".claude-plugin", ".agents/skills", ".agents/skill-library.json",
@@ -535,6 +578,8 @@ MERGE_DRIVER_MARK = "merge=template-keep-"
 MERGE_DRIVER_KEYS = ("merge.template-keep-local.driver", "merge.template-keep-local.name",
                      "merge.template-keep-upstream.driver", "merge.template-keep-upstream.name")
 HOOK_DIR_MARK = ".claude/hooks/"
+TEMPLATE_REMOTE_NAMES = ("template", "templates")
+TEMPLATE_REMOTE_URL_SUFFIXES = ("toderian/project_template.git", "/project_template")
 TEMPLATE_README_H1 = "# Agents Template"
 TEMPLATE_README_MARK = "This `README.md` extends"
 TEMPLATE_README_EMPTY = "_None for the base template itself._"
@@ -645,17 +690,54 @@ def legacy_units() -> frozenset[str]:
                      if line.strip() and not line.startswith(";;"))
 
 
-def preserved_project_rules(text: str) -> str:
-    """The downstream's own rules from a legacy AGENTS.md, template blocks removed."""
-    match = re.search(r"^## Project-specific overrides\s*$", text, re.M)
-    if match:
-        rest = text[match.end():]
-        following = re.search(r"^## ", rest, re.M)
-        body = rest[:following.start()] if following else rest
-    else:
-        body = text
+_OVERRIDES_HEADING = re.compile(r"^##\s+Project-specific overrides\s*$", re.M | re.I)
+_PER_DIR_HEADING = re.compile(r"^#{2,4}\s+Per-directory overrides", re.I)
+_PREAMBLE_QUOTE = re.compile(r"^>\s*\**\s*Auto-loaded entrypoint", re.I)
+
+
+def _drop_template_prose(units: list[tuple[str, str]]) -> list[tuple[str, str]]:
+    """Drop the template preamble blockquote and any per-directory-overrides section.
+
+    Both are template scaffolding in every legacy AGENTS.md, and both are worded
+    freely enough downstream that block matching alone does not catch them.
+    """
+    out: list[tuple[str, str]] = []
+    skipping: int | None = None
+    for kind, raw in units:
+        if kind == "heading":
+            level = len(raw) - len(raw.lstrip("#"))
+            if skipping is not None and level <= skipping:
+                skipping = None
+            if _PER_DIR_HEADING.match(raw):
+                skipping = level
+                continue
+        if skipping is not None:
+            continue
+        if _PREAMBLE_QUOTE.match(raw.strip()):
+            continue
+        out.append((kind, raw))
+    return out
+
+
+def preserved_project_rules(text: str) -> tuple[str, list[str]]:
+    """The downstream's own rules from a legacy AGENTS.md, template blocks removed.
+
+    Returns the rules and any warnings to show the human. Without a
+    `## Project-specific overrides` heading (any case) there is no reliable way to
+    tell contract from boilerplate, so nothing is carried over and the human is
+    pointed at the saved copy instead of getting a mangled contract.
+    """
+    match = _OVERRIDES_HEADING.search(text)
+    if not match:
+        return "", [f"the old AGENTS.md has no `## Project-specific overrides` heading, so no "
+                    f"project rules were carried over — hand-merge from "
+                    f"`{PRE_MIGRATION_DIR}/AGENTS.md.pre-migration`"]
+    rest = text[match.end():]
+    following = re.search(r"^## ", rest, re.M)
+    body = rest[:following.start()] if following else rest
     known = legacy_units()
-    kept = [(kind, raw) for kind, raw in md_units(body) if _norm_unit(raw) not in known]
+    kept = [(kind, raw) for kind, raw in _drop_template_prose(md_units(body))
+            if _norm_unit(raw) not in known]
     out: list[str] = []
     for index, (kind, raw) in enumerate(kept):
         if kind == "heading":
@@ -666,7 +748,7 @@ def preserved_project_rules(text: str) -> str:
             out[-1] += "\n" + raw  # keep a list a list
             continue
         out.append(raw)
-    return "\n\n".join(out).strip()
+    return "\n\n".join(out).strip(), []
 
 
 def rewrite_legacy_paths(text: str) -> tuple[str, list[str]]:
@@ -808,17 +890,90 @@ def _agent_role(path: Path) -> str | None:
     return name.group(1).strip() if name else None
 
 
-def foreign_skill_files(repo: Path) -> list[str]:
-    """Files under `skills/` that are not part of a template skill tree."""
-    root = repo / "skills"
+def _walk_files(root: Path):
+    """(path, parts-relative-to-root) for every file under `root`, symlinks not followed."""
+    for parent, _dirs, names in os.walk(root, followlinks=False):
+        for name in sorted(names):
+            path = Path(parent) / name
+            yield path, path.relative_to(root).parts
+
+
+def _skill_tree_foreign(repo: Path, root: Path) -> list[str]:
+    """Files in a generated skill tree that belong to no template skill."""
     if not root.is_dir():
         return []
     foreign = []
-    for parent, _dirs, names in os.walk(root, followlinks=False):
-        for name in names:
-            if name not in TEMPLATE_SKILL_FILES:
-                foreign.append(str((Path(parent) / name).relative_to(repo)))
-    return sorted(foreign)
+    for path, parts in _walk_files(root):
+        name = parts[-1]
+        if len(parts) == 1:                     # installer scripts / README at the tree root
+            known = name in TEMPLATE_SKILL_FILES
+        elif len(parts) == 2:                   # <bucket>/<file>
+            known = name in TEMPLATE_SKILL_FILES or (
+                name.endswith(".md") and name[:-3] in KNOWN_LEGACY_SKILL_NAMES)
+        else:                                   # <bucket>/<skill>/… sidecars
+            known = parts[1] in KNOWN_LEGACY_SKILL_NAMES
+        if not known:
+            foreign.append(str(path.relative_to(repo)))
+    return foreign
+
+
+def _playbooks_foreign(repo: Path, root: Path) -> list[str]:
+    """Files under `playbooks/` that no version of the template ever shipped."""
+    if not root.is_dir():
+        return []
+    foreign = []
+    for path, parts in _walk_files(root):
+        name, top = parts[-1], parts[0]
+        if len(parts) == 1:
+            known = name in ("README.md", ".gitkeep")
+        elif top == "meta":
+            known = True
+        elif top == "skills":
+            rest = parts[1:]
+            if len(rest) == 1:                  # skills/<file>
+                known = name in ("README.md", ".gitkeep")
+            elif len(rest) == 2:                # skills/<bucket>/<skill>.md
+                known = name in ("README.md", ".gitkeep") or (
+                    name.endswith(".md") and name[:-3] in KNOWN_LEGACY_SKILL_NAMES)
+            else:                               # skills/<bucket>/<skill>/… sidecars
+                known = rest[1] in KNOWN_LEGACY_SKILL_NAMES
+        elif top == "conventions":
+            known = len(parts) == 2 and name in KNOWN_LEGACY_CONVENTIONS
+        elif top == "personalities":
+            known = len(parts) == 2 and name in KNOWN_LEGACY_PERSONALITIES
+        elif top == "templates":
+            known = len(parts) == 2 and name in KNOWN_LEGACY_TEMPLATES
+        else:
+            known = False
+        if not known:
+            foreign.append(str(path.relative_to(repo)))
+    return foreign
+
+
+def foreign_template_files(repo: Path) -> list[str]:
+    """Downstream-authored files inside the trees `at migrate` would delete.
+
+    Migration deletes whole trees, so anything in them that the template never
+    shipped has to be moved out first — this is what makes the deletion safe.
+    """
+    foreign: list[str] = []
+    for tree in LEGACY_SKILL_TREES:
+        foreign += _skill_tree_foreign(repo, repo / tree)
+    foreign += _playbooks_foreign(repo, repo / "playbooks")
+    return sorted(set(foreign))
+
+
+def template_remotes(repo: Path) -> list[str]:
+    """Remotes that point at the template: by conventional name or by fetch URL."""
+    found = []
+    for line in _git_out(repo, "remote", "-v").splitlines():
+        parts = line.split()
+        if len(parts) < 3 or parts[2] != "(fetch)":
+            continue
+        name, url = parts[0], parts[1].rstrip("/")
+        if name in TEMPLATE_REMOTE_NAMES or url.endswith(TEMPLATE_REMOTE_URL_SUFFIXES):
+            found.append(name)
+    return sorted(set(found))
 
 
 def _is_template_context(path: Path) -> bool:
@@ -876,11 +1031,13 @@ def cmd_migrate(args: argparse.Namespace) -> int:
     if dirty:
         die(f"the working tree is not clean ({len(dirty)} changed or untracked path(s)); "
             "commit or stash first — migration rewrites tracked files")
-    foreign = foreign_skill_files(repo)
+    foreign = foreign_template_files(repo)
     if foreign:
-        die("skills/ holds files that are not part of a template skill tree:\n"
+        die("these files live in trees this migration deletes, but no version of the template "
+            "ever shipped them:\n"
             + "\n".join(f"  {path}" for path in foreign)
-            + "\nmove or delete them first, then re-run `at migrate`")
+            + "\nmove or delete these first (or adopt them into a plugin), "
+              "then re-run `at migrate`")
 
     with_tasks = (repo / "docs" / "tasks_manager" / "_todos").is_dir()
     if args.keep_tasks:
@@ -896,11 +1053,11 @@ def cmd_migrate(args: argparse.Namespace) -> int:
             "(run: claude plugin install agents-tasks@agents-template, or set AT_TASKS_ROOT)")
 
     removals = migration_removals(repo)
-    remote_template = "template" in _git_out(repo, "remote").split()
+    remotes = template_remotes(repo)
     old_agents = (repo / "AGENTS.md").read_text() if (repo / "AGENTS.md").exists() else ""
     old_readme = (repo / "README.md").read_text() if (repo / "README.md").exists() else ""
     new_readme = migrate_readme(old_readme, repo.name) if old_readme else None
-    rules = preserved_project_rules(old_agents) if old_agents else ""
+    rules, warnings = preserved_project_rules(old_agents) if old_agents else ("", [])
     leftovers: list[str] = []
     if rules:
         rules, leftovers = rewrite_legacy_paths(rules)
@@ -940,8 +1097,8 @@ def cmd_migrate(args: argparse.Namespace) -> int:
     print(f"at migrate: {repo}")
     for path in removals:
         print(f"  remove   {_label(repo, path)}")
-    if remote_template:
-        print("  remove   git remote `template`")
+    for remote in remotes:
+        print(f"  remove   git remote `{remote}`")
     if new_attributes is not None and new_attributes != old_attributes:
         print("  rewrite  .gitattributes (drop the legacy merge rules)")
     if settings is not None:
@@ -954,6 +1111,8 @@ def cmd_migrate(args: argparse.Namespace) -> int:
     print(f"  seed     at init {' '.join(seed_flags)}".rstrip()
           + "  (CLAUDE.md, the managed .gitignore/.gitattributes blocks, "
             ".claude/settings.json, .codex/agents/, docs/_plans/)")
+    for warning in warnings:
+        print(f"  WARN     {warning}")
 
     if args.dry_run or not args.yes:
         print("at migrate: dry run — nothing changed. Re-run with `--yes` to apply.")
@@ -973,9 +1132,9 @@ def cmd_migrate(args: argparse.Namespace) -> int:
         path = repo / rel
         if path.is_dir() and not any(path.iterdir()):
             path.rmdir()
-    if remote_template:
-        _git(repo, "remote", "remove", "template")
-        removed.append("git remote `template`")
+    for remote in remotes:
+        _git(repo, "remote", "remove", remote)
+        removed.append(f"git remote `{remote}`")
     for key in MERGE_DRIVER_KEYS:
         _git(repo, "config", "--unset-all", key)
 
@@ -1021,6 +1180,8 @@ def cmd_migrate(args: argparse.Namespace) -> int:
               f"AGENTS.md → {DOMAIN_SLOT_HEADING}")
     for line in leftovers:
         print(f"  review   preserved rule still mentions `_base/`: {line}")
+    for warning in warnings:
+        print(f"  WARN     {warning}")
 
     if args.commit:
         added = sorted({rel for rel, status in report if status != "kept"}
