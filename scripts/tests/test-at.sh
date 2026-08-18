@@ -711,6 +711,57 @@ assert_exists "$UNTRACKEDINSIDE/_base" "the refused run left _base/ in place"
 assert_eq "$(git branch --list 'backup/pre-plugin-migration-*' | wc -l | tr -d ' ')" "0" \
   "no backup branch is created when migrate refuses on an untracked file inside a removed tree"
 
+# bidirectional containment: when a wholly-untracked ANCESTOR collapses to one
+# entry (`?? .claude/`) that is a strict PARENT of a removal target
+# (`.claude/hooks/`), the guard must still fire — checking only "untracked
+# entry inside a removal" misses this shape (the removal is inside the
+# untracked entry, not the other way around).
+UNTRACKEDANCESTOR="$WORKDIR/legacy-untracked-ancestor"
+make_legacy_repo "$UNTRACKEDANCESTOR"
+git -C "$UNTRACKEDANCESTOR" add -A >/dev/null 2>&1
+git -C "$UNTRACKEDANCESTOR" commit -qm init
+cd "$UNTRACKEDANCESTOR" || exit 1
+mkdir -p .claude/hooks
+printf '#!/bin/bash\necho legacy\n' > .claude/hooks/legacy-hook.sh
+printf '#!/bin/bash\necho mine\n' > .claude/hooks/my-own-hook.sh
+if [[ "$(git status --porcelain)" == "?? .claude/" ]]; then
+  pass
+else
+  fail ".claude/ collapses to one wholly-untracked entry (fixture assumption)"
+fi
+ANCESTOR_OUT="$(at migrate --allow-untracked --yes 2>&1)"; ANCESTOR_RC=$?
+assert_eq "$ANCESTOR_RC" "1" \
+  "migrate refuses when a wholly-untracked ancestor contains a removal target"
+assert_stdout_contains "$ANCESTOR_OUT" ".claude/" \
+  "the refusal names the untracked ancestor directory"
+assert_exists "$UNTRACKEDANCESTOR/.claude/hooks/my-own-hook.sh" \
+  "the untracked file under the collapsed ancestor was not deleted"
+assert_exists "$UNTRACKEDANCESTOR/.claude/hooks/legacy-hook.sh" \
+  "the template hook file under the collapsed ancestor was not deleted"
+assert_eq "$(git branch --list 'backup/pre-plugin-migration-*' | wc -l | tr -d ' ')" "0" \
+  "no backup branch is created when migrate refuses on a collapsed untracked ancestor"
+
+# the .agents/ analogue: `?? .agents/` containing skill-library.json
+UNTRACKEDAGENTS="$WORKDIR/legacy-untracked-agents-ancestor"
+make_legacy_repo "$UNTRACKEDAGENTS"
+git -C "$UNTRACKEDAGENTS" add -A >/dev/null 2>&1
+git -C "$UNTRACKEDAGENTS" commit -qm init
+cd "$UNTRACKEDAGENTS" || exit 1
+mkdir -p .agents
+printf '{"skills": []}\n' > .agents/skill-library.json
+if [[ "$(git status --porcelain)" == "?? .agents/" ]]; then
+  pass
+else
+  fail ".agents/ collapses to one wholly-untracked entry (fixture assumption)"
+fi
+AGENTSANCESTOR_OUT="$(at migrate --allow-untracked --yes 2>&1)"; AGENTSANCESTOR_RC=$?
+assert_eq "$AGENTSANCESTOR_RC" "1" \
+  "migrate refuses when a wholly-untracked .agents/ ancestor contains a removal target"
+assert_stdout_contains "$AGENTSANCESTOR_OUT" ".agents/" \
+  "the refusal names the untracked .agents/ ancestor directory"
+assert_exists "$UNTRACKEDAGENTS/.agents/skill-library.json" \
+  "skill-library.json under the collapsed ancestor was not deleted"
+
 # a foreign untracked file sharing a not-yet-tracked .codex/ directory with
 # the six .codex/agents/*.toml migrate itself seeds must not false-positive
 # the leak check (IMPORTANT 3): migrate created those paths itself.
@@ -767,6 +818,57 @@ assert_eq "$(git ls-files docs/tasks_manager/_todos/WIP-999-F_wip.md | wc -l | t
   "the WIP task file is still untracked after migrate"
 assert_exists "$LEAKWIP/docs/tasks_manager/_todos/WIP-999-F_wip.md" \
   "the WIP task file still exists on disk"
+
+# adoption (overwrite category): an untracked, hand-edited .codex/agents/*.toml
+# at a path migrate itself regenerates must be backed up before being
+# overwritten, not silently discarded.
+ADOPTOVERWRITE="$WORKDIR/legacy-adopt-overwrite"
+make_legacy_repo "$ADOPTOVERWRITE"
+git -C "$ADOPTOVERWRITE" add -A >/dev/null 2>&1
+git -C "$ADOPTOVERWRITE" commit -qm init
+cd "$ADOPTOVERWRITE" || exit 1
+mkdir -p .codex/agents
+printf 'hand edited content, not the plugin template\n' > .codex/agents/implementer.toml
+DRY_ADOPT_OUT="$(at migrate --allow-untracked 2>&1)"
+assert_eq "$(printf '%s\n' "$DRY_ADOPT_OUT" | grep -c '^  adopt    .codex/agents/implementer.toml')" "1" \
+  "the dry-run plan prints the adopt line for the hand-edited toml exactly once"
+ADOPT_OUT="$(at migrate --allow-untracked --yes --commit 2>&1)"; ADOPT_RC=$?
+assert_eq "$ADOPT_RC" "0" "migrate succeeds adopting an untracked hand-edited .codex/agents/*.toml: $ADOPT_OUT"
+assert_eq "$(printf '%s\n' "$ADOPT_OUT" | grep -c '^  adopt    .codex/agents/implementer.toml')" "1" \
+  "the adopt line for the hand-edited toml is printed exactly once"
+assert_contains .no-commit/pre-migration/.codex/agents/implementer.toml \
+  "hand edited content, not the plugin template" \
+  "the pre-existing untracked content is saved under .no-commit/pre-migration/ before being overwritten"
+if diff -q .codex/agents/implementer.toml \
+     "$REPO/plugins/agents-core/codex/agents/implementer.toml" >/dev/null; then
+  pass
+else
+  fail "the committed toml equals the plugin's generated version"
+fi
+assert_stdout_contains "$(git show --name-only HEAD)" ".codex/agents/implementer.toml" \
+  "the adopted toml is in the migration commit"
+assert_eq "$(git ls-files .no-commit | wc -l | tr -d ' ')" "0" \
+  "the pre-migration backup stays untracked"
+
+# adoption (merge category): an untracked .claude/settings.json with a user
+# key must be merged (managed keys added) and committed, not silently
+# discarded — the user's own key must survive in the committed file.
+ADOPTMERGE="$WORKDIR/legacy-adopt-merge"
+make_legacy_repo "$ADOPTMERGE"
+git -C "$ADOPTMERGE" add -A >/dev/null 2>&1
+git -C "$ADOPTMERGE" commit -qm init
+cd "$ADOPTMERGE" || exit 1
+mkdir -p .claude
+printf '{"model": "opus"}\n' > .claude/settings.json
+ADOPTMERGE_OUT="$(at migrate --allow-untracked --yes --commit 2>&1)"; ADOPTMERGE_RC=$?
+assert_eq "$ADOPTMERGE_RC" "0" "migrate succeeds adopting an untracked .claude/settings.json: $ADOPTMERGE_OUT"
+assert_eq "$(printf '%s\n' "$ADOPTMERGE_OUT" | grep -c '^  adopt    .claude/settings.json')" "1" \
+  "the adopt line for .claude/settings.json is printed exactly once"
+ADOPTMERGE_MODEL="$(python3 -c 'import json;print(json.load(open(".claude/settings.json")).get("model"))')"
+assert_eq "$ADOPTMERGE_MODEL" "opus" \
+  "the user's own settings.json key survives the merge"
+assert_stdout_contains "$(git show --name-only HEAD)" ".claude/settings.json" \
+  "the adopted settings.json is in the migration commit"
 
 # --- downstream with its own playbook skill (real repo) ---------------------
 if [[ -d "$WRITING_SRC/.git" ]]; then

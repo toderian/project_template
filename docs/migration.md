@@ -39,17 +39,34 @@ before anything is written, so an abort leaves the repo exactly as it was.
 If the only dirtiness is untracked files — a build output, a huge attachments tree, a WIP file
 you are not ready to commit — pass `--allow-untracked` instead of stashing or committing them:
 `git status --porcelain` may contain any number of `??` entries, but a single tracked
-modification or staged change still refuses with the same message. Untracked files are never
-staged or committed; if any of them lie inside a tree migrate removes (`_base/`, `.claude/hooks/`,
-and the rest of the list above), migrate refuses instead of deleting them — move them out first,
-the same way it refuses on a downstream-authored file inside `playbooks/`/`skills/`. With
-`--allow-untracked`, `--commit` never runs `git add -A`; it stages tracked changes (`git add -u`)
-plus the exact paths migration itself created or rewrote, force-added one by one (`git add -f`,
-since a downstream's own `.gitignore` may ignore a path migration manages regardless of that
-local rule), then asserts none of the newly staged paths were on the pre-migration untracked list
-— excluding the paths migration itself just staged, so seeding its own files into a directory
-that happened to be untracked before is never mistaken for a leak. Any add failure or a genuine
-leak unstages everything (`git reset -q`) before it dies; nothing is committed.
+modification or staged change still refuses with the same message. Untracked files migrate does
+not manage are never staged, committed or deleted. If any of them lie inside a tree migrate
+removes — `_base/`, `.claude/hooks/`, `.claude/skills/`, `.claude-plugin/`, a template
+`.claude/agents/*.md`, `.agents/skill-library.json`/`skills.enabled.json`, and the rest of the
+list above — migrate refuses instead of deleting them, the same way it refuses on a
+downstream-authored file inside `playbooks/`/`skills/`. That check is bidirectional: it also
+catches an untracked *ancestor* directory git collapses to one entry (`?? .claude/`) when that
+ancestor contains a removal target, not just an untracked file sitting directly inside one.
+Untracked files at paths migrate manages — `.codex/agents/*.toml`, `.claude/settings.json`,
+`.gitignore`, `.gitattributes` — are *adopted* instead: the plan prints an `adopt` line for
+each, `.codex/agents/*.toml` (regenerated wholesale) has its pre-existing content saved to
+`.no-commit/pre-migration/<path>` before being overwritten, and `.claude/settings.json`/
+`.gitignore`/`.gitattributes` (merged, never wholesale replaced) keep their existing content
+with migrate's managed keys/block added on top. Either way the adopted path ends up committed.
+
+With `--allow-untracked`, `--commit` never runs `git add -A`; it stages tracked changes (`git
+add -u`) plus the exact paths migration itself created, merged or adopted, force-added one by
+one (`git add -f`, since a downstream's own `.gitignore` may ignore a path migration manages
+regardless of that local rule), then asserts none of the newly staged paths were on the
+pre-migration untracked list — excluding the paths migration itself just staged (its own
+created/merged/adopted paths), so seeding its own files into a directory that happened to be
+untracked before is never mistaken for a leak. Any add failure or a genuine leak unstages
+everything (`git reset -q`) before it dies; nothing is committed.
+
+One gap worth knowing about: a *gitignored* file inside a tree migrate removes (a build
+artifact such as `_base/scripts/lib/__pycache__/`) never shows up in `git status --porcelain`
+at all, so it is not protected by any of the above — it is deleted along with the tree it lives
+in. That is intentional: a gitignored file is regenerable by definition.
 
 ## 3. Apply it
 

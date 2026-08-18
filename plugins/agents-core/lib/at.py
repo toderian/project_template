@@ -1052,6 +1052,19 @@ def _path_matches_any(path: str, entries: list[str]) -> bool:
     return False
 
 
+def _paths_overlap(a: str, b: str) -> bool:
+    """True if `a` and `b` are the same path, or either is nested inside the
+    other.
+
+    `_path_matches_any` alone is one-directional (is `a` inside `b`); that
+    misses the case where git collapses a wholly-untracked *ancestor* to one
+    entry (`?? .claude/`) that is a strict parent of a path we care about
+    (`.claude/hooks/`) — `a` inside `b` is false, but `b` inside `a` is true.
+    Checking both directions catches it either way.
+    """
+    return _path_matches_any(a, [b]) or _path_matches_any(b, [a])
+
+
 def _leaked_untracked_paths(staged: list[str], own_paths: set[str],
                             untracked_before: list[str]) -> list[str]:
     """Staged paths that were untracked before `at migrate` started and are
@@ -1108,14 +1121,35 @@ def cmd_migrate(args: argparse.Namespace) -> int:
         # An untracked file inside a tree migrate deletes would otherwise be
         # silently destroyed by `_remove()`/`shutil.rmtree` below — refuse
         # instead, the same way `foreign_template_files` refuses on a
-        # downstream-authored file inside skills/playbooks trees.
+        # downstream-authored file inside skills/playbooks trees. Bidirectional
+        # (`_paths_overlap`, not `_path_matches_any`): git may collapse a
+        # wholly-untracked *ancestor* to one entry (`?? .claude/`) that is a
+        # strict parent of a removal target (`.claude/hooks/`) — checking only
+        # "is the untracked entry inside a removal" misses that shape.
         removal_labels = [_label(repo, path) for path in removals]
         blocked = sorted({entry for entry in untracked_before
-                          if _path_matches_any(entry, removal_labels)})
+                          if any(_paths_overlap(entry, label) for label in removal_labels)})
         if blocked:
-            die("these untracked path(s) live inside a tree `at migrate` deletes; move them out "
-                "first — migrate will not delete untracked files:\n"
+            die("these untracked path(s) live inside (or contain) a tree `at migrate` deletes; "
+                "move them out first — migrate will not delete untracked files:\n"
                 + "\n".join(f"  {path}" for path in blocked))
+
+    # --- adoption: a pre-existing untracked file at a path migrate manages --
+    # is "adopted" — merged or overwritten with generated content, then
+    # committed — rather than left alone. Detected read-only so the dry-run
+    # plan and the real apply agree on the same list; only the apply phase
+    # actually performs the .codex/agents/*.toml backup-before-overwrite.
+    # `.claude/settings.json`/`.gitignore`/`.gitattributes` are safe without a
+    # backup: they are always merged (existing content kept, managed keys/
+    # block added), never wholesale replaced.
+    codex_toml_targets = [str((repo / ".codex" / "agents" / toml.name).relative_to(repo))
+                          for toml in sorted((core_root() / "codex" / "agents").glob("*.toml"))]
+    adopted_overwrite = sorted({rel for rel in codex_toml_targets
+                                if (repo / rel).is_file()
+                                and any(_paths_overlap(rel, entry) for entry in untracked_before)})
+    adopted_merge = sorted({rel for rel in (".claude/settings.json", ".gitignore", ".gitattributes")
+                            if (repo / rel).is_file()
+                            and any(_paths_overlap(rel, entry) for entry in untracked_before)})
 
     with_tasks = (repo / "docs" / "tasks_manager" / "_todos").is_dir()
     if args.keep_tasks:
@@ -1174,7 +1208,11 @@ def cmd_migrate(args: argparse.Namespace) -> int:
     print(f"at migrate: {repo}")
     if untracked_before:
         print(f"  ignore   {len(untracked_before)} untracked path(s) (--allow-untracked): "
-              "never staged or committed")
+              "never staged, committed or deleted, unless adopted below")
+    for entry in adopted_overwrite:
+        print(f"  adopt    {entry} (was untracked; saved to {PRE_MIGRATION_DIR}/pre-migration/{entry})")
+    for entry in adopted_merge:
+        print(f"  adopt    {entry} (was untracked; merged, now managed)")
     for path in removals:
         print(f"  remove   {_label(repo, path)}")
     for remote in remotes:
@@ -1237,6 +1275,15 @@ def cmd_migrate(args: argparse.Namespace) -> int:
         (repo / "README.md").write_text(new_readme)
         rewritten.append(("README.md", "dropped the template README"))
 
+    # Adopted `.codex/agents/*.toml`: back up the pre-existing (untracked)
+    # content before `seed_repo()` below overwrites it with generated content.
+    # `.claude/settings.json`/`.gitignore`/`.gitattributes` need no backup
+    # here — they are merged, not overwritten, by `seed_repo()`.
+    for rel in adopted_overwrite:
+        backup_path = repo / PRE_MIGRATION_DIR / "pre-migration" / rel
+        backup_path.parent.mkdir(parents=True, exist_ok=True)
+        backup_path.write_bytes((repo / rel).read_bytes())
+
     print()
     report = seed_repo(repo, with_tasks=with_tasks, with_artifacts=with_artifacts,
                        with_workbooks=with_workbooks, with_repos=with_repos)
@@ -1291,7 +1338,10 @@ def cmd_migrate(args: argparse.Namespace) -> int:
                 _git(repo, "reset", "-q")
                 die(f"`git add -f -- {rel}` failed; commit by hand")
 
-        staged = _git_out(repo, "diff", "--cached", "--name-only").splitlines()
+        # `-z`: NUL-delimited, matching the `-z` porcelain parse above — a
+        # staged path is never C-quoted/escaped, so no unescaping is needed.
+        staged_out = _git(repo, "diff", "--cached", "--name-only", "-z").stdout
+        staged = [entry for entry in staged_out.split("\0") if entry]
         leaked = _leaked_untracked_paths(staged, set(added), untracked_before)
         if leaked:
             _git(repo, "reset", "-q")

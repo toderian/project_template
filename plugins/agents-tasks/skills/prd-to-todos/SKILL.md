@@ -95,7 +95,7 @@ Iterate until approved.
 
 For each approved slice, create the task exactly as `add-task` does — its steps 3–6 are the canonical
 ritual for area/prefix, type, priority, the optional `Repos`/`Autonomy`/`Spec refs`/date metadata, the
-full `todo-convention.md` file shape, `reserve-work-item.sh` reservation, and the
+full `todo-convention.md` file shape, `at reserve` reservation, and the
 `at ledger sync`/`at ledger check`/`at repos-check` step. Do not restate those field rules
 here. PRD-specific overrides:
 
