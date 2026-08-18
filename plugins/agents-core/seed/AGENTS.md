@@ -105,7 +105,7 @@ improvising a workflow.
 
 ## Project
 
-<!-- The sections below are this repo's own contract. `at doctor` warns while any TODO-FILL remains. -->
+<!-- The sections below are this repo's own contract. `at doctor` warns while any project slot marker remains; replace each comment with real content. -->
 
 ### Summary
 

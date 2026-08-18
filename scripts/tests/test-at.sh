@@ -123,6 +123,13 @@ assert_stdout_contains "$DOCTOR_OUT" "TODO-FILL" "at doctor warns about unfilled
 if printf '%s\n' "$DOCTOR_OUT" | grep -q '^WARN .*TODO-FILL'; then pass; else fail "TODO-FILL finding is a WARN"; fi
 assert_stdout_lacks "$DOCTOR_OUT" "ERROR" "at doctor reports no errors on a fresh seed"
 
+# the warning counts slot markers, not every mention of the token
+MARKERS="$(grep -c '<!-- TODO-FILL' AGENTS.md)"
+assert_stdout_contains "$DOCTOR_OUT" "still has $MARKERS TODO-FILL project slot(s)" \
+  "doctor counts exactly the project slot markers"
+assert_eq "$(grep -c 'TODO-FILL' AGENTS.md)" "$MARKERS" \
+  "the seed mentions TODO-FILL only in slot markers"
+
 # doctor fails on a legacy layout and on a broken CLAUDE.md
 mkdir -p _base
 DOCTOR_LEGACY="$(at doctor 2>&1)"
@@ -137,6 +144,26 @@ DOCTOR_BAD_RC=$?
 assert_eq "$DOCTOR_BAD_RC" "1" "at doctor exits 1 when CLAUDE.md lacks the AGENTS.md import"
 printf '@AGENTS.md\n' > CLAUDE.md
 
+# filling every slot clears the warning
+sed -i 's|^<!-- TODO-FILL.*|Filled in by the test.|' AGENTS.md
+DOCTOR_FILLED="$(at doctor 2>&1)"
+DOCTOR_FILLED_RC=$?
+assert_eq "$DOCTOR_FILLED_RC" "0" "at doctor exits 0 once the project slots are filled"
+if printf '%s\n' "$DOCTOR_FILLED" | grep -qE '^OK +AGENTS\.md project slots are filled'; then
+  pass
+else
+  fail "filled project slots report OK: $DOCTOR_FILLED"
+fi
+assert_stdout_lacks "$DOCTOR_FILLED" "TODO-FILL" "no TODO-FILL warning once the slots are filled"
+
+# prose that merely mentions the token is not an unfilled slot
+printf '\nGuidance: doctor warns while any TODO-FILL slot marker remains.\n' >> AGENTS.md
+DOCTOR_PROSE="$(at doctor 2>&1)"
+DOCTOR_PROSE_RC=$?
+assert_eq "$DOCTOR_PROSE_RC" "0" "at doctor exits 0 when only prose mentions the token"
+assert_stdout_lacks "$DOCTOR_PROSE" "still has" "a prose mention does not count as a slot"
+sed -i '/Guidance: doctor warns while any/d' AGENTS.md
+
 # --- ledger wrappers --------------------------------------------------------
 at ledger check >/dev/null 2>&1
 assert_eq "$?" "0" "at ledger check exits 0 on the seeded ledger"
@@ -144,6 +171,20 @@ at ledger sync >/dev/null 2>&1
 assert_eq "$?" "0" "at ledger sync exits 0 on the seeded ledger"
 at repos-check >/dev/null 2>&1
 assert_eq "$?" "0" "at repos-check exits 0 on the seeded registry"
+
+# a failing ledger check still labels WARNING lines WARN, not ERROR
+cp "$REPO/scripts/tests/fixtures/ledger-minimal/docs/tasks_manager/_todos/TST-002-C_oversized-execution-log.md" \
+   docs/tasks_manager/_todos/
+DOCTOR_LEDGER="$(at doctor 2>&1)"
+DOCTOR_LEDGER_RC=$?
+assert_eq "$DOCTOR_LEDGER_RC" "1" "at doctor exits 1 when the ledger check fails"
+if printf '%s\n' "$DOCTOR_LEDGER" | grep -qE '^WARN +ledger: .*execution log exceeds 200 lines'; then
+  pass
+else
+  fail "ledger warnings stay WARN on a failing check: $DOCTOR_LEDGER"
+fi
+if printf '%s\n' "$DOCTOR_LEDGER" | grep -qE '^ERROR +ledger: '; then pass; else fail "ledger errors are ERROR"; fi
+rm docs/tasks_manager/_todos/TST-002-C_oversized-execution-log.md
 
 # --- at version -------------------------------------------------------------
 EXPECTED_VERSION="$(python3 -c "import json;print(json.load(open('$REPO/plugins/agents-core/.claude-plugin/plugin.json'))['version'])")"
@@ -177,6 +218,35 @@ assert_missing "$PROJECT2/docs/tasks_manager" "bare at init skips the tasks seed
 assert_missing "$PROJECT2/artifacts/README.md" "bare at init skips the artifacts seed"
 BARE_TASKS="$(python3 -c 'import json;print("agents-tasks@agents-template" in json.load(open(".claude/settings.json"))["enabledPlugins"])')"
 assert_eq "$BARE_TASKS" "False" "bare at init does not enable agents-tasks"
+
+# --- broken managed files are a repair job, not a silent rewrite ---------------
+PROJECT3="$WORKDIR/project3"
+mkdir -p "$PROJECT3"
+cd "$PROJECT3" || exit 1
+git init -q .
+git config user.email "test@example.com"
+git config user.name "at test"
+git commit -q --allow-empty -m init
+
+printf 'node_modules/\n# BEGIN agents-template\nstale-body/\n' > .gitignore
+BROKEN_BLOCK="$(at init 2>&1)"
+BROKEN_BLOCK_RC=$?
+assert_eq "$BROKEN_BLOCK_RC" "1" "at init refuses an unterminated managed block"
+assert_stdout_contains "$BROKEN_BLOCK" "without a matching" "the error names the missing END marker"
+assert_contains .gitignore "stale-body/" "at init leaves the broken file untouched"
+printf 'node_modules/\n' > .gitignore
+
+printf '{"permissions": {"deny": "nope"}}\n' > .claude/settings.json
+BAD_DENY="$(at init 2>&1)"
+BAD_DENY_RC=$?
+assert_eq "$BAD_DENY_RC" "1" "at init refuses a non-list permissions.deny"
+assert_stdout_contains "$BAD_DENY" 'permissions.deny` must be a list' "the error says how to fix it"
+
+printf '{"enabledPlugins": []}\n' > .claude/settings.json
+BAD_PLUGINS="$(at init 2>&1)"
+BAD_PLUGINS_RC=$?
+assert_eq "$BAD_PLUGINS_RC" "1" "at init refuses a non-object enabledPlugins"
+assert_stdout_contains "$BAD_PLUGINS" 'enabledPlugins` must be a JSON object' "the error names the key"
 
 # --- bootstrap: pure parts only (temp HOME, no real config touched) ---------
 FAKEHOME="$WORKDIR/home"

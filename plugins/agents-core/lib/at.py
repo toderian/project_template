@@ -29,6 +29,9 @@ DEFAULT_SOURCE = "toderian/project_template"
 BEGIN_MARKER = "# BEGIN agents-template"
 END_MARKER = "# END agents-template"
 MAX_AGENTS_MD_LINES = 200
+# The project-slot form in the seed AGENTS.md. Only this exact opener counts as an
+# unfilled slot, so prose that merely mentions the token does not keep doctor warning.
+TODO_SLOT_MARKER = "<!-- TODO-FILL"
 
 RESOLVER = r"""#!/usr/bin/env bash
 # Resolver written by `at bootstrap` (agents-template). Safe to re-run.
@@ -168,6 +171,9 @@ def merge_managed_block(dst_path: Path, block_text: str,
         elif line.strip() == end:
             stop = index
             break
+    if start is not None and stop is None:
+        die(f"{dst_path}: found `{begin}` at line {start + 1} without a matching `{end}`; "
+            "repair or remove the block by hand, then re-run `at init`")
     if start is not None and stop is not None:
         new_text = "".join(lines[:start]) + block + "\n" + "".join(lines[stop + 1:])
     else:
@@ -209,12 +215,19 @@ def merge_settings_json(dst_path: Path, seed_json: dict) -> str:
         if not wanted:
             continue
         bucket = data.setdefault(key, {})
+        if not isinstance(bucket, dict):
+            die(f"{dst_path}: fix by hand: `{key}` must be a JSON object")
         for name, value in wanted.items():
             bucket.setdefault(name, value)
 
     deny = (seed_json.get("permissions") or {}).get("deny") or []
     if deny:
-        current = data.setdefault("permissions", {}).setdefault("deny", [])
+        permissions = data.setdefault("permissions", {})
+        if not isinstance(permissions, dict):
+            die(f"{dst_path}: fix by hand: `permissions` must be a JSON object")
+        current = permissions.setdefault("deny", [])
+        if not isinstance(current, list):
+            die(f"{dst_path}: fix by hand: `permissions.deny` must be a list")
         for rule in deny:
             if rule not in current:
                 current.append(rule)
@@ -299,16 +312,16 @@ def _ledger_findings(repo: Path, findings: list) -> None:
     proc = subprocess.run([sys.executable, str(script), "--check", "--root", str(repo)],
                           capture_output=True, text=True, check=False)
     messages = [line for line in (proc.stderr + proc.stdout).splitlines() if line.strip()]
-    if proc.returncode != 0:
-        for line in messages:
-            findings.append(("ERROR", f"ledger: {line}"))
-        if not messages:
-            findings.append(("ERROR", "ledger: `at ledger check` failed"))
-        return
     warnings = [line for line in messages if line.startswith("WARNING:")]
     for line in warnings:
         findings.append(("WARN", f"ledger: {line[len('WARNING:'):].strip()}"))
-    if not warnings:
+    if proc.returncode != 0:
+        problems = [line for line in messages if not line.startswith("WARNING:")]
+        for line in problems:
+            findings.append(("ERROR", f"ledger: {line}"))
+        if not problems:
+            findings.append(("ERROR", "ledger: `at ledger check` failed"))
+    elif not warnings:
         findings.append(("OK", "task ledgers are valid"))
 
 
@@ -337,7 +350,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         else:
             findings.append(("WARN", f"AGENTS.md is {count} lines "
                                      f"(> {MAX_AGENTS_MD_LINES}); move detail into skills or docs"))
-        slots = text.count("TODO-FILL")
+        slots = text.count(TODO_SLOT_MARKER)
         if slots:
             findings.append(("WARN", f"AGENTS.md still has {slots} TODO-FILL project slot(s) to fill "
                                      "(see the `setup-project` skill)"))
