@@ -1,0 +1,33 @@
+name: check
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install jq (hook tests)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq jq
+
+      - name: Generated files are up to date
+        run: python3 scripts/build.py --check
+
+      - name: Hook tests
+        run: bash plugins/agents-core/hooks/tests/test-hooks.sh
+
+      - name: Task-ledger tests
+        run: python3 scripts/tests/test_sync_todo_ledgers.py
+
+      - name: at CLI tests
+        run: bash scripts/tests/test-at.sh
+
+# `claude plugin validate` (in scripts/tests/run-all.sh) needs the Claude Code
+# CLI, which is not available here; the pre-commit hook covers it locally.
+# The `at migrate` cases in test-at.sh print SKIP when their local downstream
+# clone sources are absent, which is always true on a runner.

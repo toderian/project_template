@@ -7,4 +7,10 @@ claude plugin validate . >/dev/null
 bash plugins/agents-core/hooks/tests/test-hooks.sh
 python3 scripts/tests/test_sync_todo_ledgers.py
 bash scripts/tests/test-at.sh
+# release.sh runs this suite inside its throwaway copy; do not recurse into it
+if [[ -n "${AT_RELEASE_TEST:-}" ]]; then
+  echo "SKIP: test-release (already inside the release test)"
+else
+  bash scripts/tests/test-release.sh
+fi
 echo "run-all: ok"

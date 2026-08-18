@@ -4,6 +4,10 @@ Current research snapshot for this template.
 
 Reviewed on: 2026-07-01.
 
+Paths in this document use the 1.0.0 plugin layout. Entries logged before the
+2026-08-18 restructure named files in the old `_base` and `playbooks` trees; those
+trees live in git history (see `docs/specs/2026-08-18-plugin-restructure-design.md`).
+
 ## What changed this iteration
 
 The current template now leans harder into:
@@ -41,7 +45,7 @@ Recent provider guidance still converges on the same operational pattern: start 
 
 Template impact:
 
-- `_base/AGENTS.md` defaults to sequential role emulation first
+- `plugins/agents-core/seed/AGENTS.md` defaults to sequential role emulation first
 - multi-agent use is treated as an escalation path, not a starting point
 
 ### 2. Critique/refinement loops are still core, but they need external verification
@@ -109,7 +113,7 @@ connector writes explicit opt-ins.
 
 Template impact:
 
-- added `playbooks/conventions/autonomy-levels.md`
+- added `plugins/agents-core/skills/git-discipline/references/autonomy-levels.md`
 - kept L1 local development as the default for existing repos
 - defined L2/L3 as ceilings for branch/CI and draft-PR loops, not as permission to merge or deploy
 
@@ -158,8 +162,8 @@ checkpoint/resume, retries, human interrupts, branching, or parallel lanes becom
 
 Template impact:
 
-- added `playbooks/conventions/prompt-orchestration.md`
-- seeded `_base/workbooks/prompt-orchestration-long-task/`
+- added `plugins/agents-core/skills/subagent-protocol/references/prompt-orchestration.md`
+- seeded a prompt-orchestration long-task workbook (dropped in 1.0.0)
 - extended workbook conventions with optional prompt, schema, eval, and trace folders
 - added L0 long-task planning and L1 workbook-backed execution loop recipes
 - kept LangChain/LangGraph out of default dependencies
@@ -175,7 +179,7 @@ the existing project-owned doctrine rather than add a person-branded skill.
 
 Template impact:
 
-- `_base/AGENTS.md` now explicitly requires surfacing material assumptions and ambiguity
+- `plugins/agents-core/seed/AGENTS.md` now explicitly requires surfacing material assumptions and ambiguity
 - ambiguity should be resolved from local context first; ask only when correctness, safety, scope, or
   user-visible behavior would otherwise be at risk
 - implementation diffs should be minimal and surgical, with every changed line traceable to the
@@ -189,7 +193,7 @@ Template impact:
 
 | Date | Source | Why it mattered | Repo consequence |
 | --- | --- | --- | --- |
-| 2026-07-01 | [`multica-ai/andrej-karpathy-skills`](https://github.com/multica-ai/andrej-karpathy-skills) at `2c606141936f1eeef17fa3043a72095b4765b9c2`, plus local subagent audit and plan critique | The maintainer wanted the principles as base repo behavior. The source distilled common coding-agent failure modes but overlapped heavily with existing doctrine and was not license/release-clean enough for verbatim copying | Adapted the portable principles into `_base/AGENTS.md` and `_base/README.md` as project-owned coding discipline; did not vendor the upstream files or add a person-branded always-on skill |
+| 2026-07-01 | [`multica-ai/andrej-karpathy-skills`](https://github.com/multica-ai/andrej-karpathy-skills) at `2c606141936f1eeef17fa3043a72095b4765b9c2`, plus local subagent audit and plan critique | The maintainer wanted the principles as base repo behavior. The source distilled common coding-agent failure modes but overlapped heavily with existing doctrine and was not license/release-clean enough for verbatim copying | Adapted the portable principles into `plugins/agents-core/seed/AGENTS.md` and `README.md` as project-owned coding discipline; did not vendor the upstream files or add a person-branded always-on skill |
 | 2026-06-19 | Maintainer operating preference for downstream task/workbook orchestration | The template needed a practical downstream answer for long tasks without turning every seeded repo into a LangChain/LangGraph app | Added a vendor-neutral prompt orchestration convention and seeded long-task workbook with sanitized synthetic samples |
 | 2026-06-18 | [Anthropic, "Harness design for long-running application development"](https://www.anthropic.com/engineering/harness-design-long-running-apps), [Effective harnesses for long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents), [Effective context engineering for AI agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents), [Equipping agents for the real world with Agent Skills](https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills), [OpenAI Agent Skills - Codex](https://developers.openai.com/codex/skills), and [OpenAI practical guide to building agents](https://openai.com/business/guides-and-resources/a-practical-guide-to-building-ai-agents/) | Rechecked primary guidance on structured specs/contracts, evaluator criteria, context routing, and reusable skills before changing agent doctrine | Added task-native spec resolution, lifecycle statuses for durable specs, a seeded system map, and two shared skills for task specs and system mapping |
 | 2025-10-16 | [Equipping agents for the real world with Agent Skills](https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills) | Shows reusable agent capabilities as organized folders of instructions, scripts, and resources; emphasizes progressive disclosure and scripts as deterministic repeatable tools | Strengthened the workbook convention and base rule so substantial agent-created procedures become documented, runnable repo artifacts |

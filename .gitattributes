@@ -1,32 +1,14 @@
-# BEGIN agents-template merge rules
-# Managed by _base/scripts/setup-template-merge-rules.sh.
-# Keep project-specific attributes outside this block.
+# Managed by `at init` (agents-template). Keep project-specific attributes and
+# Git LFS rules outside this block.
 
-# Avoid conflicts when downstream projects add their own attributes.
-.gitattributes merge=union
-
-# Downstream-owned files and seeded project workspaces keep the local version
-# during template-remote merges. Ordinary project branch merges use normal
-# three-way file merging.
-AGENTS.md merge=template-keep-local
-README.md merge=template-keep-local
-CHANGELOG.md merge=template-keep-local
-LICENSE merge=template-keep-local
-PROJECT.md merge=template-keep-local
-CONTEXT.md merge=template-keep-local
-.config/repos.project.md merge=template-keep-local
-docs/** merge=template-keep-local
-workbooks/** merge=template-keep-local
-tools/python/** merge=template-keep-local
-
-# Upstream-owned base files accept the template remote's version during
-# template-remote merges. Ordinary project branch merges use normal three-way
-# file merging.
-_base/** merge=template-keep-upstream
-# END agents-template merge rules
-
-# Artifact registries are downstream-owned once a project is seeded.
-artifacts/** merge=template-keep-local
-
-# Project-specific Git LFS rules belong below this line. Keep patterns narrow,
-# per-artifact, and mirrored in artifacts/README.md.
+*.pdf binary
+*.docx binary
+*.xlsx binary
+*.pptx binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.zip binary
+*.gz binary
+*.tar binary

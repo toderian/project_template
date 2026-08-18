@@ -1,100 +1,105 @@
-# Agents Template
+# agents-template
 
-This is the base **agents template** — a portable operating contract (`AGENTS.md`) and reusable skills/playbooks for Claude Code and OpenAI Codex, designed to be seeded into new projects and updated in place via a `template` git remote.
+A plugin marketplace of operating skills, safety hooks and subagent roles for coding
+agents — usable from **Claude Code** and **OpenAI Codex** — plus `at`, a small CLI that
+seeds a downstream repository with the handful of files it owns itself.
 
-> **This `README.md` extends [`_base/README.md`](./_base/README.md).** The base file is the authoritative documentation (skills, playbooks, sync workflow, adoption patterns). Downstream projects seeded from this template should keep `_base/README.md` exactly as inherited (so future upstream improvements merge cleanly) and write their own `README.md` that links to it.
+Nothing here is merged into your project. You install plugins from this marketplace and
+run `at init` once; updates arrive through the plugin manager, not through a git remote.
 
-**Canonical URL:** `git@github.com:toderian/project_template.git`
+## Install
 
-## Quick links
+Claude Code:
 
-- [Base contract → `_base/README.md`](./_base/README.md) — full template documentation
-- [Operating contract → `AGENTS.md`](./AGENTS.md)
-- [Artifact registry → `artifacts/README.md`](./artifacts/README.md)
-- [Skills → `playbooks/skills/`](./playbooks/skills/)
-- [Seed a new project → "Option 3" in `_base/README.md`](./_base/README.md#option-3-seed-a-new-project-from-this-template)
-- [Pull template updates → "Staying in sync" in `_base/README.md`](./_base/README.md#staying-in-sync-with-the-template)
-
-## Convention for downstream projects
-
-Projects seeded from this template follow a strict two-file split:
-
-| File | Owned by | On `git fetch template && git merge` |
-|------|----------|---------------------------------------|
-| `README.md` | **Downstream project** (write your own; describes your project) | Not touched — never conflicts |
-| `_base/README.md` | **Upstream template** (do not edit downstream) | Updated cleanly with upstream changes |
-
-A minimal downstream `README.md`:
-
-```markdown
-# MyApp
-
-What MyApp does, how to run it, etc.
-
-## Agent contract
-
-This project extends the agents template — see [`_base/README.md`](./_base/README.md)
-([upstream](https://github.com/toderian/project_template)).
+```
+/plugin marketplace add toderian/project_template
+/plugin install agents-core@agents-template
 ```
 
-If you need to add project-specific agent rules, do it in your own `README.md` or in a project `AGENTS.md`, **not** by editing `_base/README.md`. That file belongs to the template and gets updates with time.
+Codex:
 
-The same rule applies to skills, plugins, and any other artifacts: list things **created in the base** (this template) in `_base/README.md`; list things **created in your project** in your own `README.md`. The two files never overlap, so there are no merge conflicts when the template pushes updates.
+```bash
+codex plugin marketplace add toderian/project_template
+codex plugin add agents-core@agents-template
+```
 
-## Project-specific additions
+Or do both harnesses at once, from any shell:
 
-> **This section is the downstream-project slot.** Each project seeded from this template uses this part of `README.md` to describe what *it* adds on top of the base — its own skills, plugins, conventions, scripts, etc. Keep or adapt the local credentials convention below as needed, then add project-owned items in the subsections that follow.
+```bash
+at bootstrap --tasks          # adds both marketplaces, installs plugins, writes ~/.local/bin/at
+```
 
-### Local credentials
+`at bootstrap` also accepts `--local <checkout>` (install from a clone instead of GitHub),
+`--claude` / `--codex` (one harness only), `--extras`, `--personal`, and
+`--clean-global-skills` (list stale global skill symlinks from the pre-1.0 layout).
 
-Credentials for agent/tool use may live under `.creds/` at the repository root. The folder is
-gitignored and must never be committed. Agents should read credential values only when a task requires
-them, and should not print or copy secret contents into tracked files, docs, logs, prompts, final
-answers, or task artifacts.
+## Use it in a repo
 
-### Artifacts
+```bash
+cd /path/to/your/repo
+at init --with-tasks          # write the seed: AGENTS.md, CLAUDE.md, .claude/settings.json, …
+at doctor                     # check the repo against the contract
+```
 
-Large, external, generated, encrypted, or reproducible artifacts are listed in
-[`artifacts/README.md`](./artifacts/README.md). Check that registry before walking the repo for
-artifact files; it records the artifact slug, backend, path or pattern, fetch command, verification
-command, encryption status, key path, and update notes.
+`at init` never overwrites a file you own; re-running it is safe. Flags: `--with-tasks`,
+`--with-artifacts`, `--with-workbooks`, `--with-repos`, `--all`.
 
-Git LFS is the default documented backend. Run `git lfs install` once, fetch only needed artifacts
-with `git lfs pull --include="<path-or-pattern>"`, and use `git lfs ls-files --name-only` to confirm
-that every LFS-tracked path is represented in the registry. Before committing a new LFS artifact, run
-`git lfs track "<path-or-pattern>"`, keep the `.gitattributes` rule narrow and per-artifact, place it
-outside the managed agents-template block, and update `artifacts/README.md` in the same change.
+Coming from the pre-1.0 template (a repo with vendored `_base` and `playbooks` trees
+and a `template` git remote)? Use `at migrate` — it is a dry run by default. See [`docs/migration.md`](docs/migration.md).
 
-Encrypted artifacts should use `age` by default. Commit only encrypted files such as `*.age`, keep
-private keys under `.creds/lfs/<artifact-slug>.agekey`, and write decrypted local outputs under
-ignored paths such as `.local/artifacts/<artifact-slug>/`.
+## Plugins
 
-### Saved prompts
+| Plugin | What's inside | Enable it when |
+|---|---|---|
+| `agents-core` | 16 skills (plan execution, TDD, diagnose, spec + planning workflows, handoff, subagent protocol, security review, git discipline, project setup), 5 safety hooks, 6 subagent roles, the `at` CLI | Always — it is the contract |
+| `agents-tasks` | 22 skills: the `docs/tasks_manager/` task ledger and its tooling, knowledge base, workbooks, artifact registry, cross-repo workflows | The repo tracks work as task files, or wants durable notes/registries |
+| `agents-extras` | 17 skills: architecture review, GitHub triage and PRDs, UI/frontend review, migration safety, pre-commit setup, skill authoring | You want the wider review/GitHub/UI toolkit |
+| `agents-personal` | 8 skills: writing, editing, Obsidian, teaching, niche migrations | Personal repos; not useful in most codebases |
 
-Reusable or historically useful prompts may live under `.prompts/` and be committed with the
-repository. Review any prompt before committing it for credentials, private data, copied sensitive
-context, or other material that should not be preserved in Git. Prompts that should remain local-only
-belong under `.no-commit/.prompts/`.
+Skills are invoked by name (`/agents-core:tdd` in Claude, `$tdd` in Codex) or picked up by
+the model from their descriptions.
 
-### Python tooling environments
+## Layout
 
-Repo-level Python tooling dependencies should use `uv` under `tools/python/`. When such tooling exists,
-commit `tools/python/pyproject.toml`, `tools/python/uv.lock`, and `tools/python/.python-version`; keep
-`tools/python/.venv/` local-only. Run managed commands from that folder, for example
-`cd tools/python && uv sync` or `cd tools/python && uv run <command>`.
+```
+.claude-plugin/marketplace.json   generated — Claude view of the four plugins
+.agents/plugins/marketplace.json  generated — Codex view of the same four
+plugins/<name>/                   the plugins themselves
+  .claude-plugin/plugin.json      source of truth for name/version/description
+  .codex-plugin/plugin.json       generated
+  skills/, agents/, hooks/, seed/, bin/, lib/
+scripts/build.py                  regenerates every derived file (--check verifies)
+scripts/release.sh                version bump + build + tests + tag
+scripts/tests/run-all.sh          the whole test suite
+docs/specs/, docs/plans/, docs/meta/, docs/migration.md
+```
 
-### Project skills
+## Developing
 
-_None for the base template itself._
+```bash
+python3 scripts/build.py          # regenerate derived files (marketplaces, codex twins)
+python3 scripts/build.py --check  # fail if anything is out of date
+bash scripts/tests/run-all.sh     # build check + plugin validation + hook/ledger/CLI tests
+```
 
-Downstream projects, list any skills your project adds on top of the base template here (the base-template catalog is in [`_base/README.md`](./_base/README.md#available-skills) and updates from upstream). Example:
+Sources of truth and the rules for changing them are in [`AGENTS.md`](AGENTS.md).
+The pre-commit hook runs `run-all.sh`; CI runs the same suite minus `claude plugin validate`.
 
-| Skill | Description |
-|-------|-------------|
-| `<your-skill>` | `<one-line description>` |
+Release:
 
-### Project plugins / tooling
+```bash
+scripts/release.sh 1.1.0 --dry-run   # show the plan
+scripts/release.sh 1.1.0             # bump all four plugins, build, test, commit, tag
+git push && git push --tags
+```
 
-_None for the base template itself._
+`claude plugin tag plugins/agents-core` can additionally publish a per-plugin tag.
 
-Downstream projects, list project-specific plugins, scripts, or tooling here. The base-template plugin catalog is in [`_base/README.md`](./_base/README.md#third-party-plugins-own-installers).
+## More
+
+- Design: [`docs/specs/2026-08-18-plugin-restructure-design.md`](docs/specs/2026-08-18-plugin-restructure-design.md)
+- Migration from the pre-1.0 template: [`docs/migration.md`](docs/migration.md)
+- Changes: [`CHANGELOG.md`](CHANGELOG.md)
+- Refresh process for this repo's doctrine: [`docs/meta/UPDATE_PLAN.md`](docs/meta/UPDATE_PLAN.md), [`docs/meta/RESEARCH_SNAPSHOT.md`](docs/meta/RESEARCH_SNAPSHOT.md)
+
+Licensed under Apache-2.0 ([`LICENSE`](LICENSE)).

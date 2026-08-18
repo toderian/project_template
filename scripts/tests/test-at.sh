@@ -189,7 +189,8 @@ rm docs/tasks_manager/_todos/TST-002-C_oversized-execution-log.md
 # --- at version -------------------------------------------------------------
 EXPECTED_VERSION="$(python3 -c "import json;print(json.load(open('$REPO/plugins/agents-core/.claude-plugin/plugin.json'))['version'])")"
 assert_eq "$(at version 2>&1)" "$EXPECTED_VERSION" "at version prints the plugin version"
-assert_eq "$EXPECTED_VERSION" "1.0.0" "plugin version is 1.0.0"
+if [[ "$EXPECTED_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then pass;
+else fail "plugin version '$EXPECTED_VERSION' is not semver X.Y.Z"; fi
 
 # --- usage errors -----------------------------------------------------------
 at frobnicate >/dev/null 2>&1

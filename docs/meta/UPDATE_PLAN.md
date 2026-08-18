@@ -4,6 +4,10 @@ Repeatable research and template-refresh plan for this repository.
 
 Last executed: 2026-07-01.
 
+Paths in this document use the 1.0.0 plugin layout. Entries logged before the
+2026-08-18 restructure named files in the old `_base` and `playbooks` trees; those
+trees live in git history (see `docs/specs/2026-08-18-plugin-restructure-design.md`).
+
 ## Purpose
 
 Keep this template aligned with the latest useful research and operational lessons on agent behavior for development work, without turning the repo into vendor-specific prompt cargo cult.
@@ -19,7 +23,7 @@ This plan exists so future updates can be rerun with the same discipline:
 
 Rerun this plan when any of the following is true:
 
-- a core behavior file is being changed (`_base/AGENTS.md`, `playbooks/personalities/`, research snapshot, `_base/README.md` examples)
+- a core behavior file is being changed (`plugins/agents-core/seed/AGENTS.md`, `plugins/agents-core/skills/subagent-protocol/references/personalities/`, research snapshot, `README.md` examples)
 - a major new agent paper, benchmark, or engineering post is released
 - a new failure pattern is observed in real projects using this template
 - at least 30 days have passed since the last meaningful review
@@ -125,18 +129,18 @@ When sources disagree:
 - prefer controlled evaluations over intuition
 - prefer operational writeups over abstract pattern lists
 - prefer simpler workflows until complexity clearly wins
-- document the conflict in `playbooks/meta/RESEARCH_SNAPSHOT.md`
+- document the conflict in `docs/meta/RESEARCH_SNAPSHOT.md`
 
 ### Step 5: Convert research into repo changes
 
 Update only what the evidence supports:
 
-- `_base/AGENTS.md`
-- `playbooks/personalities/`
-- `_base/README.md`
-- relevant conventions such as `playbooks/conventions/workbook-convention.md` when doctrine changes
+- `plugins/agents-core/seed/AGENTS.md`
+- `plugins/agents-core/skills/subagent-protocol/references/personalities/`
+- `README.md`
+- relevant conventions such as `plugins/agents-tasks/skills/workbook/SKILL.md` when doctrine changes
   artifact routing or reusable workflow shape
-- `playbooks/meta/RESEARCH_SNAPSHOT.md`
+- `docs/meta/RESEARCH_SNAPSHOT.md`
 
 If a finding is interesting but not yet mature, log it under open questions instead of promoting it into default behavior.
 
@@ -155,7 +159,7 @@ Run a deliberate review pass:
 At the end of every refresh:
 
 - update `Last executed`
-- refresh `playbooks/meta/RESEARCH_SNAPSHOT.md`
+- refresh `docs/meta/RESEARCH_SNAPSHOT.md`
 - summarize what changed and why
 - list open questions for the next run
 
@@ -173,11 +177,11 @@ Promote a finding into the default template only if most of the following are tr
 
 Every completed run should leave behind:
 
-- an updated `playbooks/meta/RESEARCH_SNAPSHOT.md`
-- an updated `_base/AGENTS.md`
-- updated role cards in `playbooks/personalities/` if behavior changed
+- an updated `docs/meta/RESEARCH_SNAPSHOT.md`
+- an updated `plugins/agents-core/seed/AGENTS.md`
+- updated role cards in `plugins/agents-core/skills/subagent-protocol/references/personalities/` if behavior changed
 - updated conventions or seed docs when behavior changes reusable artifact routing
-- refreshed `_base/README.md` examples if the adoption story changed
+- refreshed `README.md` examples if the adoption story changed
 
 ## Current baseline recommendation
 
@@ -204,7 +208,7 @@ Doctrine refresh for minimal, assumption-aware coding behavior.
 - Promoted sharper rules for surfacing material assumptions, asking only when inspection cannot
   resolve ambiguity safely, keeping diffs surgical, avoiding speculative flexibility, and cleaning up
   only code made obsolete by the current change.
-- Updated `_base/AGENTS.md`, `_base/README.md`, and `playbooks/meta/RESEARCH_SNAPSHOT.md`.
+- Updated `plugins/agents-core/seed/AGENTS.md`, `README.md`, and `docs/meta/RESEARCH_SNAPSHOT.md`.
 
 ### 2026-06-18
 
@@ -213,8 +217,8 @@ Doctrine refresh for task-native specs and status-aware system mapping.
 - Promoted the rule that agents must resolve spec sources and lifecycle status before implementation.
 - Added task-local spec/design guidance, optional `Spec refs`, and durable spec statuses.
 - Added a seeded system-map index and two workflows: `task-spec-workflow` and `map-system`.
-- Updated `_base/AGENTS.md`, task/knowledge conventions, execute/review/closeout workflows,
-  `_base/README.md`, `_base/CHANGELOG.md`, and `playbooks/meta/RESEARCH_SNAPSHOT.md`.
+- Updated `plugins/agents-core/seed/AGENTS.md`, task/knowledge conventions, execute/review/closeout workflows,
+  `README.md`, `CHANGELOG.md`, and `docs/meta/RESEARCH_SNAPSHOT.md`.
 
 ### 2026-06-17
 
@@ -222,6 +226,6 @@ Doctrine refresh for human-runnable workflow artifacts.
 
 - Promoted the rule that substantial, repeatable, expensive, or likely-to-be-reused agent-created
   workflows should become documented repo artifacts instead of transcript-only inline snippets.
-- Updated `_base/AGENTS.md`, `_base/README.md`, `playbooks/conventions/workbook-convention.md`,
-  `_base/workbooks/README.md`, and `playbooks/meta/RESEARCH_SNAPSHOT.md`.
+- Updated `plugins/agents-core/seed/AGENTS.md`, `README.md`, `plugins/agents-tasks/skills/workbook/SKILL.md`,
+  `plugins/agents-tasks/seed/workbooks/README.md`, and `docs/meta/RESEARCH_SNAPSHOT.md`.
 - Kept v1 docs-first with no automated validator because inline-snippet detection would be brittle.

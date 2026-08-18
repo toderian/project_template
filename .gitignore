@@ -1,41 +1,19 @@
 .idea
-# Local Codex config/state. Only committed project-scoped agent mirrors are allowed.
-.codex/*
-!.codex/agents/
-.codex/agents/*
-!.codex/agents/*.toml
-# Local-only machine bindings (repos.map, runbook placeholders, environment notes).
+
+# Local drop-zone, scratch, and machine bindings. Never committed.
 .local/
 .no-commit/
-.worktrees/
-worktrees/
-.temp/
-.tmp/
-temp/
-tmp/
 
 # Local credentials for agent/tool use. Never commit.
 .creds/
 
-# Local Python virtual environments. Commit uv metadata, never the env itself.
-.venv/
-tools/python/.venv/
+# Python bytecode.
 __pycache__/
 *.pyc
 
-# Local environment config (copy from project.env.example)
-project.env
-
-# Agent runtime artifacts (start from templates/ when needed)
-AGENT_PROGRESS.md
-AGENT_TASKS.json
-AGENT_DECISIONS.md
-
-# GitHub triage knowledge base (repo-specific, not template content)
-.out-of-scope/
-
-# Local Claude Code settings (per-machine permission allowlist, hooks, etc.).
-# The trailing * also covers the harness's own atomic-write temp files
-# (.claude/settings.local.json.tmp.<pid>.<hash>), which briefly exist on disk
-# during a write-then-rename and would otherwise not match.
+# Local Claude Code settings (per-machine permissions, hooks). The trailing *
+# also covers the harness's atomic-write temp files.
 .claude/settings.local.json*
+
+# Local Codex config/state.
+.codex/*
