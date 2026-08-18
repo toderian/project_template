@@ -45,4 +45,13 @@ Upgrading an existing downstream: [`docs/migration.md`](docs/migration.md).
   merge-driver block. Updates now arrive through the plugin manager, not a `template` remote.
 - Dedicated Antigravity/Gemini support (those harnesses read `.agents/skills` anyway).
 
+### Verified
+
+- End-to-end on Claude Code 2.1.234 and Codex CLI 0.147.0: `at bootstrap --local . --claude
+  --codex --tasks --extras` installed all three plugins on the first try in both harnesses;
+  `at init --all` + `at doctor` passed in a scratch repo; Claude Code's `block-dangerous-git.sh`
+  hook blocked `git push --force` and both harnesses' agents saw `AGENTS.md` and the
+  `agents-core` skills (`agents-core:tdd`, `$tdd`/`agents-core:execute-plan`). Details and
+  token-cost numbers in `docs/meta/RESEARCH_SNAPSHOT.md` "Verification 2026-08-18".
+
 Earlier history: `_base/CHANGELOG.md` before commit `a90cf0d` in git history.

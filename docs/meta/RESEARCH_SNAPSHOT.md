@@ -216,6 +216,26 @@ Template impact:
 | 2023-03-21 | [Reflexion: Language Agents with Verbal Reinforcement Learning](https://arxiv.org/abs/2303.11366) | Foundational support for reflection loops with feedback memory | Preserved critic/refine passes as a core pattern |
 | 2023-03-30 | [Self-Refine: Iterative Refinement with Self-Feedback](https://arxiv.org/abs/2303.17651) | Foundational support for iterative self-feedback and revision | Preserved multi-pass refinement as a default behavior |
 
+## Verification 2026-08-18
+
+End-to-end check of 1.0.0 on Claude Code 2.1.234 and Codex CLI 0.147.0 (task-11-report.md
+has full transcript). `at bootstrap --local . --claude --codex --tasks --extras` succeeded
+in one pass for both harnesses; Claude accepted the local-directory marketplace with no
+special flag or refusal. `claude plugin list` showed all three plugins `enabled`;
+`claude plugin details` projected always-on cost `agents-core` ~2,035 tok, `agents-tasks`
+~2,399 tok (per-skill/agent breakdown in the report). `codex plugin list` showed
+`agents-core`/`agents-tasks`/`agents-extras` `installed, enabled`; the pre-existing stale
+`local-project-template` Codex marketplace (unresolvable `_base/plugins/...` paths) was
+listed alongside without error. `~/.local/bin/at version` → `1.0.0`. In a scratch repo
+seeded by `at init --all`: `at doctor` passed (1 expected WARN for unfilled TODO-FILL
+slots); `claude -p` non-interactively read `AGENTS.md` via `CLAUDE.md`'s import, confirmed
+`agents-core:tdd` and other `agents-core:` skills were visible, and had `git push --force`
+correctly BLOCKED by `block-dangerous-git.sh` (also verified directly, exit 2); `codex exec
+--skip-git-repo-check` (no extra trust flag needed — `hooks = true` already set) listed
+`agents-core:tdd`/`agents-core:execute-plan` and saw `AGENTS.md`. One anomaly: Codex also
+listed the same two skills under an unexplained `project-template-skills:` namespace not
+traceable to any current plugin/marketplace config — flagged for follow-up, not a blocker.
+
 ## Open questions for the next refresh
 
 - Do newer benchmark families like SWE-bench Pro or SWE-Lancer materially change what “good agent behavior” should look like in a portable dev template?
