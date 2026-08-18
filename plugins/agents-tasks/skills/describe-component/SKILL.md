@@ -1,0 +1,162 @@
+---
+name: describe-component
+description: "Generate or refresh a docs-primary component CONTEXT.md covering responsibility, public interface, dependencies, owned data, invariants, and tests. Use when the user wants to \"describe a component\", \"document this module/service\", map subsystem boundaries, or onboard/handoff code."
+argument-hint: "Which component/path should I describe?"
+metadata:
+  source: playbooks/skills/engineering/describe-component.md
+  pack: docs-knowledge
+---
+
+# Describe Component
+
+## Purpose
+
+Produce (or refresh) a `CONTEXT.md` for a single **system component** — a service, module, package, or
+directory — that captures its *structure and boundaries*: what it's responsible for, how you call it,
+what it depends on, what data it owns, the non-obvious rules, and how it's tested.
+
+This is the **architectural** counterpart to `docs/resources/CONTEXT.md`, which is a *domain glossary*
+(vocabulary, relationships). Keep the two distinct:
+
+- **`docs/resources/CONTEXT.md`** (maintained by `grill-with-docs`) — what the words *mean* across the project.
+- **Component `CONTEXT.md`** (this skill) — what *this part of the system* does and how it fits.
+
+A component doc should **link** to domain terms in the docs-primary glossary, not redefine them.
+Duplicated definitions drift; a cross-reference doesn't.
+
+Use this when onboarding to or handing off a component, before refactoring something whose boundaries
+are fuzzy, after building a new subsystem, or any time an agent keeps re-deriving the same "what does
+this module even do" understanding. It's a one-click-deep orientation doc that saves that rediscovery.
+
+## When NOT to use it
+
+- For trivial components (a single small file) — a doc costs more than it saves.
+- For domain vocabulary — that belongs in `docs/resources/CONTEXT.md` via `grill-with-docs`.
+- For step-by-step how-tos or runbooks — this describes structure, not procedures.
+
+## Process
+
+### 1. Fix the component's scope
+
+Confirm the path/boundary with the user (e.g. `src/auth/`, `services/billing/`, a package). A component
+is a unit with a coherent responsibility and a callable surface — not "all the files I touched." If the
+boundary is unclear, propose one and confirm before exploring.
+
+### 2. Explore the code (don't guess)
+
+Read the component before writing a word about it. For a larger component, dispatch an `Explore` agent;
+for a small one, grep/read directly. Gather:
+
+- **Entry points** — `main`/`index`/`__init__`, the public exports, route registrations, CLI commands.
+- **Public interface** — the functions, classes, endpoints, or events other code is meant to call.
+  Distinguish the intended surface from internal helpers.
+- **Outbound dependencies** — what this component imports/calls (other components, libraries, services,
+  env/config it reads).
+- **Inbound dependencies** — who imports or calls *into* this component (grep for its module path /
+  public symbols across the repo). This is what makes a change risky, so it's worth the search.
+- **Data owned** — models, tables, schemas, caches, files, or in-memory state this component is the
+  source of truth for. Note what it owns vs. merely reads.
+- **Tests** — the test files that cover it, and roughly what they assert.
+
+### 3. Surface the invariants and gotchas
+
+These are the highest-value, least-recoverable parts — the things the code doesn't say out loud:
+ordering requirements, concurrency assumptions, "never call X before Y," idempotency, migration
+hazards, performance cliffs, security-sensitive paths. Read for them, and **ask the user** for the
+tribal knowledge that isn't in the code. If you genuinely find none, say so rather than inventing them.
+
+### 4. Reconcile with the domain glossary
+
+If the component traffics in domain terms, link them to `docs/resources/CONTEXT.md` instead of
+redefining them. If you hit a domain word that *should* be in the glossary but isn't, note it and
+suggest running `grill-with-docs` - don't silently define it in the component doc.
+
+### 5. Determine where to store it
+
+The path taxonomy for where component contexts live — the
+`docs/resources/<area>/components/<component-slug>/CONTEXT.md` path, area ownership, and the `global`
+fallback for cross-area/shared/default components — is owned by
+the `knowledge-base` skill §"Source of truth split". Follow it rather than
+re-deriving paths here. Ask before creating a new area or materially changing which area owns a
+component.
+
+Derive `<component-slug>` from the source path:
+
+1. Lowercase the source path.
+2. Replace path separators and every non-alphanumeric run with `-`.
+3. Collapse duplicate dashes.
+4. Trim leading and trailing dashes.
+
+Every component doc must record the exact source path in its header:
+
+```md
+> Architectural context for <repo>:<source-path>
+```
+
+**`CONTEXT_DOCS_DIR`** (read from `project.env` at the repo root; follow silently only when set) is the
+external-storage escape hatch for the writable knowledge root: unset -> use the in-repo path above; set
+as the canonical central docs home for the area -> store under
+`$CONTEXT_DOCS_DIR/resources/<area>/components/<component-slug>/CONTEXT.md`; set only for repo-specific
+external context -> store under
+`$CONTEXT_DOCS_DIR/<source-repo>/resources/<area>/components/<component-slug>/CONTEXT.md`. Keep the same
+source-path header either way. Do not use `CONTEXT_DOCS_DIR` as the normal default for this template.
+
+### 6. Draft, confirm, write
+
+Draft the sections (format below), show the user, fold in corrections, then write the file to the
+location chosen in step 5.
+
+## Format
+
+```md
+# {Component Name} - Component Context
+
+> Architectural context for <repo>:<source-path>
+> Domain terms link to `docs/resources/CONTEXT.md`; this file owns structure, not vocabulary.
+
+## Responsibility
+{1–3 sentences: what this component is accountable for, and — just as useful — what it is deliberately
+NOT responsible for.}
+
+## Public interface
+{The surface other code calls: key functions/classes/endpoints/events, with a one-line purpose each.
+This is the contract; internal helpers don't belong here.}
+
+## Key files / entry points
+- `{path/to/file}` — {what it is / why you'd open it}
+
+## Dependencies (in / out)
+**Depends on:** {components, services, libraries, config this needs}
+**Depended on by:** {who calls into this — the blast radius of a change}
+
+## Data owned
+{Models, tables, schemas, state this component is the source of truth for. Note owned vs. read-only.}
+
+## Invariants & gotchas
+- {Non-obvious constraint, ordering rule, concurrency assumption, hazard.}
+
+## Tests
+- `{path/to/test}` — {what it covers}
+
+## Related domain terms
+{Terms this component uses, linking to `docs/resources/CONTEXT.md` entries — e.g. **Order**, **Invoice**.
+Do not redefine them here.}
+```
+
+Drop a section if it's genuinely empty (e.g. a stateless component has no "Data owned") rather than
+padding it — but say nothing only when there's truly nothing.
+
+## Keeping it current
+
+A component doc describes structure, which evolves more slowly than domain vocabulary — but it does
+evolve. When a refactor moves the boundary, changes the public interface, or adds a dependency, update
+the doc in the same change. It's downstream-owned; treat a stale component CONTEXT.md as a bug.
+
+## Quality bar
+
+- Every claim is grounded in code you actually read, not inferred from names.
+- The **public interface** and **Depended on by** sections are accurate — these are what make the doc
+  worth trusting before a change.
+- Invariants capture real, non-obvious constraints (or the doc honestly states there are none).
+- Domain terms link to `docs/resources/CONTEXT.md`; nothing is redefined.
+- A newcomer could read it in two minutes and know where to start and what not to break.
