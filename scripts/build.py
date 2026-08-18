@@ -68,8 +68,19 @@ def render_codex_hooks(claude_hooks: dict) -> dict:
     text = text.replace("${CLAUDE_PLUGIN_ROOT}", "${PLUGIN_ROOT}").replace("MultiEdit|", "")
     return json.loads(text)
 
-def render_codex_agent(md_path: Path) -> str:              # filled in Task 4
-    raise NotImplementedError
+def render_codex_agent(md_path: Path) -> str:
+    text = md_path.read_text()
+    m = re.match(r"---\n(.*?)\n---\n(.*)", text, re.S)
+    fm, body = m.group(1), m.group(2).strip()
+    name = re.search(r"^name:\s*(.+)$", fm, re.M).group(1).strip()
+    desc = re.search(r"^description:\s*(.+)$", fm, re.M).group(1).strip().strip('"')
+    desc = desc.replace("\\", "\\\\").replace('"', '\\"')
+    body = re.sub(r"\$\{CLAUDE_PLUGIN_ROOT\}/skills/([\w-]+)/SKILL\.md", r"the `\1` skill ($\1)", body)
+    body = re.sub(r"\$\{CLAUDE_PLUGIN_ROOT\}/skills/([\w-]+)/references/([\w./-]+)", r"the `\1` skill's references/\2", body)
+    body = body.replace('"""', "'''")
+    return (f'# {GENERATED_BANNER.format(src=md_path.relative_to(ROOT))}\n'
+            f'name = "{name}"\ndescription = "{desc}"\n'
+            f'developer_instructions = """\n{body}\n"""\n')
 
 def targets(plugins: list[dict]) -> dict[Path, str]:
     t = {
