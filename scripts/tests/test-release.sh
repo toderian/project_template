@@ -91,14 +91,31 @@ if [[ "$FULL" != "0" ]]; then
   OUT="$(AT_RELEASE_TEST=1 bash scripts/release.sh "$NEW_VERSION" 2>&1)"; RC=$?
   assert_eq "$RC" "1" "release refuses an existing tag"
 
+  # a failing COMMIT (the stage past `git add -A`) must leave neither the worktree
+  # nor the index bumped. The migrate cases of test-at.sh are stubbed out for this
+  # run only: the point here is the commit stage, not a third full pass over them.
+  printf '#!/bin/sh\nexit 1\n' > .git/hooks/pre-commit
+  chmod +x .git/hooks/pre-commit
+  OUT="$(AT_RELEASE_TEST=1 AT_TEST_LIGHT_SRC=/nonexistent AT_TEST_HEAVY_SRC=/nonexistent \
+         AT_TEST_FOREIGN_SRC=/nonexistent AT_TEST_WRITING_SRC=/nonexistent \
+         bash scripts/release.sh 1.0.2 2>&1)"; RC=$?
+  rm -f .git/hooks/pre-commit
+  if [[ "$RC" -ne 0 ]]; then pass; else fail "release fails when the commit fails"; fi
+  assert_eq "$(versions)" "$EXPECT_NEW" "a failed commit restores the manifests"
+  assert_eq "$(git status --porcelain | wc -l | tr -d ' ')" "0" "a failed commit leaves a clean tree"
+  assert_eq "$(git diff --cached --name-only | wc -l | tr -d ' ')" "0" "a failed commit leaves an empty index"
+  assert_eq "$(git log -1 --format=%s)" "chore: release $NEW_VERSION" "a failed commit adds no commit"
+  assert_eq "$(git tag -l v1.0.2)" "" "a failed commit creates no tag"
+
   # a failing suite must not leave a half-applied version bump behind
   sed -i '2i exit 1  # sabotage' scripts/tests/run-all.sh
   git commit -qam "sabotage the suite"
-  OUT="$(AT_RELEASE_TEST=1 bash scripts/release.sh 1.0.2 2>&1)"; RC=$?
+  OUT="$(AT_RELEASE_TEST=1 bash scripts/release.sh 1.0.3 2>&1)"; RC=$?
   assert_eq "$RC" "1" "release fails when the suite fails"
   assert_eq "$(versions)" "$EXPECT_NEW" "a failed release restores the manifests"
   assert_eq "$(git status --porcelain | wc -l | tr -d ' ')" "0" "a failed release leaves a clean tree"
-  assert_eq "$(git tag -l v1.0.2)" "" "a failed release creates no tag"
+  assert_eq "$(git diff --cached --name-only | wc -l | tr -d ' ')" "0" "a failed release leaves an empty index"
+  assert_eq "$(git tag -l v1.0.3)" "" "a failed release creates no tag"
 else
   echo "SKIP: real release run (AT_RELEASE_TEST_FULL=0)"
 fi

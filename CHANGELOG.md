@@ -23,8 +23,8 @@ Upgrading an existing downstream: [`docs/migration.md`](docs/migration.md).
 - **Codex parity**: generated `.codex-plugin/plugin.json`, `hooks/hooks.codex.json` and
   `codex/agents/*.toml`; the sensitive-write hook now also understands `apply_patch`.
 - **Tooling**: `scripts/build.py` (regenerates every derived file, `--check` in CI),
-  `scripts/release.sh`, `scripts/tests/run-all.sh` (hook, ledger, CLI and release tests),
-  `.github/workflows/check.yml`.
+  `scripts/release.sh`, `scripts/install-pre-commit.sh`, `scripts/tests/run-all.sh` (hook,
+  ledger, CLI and release tests), `.github/workflows/check.yml`.
 
 ### Changed
 

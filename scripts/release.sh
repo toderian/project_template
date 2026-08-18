@@ -51,15 +51,19 @@ fi
 CURRENT="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["version"])' "${MANIFESTS[0]}")"
 echo "release: $CURRENT -> $VERSION (${#MANIFESTS[@]} plugins)"
 
-# Between the version bump and the commit, a failure (build or tests) would leave
-# bumped manifests behind. The tree was verified clean above, so everything the
-# checkout discards is ours.
+# Between the version bump and the commit, a failure — build, tests, or the commit
+# itself, which `git add -A` has already staged by then — would leave the bumped
+# state behind. The tree was verified clean above, so restoring index and worktree
+# from HEAD discards only our own edits. No untracked leftovers are possible:
+# scripts/build.py writes a fixed set of targets (both marketplaces, and per plugin
+# the .codex-plugin manifest, hooks.codex.json and codex/agents/*.toml), all of
+# them already tracked, and a release edits nothing but the version key.
 ROLLBACK=0
 rollback_on_failure() {
   local rc=$?
   if [[ "$rc" != 0 && "$ROLLBACK" == 1 ]]; then
     echo "release: failed; restoring version $CURRENT" >&2
-    git checkout -- . || true
+    git restore --source=HEAD --staged --worktree . || true
   fi
   return "$rc"
 }

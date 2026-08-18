@@ -9,7 +9,8 @@ run `at init` once; updates arrive through the plugin manager, not through a git
 
 ## Install
 
-Claude Code:
+Claude Code, in a session (or the same two commands as `claude plugin marketplace add …`
+and `claude plugin install …` from a shell):
 
 ```
 /plugin marketplace add toderian/project_template
@@ -23,15 +24,19 @@ codex plugin marketplace add toderian/project_template
 codex plugin add agents-core@agents-template
 ```
 
-Or do both harnesses at once, from any shell:
+From a clone (both harnesses at once):
 
 ```bash
-at bootstrap --tasks          # adds both marketplaces, installs plugins, writes ~/.local/bin/at
+git clone git@github.com:toderian/project_template.git
+cd project_template
+plugins/agents-core/bin/at bootstrap --local . --claude --codex
 ```
 
-`at bootstrap` also accepts `--local <checkout>` (install from a clone instead of GitHub),
-`--claude` / `--codex` (one harness only), `--extras`, `--personal`, and
-`--clean-global-skills` (list stale global skill symlinks from the pre-1.0 layout).
+`at bootstrap` adds both marketplaces, installs the plugins and writes the `~/.local/bin/at`
+resolver — after it, plain `at` works everywhere, provided `~/.local/bin` is on your `PATH`
+(inside Claude Code the plugin puts `at` on the tool `PATH` by itself). Drop `--local .` to
+install from GitHub, add `--tasks` / `--extras` / `--personal` for the other plugins, and
+`--clean-global-skills` to list stale global skill symlinks from the pre-1.0 layout.
 
 ## Use it in a repo
 
@@ -70,6 +75,7 @@ plugins/<name>/                   the plugins themselves
   skills/, agents/, hooks/, seed/, bin/, lib/
 scripts/build.py                  regenerates every derived file (--check verifies)
 scripts/release.sh                version bump + build + tests + tag
+scripts/install-pre-commit.sh     installs the pre-commit gate
 scripts/tests/run-all.sh          the whole test suite
 docs/specs/, docs/plans/, docs/meta/, docs/migration.md
 ```
@@ -80,6 +86,7 @@ docs/specs/, docs/plans/, docs/meta/, docs/migration.md
 python3 scripts/build.py          # regenerate derived files (marketplaces, codex twins)
 python3 scripts/build.py --check  # fail if anything is out of date
 bash scripts/tests/run-all.sh     # build check + plugin validation + hook/ledger/CLI tests
+scripts/install-pre-commit.sh     # once: gate every commit on that suite
 ```
 
 Sources of truth and the rules for changing them are in [`AGENTS.md`](AGENTS.md).
