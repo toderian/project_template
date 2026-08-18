@@ -1,6 +1,6 @@
 ---
 name: planning-workflow
-description: "Seven-step pre-implementation planning workflow. Use when the user wants to plan a non-trivial change before writing code -- multi-file features, multiple plausible approaches, or work that needs scope bounded. Includes a five-axis adversarial critique rubric for plan validation."
+description: "Seven-step pre-implementation planning workflow with a five-axis adversarial critique rubric. Use when the user wants to plan a non-trivial change before writing code: multi-file features, multiple plausible approaches, or work needing scope bounded."
 metadata:
   source: playbooks/skills/productivity/planning-workflow.md
   pack: core

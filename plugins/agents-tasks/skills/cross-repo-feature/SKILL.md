@@ -1,6 +1,6 @@
 ---
 name: cross-repo-feature
-description: "Capture a concrete feature contract under docs/resources/<area>/contracts/<feature-slug>.md, including repo responsibilities, API/schema/event/env/CLI/Docker boundaries, compatibility, rollout order, and verification. Use when the user says \"cross-repo feature\", \"feature contract\", or asks to coordinate a change across repos."
+description: "Capture a feature contract under docs/resources/<area>/contracts/<feature-slug>.md: repo responsibilities, API/schema/event/CLI/Docker boundaries, compatibility, rollout order, and verification. Use when the user says \"cross-repo feature\", \"feature contract\", or asks to coordinate a change across repos."
 metadata:
   source: playbooks/skills/engineering/cross-repo-feature.md
   pack: cross-repo

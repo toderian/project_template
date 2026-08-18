@@ -1,6 +1,6 @@
 ---
 name: setup-project
-description: "Seed a repository with the agent contract: run `at init` for the pieces the project needs, fill the Project section of AGENTS.md with the human, then verify with `at doctor`. Use when setting up a new repo, adopting the template in an existing one, or when AGENTS.md still has unfilled TODO-FILL slots."
+description: "Seed a repository with the agent contract: run `at init` for needed pieces, fill AGENTS.md's Project section with the human, then verify with `at doctor`. Use when setting up a new repo, adopting the template in an existing one, or when AGENTS.md has unfilled TODO-FILL slots."
 disable-model-invocation: true
 metadata:
   source: playbooks/skills/misc/init.md

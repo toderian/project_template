@@ -1,6 +1,6 @@
 ---
 name: knowledge-base
-description: "Canonical home for durable project knowledge: the docs/resources/ source-of-truth split, discovery order, ADRs, runbooks, area summaries/sources, digests, and attachments, plus generated-artifact naming. Use when deciding where durable knowledge belongs, writing an ADR or runbook, creating a resource inbox batch, or when another skill points here for the knowledge-base format."
+description: "Canonical home for durable project knowledge: docs/resources/ source-of-truth split, discovery order, ADRs, runbooks, area summaries, digests, and generated-artifact naming. Use when deciding where durable knowledge belongs, writing an ADR/runbook, or when another skill points here for the knowledge-base format."
 metadata:
   source:
     [

@@ -1,6 +1,6 @@
 ---
 name: triage-issue
-description: "Triage a bug or issue through a two-role state machine (category + state) and produce a `ready-for-agent` GitHub issue with a TDD-based fix plan, by exploring the codebase to find the root cause. Use when the user wants to \"triage\" a bug, investigate an issue, file an issue, plan a fix, or move an issue toward `ready-for-agent`."
+description: "Triage a bug or issue through a two-role state machine (category + state), exploring the codebase for root cause, and produce a `ready-for-agent` GitHub issue with a TDD-based fix plan. Use when the user wants to \"triage\" a bug, investigate an issue, file an issue, or plan a fix."
 metadata:
   source: playbooks/skills/misc/triage-issue.md
   pack: github

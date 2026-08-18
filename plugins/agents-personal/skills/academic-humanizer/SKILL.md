@@ -1,6 +1,6 @@
 ---
 name: academic-humanizer
-description: "Improve AI-assisted academic manuscripts and funding proposals while preserving scholarly voice, claims, numbers, citations, and disclosure integrity. Use when the user asks for \"academic-humanizer\", academic humanizing, de-AI editing of papers, theses, rebuttals, abstracts, NSF/NIH proposals, Specific Aims, Project Summaries, or grant-proposal prose."
+description: "Improve AI-assisted academic manuscripts and funding proposals while preserving scholarly voice, claims, numbers, citations, and disclosure integrity. Use when the user asks for \"academic-humanizer\", academic humanizing, or de-AI editing of papers, theses, abstracts, or grant proposals (NSF/NIH)."
 metadata:
   source: playbooks/skills/personal/academic-humanizer.md
   pack: writing

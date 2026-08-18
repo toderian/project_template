@@ -1,6 +1,6 @@
 ---
 name: task-ledger
-description: "Task/inbox file formats, ID reservation, area and repo registries, roadmap horizons, and the at ledger / at reserve / at repos-check tooling that keeps docs/tasks_manager/ and docs/areas/ consistent. Use when creating, triaging, completing, or validating tasks and inbox ideas, when docs/tasks_manager/ or docs/areas/ need to be synced or checked, or when another skill points here for the task file format."
+description: "Task/inbox file formats, ID reservation, area/repo registries, roadmap horizons, and the at ledger/reserve/repos-check tooling keeping docs/tasks_manager/ and docs/areas/ consistent. Use when creating, triaging, completing, or validating tasks/inbox ideas, or when another skill points here for the task file format."
 metadata:
   source:
     [

@@ -1,6 +1,6 @@
 ---
 name: improve-codebase-architecture
-description: "Explore a codebase to find opportunities for architectural improvement, focusing on making the codebase more testable by deepening shallow modules. Use when the user wants to improve architecture, find refactoring opportunities, consolidate tightly-coupled modules, or make a codebase more AI-navigable."
+description: "Explore a codebase for architectural improvement, focusing on testability by deepening shallow modules. Use when the user wants to improve architecture, find refactoring opportunities, consolidate tightly-coupled modules, or make a codebase more AI-navigable."
 metadata:
   source: playbooks/skills/engineering/improve-codebase-architecture.md
   pack: architecture

@@ -1,6 +1,6 @@
 ---
 name: spec-workflow
-description: "Spec-driven planning and implementation loop for a non-trivial engineering item, producing specs/<slug>/ artifacts and review/fix passes. Use when the user asks to \"spec it out\", run a \"spec workflow\" or \"spec-driven\" process, or plan + build + review work too large for the default loop. Avoid trivial edits or exploratory spikes."
+description: "Spec-driven plan-build-review-fix loop for a non-trivial item, producing specs/<slug>/ artifacts. Use when the user asks to \"spec it out\" / \"spec workflow\" / \"spec-driven\", or needs plan+build+review too large for the default loop; not trivial edits or spikes."
 metadata:
   source: playbooks/skills/engineering/spec-workflow.md
   pack: core

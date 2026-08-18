@@ -1,6 +1,6 @@
 ---
 name: artifacts-registry
-description: "Where large, external, generated, encrypted, or reproducible artifacts are registered, and how to fetch, verify, add, and decrypt them via Git LFS and age. Use when adding a new large/generated/encrypted file, fetching or verifying a registered artifact, or deciding whether a file belongs in the artifact registry."
+description: "Where large, generated, encrypted, or reproducible artifacts are registered, and how to fetch, verify, add, and decrypt them via Git LFS and age. Use when adding a large/generated/encrypted file, fetching/verifying a registered artifact, or deciding if a file belongs in the registry."
 metadata:
   source: [AGENTS.md, artifacts/README.md]
 paths: ["artifacts/**", ".gitattributes"]

@@ -1,6 +1,6 @@
 ---
 name: deslop
-description: "Remove generic AI-prose patterns while preserving author voice, evidence, and technical meaning. Use when the user asks to \"deslop\", \"de-AI\", \"make this sound human\", remove AI patterns or tropes, clean up LLM-written prose, or polish scientific manuscripts, abstracts, grant text, cover letters, peer-review responses, and technical articles for natural, specific writing."
+description: "Remove generic AI-prose patterns while preserving author voice, evidence, and technical meaning. Use when the user asks to \"deslop\", \"de-AI\", \"make this sound human\", clean up LLM-written prose, or polish manuscripts, grant text, cover letters, or peer-review responses for natural, specific writing."
 metadata:
   source: playbooks/skills/personal/deslop.md
   pack: writing

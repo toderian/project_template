@@ -1,6 +1,6 @@
 ---
 name: performance-optimization
-description: "Measure-first performance optimization -- profile to find the real hot path, record a baseline, change one thing, and re-measure before keeping it. Use when the user wants to optimize performance, reduce latency or memory, speed something up, or asks \"why is this slow?\" for a known hot path."
+description: "Measure-first performance optimization: profile the real hot path, record a baseline, change one thing, and re-measure. Use when the user wants to optimize performance, reduce latency/memory, speed something up, or asks \"why is this slow?\"."
 metadata:
   source: playbooks/skills/engineering/performance-optimization.md
   pack: core
