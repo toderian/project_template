@@ -1,0 +1,9 @@
+{
+  "name": "agents-core",
+  "version": "1.0.0",
+  "description": "Core operating skills for coding agents: plan execution, TDD, debugging, spec workflow, handoff, subagent protocol, security review, git discipline — plus safety hooks, subagent roles and the `at` CLI that seeds downstream repos.",
+  "author": { "name": "Vitalii Toderian", "url": "https://github.com/toderian" },
+  "repository": "https://github.com/toderian/project_template",
+  "license": "Apache-2.0",
+  "keywords": ["skills", "tdd", "planning", "hooks", "subagents", "codex", "claude-code"]
+}

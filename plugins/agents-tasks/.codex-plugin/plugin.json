@@ -1,0 +1,27 @@
+{
+  "name": "agents-tasks",
+  "version": "1.0.0",
+  "description": "Task ledger, knowledge base, workbooks, artifact registry and cross-repo workflows",
+  "author": {
+    "name": "Vitalii Toderian",
+    "url": "https://github.com/toderian"
+  },
+  "repository": "https://github.com/toderian/project_template",
+  "license": "Apache-2.0",
+  "keywords": [
+    "skills",
+    "tasks",
+    "ledger",
+    "knowledge-base",
+    "workbooks",
+    "artifacts",
+    "codex",
+    "claude-code"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "agents-tasks",
+    "shortDescription": "Task ledger, knowledge base, workbooks, artifact registry and cross-repo workflows",
+    "category": "Developer Tools"
+  }
+}

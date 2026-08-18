@@ -1,0 +1,28 @@
+{
+  "name": "agents-extras",
+  "version": "1.0.0",
+  "description": "Architecture, GitHub triage, UI, database-migration and dev-tooling skills",
+  "author": {
+    "name": "Vitalii Toderian",
+    "url": "https://github.com/toderian"
+  },
+  "repository": "https://github.com/toderian/project_template",
+  "license": "Apache-2.0",
+  "keywords": [
+    "skills",
+    "architecture",
+    "github",
+    "triage",
+    "ui",
+    "database-migration",
+    "dev-tooling",
+    "codex",
+    "claude-code"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "agents-extras",
+    "shortDescription": "Architecture, GitHub triage, UI, database-migration and dev-tooling skills",
+    "category": "Developer Tools"
+  }
+}
