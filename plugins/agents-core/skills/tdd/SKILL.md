@@ -2,7 +2,9 @@
 name: tdd
 description: "Test-driven development with red-green-refactor loop. Use when the user wants to build features or fix bugs using TDD, mentions \"red-green-refactor\", wants integration tests, or asks for test-first development."
 metadata:
-  source: playbooks/skills/engineering/tdd.md
+  source:
+    - "github.com/mattpocock/skills (original, since renamed/reworked upstream)"
+    - playbooks/skills/engineering/tdd.md
   pack: core
 ---
 

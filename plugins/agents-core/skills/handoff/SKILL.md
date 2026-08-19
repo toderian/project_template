@@ -3,7 +3,9 @@ name: handoff
 description: "Compact the current conversation into a handoff document so a fresh agent can pick up the work. Use when the user wants a session summary written to disk for later continuation, mentions \"handing off\", or is wrapping up a long session."
 argument-hint: "What will the next session be used for?"
 metadata:
-  source: playbooks/skills/productivity/handoff.md
+  source:
+    - "github.com/mattpocock/skills (original, since renamed/reworked upstream)"
+    - playbooks/skills/productivity/handoff.md
   pack: core
 ---
 

@@ -2,7 +2,9 @@
 name: diagnose
 description: "Disciplined diagnosis loop for hard bugs and performance regressions: reproduce -> minimise -> hypothesise -> instrument -> fix -> regression-test. Use when the user says \"diagnose this\" / \"debug this\", reports a bug, or describes broken/failing or slow behavior."
 metadata:
-  source: playbooks/skills/engineering/diagnose.md
+  source:
+    - "github.com/mattpocock/skills (original, since renamed/reworked upstream)"
+    - playbooks/skills/engineering/diagnose.md
   pack: core
 ---
 

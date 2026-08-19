@@ -2,7 +2,9 @@
 name: prd-to-plan
 description: "Turn a PRD into a multi-phase implementation plan using tracer-bullet vertical slices, saved as docs/_plans/<slug>.md. Use when the user wants to break down a PRD, create an implementation plan, plan phases from a PRD, or mentions \"tracer bullets\"."
 metadata:
-  source: playbooks/skills/productivity/prd-to-plan.md
+  source:
+    - "github.com/mattpocock/skills (original, since renamed/reworked upstream)"
+    - playbooks/skills/productivity/prd-to-plan.md
   pack: task-management
 ---
 

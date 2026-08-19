@@ -2,7 +2,9 @@
 name: setup-pre-commit
 description: "Set up Husky pre-commit hooks with lint-staged (Prettier), type checking, and tests in the current repo. Use when the user wants to add pre-commit hooks, set up Husky, configure lint-staged, or add commit-time formatting/typechecking/testing."
 metadata:
-  source: playbooks/skills/engineering/setup-pre-commit.md
+  source:
+    - "github.com/mattpocock/skills (original, since renamed/reworked upstream)"
+    - playbooks/skills/engineering/setup-pre-commit.md
   pack: dev-tooling
 ---
 

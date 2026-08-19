@@ -53,13 +53,19 @@ Run every task through these passes, and loop again whenever a pass finds a real
 | New feature or bug fix | `tdd` |
 | Something behaves unexpectedly | `diagnose` |
 | Scope or requirements unclear | `spec-workflow`, or `task-spec-workflow` for a tracked task |
+| Stress-test a plan or decision with the user | `/grill-me`, or `/grill-with-docs` when the glossary matters |
+| Effort too big for one session, way ahead unclear | `wayfinder` |
 | Before writing a plan | `planning-workflow` |
+| Facts needed from docs, APIs, or the web | `research` |
 | Auth, input handling, crypto, or AI surfaces | `security-review-owasp` |
 | Branch, commit, or push question | `git-discipline` |
 | Delegating work | `subagent-protocol` (agents: `implementer`, `reviewer`, `researcher`, `plan-critic`, `security-auditor`, `spec-validator`) |
 | Pausing or handing off | `handoff` |
 | Capture an idea, add a task, triage, plan horizons, close out | `capture-idea`, `add-task`, `triage-inbox`, `roadmap`, `complete-task` |
-| Durable notes, runbooks, ADRs | `knowledge-base` |
+| Durable notes, runbooks, ADRs | `knowledge-base`, `domain-modeling` for glossary and ADRs |
+| A decision only another person can answer | `to-questionnaire` |
+| An agent message that did not land | `/wait-what` |
+| Writing a skill, AGENTS.md, or an agent-facing doc | `writing-for-agents` |
 | A workflow worth rerunning | `workbook` |
 | Large, generated, or encrypted files | `artifacts-registry` |
 | Work spanning repos | `cross-repo-feature`, `cross-repo-pr-review`, `.config/repos.project.md` |

@@ -2,7 +2,9 @@
 name: github-triage
 description: "Triage GitHub issues through a label-based state machine with interactive grilling sessions. Use when user wants to triage issues, review incoming bugs or feature requests, prepare issues for an AFK agent, or manage issue workflow."
 metadata:
-  source: playbooks/skills/misc/github-triage.md
+  source:
+    - "github.com/mattpocock/skills (original, since renamed/reworked upstream)"
+    - playbooks/skills/misc/github-triage.md
   pack: github
 ---
 

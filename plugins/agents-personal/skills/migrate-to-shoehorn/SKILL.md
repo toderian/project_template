@@ -2,7 +2,9 @@
 name: migrate-to-shoehorn
 description: "Migrate test files from `as` type assertions to @total-typescript/shoehorn. Use when the user wants to replace `as` in tests or needs partial test data with shoehorn."
 metadata:
-  source: playbooks/skills/engineering/migrate-to-shoehorn.md
+  source:
+    - "github.com/mattpocock/skills (original, since renamed/reworked upstream)"
+    - playbooks/skills/engineering/migrate-to-shoehorn.md
   pack: typescript
 ---
 

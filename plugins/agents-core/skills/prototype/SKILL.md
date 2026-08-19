@@ -2,7 +2,9 @@
 name: prototype
 description: "Build a throwaway prototype before committing to a design: a runnable terminal app, or several UI variations. Use when the user wants to prototype, test a data model/state machine, or says \"prototype this\", \"let me play with it\", or \"try a few designs\"."
 metadata:
-  source: playbooks/skills/engineering/prototype.md
+  source:
+    - "github.com/mattpocock/skills (original, since renamed/reworked upstream)"
+    - playbooks/skills/engineering/prototype.md
   pack: core
 ---
 

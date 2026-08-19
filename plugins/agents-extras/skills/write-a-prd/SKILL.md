@@ -2,7 +2,9 @@
 name: write-a-prd
 description: "Create a PRD through user interview, codebase exploration, and module design, then submit as a GitHub issue. Use when the user wants to write a PRD, create a product requirements document, or plan a new feature."
 metadata:
-  source: playbooks/skills/productivity/write-a-prd.md
+  source:
+    - "github.com/mattpocock/skills (original, since renamed/reworked upstream)"
+    - playbooks/skills/productivity/write-a-prd.md
   pack: github
 ---
 

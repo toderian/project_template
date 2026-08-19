@@ -2,7 +2,9 @@
 name: edit-article
 description: "Edit and improve articles by restructuring sections, improving clarity, and tightening prose. Use when the user wants to edit, revise, or improve an article draft."
 metadata:
-  source: playbooks/skills/personal/edit-article.md
+  source:
+    - "github.com/mattpocock/skills (original, since renamed/reworked upstream)"
+    - playbooks/skills/personal/edit-article.md
   pack: writing
 ---
 

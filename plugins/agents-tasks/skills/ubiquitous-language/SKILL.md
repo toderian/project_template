@@ -2,7 +2,9 @@
 name: ubiquitous-language
 description: "Extract a DDD-style ubiquitous language glossary from the current conversation, flagging ambiguities and proposing canonical terms. Saves to UBIQUITOUS_LANGUAGE.md. Use when the user wants to define domain terms, build a glossary, harden terminology, or mentions \"domain model\" or \"DDD\"."
 metadata:
-  source: playbooks/skills/engineering/ubiquitous-language.md
+  source:
+    - "github.com/mattpocock/skills (original, since renamed/reworked upstream)"
+    - playbooks/skills/engineering/ubiquitous-language.md
   pack: docs-knowledge
 ---
 

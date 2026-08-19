@@ -2,7 +2,9 @@
 name: request-refactor-plan
 description: "Create a detailed refactor plan with tiny commits via user interview, then file it as a GitHub issue. Use when the user wants to plan a refactor, create a refactoring RFC, or break a refactor into safe incremental steps."
 metadata:
-  source: playbooks/skills/engineering/request-refactor-plan.md
+  source:
+    - "github.com/mattpocock/skills (original, since renamed/reworked upstream)"
+    - playbooks/skills/engineering/request-refactor-plan.md
   pack: architecture
 ---
 

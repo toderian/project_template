@@ -3,6 +3,7 @@ name: write-a-skill
 description: "Create or edit a skill in this plugin marketplace: pick the plugin, write SKILL.md and its bundled resources, validate. Use when the user wants to create, write, or build a new skill, or restructure an existing one."
 metadata:
   source:
+    - "github.com/mattpocock/skills (original, since renamed/reworked upstream)"
     - playbooks/skills/productivity/write-a-skill.md
     - https://github.com/anthropics/skills/tree/main/skills/skill-creator
   pack: dev-tooling

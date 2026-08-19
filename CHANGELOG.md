@@ -2,6 +2,35 @@
 
 Notable changes to agents-template. All four plugins share the version of the repository.
 
+## Unreleased
+
+### Added
+
+- `grilling` (agents-core): the reusable interview primitive — design tree, frontier, one round of
+  numbered questions with recommended answers at a time. `grill-me` moves to agents-core and becomes
+  a router over it; `write-a-prd`, `github-triage`, `planning-workflow`, `spec-workflow` and
+  `task-spec-workflow` now invoke it instead of restating the technique.
+- `domain-modeling` (agents-extras): the glossary/ADR half of `grill-with-docs`, now model-invoked so
+  any skill can reach it. `grill-with-docs` becomes a router over `grilling` + `domain-modeling`.
+- `wayfinder` (agents-tasks): charts an effort too big for one session as a map — one task file
+  holding decision tickets as dotted sub-ids (`T-042.1`) — and resolves them one per session.
+- `research` and `wait-what` (agents-core), `to-questionnaire` (agents-extras).
+- `writing-for-agents` (agents-extras): how to write anything an agent reads — context pointers, the
+  two loads, progressive disclosure, completion criteria, leading words, pruning. `write-a-skill`
+  drops the prose advice it duplicated and keeps the marketplace mechanics.
+
+### Changed
+
+- `todo-convention.md` documents the optional `## Tickets` section used by wayfinder maps, and the
+  two layout rules that keep ticket state from leaking into task state.
+- Skills adapted from `mattpocock/skills` now name that provenance in `metadata.source`.
+
+### Known follow-ups
+
+- `ubiquitous-language` (agents-tasks) overlaps `domain-modeling`; reconcile them.
+- `tdd`, `diagnose` and `prototype` predate upstream's current versions (secret redaction in
+  diagnosis, pre-agreed seams in TDD); worth a refresh pass.
+
 ## 1.0.1 — 2026-08-19
 
 Fixes found by actually migrating nine real downstream repositories with `at migrate`,

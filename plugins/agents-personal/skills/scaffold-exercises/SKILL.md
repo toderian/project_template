@@ -2,7 +2,9 @@
 name: scaffold-exercises
 description: "Create exercise directory structures with sections, problems, solutions, and explainers that pass linting. Use when the user wants to scaffold exercises, create exercise stubs, or set up a new course section."
 metadata:
-  source: playbooks/skills/misc/scaffold-exercises.md
+  source:
+    - "github.com/mattpocock/skills (original, since renamed/reworked upstream)"
+    - playbooks/skills/misc/scaffold-exercises.md
   pack: education
 ---
 
