@@ -26,6 +26,16 @@ For the shared vocabulary of test layers (acceptance, contract, property-based, 
 
 See `tdd` skill references/tests.md for examples and `tdd` skill references/mocking.md for mocking guidelines.
 
+## Anti-Pattern: Tautological Tests
+
+A test is **tautological** when its assertion recomputes the expected value the way the code does —
+`expect(add(a, b)).toBe(a + b)`, a snapshot derived by hand with the same formula, a constant asserted
+equal to itself. It passes by construction and can never disagree with the implementation, so it
+catches nothing while looking like coverage.
+
+Expected values must come from a source independent of the code: a known-good literal, a worked
+example, the spec, or a previously verified output. See references/tests.md for a worked pair.
+
 ## Anti-Pattern: Horizontal Slices
 
 **DO NOT write all tests first, then all implementation.** This is "horizontal slicing" - treating RED as "write all tests" and GREEN as "write all code."
@@ -58,7 +68,9 @@ RIGHT (vertical):
 Before writing any code:
 
 - [ ] Confirm with user what interface changes are needed
-- [ ] Confirm with user which behaviors to test (prioritize)
+- [ ] Confirm with user which behaviors to test, **and the seams they are tested at**. No test is
+      written at an unconfirmed seam: agreeing them up front is how testing effort lands on critical
+      paths instead of every edge case
 - [ ] Identify opportunities for deep modules, and design the interface for testability (the
       `codebase-design` skill owns the module/interface/seam/depth vocabulary)
 - [ ] List the behaviors to test (not implementation steps)

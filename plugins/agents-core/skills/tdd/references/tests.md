@@ -59,3 +59,23 @@ test("createUser makes user retrievable", async () => {
   expect(retrieved.name).toBe("Alice");
 });
 ```
+
+## Tautological vs independent expectations
+
+```javascript
+// BAD: recomputes the expectation the way the code does — passes by construction
+test("calculateTotal sums line items", () => {
+  const items = [{ price: 1099, qty: 2 }, { price: 500, qty: 1 }];
+  const expected = items.reduce((sum, i) => sum + i.price * i.qty, 0);
+  expect(calculateTotal(items)).toBe(expected);
+});
+
+// GOOD: the expectation is an independent, known-good value
+test("calculateTotal sums line items", () => {
+  const items = [{ price: 1099, qty: 2 }, { price: 500, qty: 1 }];
+  expect(calculateTotal(items)).toBe(2698);
+});
+```
+
+If the literal is hard to work out by hand, that is a signal about the behaviour, not a reason to
+recompute it: derive it from the spec or a worked example instead.

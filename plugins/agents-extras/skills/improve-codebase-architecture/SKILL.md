@@ -30,6 +30,15 @@ Navigate the codebase naturally (using whatever exploration mechanism the host r
 
 The friction you encounter IS the signal.
 
+**Scope the search before you widen it.** If the user named a direction, take it. Otherwise walk back a
+good stretch of `git log --oneline` and concentrate on the codebase's hot spots — a deepening
+opportunity in code nobody touches is a refactor you will never cash in. Only if the changes are
+scattered with no clear hot spot should you widen the net across the repo.
+
+**Apply the deletion test** to anything you suspect is shallow: imagine deleting it — would complexity
+vanish (a pass-through) or reappear across N callers (it was earning its keep)? A "reappears" is the
+signal you want. The `codebase-design` skill defines the test and the rest of the vocabulary.
+
 ### 2. Present candidates
 
 Present a numbered list of deepening opportunities. For each candidate, show:

@@ -37,11 +37,17 @@ Do **not** copy content that already lives in another durable artifact — PRDs,
 
 If a relevant artifact does not yet exist but should, surface that gap in the "Open questions" section rather than inlining its content.
 
-### 4. Suggest the right skills
+### 4. Redact
+
+A handoff is read by another agent, and often saved outside the repo. Redact anything sensitive
+before writing it: API keys, tokens, passwords, connection strings, and personally identifiable
+information. Name the `.creds/<file>` path or the environment variable instead of the value.
+
+### 5. Suggest the right skills
 
 End with a short "Suggested skills" section naming the playbooks the next session is likely to invoke (`planning-workflow`, `spec-workflow`, `tdd`, `triage-issue`, etc.). Use the names; the next agent will pick them up via the standard skill loader.
 
-### 5. Tailor to the user-supplied argument
+### 6. Tailor to the user-supplied argument
 
 If the user invoked the skill with a free-text argument (the `argument-hint:` prompt asks "What will the next session be used for?"), treat that argument as the lens for the handoff. A handoff aimed at "finish the migration" leans heavier on State + Next step; one aimed at "onboard a teammate" leans heavier on Goal + Key context.
 
@@ -55,3 +61,4 @@ A good handoff:
 - Stands alone — the receiving agent does not need the prior transcript to act.
 - Points to the next concrete step, not a vague "continue the work".
 - Cites artifacts by path/URL rather than inlining their bodies.
+- Carries no secrets or personal data.
