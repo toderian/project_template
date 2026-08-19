@@ -524,7 +524,7 @@ def cmd_bootstrap(args: argparse.Namespace) -> int:
         if not candidates:
             print("no stale global skill symlinks found")
         else:
-            print("stale global skill symlinks (they resolve into a legacy template tree):")
+            print("stale global skill symlinks (dangling, or resolving into a legacy template tree):")
             for link in candidates:
                 print(f"  {link} -> {os.path.realpath(link)}")
             if args.yes:

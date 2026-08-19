@@ -412,8 +412,27 @@ FOREIGN_SRC="${AT_TEST_FOREIGN_SRC:-/home/vi/work/ratio1/projects/project_r1_edg
 WRITING_SRC="${AT_TEST_WRITING_SRC:-/home/vi/work/vitalii/repos/project_technical_writing}"
 LEDGER_SCRIPT="$REPO/plugins/agents-tasks/skills/task-ledger/scripts/sync_todo_ledgers.py"
 
+# Pinned refs, resolved to full 40-char SHAs. LIGHT_REF and HEAVY_REF were
+# originally pinned to backup branch names -- those backup branches are
+# local-only (never pushed) and could be silently deleted by a routine
+# `git branch -D`, so the branch name is kept only as a comment and the
+# pin itself is the commit it resolved to.
+LIGHT_REF="9249ccecc2a671d3d1c4aa259c228d59c373823e"     # was branch backup/pre-plugin-migration-20260819-134111
+HEAVY_REF="c32011c672c4f7599d6fe08ec8a1a326ec62c6ab"     # was branch backup/pre-plugin-migration-20260818-230258
+FOREIGN_REF="a3462ddab7bb58aa071bcdb077a6cb34f81e0ad0"
+WRITING_REF="82039a9044f8e9e80604884425aa5310f701cef6"
+
 clone_legacy() { # clone_legacy <src> <dst> [<ref>]
   GIT_LFS_SKIP_SMUDGE=1 git clone -q "$1" "$2" || return 1
+  # Set up identity/remote/merge-driver before the optional checkout below,
+  # so a failed pin (fatal, see below) never leaves behind a half-configured
+  # clone that a later step could pick up and run against with the real
+  # developer's global git identity instead of test@example.com.
+  git -C "$2" config user.email "test@example.com"
+  git -C "$2" config user.name "at test"
+  # a clone has no `template` remote of its own; the real downstreams do
+  git -C "$2" remote add template git@github.com:toderian/project_template.git
+  git -C "$2" config merge.template-keep-local.driver "true"
   if [[ -n "${3:-}" ]]; then
     # `at migrate` refuses to run unless the current branch is a default
     # branch (master/main) — a plain `checkout <ref>` would either switch
@@ -433,20 +452,20 @@ clone_legacy() { # clone_legacy <src> <dst> [<ref>]
     # (a bare branch name, which `git clone` only fetched as a remote-
     # tracking branch, not a local one).
     start_point="$(git -C "$2" rev-parse -q --verify "$3^{commit}" 2>/dev/null \
-      || git -C "$2" rev-parse -q --verify "origin/$3^{commit}" 2>/dev/null)" || return 1
-    git -C "$2" checkout -q -B "$default_branch" "$start_point" || return 1
+      || git -C "$2" rev-parse -q --verify "origin/$3^{commit}" 2>/dev/null)" || {
+      echo "FATAL: pinned ref '$3' not found in $1 — the fixture is stale, update the pin in test-at.sh" >&2
+      return 1
+    }
+    GIT_LFS_SKIP_SMUDGE=1 git -C "$2" checkout -q -B "$default_branch" "$start_point" || {
+      echo "FATAL: pinned ref '$3' not found in $1 — the fixture is stale, update the pin in test-at.sh" >&2
+      return 1
+    }
   fi
-  git -C "$2" config user.email "test@example.com"
-  git -C "$2" config user.name "at test"
-  # a clone has no `template` remote of its own; the real downstreams do
-  git -C "$2" remote add template git@github.com:toderian/project_template.git
-  git -C "$2" config merge.template-keep-local.driver "true"
 }
 
 # --- light downstream (no task ledger) --------------------------------------
-if [[ -d "$LIGHT_SRC/.git" ]]; then
-  LIGHT="$WORKDIR/light"
-  clone_legacy "$LIGHT_SRC" "$LIGHT" "backup/pre-plugin-migration-20260819-134111"
+LIGHT="$WORKDIR/light"
+if [[ -d "$LIGHT_SRC/.git" ]] && clone_legacy "$LIGHT_SRC" "$LIGHT" "$LIGHT_REF"; then
   cd "$LIGHT" || exit 1
 
   DRY_OUT="$(at migrate 2>&1)"; DRY_RC=$?
@@ -524,16 +543,15 @@ if [[ -d "$LIGHT_SRC/.git" ]]; then
   at doctor >/dev/null 2>&1
   assert_eq "$?" "0" "at doctor exits 0 on the migrated light downstream"
 else
-  echo "SKIP: light downstream migration (no clone source at $LIGHT_SRC)"
+  echo "SKIP: light downstream migration (no clone source, or pinned ref unavailable, at $LIGHT_SRC)"
 fi
 
 # --- at migrate --commit on a downstream that locally gitignores .claude/ ---
 # A downstream's own `.gitignore` may ignore a path migrate itself manages
 # (its own local convention, unrelated to the managed block) — `--commit`
 # must still stage and commit that path; it is force-added on purpose.
-if [[ -d "$LIGHT_SRC/.git" ]]; then
-  GITIGNORED="$WORKDIR/light-gitignored-claude"
-  clone_legacy "$LIGHT_SRC" "$GITIGNORED" "backup/pre-plugin-migration-20260819-134111"
+GITIGNORED="$WORKDIR/light-gitignored-claude"
+if [[ -d "$LIGHT_SRC/.git" ]] && clone_legacy "$LIGHT_SRC" "$GITIGNORED" "$LIGHT_REF"; then
   cd "$GITIGNORED" || exit 1
   printf '\n.claude/\n' >> .gitignore
   git add .gitignore
@@ -544,16 +562,15 @@ if [[ -d "$LIGHT_SRC/.git" ]]; then
   assert_stdout_contains "$(git show --name-only HEAD)" ".claude/settings.json" \
     "the migration commit includes .claude/settings.json even though it is locally gitignored"
 else
-  echo "SKIP: migrate with a locally gitignored .claude/ (no clone source at $LIGHT_SRC)"
+  echo "SKIP: migrate with a locally gitignored .claude/ (no clone source, or pinned ref unavailable, at $LIGHT_SRC)"
 fi
 
 # --- at migrate --allow-untracked: untracked-only dirtiness -----------------
 # Real targets carry untracked paths that must never be committed or removed
 # (a multi-GB untracked attachments tree, a WIP task file mid-draft). `at
 # migrate` must be usable there without stashing or committing them first.
-if [[ -d "$LIGHT_SRC/.git" ]]; then
-  UNTRACKED="$WORKDIR/light-untracked"
-  clone_legacy "$LIGHT_SRC" "$UNTRACKED" "backup/pre-plugin-migration-20260819-134111"
+UNTRACKED="$WORKDIR/light-untracked"
+if [[ -d "$LIGHT_SRC/.git" ]] && clone_legacy "$LIGHT_SRC" "$UNTRACKED" "$LIGHT_REF"; then
   cd "$UNTRACKED" || exit 1
 
   printf 'scratch\n' > wip.txt
@@ -588,14 +605,13 @@ if [[ -d "$LIGHT_SRC/.git" ]]; then
   assert_eq "$(git log -1 --format=%s)" "chore: migrate to agents-template plugins" \
     "the --allow-untracked migration still commits under the documented subject"
 else
-  echo "SKIP: at migrate --allow-untracked (no clone source at $LIGHT_SRC)"
+  echo "SKIP: at migrate --allow-untracked (no clone source, or pinned ref unavailable, at $LIGHT_SRC)"
 fi
 
 # a tracked modification alongside --allow-untracked still refuses (only
 # untracked-only dirtiness is exempt from the clean-tree precondition)
-if [[ -d "$LIGHT_SRC/.git" ]]; then
-  TRACKEDDIRTY="$WORKDIR/light-tracked-dirty"
-  clone_legacy "$LIGHT_SRC" "$TRACKEDDIRTY" "backup/pre-plugin-migration-20260819-134111"
+TRACKEDDIRTY="$WORKDIR/light-tracked-dirty"
+if [[ -d "$LIGHT_SRC/.git" ]] && clone_legacy "$LIGHT_SRC" "$TRACKEDDIRTY" "$LIGHT_REF"; then
   cd "$TRACKEDDIRTY" || exit 1
 
   printf '\nlocal edit\n' >> README.md
@@ -606,13 +622,12 @@ if [[ -d "$LIGHT_SRC/.git" ]]; then
     "the refusal with a tracked modification names the dirty working tree"
   assert_exists "$TRACKEDDIRTY/_base" "the refused run changed nothing"
 else
-  echo "SKIP: at migrate --allow-untracked tracked-dirty refusal (no clone source at $LIGHT_SRC)"
+  echo "SKIP: at migrate --allow-untracked tracked-dirty refusal (no clone source, or pinned ref unavailable, at $LIGHT_SRC)"
 fi
 
 # --- heavy downstream (task ledger, LFS, project rules) ---------------------
-if [[ -d "$HEAVY_SRC/.git" ]]; then
-  HEAVY="$WORKDIR/heavy"
-  clone_legacy "$HEAVY_SRC" "$HEAVY" "backup/pre-plugin-migration-20260818-230258"
+HEAVY="$WORKDIR/heavy"
+if [[ -d "$HEAVY_SRC/.git" ]] && clone_legacy "$HEAVY_SRC" "$HEAVY" "$HEAVY_REF"; then
   cd "$HEAVY" || exit 1
 
   LFS_BEFORE="$(grep -c 'filter=lfs' .gitattributes)"
@@ -652,13 +667,12 @@ if [[ -d "$HEAVY_SRC/.git" ]]; then
   at doctor >/dev/null 2>&1
   assert_eq "$?" "0" "at doctor exits 0 on the migrated heavy downstream"
 else
-  echo "SKIP: heavy downstream migration (no clone source at $HEAVY_SRC)"
+  echo "SKIP: heavy downstream migration (no clone source, or pinned ref unavailable, at $HEAVY_SRC)"
 fi
 
 # --- downstream with foreign files under skills/ ----------------------------
-if [[ -d "$FOREIGN_SRC/.git" ]]; then
-  FOREIGN="$WORKDIR/foreign"
-  clone_legacy "$FOREIGN_SRC" "$FOREIGN" "a3462dda"
+FOREIGN="$WORKDIR/foreign"
+if [[ -d "$FOREIGN_SRC/.git" ]] && clone_legacy "$FOREIGN_SRC" "$FOREIGN" "$FOREIGN_REF"; then
   cd "$FOREIGN" || exit 1
 
   FOREIGN_OUT="$(at migrate --yes 2>&1)"; FOREIGN_RC=$?
@@ -670,7 +684,7 @@ if [[ -d "$FOREIGN_SRC/.git" ]]; then
   assert_eq "$(git branch --list 'backup/pre-plugin-migration-*' | wc -l | tr -d ' ')" "0" \
     "the aborted run creates no backup branch"
 else
-  echo "SKIP: foreign-file migration abort (no clone source at $FOREIGN_SRC)"
+  echo "SKIP: foreign-file migration abort (no clone source, or pinned ref unavailable, at $FOREIGN_SRC)"
 fi
 
 # --- at migrate: synthetic legacy repos --------------------------------------
@@ -958,16 +972,15 @@ assert_stdout_contains "$(git show --name-only HEAD)" ".claude/settings.json" \
   "the adopted settings.json is in the migration commit"
 
 # --- downstream with its own playbook skill (real repo) ---------------------
-if [[ -d "$WRITING_SRC/.git" ]]; then
-  WRITING="$WORKDIR/writing"
-  clone_legacy "$WRITING_SRC" "$WRITING" "82039a9"
+WRITING="$WORKDIR/writing"
+if [[ -d "$WRITING_SRC/.git" ]] && clone_legacy "$WRITING_SRC" "$WRITING" "$WRITING_REF"; then
   cd "$WRITING" || exit 1
   WRITING_OUT="$(at migrate --dry-run 2>&1)"; WRITING_RC=$?
   assert_eq "$WRITING_RC" "1" "at migrate aborts on a downstream that authored its own playbook"
   assert_stdout_contains "$WRITING_OUT" "google-docs-refine" "the abort names the downstream's own skill"
   assert_eq "$(git status --porcelain | wc -l | tr -d ' ')" "0" "the aborted dry run leaves the tree clean"
 else
-  echo "SKIP: downstream-authored playbook abort (no clone source at $WRITING_SRC)"
+  echo "SKIP: downstream-authored playbook abort (no clone source, or pinned ref unavailable, at $WRITING_SRC)"
 fi
 
 # --- summary ----------------------------------------------------------------
