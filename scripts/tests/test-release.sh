@@ -16,8 +16,11 @@
 set -uo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
-NEW_VERSION="1.0.1"
 FULL="${AT_RELEASE_TEST_FULL:-1}"
+
+bump_patch() { # bump_patch <X.Y.Z> -> X.Y.(Z+1)
+  python3 -c "v = '$1'.split('.'); v[-1] = str(int(v[-1]) + 1); print('.'.join(v))"
+}
 
 PASS_COUNT=0
 FAIL_COUNT=0
@@ -42,6 +45,17 @@ git -C "$COPY" commit -qm "snapshot"
 
 cd "$COPY" || exit 1
 OLD_VERSION="$(python3 -c 'import json;print(json.load(open("plugins/agents-core/.claude-plugin/plugin.json"))["version"])')"
+# Derived from OLD_VERSION rather than hardcoded: this suite runs from inside
+# release.sh's own `run-all.sh` step during a real release (see run-all.sh's
+# AT_RELEASE_TEST guard) -- at that point the copy's OLD_VERSION already IS
+# the real release's target version (release.sh bumps the manifests on disk
+# before running tests, ahead of the commit). A fixed literal here would
+# collide with OLD_VERSION exactly when someone releases that same version
+# for real, making the nested bump a no-op with nothing to commit. Deriving
+# NEW_VERSION from OLD_VERSION guarantees they never match.
+NEW_VERSION="$(bump_patch "$OLD_VERSION")"
+FOLLOWUP1_VERSION="$(bump_patch "$NEW_VERSION")"
+FOLLOWUP2_VERSION="$(bump_patch "$FOLLOWUP1_VERSION")"
 
 versions() { # every version string that must move together
   python3 - <<'PY'
@@ -98,24 +112,24 @@ if [[ "$FULL" != "0" ]]; then
   chmod +x .git/hooks/pre-commit
   OUT="$(AT_RELEASE_TEST=1 AT_TEST_LIGHT_SRC=/nonexistent AT_TEST_HEAVY_SRC=/nonexistent \
          AT_TEST_FOREIGN_SRC=/nonexistent AT_TEST_WRITING_SRC=/nonexistent \
-         bash scripts/release.sh 1.0.2 2>&1)"; RC=$?
+         bash scripts/release.sh "$FOLLOWUP1_VERSION" 2>&1)"; RC=$?
   rm -f .git/hooks/pre-commit
   if [[ "$RC" -ne 0 ]]; then pass; else fail "release fails when the commit fails"; fi
   assert_eq "$(versions)" "$EXPECT_NEW" "a failed commit restores the manifests"
   assert_eq "$(git status --porcelain | wc -l | tr -d ' ')" "0" "a failed commit leaves a clean tree"
   assert_eq "$(git diff --cached --name-only | wc -l | tr -d ' ')" "0" "a failed commit leaves an empty index"
   assert_eq "$(git log -1 --format=%s)" "chore: release $NEW_VERSION" "a failed commit adds no commit"
-  assert_eq "$(git tag -l v1.0.2)" "" "a failed commit creates no tag"
+  assert_eq "$(git tag -l "v$FOLLOWUP1_VERSION")" "" "a failed commit creates no tag"
 
   # a failing suite must not leave a half-applied version bump behind
   sed -i '2i exit 1  # sabotage' scripts/tests/run-all.sh
   git commit -qam "sabotage the suite"
-  OUT="$(AT_RELEASE_TEST=1 bash scripts/release.sh 1.0.3 2>&1)"; RC=$?
+  OUT="$(AT_RELEASE_TEST=1 bash scripts/release.sh "$FOLLOWUP2_VERSION" 2>&1)"; RC=$?
   assert_eq "$RC" "1" "release fails when the suite fails"
   assert_eq "$(versions)" "$EXPECT_NEW" "a failed release restores the manifests"
   assert_eq "$(git status --porcelain | wc -l | tr -d ' ')" "0" "a failed release leaves a clean tree"
   assert_eq "$(git diff --cached --name-only | wc -l | tr -d ' ')" "0" "a failed release leaves an empty index"
-  assert_eq "$(git tag -l v1.0.3)" "" "a failed release creates no tag"
+  assert_eq "$(git tag -l "v$FOLLOWUP2_VERSION")" "" "a failed release creates no tag"
 else
   echo "SKIP: real release run (AT_RELEASE_TEST_FULL=0)"
 fi
