@@ -17,7 +17,7 @@ break the decision against the actual text. A confident answer is not a correct 
 how you find out which kind you have.
 
 Use this when correctness matters more than speed, when working in unfamiliar code, or when the cost
-of being wrong is high. It complements `grill-with-docs` (which interrogates a *plan* with the user)
+of being wrong is high. It complements `grilling` (which interrogates a *plan* with the user)
 and the `plan-critic` subagent (which scores a *plan*); doubt-driven-development operates one level
 down, on individual implementation decisions as they are made.
 

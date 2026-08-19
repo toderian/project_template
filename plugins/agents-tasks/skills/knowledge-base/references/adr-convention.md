@@ -83,7 +83,7 @@ Before committing an ADR:
 
 ## Related
 
-The `grill-with-docs` skill creates ADRs inline as decisions crystallise during a grilling session,
+The `domain-modeling` skill creates ADRs inline as decisions crystallise during a grilling session,
 using this convention.
 
 ---
