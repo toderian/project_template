@@ -399,14 +399,43 @@ assert_eq "$LEAK_CHECK" "$(printf 'data/blob.bin\nwip.txt')" \
 # --- at migrate: real legacy downstreams (read-only clones) ------------------
 # Sources are only ever `git clone`d; the originals are never touched. Each case
 # is skipped with a SKIP line when its source is not present on this machine.
+#
+# All four downstreams have since been migrated for real, so their default
+# branch no longer has the legacy `_base/`/`playbooks/` tree. Each call site
+# below pins `clone_legacy` to a specific historical commit/branch that still
+# has the pre-migration shape this test needs. Those pinned refs are matched
+# to these specific *_SRC paths — if you override an AT_TEST_*_SRC env var to
+# point at a different repo, you'll need a different pinned ref too.
 LIGHT_SRC="${AT_TEST_LIGHT_SRC:-/home/vi/work/vitalii/repos/models_playground}"
 HEAVY_SRC="${AT_TEST_HEAVY_SRC:-/home/vi/work/ratio1/projects/project_r1_redmesh}"
 FOREIGN_SRC="${AT_TEST_FOREIGN_SRC:-/home/vi/work/ratio1/projects/project_r1_edge_node}"
 WRITING_SRC="${AT_TEST_WRITING_SRC:-/home/vi/work/vitalii/repos/project_technical_writing}"
 LEDGER_SCRIPT="$REPO/plugins/agents-tasks/skills/task-ledger/scripts/sync_todo_ledgers.py"
 
-clone_legacy() { # clone_legacy <src> <dst>
+clone_legacy() { # clone_legacy <src> <dst> [<ref>]
   GIT_LFS_SKIP_SMUDGE=1 git clone -q "$1" "$2" || return 1
+  if [[ -n "${3:-}" ]]; then
+    # `at migrate` refuses to run unless the current branch is a default
+    # branch (master/main) — a plain `checkout <ref>` would either switch
+    # onto a differently-named branch or leave a detached HEAD (branch name
+    # "HEAD"), and either way migrate would abort on the branch precondition
+    # before ever reaching the legacy-tree logic this test wants to exercise.
+    # Reset the clone's own default branch (whatever `git clone` checked
+    # out, matching the source's HEAD) to point at the pinned ref instead,
+    # so the working tree ends up on the historical content while still
+    # sitting on a branch migrate accepts.
+    default_branch="$(git -C "$2" symbolic-ref --short HEAD)" || return 1
+    # A plain `checkout <ref>` also DWIMs an unqualified branch name (with
+    # no matching local branch) onto the matching `origin/<ref>` remote-
+    # tracking branch; `checkout -B <name> <start-point>` does not apply
+    # that same DWIM to its start-point, so resolve it explicitly — first
+    # as given (a raw SHA already resolves), falling back to `origin/<ref>`
+    # (a bare branch name, which `git clone` only fetched as a remote-
+    # tracking branch, not a local one).
+    start_point="$(git -C "$2" rev-parse -q --verify "$3^{commit}" 2>/dev/null \
+      || git -C "$2" rev-parse -q --verify "origin/$3^{commit}" 2>/dev/null)" || return 1
+    git -C "$2" checkout -q -B "$default_branch" "$start_point" || return 1
+  fi
   git -C "$2" config user.email "test@example.com"
   git -C "$2" config user.name "at test"
   # a clone has no `template` remote of its own; the real downstreams do
@@ -417,7 +446,7 @@ clone_legacy() { # clone_legacy <src> <dst>
 # --- light downstream (no task ledger) --------------------------------------
 if [[ -d "$LIGHT_SRC/.git" ]]; then
   LIGHT="$WORKDIR/light"
-  clone_legacy "$LIGHT_SRC" "$LIGHT"
+  clone_legacy "$LIGHT_SRC" "$LIGHT" "backup/pre-plugin-migration-20260819-134111"
   cd "$LIGHT" || exit 1
 
   DRY_OUT="$(at migrate 2>&1)"; DRY_RC=$?
@@ -504,7 +533,7 @@ fi
 # must still stage and commit that path; it is force-added on purpose.
 if [[ -d "$LIGHT_SRC/.git" ]]; then
   GITIGNORED="$WORKDIR/light-gitignored-claude"
-  clone_legacy "$LIGHT_SRC" "$GITIGNORED"
+  clone_legacy "$LIGHT_SRC" "$GITIGNORED" "backup/pre-plugin-migration-20260819-134111"
   cd "$GITIGNORED" || exit 1
   printf '\n.claude/\n' >> .gitignore
   git add .gitignore
@@ -524,7 +553,7 @@ fi
 # migrate` must be usable there without stashing or committing them first.
 if [[ -d "$LIGHT_SRC/.git" ]]; then
   UNTRACKED="$WORKDIR/light-untracked"
-  clone_legacy "$LIGHT_SRC" "$UNTRACKED"
+  clone_legacy "$LIGHT_SRC" "$UNTRACKED" "backup/pre-plugin-migration-20260819-134111"
   cd "$UNTRACKED" || exit 1
 
   printf 'scratch\n' > wip.txt
@@ -566,7 +595,7 @@ fi
 # untracked-only dirtiness is exempt from the clean-tree precondition)
 if [[ -d "$LIGHT_SRC/.git" ]]; then
   TRACKEDDIRTY="$WORKDIR/light-tracked-dirty"
-  clone_legacy "$LIGHT_SRC" "$TRACKEDDIRTY"
+  clone_legacy "$LIGHT_SRC" "$TRACKEDDIRTY" "backup/pre-plugin-migration-20260819-134111"
   cd "$TRACKEDDIRTY" || exit 1
 
   printf '\nlocal edit\n' >> README.md
@@ -583,7 +612,7 @@ fi
 # --- heavy downstream (task ledger, LFS, project rules) ---------------------
 if [[ -d "$HEAVY_SRC/.git" ]]; then
   HEAVY="$WORKDIR/heavy"
-  clone_legacy "$HEAVY_SRC" "$HEAVY"
+  clone_legacy "$HEAVY_SRC" "$HEAVY" "backup/pre-plugin-migration-20260818-230258"
   cd "$HEAVY" || exit 1
 
   LFS_BEFORE="$(grep -c 'filter=lfs' .gitattributes)"
@@ -629,7 +658,7 @@ fi
 # --- downstream with foreign files under skills/ ----------------------------
 if [[ -d "$FOREIGN_SRC/.git" ]]; then
   FOREIGN="$WORKDIR/foreign"
-  clone_legacy "$FOREIGN_SRC" "$FOREIGN"
+  clone_legacy "$FOREIGN_SRC" "$FOREIGN" "a3462dda"
   cd "$FOREIGN" || exit 1
 
   FOREIGN_OUT="$(at migrate --yes 2>&1)"; FOREIGN_RC=$?
@@ -931,7 +960,7 @@ assert_stdout_contains "$(git show --name-only HEAD)" ".claude/settings.json" \
 # --- downstream with its own playbook skill (real repo) ---------------------
 if [[ -d "$WRITING_SRC/.git" ]]; then
   WRITING="$WORKDIR/writing"
-  clone_legacy "$WRITING_SRC" "$WRITING"
+  clone_legacy "$WRITING_SRC" "$WRITING" "82039a9"
   cd "$WRITING" || exit 1
   WRITING_OUT="$(at migrate --dry-run 2>&1)"; WRITING_RC=$?
   assert_eq "$WRITING_RC" "1" "at migrate aborts on a downstream that authored its own playbook"
