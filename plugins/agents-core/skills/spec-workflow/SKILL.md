@@ -192,7 +192,8 @@ No parallel `AGENT_TASKS.json` for this skill — `tasks.md` is the single state
 
 1. Resolve input source (issue / file / intent). Use `gh issue view N` only if input is an issue number.
 2. Pick `<slug>`; confirm with the user; create `specs/<slug>/` if missing.
-3. Draft `spec.md` from input. Stop and ask the user any "Open questions" before proceeding.
+3. Draft `spec.md` from input. Stop and resolve any "Open questions" with the user before
+   proceeding — run the `grilling` skill when there is more than one of them.
 4. Explore the codebase to ground design choices using Read / Grep / Glob — **single-agent**, no subagent dispatch yet.
 5. Draft `design.md`.
 6. Draft `tasks.md` with parallel groups marked.

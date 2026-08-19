@@ -20,10 +20,9 @@ You may skip steps if you don't consider them necessary.
 
 2. Explore the repo to verify their assertions and understand the current state of the codebase.
 
-3. Run the `grill-me` interview technique (the `grill-me` skill) on this plan.
-   If the project already has a domain glossary or ADR log, use `grill-with-docs`
-   (the `grill-with-docs` skill) instead — same interview, plus terminology and
-   documentation updates inline.
+3. Run the `grilling` skill on this plan. If the project already has — or is starting — a
+   domain glossary or ADR log, also run `domain-modeling` so terminology and decisions are
+   captured inline.
 
 4. Sketch out the major modules you will need to build or modify to complete the implementation. Actively look for opportunities to extract deep modules that can be tested in isolation.
 

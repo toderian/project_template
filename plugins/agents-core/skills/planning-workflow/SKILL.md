@@ -36,6 +36,9 @@ Capture three things:
 
 A problem statement without explicit OUT-of-scope items is incomplete. Most scope creep starts with an empty OUT list.
 
+When the why, the boundary, or the success criteria depend on decisions only the user can make,
+run the `grilling` skill first and plan from its answers.
+
 ### 2. Scope check
 
 Estimate the number of files affected. If during planning the count climbs past 1.5x the initial estimate, halt and re-scope before continuing. Scope creep caught at plan time is cheap. Caught at review time it is not.

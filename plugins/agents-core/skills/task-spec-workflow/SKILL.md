@@ -87,9 +87,9 @@ Show a concise summary:
 - phase list
 - acceptance criteria and related tests
 
-If open questions materially affect behavior or architecture, ask before marking the task ready for
-execution. If all questions are non-blocking, record them under the task and report that `execute-plan`
-can proceed.
+If open questions materially affect behavior or architecture, resolve them with the user (run the
+`grilling` skill when there is more than one) before marking the task ready for execution. If all
+questions are non-blocking, record them under the task and report that `execute-plan` can proceed.
 
 ### 5. Validate
 
