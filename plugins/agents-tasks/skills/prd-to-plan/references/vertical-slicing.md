@@ -19,6 +19,25 @@ Tracer bullets are vertical slices: each one proves the path works end-to-end be
 - Do NOT include specific file names, function names, or implementation details that are likely to
   change as later phases are built
 - DO include durable decisions: route paths, schema shapes, data model names
+- Each slice is sized to fit in a single fresh context window
+- Any prefactoring goes first: make the change easy, then make the easy change
+
+## Exception: wide refactors
+
+A **wide refactor** is one mechanical change — rename a column, retype a shared symbol, swap a
+logging call — whose **blast radius** fans across the whole codebase, so a single edit breaks
+thousands of call sites at once and no vertical slice can land green. Don't force it into a tracer
+bullet. Sequence it as **expand → migrate → contract**:
+
+1. **Expand.** Add the new form beside the old one so nothing breaks. One slice.
+2. **Migrate.** Move call sites over in batches sized by blast radius — per package, per directory —
+   each batch its own slice, blocked by the expand. CI stays green batch to batch because the old
+   form still exists.
+3. **Contract.** Delete the old form once no caller remains, blocked by every migrate batch.
+
+When even the batches cannot stay green on their own, keep the sequence but let them share an
+integration branch that all of them block, and promise green only at a final integrate-and-verify
+slice.
 
 ## Quiz-the-user pattern
 
