@@ -31,6 +31,10 @@ Commit messages: `type: summary`, then `What changed:` / `Why:` / `Checks:` sect
 
 ## Writing skills
 
+Follow `writing-for-agents` for the prose (context pointers, the two loads, progressive disclosure,
+completion criteria, pruning) and `write-a-skill` for the mechanics. The rules below are the
+repo-specific constraints those two do not decide.
+
 - One `SKILL.md` per skill, ≤ 500 lines. Longer material goes to `references/`,
   templates to `assets/`, executables to `scripts/`.
 - Spec-shaped: what to do, in what order, with what checks — not an essay.
