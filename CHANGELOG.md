@@ -2,7 +2,7 @@
 
 Notable changes to agents-template. All four plugins share the version of the repository.
 
-## Unreleased
+## 1.1.0 — 2026-08-19
 
 ### Added
 
