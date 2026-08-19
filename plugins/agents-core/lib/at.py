@@ -449,7 +449,18 @@ def _is_legacy_template_repo(path: Path) -> bool:
 
 
 def stale_skill_symlinks(home: Path) -> list[Path]:
-    """Global skill symlinks that point into a legacy template skill tree."""
+    """Global skill symlinks that are dangling, or point into a legacy template skill tree.
+
+    Two independent reasons a global skill symlink is stale:
+      (a) its target no longer exists on disk at all -- e.g. the downstream
+          repo it pointed into has already been `at migrate`d, which deletes
+          its `_base/`/`playbooks/`/`skills/` dirs. Any dangling global skill
+          symlink is worth reporting, regardless of what path it used to
+          point to.
+      (b) its target still exists but resolves into a repo that still has
+          `_base/`/`playbooks/` -- the pre-migration case: a symlink into a
+          legacy-layout repo that hasn't been migrated yet.
+    """
     found: list[Path] = []
     for rel in (".claude/skills", ".codex/skills", ".agents/skills"):
         base = home / rel
@@ -459,6 +470,9 @@ def stale_skill_symlinks(home: Path) -> list[Path]:
             if not entry.is_symlink():
                 continue
             target = Path(os.path.realpath(entry))
+            if not target.exists():
+                found.append(entry)
+                continue
             text = str(target)
             if "/.claude/skills/" not in text and not re.search(r"/skills/[^/]+/", text):
                 continue

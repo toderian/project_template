@@ -26,6 +26,12 @@ assert_exists() { # assert_exists <path> <desc>
 assert_missing() { # assert_missing <path> <desc>
   if [[ ! -e "$1" ]]; then pass; else fail "$2 (unexpected: $1)"; fi
 }
+assert_symlink_gone() { # assert_symlink_gone <path> <desc>
+  # `-e` alone is not enough here: it follows the symlink, so a *dangling*
+  # symlink already reads as "missing" whether or not the link itself was
+  # ever removed. `-L` checks the link entry directly.
+  if [[ ! -e "$1" && ! -L "$1" ]]; then pass; else fail "$2 (unexpected: $1)"; fi
+}
 assert_contains() { # assert_contains <file> <needle> <desc>
   if grep -qF -- "$2" "$1" 2>/dev/null; then pass; else fail "$3"; fi
 }
@@ -303,6 +309,18 @@ ln -sfn "$LEGACY2/skills/misc/legacy-wrapper" "$FAKEHOME/.agents/skills/legacy-w
 ln -sfn "$PLAIN/skills/misc/keep-me" "$FAKEHOME/.codex/skills/keep-me"
 mkdir -p "$FAKEHOME/.claude/skills/hand-written"
 
+# Dangling case: once a downstream repo has been `at migrate`d, its
+# _base/playbooks/skills dirs are deleted -- so a leftover global symlink
+# into its old skill path no longer resolves into anything at all. It must
+# still be flagged as stale even though _is_legacy_template_repo() can no
+# longer find a _base/playbooks ancestor (there's nothing left to find).
+# This exact shape was reproduced live on this machine: after
+# ~/repos/project_technical_writing was migrated, 26 symlinks in
+# ~/.claude/skills and 26 in ~/.codex/skills pointed into its now-deleted
+# .claude/skills/<name> paths, and `at bootstrap --clean-global-skills`
+# silently reported "no stale global skill symlinks found".
+ln -sfn "$WORKDIR/does-not-exist-anymore/.claude/skills/old-skill" "$FAKEHOME/.claude/skills/dangling-example"
+
 CANDIDATES="$(python3 - "$AT_PY" "$FAKEHOME" <<'PY'
 import importlib.util, pathlib, sys
 spec = importlib.util.spec_from_file_location("at", sys.argv[1])
@@ -314,8 +332,48 @@ PY
 )"
 assert_stdout_contains "$CANDIDATES" "$FAKEHOME/.claude/skills/old-skill" "symlink into a legacy .claude/skills tree is a candidate"
 assert_stdout_contains "$CANDIDATES" "$FAKEHOME/.agents/skills/legacy-wrapper" "symlink into a legacy skills/<bucket>/ tree is a candidate"
+assert_stdout_contains "$CANDIDATES" "$FAKEHOME/.claude/skills/dangling-example" "a symlink whose target no longer exists at all (post-migrate) is a candidate"
 assert_stdout_lacks "$CANDIDATES" "keep-me" "symlink into a non-template repo is not a candidate"
 assert_stdout_lacks "$CANDIDATES" "hand-written" "a real directory is not a candidate"
+
+# Same bug, exercised through the actual `at bootstrap --clean-global-skills`
+# CLI path (not just the pure stale_skill_symlinks() function). `_run` shells
+# out to the real `claude`/`codex` CLIs to add/install plugins -- stub it to
+# a no-op so this stays hermetic (this file's own contract: "nothing touches
+# the real machine config"), while still driving the real cmd_bootstrap()
+# code, including the --yes removal path and the os.path.realpath() print
+# line for a target that no longer exists.
+BOOT_DRY="$(HOME="$FAKEHOME" python3 - "$AT_PY" "$FAKEHOME" "$REPO" <<'PY'
+import argparse, importlib.util, sys
+spec = importlib.util.spec_from_file_location("at", sys.argv[1])
+at = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(at)
+at._run = lambda cmd: True  # never shell out to the real claude/codex CLIs
+args = argparse.Namespace(local=sys.argv[3], claude=False, codex=False, tasks=False,
+                           extras=False, personal=False, clean_global_skills=True, yes=False)
+at.cmd_bootstrap(args)
+PY
+)"
+assert_stdout_contains "$BOOT_DRY" "$FAKEHOME/.claude/skills/dangling-example" \
+  "at bootstrap --clean-global-skills lists the dangling symlink"
+assert_stdout_lacks "$BOOT_DRY" "no stale global skill symlinks found" \
+  "at bootstrap --clean-global-skills does not claim a clean bill of health"
+
+BOOT_YES="$(HOME="$FAKEHOME" python3 - "$AT_PY" "$FAKEHOME" "$REPO" <<'PY'
+import argparse, importlib.util, sys
+spec = importlib.util.spec_from_file_location("at", sys.argv[1])
+at = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(at)
+at._run = lambda cmd: True
+args = argparse.Namespace(local=sys.argv[3], claude=False, codex=False, tasks=False,
+                           extras=False, personal=False, clean_global_skills=True, yes=True)
+at.cmd_bootstrap(args)
+PY
+)"
+CANDIDATE_COUNT="$(printf '%s\n' "$CANDIDATES" | grep -c .)"
+assert_stdout_contains "$BOOT_YES" "removed $CANDIDATE_COUNT symlink(s)" \
+  "at bootstrap --yes removes every stale candidate, including the dangling one"
+assert_symlink_gone "$FAKEHOME/.claude/skills/dangling-example" "the dangling symlink is gone after --yes"
 
 # _leaked_untracked_paths: the last-resort safety check `at migrate --commit`
 # runs right before it commits. Exercise the pure function directly with a
