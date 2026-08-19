@@ -2,11 +2,14 @@
 
 Current research snapshot for this template.
 
-Reviewed on: 2026-07-01.
+Reviewed on: 2026-08-19.
 
-Paths in this document use the 1.0.0 plugin layout. Entries logged before the
+Paths in this document use the 1.0.1 plugin layout. Entries logged before the
 2026-08-18 restructure named files in the old `_base` and `playbooks` trees; those
 trees live in git history (see `docs/specs/2026-08-18-plugin-restructure-design.md`).
+The restructure itself was driven by a critical audit of this repo and its nine
+downstream consumers — findings and the recommended target shape are published at
+https://claude.ai/code/artifact/66bacd4d-1af5-43e6-992c-3aeab095480d (2026-08-18).
 
 ## What changed this iteration
 
