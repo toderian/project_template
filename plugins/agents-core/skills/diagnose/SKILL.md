@@ -4,6 +4,7 @@ description: "Disciplined diagnosis loop for hard bugs and performance regressio
 metadata:
   source:
     - "github.com/mattpocock/skills (original, since renamed/reworked upstream)"
+    - "github.com/mattpocock/skills@885e2ca skills/engineering/diagnosing-bugs/SKILL.md (redaction, red-capable criterion, minimise; adapted)"
     - playbooks/skills/engineering/diagnose.md
   pack: core
 ---
@@ -20,6 +21,15 @@ modules, and check ADRs or area summaries in the area you're touching. For repea
 service-inspection, or environment-specific debugging workflows, check
 `docs/resources/<area>/runbooks/` and `docs/resources/global/runbooks/` before asking the user for
 operational details; real placeholder values should come from `.local/runbooks/` when present.
+
+## Redact
+
+This skill has you show commands, their output, and captured artifacts. **Redact every secret first**:
+write `<REDACTED>` in its place. Build loops against environment variables, so the credential stays in
+the environment rather than in what you show. Captured artifacts carry auth headers and session
+cookies: quote only the lines that carry the signal.
+
+If the redacted output is not enough to diagnose the bug, say so and ask the user for what is missing.
 
 ## Phase 1 — Build a feedback loop
 
@@ -38,7 +48,9 @@ Spend disproportionate effort here. **Be aggressive. Be creative. Refuse to give
 7. **Property / fuzz loop.** If the bug is "sometimes wrong output", run 1000 random inputs and look for the failure mode.
 8. **Bisection harness.** If the bug appeared between two known states (commit, dataset, version), automate "boot at state X, check, repeat" so you can `git bisect run` it.
 9. **Differential loop.** Run the same input through old-version vs new-version (or two configs) and diff outputs.
-10. **HITL bash script.** Last resort. If a human must click, drive _them_ with a structured loop so the captured output feeds back to you.
+10. **HITL bash script.** Last resort. If a human must click, drive _them_ with
+    `scripts/hitl-loop.template.sh` so the loop stays structured and the captured output feeds back
+    to you.
 
 Build the right feedback loop, and the bug is 90% fixed.
 
@@ -58,13 +70,29 @@ The goal is not a clean repro but a **higher reproduction rate**. Loop the trigg
 
 ### When you genuinely cannot build a loop
 
-Stop and say so explicitly. List what you tried. Ask the user for: (a) access to whatever environment reproduces it, (b) a captured artifact (HAR file, log dump, core dump, screen recording with timestamps), or (c) permission to add temporary production instrumentation. Do **not** proceed to hypothesise without a loop.
+Stop and say so explicitly. List what you tried. Ask the user for: (a) access to whatever environment reproduces it, (b) a **redacted** captured artifact (HAR file, log dump, core dump, screen recording with timestamps), or (c) permission to add temporary production instrumentation. Do **not** proceed to hypothesise without a loop.
 
-Do not proceed to Phase 2 until you have a loop you believe in.
+### Completion criterion: a tight loop that goes red
 
-## Phase 2 — Reproduce
+Phase 1 is done when you can name **one command** — a script path, a test invocation, a curl — that
+you have **already run at least once** (show the invocation and its output, redacted), and that is:
 
-Run the loop. Watch the bug appear.
+- [ ] **Red-capable** — it drives the actual bug code path and asserts the user's *exact* symptom, so
+      it can go red on this bug and green once fixed. Not "runs without erroring"; it must be able to
+      catch *this* bug.
+- [ ] **Deterministic** — same verdict every run (for flaky bugs, a pinned high reproduction rate, per
+      above).
+- [ ] **Fast** — seconds, not minutes.
+- [ ] **Agent-runnable** — you can run it unattended; a human enters the loop only through
+      `scripts/hitl-loop.template.sh`.
+
+If you catch yourself reading code to build a theory before this command exists, **stop: jumping
+straight to a hypothesis is the exact failure this skill prevents.** No red-capable command, no
+Phase 2.
+
+## Phase 2 — Reproduce + minimise
+
+Run the loop. Watch it go red as the bug appears.
 
 Confirm:
 
@@ -72,7 +100,19 @@ Confirm:
 - [ ] The failure is reproducible across multiple runs (or, for non-deterministic bugs, reproducible at a high enough rate to debug against).
 - [ ] You have captured the exact symptom (error message, wrong output, slow timing) so later phases can verify the fix actually addresses it.
 
-Do not proceed until you reproduce the bug.
+### Minimise
+
+Once it is red, shrink the repro to the **smallest scenario that still goes red**. Cut inputs, callers,
+config, data and steps **one at a time**, re-running the loop after each cut, and keep only what is
+load-bearing for the failure.
+
+Why bother: a minimal repro shrinks the hypothesis space in Phase 3 — fewer moving parts left to
+suspect — and becomes the clean regression test in Phase 5.
+
+Done when **every remaining element is load-bearing**: removing any one of them makes the loop go
+green.
+
+Do not proceed until you have reproduced **and** minimised.
 
 ### Caller surface check
 
