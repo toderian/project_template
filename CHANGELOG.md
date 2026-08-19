@@ -18,18 +18,44 @@ Notable changes to agents-template. All four plugins share the version of the re
 - `writing-for-agents` (agents-extras): how to write anything an agent reads — context pointers, the
   two loads, progressive disclosure, completion criteria, leading words, pruning. `write-a-skill`
   drops the prose advice it duplicated and keeps the marketplace mechanics.
+- `codebase-design` (agents-core, + references/deepening.md): one home for the module / interface /
+  adapter / depth / seam / leverage / locality vocabulary, the deep-vs-shallow model, the deletion
+  test, the dependency categories and the replace-don't-layer testing rule. Six skills used these
+  words; three defined "deep module" differently. `tdd/references/deep-modules.md` and
+  `interface-design.md` are absorbed into it.
+
+### Fixed
+
+- **`diagnose` referenced a minimised repro that no phase produced.** Phase 2 is now
+  "Reproduce + minimise" and produces it. Phase 1 gained a real completion criterion (one command,
+  already run, red-capable / deterministic / fast / agent-runnable) in place of "a loop you believe
+  in", plus a `## Redact` section and a bundled `scripts/hitl-loop.template.sh`.
+- **`github-triage` poisoned its own dedup store.** An enhancement closed as `wontfix` because it is
+  *already implemented* is no longer written to `.out-of-scope/`, which is read back as the record of
+  prior *rejections*. Triage also gained a redundancy check and an AI disclaimer on posted comments.
 
 ### Changed
 
 - `todo-convention.md` documents the optional `## Tickets` section used by wayfinder maps, and the
   two layout rules that keep ticket state from leaking into task state.
+- `vertical-slicing.md` gains the wide-refactor exception (expand → migrate → contract), reaching
+  `prd-to-plan`, `prd-to-issues` and `prd-to-todos` from one file.
+- `ubiquitous-language` now writes into `docs/resources/CONTEXT.md` using `domain-modeling`'s format
+  instead of maintaining a competing root `UBIQUITOUS_LANGUAGE.md`; it keeps its distinct
+  retrospective/batch trigger. Downstream repos with an existing `UBIQUITOUS_LANGUAGE.md` should fold
+  it into the glossary.
+- `tdd` confirms the seams tests are written at and names the tautological-test anti-pattern;
+  `handoff` redacts secrets and personal data; `improve-codebase-architecture` scopes its search by
+  git-log hot spots and screens with the deletion test.
 - Skills adapted from `mattpocock/skills` now name that provenance in `metadata.source`.
 
 ### Known follow-ups
 
-- `ubiquitous-language` (agents-tasks) overlaps `domain-modeling`; reconcile them.
-- `tdd`, `diagnose` and `prototype` predate upstream's current versions (secret redaction in
-  diagnosis, pre-agreed seams in TDD); worth a refresh pass.
+- `prototype` predates upstream's redesign (logic prototypes as one shareable HTML file; a prototype
+  kept on a throwaway branch rather than deleted).
+- `github-triage` does not treat external PRs as a request surface.
+- No lint enforces the `AGENTS.md` skill rules (name/description/line limits, README skill counts);
+  today they hold, but only by hand.
 
 ## 1.0.1 — 2026-08-19
 

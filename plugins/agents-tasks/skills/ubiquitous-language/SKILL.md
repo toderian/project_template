@@ -1,6 +1,6 @@
 ---
 name: ubiquitous-language
-description: "Extract a DDD-style ubiquitous language glossary from the current conversation, flagging ambiguities and proposing canonical terms. Saves to UBIQUITOUS_LANGUAGE.md. Use when the user wants to define domain terms, build a glossary, harden terminology, or mentions \"domain model\" or \"DDD\"."
+description: "Retrospectively harvest domain terms from the current conversation into docs/resources/CONTEXT.md, flagging ambiguities and proposing canonical terms. Use when the user wants to catch the glossary up after a discussion, define domain terms in bulk, harden terminology, or mentions \"domain model\" or \"DDD\"."
 metadata:
   source:
     - "github.com/mattpocock/skills (original, since renamed/reworked upstream)"
@@ -12,88 +12,55 @@ metadata:
 
 ## Purpose
 
-Extract and formalize domain terminology from the current conversation into a consistent glossary, saved to a local file.
+Retrospectively harvest the domain terms from **this conversation** into the project glossary: scan
+what was said, catch the places one word meant two things or two words meant one, and propose
+canonical terms.
+
+This is the batch move. `domain-modeling` is the inline one — it sharpens terms *as* a design session
+crystallises them and writes each one down on the spot. Reach for this skill when the conversation has
+already happened and the glossary needs catching up.
+
+## Where it writes
+
+The project glossary, never a separate file: `docs/resources/CONTEXT.md` (follow
+`docs/resources/CONTEXT-MAP.md` to the right context if the repo has several; a root `CONTEXT.md` is
+only a pointer or legacy fallback). If `CONTEXT_DOCS_DIR` is set in `project.env` at the repo root,
+follow it silently, namespaced by source repo, exactly as `domain-modeling` does.
+
+Use the layout and rules in the `domain-modeling` skill (references/CONTEXT-FORMAT.md): term
+definitions with _Avoid_ aliases, Relationships, Example dialogue, Flagged ambiguities. Do not invent a
+second format here.
+
+Create the glossary lazily: if none exists, create it when the first term is resolved.
 
 ## Process
 
-1. **Scan the conversation** for domain-relevant nouns, verbs, and concepts
-2. **Identify problems**:
-   - Same word used for different concepts (ambiguity)
-   - Different words used for the same concept (synonyms)
-   - Vague or overloaded terms
-3. **Propose a canonical glossary** with opinionated term choices
-4. **Write to `UBIQUITOUS_LANGUAGE.md`** in the working directory using the format below
-5. **Output a summary** inline in the conversation
-
-## Output Format
-
-Write a `UBIQUITOUS_LANGUAGE.md` file with this structure:
-
-```md
-# Ubiquitous Language
-
-## Order lifecycle
-
-| Term        | Definition                                              | Aliases to avoid      |
-| ----------- | ------------------------------------------------------- | --------------------- |
-| **Order**   | A customer's request to purchase one or more items      | Purchase, transaction |
-| **Invoice** | A request for payment sent to a customer after delivery | Bill, payment request |
-
-## People
-
-| Term         | Definition                                  | Aliases to avoid       |
-| ------------ | ------------------------------------------- | ---------------------- |
-| **Customer** | A person or organization that places orders | Client, buyer, account |
-| **User**     | An authentication identity in the system    | Login, account         |
-
-## Relationships
-
-- An **Invoice** belongs to exactly one **Customer**
-- An **Order** produces one or more **Invoices**
-
-## Example dialogue
-
-> **Dev:** "When a **Customer** places an **Order**, do we create the **Invoice** immediately?"
-> **Domain expert:** "No — an **Invoice** is only generated once a **Fulfillment** is confirmed. A single **Order** can produce multiple **Invoices** if items ship in separate **Shipments**."
-> **Dev:** "So if a **Shipment** is cancelled before dispatch, no **Invoice** exists for it?"
-> **Domain expert:** "Exactly. The **Invoice** lifecycle is tied to the **Fulfillment**, not the **Order**."
-
-## Flagged ambiguities
-
-- "account" was used to mean both **Customer** and **User** — these are distinct concepts: a **Customer** places orders, while a **User** is an authentication identity that may or may not represent a **Customer**.
-```
+1. **Scan the conversation** for domain-relevant nouns, verbs, and concepts.
+2. **Identify problems**: the same word used for different concepts (ambiguity), different words used
+   for one concept (synonyms), and vague or overloaded terms.
+3. **Read the existing glossary first.** Terms already defined there are the canon — extend or sharpen
+   them rather than proposing a rival definition, and say explicitly when the conversation contradicts
+   what the glossary says.
+4. **Propose the additions and changes to the user** before writing: new terms, sharpened definitions,
+   and each ambiguity with a recommended resolution. Be opinionated — pick the better word and list the
+   others as aliases to avoid.
+5. **Write the agreed terms into the glossary**, updating the Relationships, Example dialogue, and
+   Flagged ambiguities sections so they still describe the whole context, not just this batch.
+6. **Report** what was added, what was sharpened, and what remains ambiguous.
 
 ## Rules
 
-- **Be opinionated.** When multiple words exist for the same concept, pick the best one and list the others as aliases to avoid.
-- **Flag conflicts explicitly.** If a term is used ambiguously in the conversation, call it out in the "Flagged ambiguities" section with a clear recommendation.
-- **Only include terms relevant for domain experts.** Skip the names of modules or classes unless they have meaning in the domain language.
-- **Keep definitions tight.** One sentence max. Define what it IS, not what it does.
-- **Show relationships.** Use bold term names and express cardinality where obvious.
-- **Only include domain terms.** Skip generic programming concepts (array, function, endpoint) unless they have domain-specific meaning.
-- **Group terms into multiple tables** when natural clusters emerge (e.g. by subdomain, lifecycle, or actor). Each group gets its own heading and table. If all terms belong to a single cohesive domain, one table is fine — don't force groupings.
-- **Write an example dialogue.** A short conversation (3-5 exchanges) between a dev and a domain expert that demonstrates how the terms interact naturally. The dialogue should clarify boundaries between related concepts and show terms being used precisely.
+- Only terms that carry meaning for a domain expert. Skip module and class names unless the domain
+  uses them, and skip general programming concepts (array, endpoint, timeout) unless this project
+  gives them a specific meaning.
+- Definitions are one sentence: what the thing *is*, not what it does.
+- Flag conflicts explicitly rather than silently picking a winner.
+- A decision that is hard to reverse, surprising without context, and the result of a real trade-off
+  belongs in an ADR, not the glossary. See the `knowledge-base` skill (references/adr-convention.md).
 
-<example>
+## Quality bar
 
-## Example dialogue
-
-> **Dev:** "How do I test the **sync service** without Docker?"
-
-> **Domain expert:** "Provide the **filesystem layer** instead of the **Docker layer**. It implements the same **Sandbox service** interface but uses a local directory as the **sandbox**."
-
-> **Dev:** "So **sync-in** still creates a **bundle** and unpacks it?"
-
-> **Domain expert:** "Exactly. The **sync service** doesn't know which layer it's talking to. It calls `exec` and `copyIn` — the **filesystem layer** just runs those as local shell commands."
-
-</example>
-
-## Re-running
-
-When invoked again in the same conversation:
-
-1. Read the existing `UBIQUITOUS_LANGUAGE.md`
-2. Incorporate any new terms from subsequent discussion
-3. Update definitions if understanding has evolved
-4. Re-flag any new ambiguities
-5. Rewrite the example dialogue to incorporate new terms
+- The glossary is the only place the terms live; this skill created no second file.
+- Every ambiguity found in the conversation is either resolved in the glossary or listed under
+  Flagged ambiguities.
+- Terms already in the glossary were extended, not duplicated with a rival definition.
