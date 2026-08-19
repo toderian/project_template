@@ -52,13 +52,6 @@ except Exception:
 line1 = f"{model} │ {label}" + (f" ({branch})" if branch else "")
 
 parts = []
-# Context usage is only shown when line 1 is ours. GSD's line already renders a
-# context bar (scaled to usable context, i.e. excluding the auto-compact
-# buffer), so repeating the raw percentage here would show two different-looking
-# numbers for the same underlying state.
-ctx_pct = (data.get("context_window") or {}).get("used_percentage")
-if isinstance(ctx_pct, (int, float)) and os.environ.get("AT_STATUSLINE_SKIP_LINE1") != "1":
-    parts.append(f"ctx {int(ctx_pct)}%")
 
 
 def window(key: str, label: str) -> None:
@@ -88,6 +81,18 @@ def window(key: str, label: str) -> None:
 
 window("five_hour", "5h")
 window("seven_day", "7d")
+
+# Context usage. GSD's line already renders a context bar (scaled to usable
+# context, i.e. excluding the auto-compact buffer), so when GSD supplied line 1
+# the raw percentage is redundant — but only skip it while there is something
+# else to show. `rate_limits` is Pro/Max-only and absent until the first API
+# response of a session, so without this the whole line would vanish.
+ctx_pct = (data.get("context_window") or {}).get("used_percentage")
+if isinstance(ctx_pct, (int, float)):
+    if os.environ.get("AT_STATUSLINE_SKIP_LINE1") != "1":
+        parts.insert(0, f"ctx {int(ctx_pct)}%")
+    elif not parts:
+        parts.append(f"ctx {int(ctx_pct)}%")
 
 # GSD already rendered line 1; only this script's metrics line is wanted then.
 if os.environ.get("AT_STATUSLINE_SKIP_LINE1") != "1":
