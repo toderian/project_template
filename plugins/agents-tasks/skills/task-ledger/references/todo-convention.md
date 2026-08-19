@@ -449,6 +449,13 @@ was captured for session expiry telemetry.
 - **Repo scope:** optional `### Repo scope` section for cross-repo tasks when metadata alone is not
   enough; explain why each repo is involved and use `<repo-slug>:<repo-relative-path>` references.
 - **Follow-ups:** use `None` if no follow-ups exist. Prefer `I-NNN` inbox captures for new ideas.
+- **Tickets:** optional `## Tickets` section, used only by `wayfinder` maps, holding decision tickets
+  as dotted sub-ids of the task (`T-042.1`). It sits after `### Follow-ups` and before
+  `## Execution log`. Two constraints, because the validator scans the whole file: the tickets index
+  table must start its rows with a `Ticket` column (any `| Key | Value |` line is read as task
+  metadata, so a `| Status | resolved |` row would overwrite the task's own status), and ticket bodies
+  must use `###` headings without checkboxes (any `####` heading counts as a phase). See the
+  `wayfinder` skill (references/map-template.md).
 - **Execution log:** append-only. Each entry records actions taken, decisions made, test results, commit
   SHAs when work is committed, and outcome.
 - **Completion harvest:** required before archiving; each row must name updates or explicitly say `None`.

@@ -25,7 +25,8 @@ Prerequisite: `docs/tasks_manager/` must already be initialized. If it is missin
 
 Use this skill when the user asks to add, create, file, or track a task and the request is already
 actionable. If the request is vague, low-context, or mostly a thought for later, use `capture-idea`
-instead.
+instead. If the work is too big for one session and the way to the goal is not yet
+visible, use `wayfinder` instead: it charts the effort as one task holding decision tickets.
 
 Do not over-interview. Only ask when a required field cannot be inferred safely:
 

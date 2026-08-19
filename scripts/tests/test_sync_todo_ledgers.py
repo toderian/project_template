@@ -37,6 +37,14 @@ class Ledger(unittest.TestCase):
     def test_missing_harvest_is_warning_not_error(self):
         # ledger-legacy has a second archived task without harvest section
         p, _ = run("ledger-legacy", "--check"); self.assertEqual(p.returncode, 0); self.assertIn("Completion harvest", p.stderr)
+    def test_wayfinder_map_checks_clean(self):
+        p, _ = run("wayfinder-map", "--check"); self.assertEqual(p.returncode, 0, p.stderr)
+    def test_wayfinder_ticket_rows_do_not_override_task_metadata(self):
+        # The tickets index says claimed/resolved; the task itself must stay open with 1/3 phases,
+        # because ticket rows lead with a `Ticket` column and ticket bodies use `###`, not `####`.
+        p, tmp = run("wayfinder-map"); self.assertEqual(p.returncode, 0, p.stderr)
+        row = [l for l in (tmp / "docs/tasks_manager/_active.md").read_text().splitlines() if "TST-003" in l][0]
+        self.assertIn("| open |", row); self.assertIn("| 1/3 |", row)
     def test_sync_writes_ledgers(self):
         p, tmp = run("ledger-minimal"); self.assertEqual(p.returncode, 0, p.stderr)
         self.assertIn("TST-001", (tmp / "docs/tasks_manager/_active.md").read_text())
