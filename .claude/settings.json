@@ -4,7 +4,6 @@
     "deny": [
       "Read(./.creds/**)",
       "Edit(./.creds/**)",
-      "Write(./.creds/**)",
       "Bash(git push --force*)",
       "Bash(git push -f*)"
     ]

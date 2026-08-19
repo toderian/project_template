@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
 # Portable statusLine command, seeded by `at init`.
 #
-# Prefers the user's own GSD statusline (if their machine has one installed) so
-# personal setups keep working across repos; falls back to a plain
-# "model | directory" line that needs nothing beyond python3, so a clone on a
-# machine without GSD (or a teammate without it) still gets a sane status line.
+# Line 1 comes from the user's own GSD statusline when their machine has one
+# installed (so a personal setup keeps working across repos); otherwise it is a
+# self-contained "model │ dir (branch)" line needing nothing beyond python3, so
+# a clone on a machine without GSD still gets a sane status line.
+#
+# Line 2 is always this script's own: context %, session cost, and the 5-hour
+# rate-limit window with its reset countdown. Segments whose data is absent are
+# skipped (rate_limits only exists for Claude.ai Pro/Max after the first API
+# response), and the line is omitted entirely when nothing is available.
 #
 # Customize freely — `at init` never overwrites this file once it exists.
 set -euo pipefail
@@ -12,9 +17,9 @@ set -euo pipefail
 INPUT="$(cat)"
 
 GSD_SCRIPT="${HOME:-}/.claude/hooks/gsd-statusline.js"
+USE_GSD=0
 if [[ -n "${HOME:-}" && -f "$GSD_SCRIPT" ]] && command -v node >/dev/null 2>&1; then
-  printf '%s' "$INPUT" | node "$GSD_SCRIPT"
-  exit 0
+  USE_GSD=1
 fi
 
 # `python3 -` would read this script FROM stdin, consuming the piped JSON
@@ -51,26 +56,49 @@ ctx_pct = (data.get("context_window") or {}).get("used_percentage")
 if isinstance(ctx_pct, (int, float)):
     parts.append(f"ctx {int(ctx_pct)}%")
 
-cost = (data.get("cost") or {}).get("total_cost_usd")
-if isinstance(cost, (int, float)):
-    parts.append(f"${cost:.2f}")
 
-five_hour = (data.get("rate_limits") or {}).get("five_hour") or {}
-used_pct = five_hour.get("used_percentage")
-resets_at = five_hour.get("resets_at")
-if isinstance(used_pct, (int, float)):
-    piece = f"5h {int(used_pct)}%"
+def window(key: str, label: str) -> None:
+    """Append '<label> <used>% (<countdown>)' for a rate-limit window, if present.
+
+    `rate_limits` only exists for Claude.ai Pro/Max plans, and each window can
+    be independently absent, so every field is checked before use.
+    """
+    info = (data.get("rate_limits") or {}).get(key) or {}
+    used = info.get("used_percentage")
+    resets_at = info.get("resets_at")
+    if not isinstance(used, (int, float)):
+        return
+    piece = f"{label} {int(used)}%"
     if isinstance(resets_at, (int, float)):
         remaining = int(resets_at) - int(time.time())
         if remaining > 0:
-            hours, rem = divmod(remaining, 3600)
+            days, rem = divmod(remaining, 86400)
+            hours, rem = divmod(rem, 3600)
             minutes = rem // 60
-            piece += f" (resets {hours}h{minutes:02d}m)"
+            if days:
+                piece += f" ({days}d{hours:02d}h)"
+            else:
+                piece += f" ({hours}h{minutes:02d}m)"
     parts.append(piece)
 
-print(line1)
+
+window("five_hour", "5h")
+window("seven_day", "7d")
+
+# GSD already rendered line 1; only this script's metrics line is wanted then.
+if os.environ.get("AT_STATUSLINE_SKIP_LINE1") != "1":
+    print(line1)
 if parts:
-    print(" │ ".join(parts))
+    print("\033[2m" + " │ ".join(parts) + "\033[0m")
 PY
 )
-printf '%s' "$INPUT" | python3 -c "$FALLBACK_PY"
+
+if [[ "$USE_GSD" == "1" ]]; then
+  # GSD's own line, verbatim; ensure it ends with a newline so our metrics
+  # line lands on its own row even if GSD omits the trailing newline.
+  GSD_OUT="$(printf '%s' "$INPUT" | node "$GSD_SCRIPT" 2>/dev/null || true)"
+  [[ -n "$GSD_OUT" ]] && printf '%s\n' "$GSD_OUT"
+  printf '%s' "$INPUT" | AT_STATUSLINE_SKIP_LINE1=1 python3 -c "$FALLBACK_PY"
+else
+  printf '%s' "$INPUT" | python3 -c "$FALLBACK_PY"
+fi
