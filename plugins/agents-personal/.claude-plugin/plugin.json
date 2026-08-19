@@ -1,9 +1,21 @@
 {
   "name": "agents-personal",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Writing, Obsidian, teaching and niche migration skills (personal)",
-  "author": { "name": "Vitalii Toderian", "url": "https://github.com/toderian" },
+  "author": {
+    "name": "Vitalii Toderian",
+    "url": "https://github.com/toderian"
+  },
   "repository": "https://github.com/toderian/project_template",
   "license": "Apache-2.0",
-  "keywords": ["skills", "writing", "obsidian", "teaching", "migration", "personal", "codex", "claude-code"]
+  "keywords": [
+    "skills",
+    "writing",
+    "obsidian",
+    "teaching",
+    "migration",
+    "personal",
+    "codex",
+    "claude-code"
+  ]
 }
