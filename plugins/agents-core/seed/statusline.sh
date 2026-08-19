@@ -52,8 +52,12 @@ except Exception:
 line1 = f"{model} │ {label}" + (f" ({branch})" if branch else "")
 
 parts = []
+# Context usage is only shown when line 1 is ours. GSD's line already renders a
+# context bar (scaled to usable context, i.e. excluding the auto-compact
+# buffer), so repeating the raw percentage here would show two different-looking
+# numbers for the same underlying state.
 ctx_pct = (data.get("context_window") or {}).get("used_percentage")
-if isinstance(ctx_pct, (int, float)):
+if isinstance(ctx_pct, (int, float)) and os.environ.get("AT_STATUSLINE_SKIP_LINE1") != "1":
     parts.append(f"ctx {int(ctx_pct)}%")
 
 
