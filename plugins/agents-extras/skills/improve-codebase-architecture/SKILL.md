@@ -14,7 +14,7 @@ metadata:
 
 Explore a codebase like an AI would, surface architectural friction, discover opportunities for improving testability, and propose module-deepening refactors as GitHub issue RFCs.
 
-A **deep module** (John Ousterhout, "A Philosophy of Software Design") has a small interface hiding a large implementation. Deep modules are more testable, more AI-navigable, and let you test at the boundary instead of inside.
+A **deep module** has a small interface hiding a large implementation: more testable, more AI-navigable, and testable at the seam instead of inside. The `codebase-design` skill defines depth, seams, leverage and locality; use its words here.
 
 ## Process
 
@@ -36,7 +36,7 @@ Present a numbered list of deepening opportunities. For each candidate, show:
 
 - **Cluster**: Which modules/concepts are involved
 - **Why they're coupled**: Shared types, call patterns, co-ownership of a concept
-- **Dependency category**: See `improve-codebase-architecture` skill references/REFERENCE.md for the four categories
+- **Dependency category**: See the `codebase-design` skill (references/deepening.md) for the four categories
 - **Test impact**: What existing tests would be replaced by boundary tests
 
 Do NOT propose interfaces yet. Ask the user: "Which of these would you like to explore?"
@@ -66,7 +66,7 @@ Each exploration outputs:
 1. Interface signature (types, methods, params)
 2. Usage example showing how callers use it
 3. What complexity it hides internally
-4. Dependency strategy (how deps are handled — see `improve-codebase-architecture` skill references/REFERENCE.md)
+4. Dependency strategy (how deps are handled — see the `codebase-design` skill, references/deepening.md)
 5. Trade-offs
 
 Present designs sequentially, then compare them in prose.

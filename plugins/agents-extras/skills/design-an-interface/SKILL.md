@@ -67,15 +67,20 @@ Present designs sequentially so user can absorb each approach before comparison.
 
 ### 4. Compare Designs
 
-After showing all designs, compare them on:
+After showing all designs, compare them on the three axes that decide module shape (the
+`codebase-design` skill defines all three):
 
-- **Interface simplicity**: fewer methods, simpler params
-- **General-purpose vs specialized**: flexibility vs focus
-- **Implementation efficiency**: does shape allow efficient internals?
-- **Depth**: small interface hiding significant complexity (good) vs large interface with thin implementation (bad)
-- **Ease of correct use** vs **ease of misuse**
+- **Depth** — leverage at the interface: how much behaviour a caller exercises per unit of interface
+  it must learn.
+- **Locality** — where change, bugs and verification concentrate once this design ships.
+- **Seam placement** — is the interface in the right place, and does anything actually vary across it?
 
-Discuss trade-offs in prose, not tables. Highlight where designs diverge most.
+Then the practical pair: **ease of correct use** vs **ease of misuse**, plus whether the shape allows
+an efficient implementation or forces awkward internals.
+
+Discuss trade-offs in prose, not tables. Highlight where designs diverge most, and end with your own
+recommendation — the user wants a strong read, not a menu. If elements of different designs combine
+well, propose the hybrid.
 
 ### 5. Synthesize
 
@@ -83,18 +88,6 @@ Often the best design combines insights from multiple options. Ask:
 
 - "Which design best fits your primary use case?"
 - "Any elements from other designs worth incorporating?"
-
-## Evaluation Criteria
-
-From "A Philosophy of Software Design":
-
-**Interface simplicity**: Fewer methods, simpler params = easier to learn and use correctly.
-
-**General-purpose**: Can handle future use cases without changes. But beware over-generalization.
-
-**Implementation efficiency**: Does interface shape allow efficient implementation? Or force awkward internals?
-
-**Depth**: Small interface hiding significant complexity = deep module (good). Large interface with thin implementation = shallow module (avoid).
 
 ## Anti-Patterns
 

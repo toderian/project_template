@@ -28,7 +28,7 @@ You may skip steps if you don't consider them necessary.
 
 4. Sketch out the major modules you will need to build or modify to complete the implementation. Actively look for opportunities to extract deep modules that can be tested in isolation.
 
-A deep module (as opposed to a shallow module) is one which encapsulates a lot of functionality in a simple, testable interface which rarely changes.
+A deep module encapsulates a lot of behaviour behind a small, testable interface that rarely changes; see the `codebase-design` skill for the vocabulary.
 
 Check with the user that these modules match their expectations. Check with the user which modules they want tests written for.
 

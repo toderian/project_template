@@ -59,8 +59,8 @@ Before writing any code:
 
 - [ ] Confirm with user what interface changes are needed
 - [ ] Confirm with user which behaviors to test (prioritize)
-- [ ] Identify opportunities for deep modules (see `tdd` skill references/deep-modules.md)
-- [ ] Design interfaces for testability (see `tdd` skill references/interface-design.md)
+- [ ] Identify opportunities for deep modules, and design the interface for testability (the
+      `codebase-design` skill owns the module/interface/seam/depth vocabulary)
 - [ ] List the behaviors to test (not implementation steps)
 - [ ] Get user approval on the plan
 
