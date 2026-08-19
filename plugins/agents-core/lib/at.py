@@ -140,15 +140,17 @@ def tasks_root() -> Path:
 # --------------------------------------------------------------------------- #
 
 def write_seed_file(src: Path, dst: Path, overwrite: bool) -> str:
-    """Copy `src` to `dst`. Returns 'created', 'updated' or 'kept'."""
+    """Copy `src` to `dst`, preserving its mode bits. Returns 'created', 'updated' or 'kept'."""
     data = src.read_bytes()
     if dst.exists():
         if not overwrite or dst.read_bytes() == data:
             return "kept"
         dst.write_bytes(data)
+        shutil.copymode(src, dst)
         return "updated"
     dst.parent.mkdir(parents=True, exist_ok=True)
     dst.write_bytes(data)
+    shutil.copymode(src, dst)
     return "created"
 
 
@@ -205,7 +207,8 @@ def merge_settings_json(dst_path: Path, seed_json: dict) -> str:
     """Deep-merge only the keys this template manages; never drop user keys.
 
     Managed: `extraKnownMarketplaces` and `enabledPlugins` (missing keys added),
-    `permissions.deny` (union, existing order kept, retired rules dropped).
+    `permissions.deny` (union, existing order kept, retired rules dropped),
+    `statusLine` (set only if the repo has none — never replaces a custom one).
     Returns 'created', 'merged' or 'kept'.
     """
     existed = dst_path.exists()
@@ -249,6 +252,9 @@ def merge_settings_json(dst_path: Path, seed_json: dict) -> str:
             rule for rule in existing_permissions["deny"] if rule not in RETIRED_DENY_RULES
         ]
 
+    if "statusLine" in seed_json and "statusLine" not in data:
+        data["statusLine"] = seed_json["statusLine"]
+
     if existed and json.dumps(data, sort_keys=True) == before:
         return "kept"
     dst_path.parent.mkdir(parents=True, exist_ok=True)
@@ -276,6 +282,9 @@ def seed_repo(repo: Path, with_tasks: bool = False, with_artifacts: bool = False
 
     for name in ("AGENTS.md", "CLAUDE.md"):
         report.append((name, write_seed_file(seed / name, repo / name, overwrite=False)))
+
+    report.append((".claude/statusline.sh", write_seed_file(
+        seed / "statusline.sh", repo / ".claude" / "statusline.sh", overwrite=False)))
 
     settings = json.loads((seed / "settings.json").read_text())
     if with_tasks:

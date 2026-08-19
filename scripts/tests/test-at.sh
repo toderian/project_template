@@ -68,12 +68,17 @@ INIT_OUT="$(at init --all 2>&1)"
 INIT_RC=$?
 assert_eq "$INIT_RC" "0" "at init --all exits 0: $INIT_OUT"
 
-for f in AGENTS.md CLAUDE.md .claude/settings.json .codex/agents/implementer.toml \
+for f in AGENTS.md CLAUDE.md .claude/settings.json .claude/statusline.sh .codex/agents/implementer.toml \
          docs/tasks_manager/_todos docs/tasks_manager/_areas.md docs/tasks_manager/_roadmap.md \
          docs/tasks_manager/_logs docs/areas/_overview.md docs/resources/CONTEXT.md \
          docs/_plans/.gitkeep artifacts/README.md workbooks/README.md .config/repos.project.md; do
   assert_exists "$PROJECT/$f" "at init --all creates $f"
 done
+
+if [[ -x .claude/statusline.sh ]]; then pass; else fail ".claude/statusline.sh is executable"; fi
+STATUSLINE_FALLBACK="$(echo '{"model":{"display_name":"Sonnet 5"},"workspace":{"current_dir":"/x/y/z"}}' | HOME=/tmp/at-test-no-gsd-$$ .claude/statusline.sh)"
+assert_stdout_contains "$STATUSLINE_FALLBACK" "Sonnet 5" "statusline.sh fallback shows the model name"
+assert_stdout_contains "$STATUSLINE_FALLBACK" "z" "statusline.sh fallback shows the directory"
 
 assert_contains .gitignore "# BEGIN agents-template" ".gitignore has BEGIN marker"
 assert_contains .gitignore "# END agents-template" ".gitignore has END marker"
@@ -120,6 +125,16 @@ PY
 at init --all >/dev/null 2>&1
 KEPT="$(python3 -c 'import json;d=json.load(open(".claude/settings.json"));print(d.get("model"), "Bash(rm -rf /*)" in d["permissions"]["deny"])')"
 assert_eq "$KEPT" "opus True" "at init keeps unmanaged settings.json keys"
+
+# a custom statusLine survives re-init (never replaced once set)
+python3 -c 'import json, pathlib
+p = pathlib.Path(".claude/settings.json")
+d = json.loads(p.read_text())
+d["statusLine"] = {"type": "command", "command": "echo custom"}
+p.write_text(json.dumps(d, indent=2) + "\n")'
+at init --all >/dev/null 2>&1
+STATUSLINE_CMD="$(python3 -c 'import json;print(json.load(open(".claude/settings.json"))["statusLine"]["command"])')"
+assert_eq "$STATUSLINE_CMD" "echo custom" "at init never replaces a custom statusLine"
 
 # a retired no-op deny rule from an already-seeded repo self-heals on re-init
 python3 -c 'import json,pathlib
