@@ -2,6 +2,21 @@
 
 Notable changes to agents-template. All four plugins share the version of the repository.
 
+## Unreleased
+
+### Added
+
+- `at update` — refresh the marketplace and update every plugin installed from it on this machine,
+  with `--check` for a read-only report of what is installed and at which version. Plugins install
+  per machine, and `at bootstrap` only ever *installed* them, so an existing machine had no update
+  path short of running the harness commands by hand.
+- `at doctor` reports routing-table drift: `AGENTS.md` is downstream-owned, so `at init` never
+  touches it and skills added upstream stayed unrouted silently. Doctor now names the exact seed rows
+  a repo is missing, and points at `/setup-project`.
+- `setup-project` gains an adoption mode and `references/adopting-updates.md`: the steps for bringing
+  a template update into a repo that already has a contract. Written as desired-state checks rather
+  than a per-release changelog, so it works from any starting version and is safe to re-run.
+
 ## 1.1.0 — 2026-08-19
 
 ### Added

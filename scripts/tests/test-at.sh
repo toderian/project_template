@@ -217,6 +217,52 @@ fi
 if printf '%s\n' "$DOCTOR_LEDGER" | grep -qE '^ERROR +ledger: '; then pass; else fail "ledger errors are ERROR"; fi
 rm docs/tasks_manager/_todos/TST-002-C_oversized-execution-log.md
 
+# --- at update --------------------------------------------------------------
+FAKEHOME="$WORKDIR/fakehome"
+mkdir -p "$FAKEHOME"
+UPDATE_EMPTY="$(HOME="$FAKEHOME" at update --check 2>&1)"; UPDATE_EMPTY_RC=$?
+assert_eq "$UPDATE_EMPTY_RC" "1" "at update --check exits 1 when nothing is installed"
+assert_stdout_contains "$UPDATE_EMPTY" "at bootstrap" \
+  "the no-plugins message points at at bootstrap"
+
+mkdir -p "$FAKEHOME/.claude/plugins/cache/agents-template/agents-core/1.0.1"
+mkdir -p "$FAKEHOME/.claude/plugins/cache/agents-template/agents-core/1.1.0"
+mkdir -p "$FAKEHOME/.claude/plugins/cache/agents-template/agents-tasks/1.1.0"
+UPDATE_CHECK="$(HOME="$FAKEHOME" at update --check 2>&1)"; UPDATE_CHECK_RC=$?
+assert_eq "$UPDATE_CHECK_RC" "0" "at update --check exits 0 when plugins are installed"
+assert_stdout_contains "$UPDATE_CHECK" "agents-core" "--check lists the installed plugin"
+assert_stdout_contains "$UPDATE_CHECK" "1.1.0" "--check reports the newest cached version"
+assert_stdout_contains "$UPDATE_CHECK" "also cached: 1.0.1" "--check names the older cached version"
+assert_stdout_lacks "$UPDATE_CHECK" "$ claude" "--check runs no harness commands"
+
+# --- at doctor: routing-table drift -----------------------------------------
+cp AGENTS.md "$WORKDIR/AGENTS.md.pre-drift"
+DOCTOR_CURRENT="$(at doctor 2>&1)"
+assert_stdout_contains "$DOCTOR_CURRENT" "routing table matches the plugin seed" \
+  "at doctor confirms a freshly seeded routing table"
+python3 - "$PROJECT/AGENTS.md" <<'PYDROP'
+import sys, pathlib
+p = pathlib.Path(sys.argv[1])
+lines = p.read_text().splitlines(keepends=True)
+seen = 0
+out = []
+for line in lines:
+    if line.startswith("| Pausing or handing off"):
+        seen += 1
+        continue
+    out.append(line)
+assert seen == 1, f"expected one row to drop, dropped {seen}"
+p.write_text("".join(out))
+PYDROP
+DOCTOR_DRIFT="$(at doctor 2>&1)"; DOCTOR_DRIFT_RC=$?
+assert_eq "$DOCTOR_DRIFT_RC" "0" "routing drift is a warning, not a problem"
+assert_stdout_contains "$DOCTOR_DRIFT" "routing table is 1 row(s) behind" \
+  "at doctor counts the missing routing row"
+assert_stdout_contains "$DOCTOR_DRIFT" "Pausing or handing off" \
+  "at doctor names the missing routing row"
+assert_stdout_contains "$DOCTOR_DRIFT" "setup-project" "the drift warning points at setup-project"
+cp "$WORKDIR/AGENTS.md.pre-drift" AGENTS.md
+
 # --- at version -------------------------------------------------------------
 EXPECTED_VERSION="$(python3 -c "import json;print(json.load(open('$REPO/plugins/agents-core/.claude-plugin/plugin.json'))['version'])")"
 assert_eq "$(at version 2>&1)" "$EXPECTED_VERSION" "at version prints the plugin version"

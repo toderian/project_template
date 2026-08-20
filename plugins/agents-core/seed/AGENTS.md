@@ -71,7 +71,7 @@ Run every task through these passes, and loop again whenever a pass finds a real
 | Work spanning repos | `cross-repo-feature`, `cross-repo-pr-review`, `.config/repos.project.md` |
 | "Is this over-engineered?" | `simplicity-review` |
 | Module shape, interfaces, seams, testability | `codebase-design` |
-| Setting up or re-seeding this repo | `setup-project` |
+| Setting up this repo, or adopting a template update | `setup-project` (after `at update` + restart) |
 
 The skills carry the detail; this file only routes. When a skill covers the task, follow it instead of
 improvising a workflow.

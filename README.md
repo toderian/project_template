@@ -49,6 +49,20 @@ at doctor                     # check the repo against the contract
 `at init` never overwrites a file you own; re-running it is safe. Flags: `--with-tasks`,
 `--with-artifacts`, `--with-workbooks`, `--with-repos`, `--all`.
 
+## Keep it up to date
+
+Plugins install per machine, so one update covers every repo that uses them:
+
+```bash
+at update --check             # what is installed, and what version
+at update                     # refresh the marketplace and update the installed plugins
+```
+
+Restart the CLI afterwards — a running session keeps the old plugins. Then, in each repo,
+`at doctor` reports whether the downstream-owned `AGENTS.md` routing table has fallen behind the
+plugin seed, and `/setup-project` adopts the difference (see its
+`references/adopting-updates.md`).
+
 Coming from the pre-1.0 template (a repo with vendored `_base` and `playbooks` trees
 and a `template` git remote)? Use `at migrate` — it is a dry run by default. Flags:
 `--yes`, `--commit`, `--keep-tasks`, `--no-tasks`, `--allow-untracked` (run it with untracked

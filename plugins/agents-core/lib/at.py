@@ -366,6 +366,53 @@ def _ledger_findings(repo: Path, findings: list) -> None:
         findings.append(("OK", "task ledgers are valid"))
 
 
+def routing_rows(text: str) -> list[str]:
+    """The `## Routing table` body rows of an AGENTS.md, in order (header rows included)."""
+    rows, inside = [], False
+    for line in text.splitlines():
+        if line.startswith("## Routing table"):
+            inside = True
+            continue
+        if inside and line.startswith("## "):
+            break
+        if inside and line.startswith("|"):
+            rows.append(line.strip())
+    return rows
+
+
+def routing_keys(rows: list[str]) -> list[str]:
+    """The first cell of each routing row: the 'Your task' key. Separators dropped."""
+    keys = []
+    for row in rows:
+        cells = [c.strip() for c in row.strip("|").split("|")]
+        if not cells or not cells[0] or set(cells[0]) <= set("-: "):
+            continue
+        keys.append(cells[0])
+    return keys
+
+
+def seed_drift(repo_agents_md: str) -> tuple[str, list[str]]:
+    """Compare a repo's routing table against the plugin seed's.
+
+    Returns (status, detail) where status is one of:
+      "current"  — the repo routes every row the seed does
+      "behind"   — detail lists the seed row keys the repo is missing
+      "none"     — the repo has no routing table at all
+      "unknown"  — the plugin ships no seed to compare against
+    """
+    seed = core_root() / "seed" / "AGENTS.md"
+    if not seed.is_file():
+        return ("unknown", [])
+    wanted = routing_keys(routing_rows(seed.read_text()))
+    if not wanted:
+        return ("unknown", [])
+    have = set(routing_keys(routing_rows(repo_agents_md)))
+    if not have:
+        return ("none", [])
+    missing = [key for key in wanted if key not in have]
+    return ("behind", missing) if missing else ("current", [])
+
+
 def cmd_doctor(args: argparse.Namespace) -> int:
     repo = repo_root()
     findings: list[tuple[str, str]] = []
@@ -397,6 +444,13 @@ def cmd_doctor(args: argparse.Namespace) -> int:
                                      "(see the `setup-project` skill)"))
         else:
             findings.append(("OK", "AGENTS.md project slots are filled"))
+        status, missing = seed_drift(text)
+        if status == "behind":
+            findings.append(("WARN", f"AGENTS.md routing table is {len(missing)} row(s) behind the "
+                                     f"plugin seed: {'; '.join(missing)} "
+                                     "(run `/setup-project` to adopt them)"))
+        elif status == "current":
+            findings.append(("OK", "AGENTS.md routing table matches the plugin seed"))
 
     legacy = [name for name in ("_base", "playbooks") if (repo / name).is_dir()]
     if legacy:
@@ -546,6 +600,69 @@ def cmd_bootstrap(args: argparse.Namespace) -> int:
     print("\nThird-party plugins are installed from their own marketplaces, e.g.:")
     print("  claude plugin marketplace add obra/superpowers-marketplace")
     print("  claude plugin install superpowers@superpowers-marketplace")
+    return 1 if failures else 0
+
+
+# --------------------------------------------------------------------------- #
+# at update
+# --------------------------------------------------------------------------- #
+
+def installed_plugins(home: Path | None = None) -> dict[str, list[str]]:
+    """Plugins installed from this marketplace, mapped to the versions present in the cache.
+
+    The harness caches them as `<cache>/<marketplace>/<plugin>/<version>/`, so an older
+    version staying behind is normal — the newest entry is the one that loads.
+    """
+    home = home or Path.home()
+    found: dict[str, set[str]] = {}
+    for cache in (home / ".claude" / "plugins" / "cache" / MARKETPLACE,
+                  home / ".codex" / "plugins" / "cache" / MARKETPLACE):
+        if not cache.is_dir():
+            continue
+        for plugin in sorted(d for d in cache.iterdir() if d.is_dir()):
+            versions = found.setdefault(plugin.name, set())
+            versions.update(v.name for v in plugin.iterdir() if v.is_dir())
+    return {name: sorted(versions) for name, versions in sorted(found.items())}
+
+
+def cmd_update(args: argparse.Namespace) -> int:
+    """Refresh the marketplace and update every installed plugin from it."""
+    plugins = installed_plugins()
+    if not plugins:
+        print(f"at update: no {MARKETPLACE} plugins are installed on this machine.")
+        print("Install them first: at bootstrap")
+        return 1
+
+    running = version()
+    print(f"agents-core shipping this `at`: {running}")
+    for name, versions in plugins.items():
+        newest = versions[-1] if versions else "?"
+        extra = f"  (also cached: {', '.join(versions[:-1])})" if len(versions) > 1 else ""
+        print(f"  {name:<16} {newest}{extra}")
+
+    if args.check:
+        print("\nat update --check: read-only. Run `at update` to refresh the marketplace and "
+              "update these plugins, then restart the CLI to load them.")
+        print("For the repo side: `at doctor` reports routing-table drift, `/setup-project` adopts it.")
+        return 0
+
+    want_claude, want_codex = args.claude, args.codex
+    if not want_claude and not want_codex:
+        want_claude = want_codex = True
+
+    failures = 0
+    if want_claude:
+        failures += not _run(["claude", "plugin", "marketplace", "update", MARKETPLACE])
+        for name in plugins:
+            failures += not _run(["claude", "plugin", "update", f"{name}@{MARKETPLACE}"])
+    if want_codex:
+        failures += not _run(["codex", "plugin", "marketplace", "update", MARKETPLACE])
+        for name in plugins:
+            failures += not _run(["codex", "plugin", "update", f"{name}@{MARKETPLACE}"])
+
+    print("\nRestart the CLI to load the updated plugins — a running session keeps the old ones.")
+    print("Then, in each downstream repo: `at doctor` reports routing-table drift, and "
+          "`/setup-project` adopts it.")
     return 1 if failures else 0
 
 
@@ -1460,6 +1577,13 @@ def build_parser() -> argparse.ArgumentParser:
                         help="list stale global skill symlinks from the legacy layout")
     p_boot.add_argument("--yes", action="store_true", help="actually remove them")
     p_boot.set_defaults(func=cmd_bootstrap)
+
+    p_update = sub.add_parser("update", help="refresh this machine's plugins from the marketplace")
+    p_update.add_argument("--check", action="store_true",
+                          help="report what is installed without changing anything")
+    p_update.add_argument("--claude", action="store_true", help="only update Claude Code")
+    p_update.add_argument("--codex", action="store_true", help="only update Codex")
+    p_update.set_defaults(func=cmd_update)
 
     p_migrate = sub.add_parser(
         "migrate", help="convert a legacy `_base/`/`playbooks/` downstream to the plugin layout")

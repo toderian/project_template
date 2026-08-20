@@ -1,6 +1,6 @@
 ---
 name: setup-project
-description: "Seed a repository with the agent contract: run `at init` for needed pieces, fill AGENTS.md's Project section with the human, then verify with `at doctor`. Use when setting up a new repo, adopting the template in an existing one, or when AGENTS.md has unfilled TODO-FILL slots."
+description: "Set up or update a repository's agent contract: seed it with `at init`, fill AGENTS.md's Project section with the human, and adopt template updates after the plugins move. Use when setting up a new repo, after pulling or updating the plugins, when `at doctor` reports routing-table drift, or when AGENTS.md has unfilled TODO-FILL slots."
 disable-model-invocation: true
 metadata:
   source: playbooks/skills/misc/init.md
@@ -15,6 +15,15 @@ Turn a plain repository into one an agent can work in: the downstream-owned `AGE
 (plus `CLAUDE.md`, settings, ignore blocks, role mirrors) and, optionally, the task ledger, artifact
 registry, workbook index and repo registry. `at init` writes the files; this skill is about the part
 only a human can supply — what this project actually is.
+
+## Two modes
+
+**Setting up** a repo that has no contract yet — work through the Process below.
+
+**Adopting an update** in a repo that already has one, after `at update` and a CLI restart — follow
+[references/adopting-updates.md](references/adopting-updates.md) instead. Take that path whenever
+`at doctor` reports the routing table is behind the plugin seed; it is written as desired-state checks,
+so it is safe from any starting version and safe to re-run.
 
 ## Process
 
