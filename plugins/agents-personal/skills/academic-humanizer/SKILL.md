@@ -19,8 +19,8 @@ This playbook adapts workflow ideas from
 copyright 2026 AIScientists-Dev, licensed under MIT. The upstream project credits `blader/humanizer`
 and `koaeraser/ARMS` as prior work.
 
-For general non-academic prose, use `deslop`. For a manuscript-wide clarity and consistency audit,
-use `sciwrite`. Use this skill when the request is specifically about academic humanizing, AI-assisted
+For general non-academic prose, use `agents-personal:deslop`. For a manuscript-wide clarity and consistency audit,
+use `agents-personal:sciwrite`. Use this skill when the request is specifically about academic humanizing, AI-assisted
 academic prose, or grant-proposal text.
 
 ## Boundaries
@@ -60,7 +60,7 @@ brief question before rewriting.
 
 ### 2. Protect content before style
 
-See also `deslop`'s "Protect meaning before style" step for the general-prose variant of this same idea
+See also `agents-personal:deslop`'s "Protect meaning before style" step for the general-prose variant of this same idea
 — kept separate here because these two skills adapt different upstream projects with independent
 wording.
 

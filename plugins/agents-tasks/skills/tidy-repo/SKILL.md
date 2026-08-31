@@ -26,17 +26,17 @@ This skill orchestrates primitives that already exist rather than reinventing th
 
 - `/init` — ensures the canonical `docs/tasks_manager/`, `docs/areas/`, `docs/resources/`, and
   `docs/archive/` layout is present.
-- the **inbox** (the `task-ledger` skill (references/inbox-convention.md)) — the frictionless holding pen for
+- the **inbox** (the `agents-tasks:task-ledger` skill (references/inbox-convention.md)) — the frictionless holding pen for
   anything that can't be classified confidently. Loose work becomes `I-NNN` ideas, not forced into
   full area-prefixed tasks.
-- `/triage-inbox` — the deliberate pass that later promotes the worthwhile swept-in ideas into typed
+- `/agents-tasks:triage-inbox` — the deliberate pass that later promotes the worthwhile swept-in ideas into typed
   tasks. Tidy-repo deliberately stops *before* triage; sorting quality is triage's job, not the
   sweep's.
 - `at ledger` — reconciles the ledgers after any file moves.
 
-Read the `task-ledger` skill (references/todo-convention.md) and the `task-ledger` skill (references/inbox-convention.md) for the
-target shapes. Read the `knowledge-base` skill (references/generated-artifacts.md) for report filename rules and
-the `workbook` skill for workbook bundles.
+Read the `agents-tasks:task-ledger` skill (references/todo-convention.md) and the `agents-tasks:task-ledger` skill (references/inbox-convention.md) for the
+target shapes. Read the `agents-tasks:knowledge-base` skill (references/generated-artifacts.md) for report filename rules and
+the `agents-tasks:workbook` skill for workbook bundles.
 
 ## The three piles → where each lands
 
@@ -157,7 +157,7 @@ After moves, run `at ledger` so the ledgers reflect reality.
 ### Phase 4 — Report and hand off to triage
 
 Summarize what moved where, and how many orphans await the user's decision. End by pointing at the
-natural next step: **`/triage-inbox`** to promote the freshly-swept ideas into typed area-prefixed
+natural next step: **`/agents-tasks:triage-inbox`** to promote the freshly-swept ideas into typed area-prefixed
 tasks. The sweep deliberately leaves them as raw `I-NNN` — tidy gets the mess into the right buckets; triage
 decides what's worth doing.
 

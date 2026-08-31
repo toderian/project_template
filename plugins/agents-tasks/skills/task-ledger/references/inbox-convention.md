@@ -88,11 +88,11 @@ When the user shares an idea to capture:
 3. Best-guess the `Area` from `docs/tasks_manager/_areas.md`; use `global` rather than interrogating the user.
 4. Capture the idea text in one or two sentences. Confirm briefly; don't quiz.
 
-The `capture-idea` skill automates this.
+The `agents-tasks:capture-idea` skill automates this.
 
 ## Triaging (idea → task)
 
-Periodically review `docs/tasks_manager/_inbox/` (the `triage-inbox` skill drives this). Capture stays
+Periodically review `docs/tasks_manager/_inbox/` (the `agents-tasks:triage-inbox` skill drives this). Capture stays
 fast and light; triage is the deliberate validation step before any inbox idea becomes a committed
 task.
 

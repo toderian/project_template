@@ -30,8 +30,8 @@ Ask the user for the PRD source. It can be:
 
 Break the PRD into actionable items. Prefer vertical slices (end-to-end through all layers) over
 horizontal slices (one layer at a time) — see
-[the `prd-to-plan` skill (references/vertical-slicing.md)](../prd-to-plan/references/vertical-slicing.md) for the shared
-tracer-bullet framing `prd-to-plan` and `agents-extras:prd-to-issues` also use.
+[the `agents-tasks:prd-to-plan` skill (references/vertical-slicing.md)](../prd-to-plan/references/vertical-slicing.md) for the shared
+tracer-bullet framing `agents-tasks:prd-to-plan` and `agents-extras:prd-to-issues` also use.
 
 Each item should be:
 
@@ -52,7 +52,7 @@ Each phase should:
 ### 4. Check for existing work
 
 Before asking the user to approve task creation, run the discovery scan from
-the `task-ledger` skill §"Discovery gate" against the proposed slices (inbox
+the `agents-tasks:task-ledger` skill §"Discovery gate" against the proposed slices (inbox
 + archived, active + archived tasks, roadmap/ledgers/area pages, `docs/resources/` + `docs/archive/`
 and their area docs, and likely code/tests).
 
@@ -93,7 +93,7 @@ Iterate until approved.
 
 ### 6. Create task files
 
-For each approved slice, create the task exactly as `add-task` does — its steps 3–6 are the canonical
+For each approved slice, create the task exactly as `agents-tasks:add-task` does — its steps 3–6 are the canonical
 ritual for area/prefix, type, priority, the optional `Repos`/`Autonomy`/`Spec refs`/date metadata, the
 full `todo-convention.md` file shape, `at reserve` reservation, and the
 `at ledger sync`/`at ledger check`/`at repos-check` step. Do not restate those field rules
@@ -112,7 +112,7 @@ here. PRD-specific overrides:
 
 List all created files with their phase counts, dependency order, and roadmap placement. Remind the
 user that starting any existing task requires the pre-implementation review gate from
-the `task-ledger` skill (references/todo-convention.md).
+the `agents-tasks:task-ledger` skill (references/todo-convention.md).
 
 ## Quality bar
 

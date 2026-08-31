@@ -30,7 +30,7 @@ answer depends on another question still open in this round belongs to a _later_
 
 Finding _facts_ is your job, never the user's. When a frontier question needs a fact from the
 environment (code, tests, docs, tools, the web), dispatch a sub-agent or look it up yourself
-(`researcher` per `subagent-protocol`, or the `research` skill for external sources); never ask the
+(`researcher` per `agents-core:subagent-protocol`, or the `agents-core:research` skill for external sources); never ask the
 user for anything you could find. Do not block on it: a running lookup is an unsettled
 prerequisite, so only the questions downstream of it wait; ask the rest of the frontier now. The
 _decisions_ are the user's: put each one to them and wait.

@@ -2,7 +2,7 @@
 
 Drop raw source material here when it needs to be distilled into the project knowledge base.
 
-This folder is staging, not authoritative context. Run the `distill-knowledge` skill to turn raw files into
+This folder is staging, not authoritative context. Run the `agents-tasks:distill-knowledge` skill to turn raw files into
 Markdown digests under `docs/resources/_digests/<area-or-bucket>/` and durable updates under
 `docs/resources/`.
 
@@ -17,7 +17,7 @@ docs/resources/_inbox/<YYYY-MM-DD>-<source-slug>/
 ```
 
 Use one folder per call, teammate handoff, upload bundle, or research bundle. Add a `README.md`
-manifest based on the `knowledge-base` skill's assets/resource-inbox-batch.template.md, and commit Markdown
+manifest based on the `agents-tasks:knowledge-base` skill's assets/resource-inbox-batch.template.md, and commit Markdown
 transcripts, notes, or chat exports when appropriate. Raw audio, video, archives, and other
 large/sensitive files stay ignored or external by default unless this downstream project intentionally
 versions them.

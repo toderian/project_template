@@ -14,7 +14,7 @@ Linear, databases, internal APIs, cloud consoles, and similar tools. Treat them 
 permissions, not as ordinary file reads.
 
 This skill defines least-privilege connector behavior by autonomy level. It complements the
-`git-discipline` skill (references/autonomy-levels.md); the strictest safety, runtime, work-mode,
+`agents-core:git-discipline` skill (references/autonomy-levels.md); the strictest safety, runtime, work-mode,
 branch, repo, task, connector, or user rule wins.
 
 ## Core Rules

@@ -22,5 +22,5 @@ Current status: no artifacts are registered yet.
   command.
 - Check for drift with `git lfs ls-files --name-only` and confirm every tracked path has a row here.
 - Adding or updating an artifact, encrypting with `age`, and the exact `.gitattributes` rules: follow
-  the `artifacts-registry` skill. Keep LFS patterns narrow and per-artifact, and commit the
+  the `agents-tasks:artifacts-registry` skill. Keep LFS patterns narrow and per-artifact, and commit the
   `.gitattributes` change together with the registry row.

@@ -1,6 +1,6 @@
 # Skill mechanics
 
-The skill-specific branch of [`writing-for-agents`](../SKILL.md): what changes when the document is a
+The skill-specific branch of [`agents-extras:writing-for-agents`](../SKILL.md): what changes when the document is a
 skill. Everything else about writing it is the universal reference in `SKILL.md`.
 
 ## Invocation
@@ -32,8 +32,8 @@ neither can fire the other. Push it to a plain file both point at.
 Split off a model-invoked skill when you have a distinct leading word that should trigger it on its
 own (a trigger word you actually use in your prompts), or another skill must reach it. You pay
 context load for the new always-loaded description, so that independent reach has to be worth it.
-`agents-core:grilling` and `domain-modeling` are this repo's worked examples: primitives split out of
-user-invoked routers (`agents-core:grill-me`, `grill-with-docs`) precisely so other skills could reach
+`agents-core:grilling` and `agents-extras:domain-modeling` are this repo's worked examples: primitives split out of
+user-invoked routers (`agents-core:grill-me`, `agents-extras:grill-with-docs`) precisely so other skills could reach
 them.
 
 ## Router skills
@@ -52,7 +52,8 @@ table plays this role for downstream repos.
   templates to `assets/`, executables to `scripts/`.
 - Codex reads `disable-model-invocation: true` as its own no-implicit-invocation setting; there is no
   separate file to keep in sync.
-- Name a skill from another plugin by its full `plugin:skill` id (`agents-tasks:add-task`), never
-  bare. Claude Code invokes skills by that id, so a bare cross-plugin name leaves the reader guessing
-  a prefix — and the wrong guess is an "Unknown skill" error mid-task. Same-plugin names stay bare;
-  Codex users drop the prefix (`$add-task`).
+- Name every skill by its full `plugin:skill` id (`agents-tasks:add-task`), never bare — including a
+  skill in the same plugin as the one you are writing. Claude Code invokes skills by that id, so a
+  bare name leaves the reader guessing a prefix, and the wrong guess is an "Unknown skill" error
+  mid-task. Exempting same-plugin names does not work: a bare name among prefixed ones reads as an
+  elision of *their* prefix. Codex users drop the prefix (`$add-task`).

@@ -20,7 +20,7 @@ or refresh architecture after teammates changed code or docs.
 
 The system map is an index. The full taxonomy of what each linked doc owns — `.config/repos.project.md`,
 `docs/resources/<area>/summary.md`, `dependency-graph.md`, `contracts/*.md`, and `components/*/CONTEXT.md`
-— is owned by the `knowledge-base` skill §"Source of truth split". Follow it
+— is owned by the `agents-tasks:knowledge-base` skill §"Source of truth split". Follow it
 rather than re-deriving paths here. The system map links to those sources instead of duplicating them,
 plus:
 
@@ -74,7 +74,7 @@ Each row that describes a repo, area, flow, or boundary must carry a lifecycle s
 `unknown` or `N/A` instead of guessing.
 
 If detailed area docs are missing or stale, do not expand the system map into a full architecture
-document. Record an open question or recommend `define-area` / `refresh-context`.
+document. Record an open question or recommend `agents-tasks:define-area` / `agents-tasks:refresh-context`.
 
 ### 4. Reconcile Task and Spec Links
 

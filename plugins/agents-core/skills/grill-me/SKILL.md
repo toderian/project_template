@@ -9,6 +9,6 @@ metadata:
   pack: core
 ---
 
-Invoke the `grilling` skill on whatever the user names (a plan, a design, a feature, a decision; ask
+Invoke the `agents-core:grilling` skill on whatever the user names (a plan, a design, a feature, a decision; ask
 if unclear). When the frontier is empty, give the Decisions / Open questions / Risks summary and
 wait for the user's confirmation before acting on anything.

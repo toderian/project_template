@@ -37,7 +37,7 @@ Capture three things:
 A problem statement without explicit OUT-of-scope items is incomplete. Most scope creep starts with an empty OUT list.
 
 When the why, the boundary, or the success criteria depend on decisions only the user can make,
-run the `grilling` skill first and plan from its answers.
+run the `agents-core:grilling` skill first and plan from its answers.
 
 ### 2. Scope check
 
@@ -65,7 +65,7 @@ Default to subtraction. Every new file, abstraction, or dependency needs a reaso
 
 ### 5. Adversarial critique
 
-Run the plan through the rubric in the `planning-workflow` skill (references/plan-critique.md). The reviewer scores it on five axes (assumption audit, scope creep, existing solutions, minimalism, uncertainty), then issues PROCEED, REVISE, or BLOCKED. Plans below the PROCEED threshold are revised, not waved through.
+Run the plan through the rubric in the `agents-core:planning-workflow` skill (references/plan-critique.md). The reviewer scores it on five axes (assumption audit, scope creep, existing solutions, minimalism, uncertainty), then issues PROCEED, REVISE, or BLOCKED. Plans below the PROCEED threshold are revised, not waved through.
 
 When dispatching to a subagent for critique, use `.claude/agents/plan-critic.md`. Otherwise apply the rubric on the main thread under the critic personality (the `critic` personality (subagent-protocol skill, references/personalities/critic.md)).
 

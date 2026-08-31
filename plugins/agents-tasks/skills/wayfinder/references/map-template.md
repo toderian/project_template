@@ -2,7 +2,7 @@
 
 Fill this into the file `at reserve task <PREFIX> R <slug>` created under
 `docs/tasks_manager/_todos/`. It is an ordinary task file: the metadata table, phases, acceptance
-criteria and log are exactly what `task-ledger` (references/todo-convention.md) requires. The only
+criteria and log are exactly what `agents-tasks:task-ledger` (references/todo-convention.md) requires. The only
 addition is the `## Tickets` section.
 
 Three rules keep `at ledger check` correct, because it scans the whole file:

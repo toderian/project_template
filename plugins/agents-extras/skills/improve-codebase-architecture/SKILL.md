@@ -66,7 +66,7 @@ Show this to the user, then immediately proceed to Step 5. The user reads and th
 
 Spawn 3+ parallel design explorations — one per constraint. Use whatever parallel-dispatch mechanism the host runtime offers (Claude Code's `Agent` tool, Codex's MultiAgentV2 workers, or sequentially as a fallback if neither is available). Each must produce a **radically different** interface for the deepened module.
 
-Prompt each exploration with a separate technical brief (file paths, coupling details, dependency category, what's being hidden). This brief is independent of the user-facing explanation in Step 4. Start from the same constraint set `design-an-interface` uses (the `design-an-interface` skill step 2 — minimize the interface, maximize flexibility, optimize for the common case), and add this architecture-specific constraint when applicable:
+Prompt each exploration with a separate technical brief (file paths, coupling details, dependency category, what's being hidden). This brief is independent of the user-facing explanation in Step 4. Start from the same constraint set `agents-extras:design-an-interface` uses (the `agents-extras:design-an-interface` skill step 2 — minimize the interface, maximize flexibility, optimize for the common case), and add this architecture-specific constraint when applicable:
 
 - Exploration 4 (if applicable): "Design around the ports & adapters pattern for cross-boundary dependencies"
 
@@ -86,4 +86,4 @@ After comparing, give your own recommendation: which design you think is stronge
 
 ### 7. Create GitHub issue
 
-Create a refactor RFC as a GitHub issue using `gh issue create`. Use the template in `improve-codebase-architecture` skill references/REFERENCE.md. Do NOT ask the user to review before creating — just create it and share the URL.
+Create a refactor RFC as a GitHub issue using `gh issue create`. Use the template in `agents-extras:improve-codebase-architecture` skill references/REFERENCE.md. Do NOT ask the user to review before creating — just create it and share the URL.

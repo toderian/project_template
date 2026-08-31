@@ -27,7 +27,7 @@ only after it has been normalized into explicit phases, acceptance criteria, and
 Invoking this skill is consent to create commits for completed phases. Do not ask again before each
 normal phase commit, but do protect unrelated local work. In downstream repos, those phase/review
 commits may be squashed after the task is complete and reviewed, following
-the `squash-workspace-commits` skill.
+the `agents-core:squash-workspace-commits` skill.
 
 ## Required outcome
 
@@ -90,7 +90,7 @@ This is mandatory even when the task looks single-repo.
    `at repos-check --local` before editing another checkout.
 4. For each repo in scope, record the resolved `Default branch`, `Integration branch`, and
    `Work mode` in the execution log.
-5. Resolve effective autonomy using the `git-discipline` skill (references/autonomy-levels.md) and record the repo
+5. Resolve effective autonomy using the `agents-core:git-discipline` skill (references/autonomy-levels.md) and record the repo
    `Autonomy max`, task/user `Autonomy` request, effective level, and any stricter runtime or safety
    limit in the execution log.
 
@@ -110,7 +110,7 @@ on a non-default branch, ask before continuing or switching. Do not create a fea
 the user explicitly asked for it or the host/CI policy requires it. Downstream repos should accumulate
 execute-plan commits on the approved same/default branch, with one coherent commit per phase.
 
-Never create a new branch merely because `execute-plan` will make commits.
+Never create a new branch merely because `agents-core:execute-plan` will make commits.
 
 Autonomy behavior:
 
@@ -292,7 +292,7 @@ After all implementation phases, final validation, and reviewer rounds pass, dow
 squash the task's own step commits into one final task commit. This is a cleanup step after the task is
 done; do not squash early because phase commits are the review and recovery boundary during execution.
 
-Route the cleanup through the `squash-workspace-commits` skill. That skill owns
+Route the cleanup through the `agents-core:squash-workspace-commits` skill. That skill owns
 the audit helper, pushed/shared-history refusal, unrelated-commit preservation rules, backup-ref
 requirements, and final squashed commit-message requirements.
 

@@ -85,7 +85,7 @@ See the `agents-extras:domain-modeling` skill (references/CONTEXT-FORMAT.md) for
 
 - The `agents-extras:domain-modeling` skill reads this file while a plan is stress-tested, and writes back to it
   inline when new terms are resolved.
-- The `agents-core:diagnose`, `agents-extras:zoom-out`, and `refresh-context` skills consult it to use the project's canonical
+- The `agents-core:diagnose`, `agents-extras:zoom-out`, and `agents-tasks:refresh-context` skills consult it to use the project's canonical
   vocabulary when describing code.
 - Updates to this file are appropriate any time a domain term is sharpened, an ambiguity is resolved,
   or a new bounded concept emerges. Implementation details, library names, framework choices, and

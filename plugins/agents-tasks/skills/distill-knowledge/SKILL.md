@@ -25,7 +25,7 @@ Raw material is not authoritative. The output of this skill is:
 
 The full path taxonomy — what lives under `docs/resources/` (glossary, area summary/sources/
 dependency-graph/contracts/runbooks/attachments/components, `_inbox`, `_digests`) — is owned by
-the `knowledge-base` skill §"Source of truth split". Follow it rather than
+the `agents-tasks:knowledge-base` skill §"Source of truth split". Follow it rather than
 re-deriving paths here.
 
 The raw inbox is a staging area, not a place future agents should rely on for context. Preserve
@@ -169,8 +169,8 @@ the digest and list it as an open question.
 
 When the source implies actionable work, use the task system:
 
-- capture vague follow-ups with `/capture-idea`
-- create clear committed tasks with `/add-task`
+- capture vague follow-ups with `/agents-tasks:capture-idea`
+- create clear committed tasks with `/agents-tasks:add-task`
 - avoid silently changing roadmap order
 
 ### 5. Clean up or retain raw sources intentionally

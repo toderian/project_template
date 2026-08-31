@@ -25,4 +25,4 @@ repo-a -> package-name
 
 ## Drift signals
 
-Files, manifests, or docs that should trigger `/refresh-context` when they change.
+Files, manifests, or docs that should trigger `/agents-tasks:refresh-context` when they change.

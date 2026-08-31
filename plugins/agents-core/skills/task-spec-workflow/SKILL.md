@@ -12,10 +12,10 @@ metadata:
 
 Normalize an existing task or a clear implementation idea into task-manager-native spec-driven work.
 The output is a task file with enough planned intent, design shape, acceptance criteria, tests, and
-spec references for `execute-plan` to implement without guessing.
+spec references for `agents-core:execute-plan` to implement without guessing.
 
-This is the lightweight cousin of `spec-workflow`. Use this when the task manager should remain the
-source of truth. Use `spec-workflow` only for heavyweight work that needs separate `specs/<slug>/`
+This is the lightweight cousin of `agents-core:spec-workflow`. Use this when the task manager should remain the
+source of truth. Use `agents-core:spec-workflow` only for heavyweight work that needs separate `specs/<slug>/`
 artifacts and parallel implementer/reviewer loops.
 
 ## Source of Truth
@@ -88,8 +88,8 @@ Show a concise summary:
 - acceptance criteria and related tests
 
 If open questions materially affect behavior or architecture, resolve them with the user (run the
-`grilling` skill when there is more than one) before marking the task ready for execution. If all
-questions are non-blocking, record them under the task and report that `execute-plan` can proceed.
+`agents-core:grilling` skill when there is more than one) before marking the task ready for execution. If all
+questions are non-blocking, record them under the task and report that `agents-core:execute-plan` can proceed.
 
 ### 5. Validate
 
@@ -101,7 +101,7 @@ at ledger check
 at repos-check
 ```
 
-If `docs/tasks_manager/` is absent, run `setup-project` before using this workflow.
+If `docs/tasks_manager/` is absent, run `agents-core:setup-project` before using this workflow.
 
 ## Quality Bar
 
@@ -110,4 +110,4 @@ If `docs/tasks_manager/` is absent, run `setup-project` before using this workfl
 - Planned specs are not presented as implemented behavior.
 - Acceptance criteria are testable and map to phases or related tests.
 - Open questions that affect implementation are resolved or explicitly blocking.
-- The workflow stops before code edits and hands off to `execute-plan`.
+- The workflow stops before code edits and hands off to `agents-core:execute-plan`.

@@ -14,7 +14,7 @@ Rules:
 - Pages should live under `../areas/<area>.md`; durable architecture summaries live in
   `../resources/<area>/summary.md`.
 
-See the `task-ledger` skill (references/todo-convention.md, references/inbox-convention.md).
+See the `agents-tasks:task-ledger` skill (references/todo-convention.md, references/inbox-convention.md).
 
 | Area | Prefix | Description | Page |
 |------|--------|-------------|------|

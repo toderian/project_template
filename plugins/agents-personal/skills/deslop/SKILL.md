@@ -31,7 +31,7 @@ Treat "AI-ish" as a reader-facing style problem, not as proof about how the text
 - Prefer specific edits with rationale over a wholesale rewrite that flattens the author's voice.
 - Flag technical uncertainty instead of inventing missing evidence, citations, mechanisms, or caveats.
 
-For scientific or engineering manuscripts, combine this style pass with `sciwrite` when the user also
+For scientific or engineering manuscripts, combine this style pass with `agents-personal:sciwrite` when the user also
 needs claim, terminology, number, unit, or citation integrity checks.
 
 ## Modes
@@ -58,7 +58,7 @@ the target venue or audience would materially change the edit.
 
 ### 2. Protect meaning before style
 
-See also `academic-humanizer`'s "Protect content before style" step for the funding-proposal/manuscript
+See also `agents-personal:academic-humanizer`'s "Protect content before style" step for the funding-proposal/manuscript
 variant of this same idea (numbers, named entities, citations, uncertainty language) — kept separate
 here because the two skills adapt different upstream projects with independent wording.
 

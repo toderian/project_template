@@ -56,7 +56,7 @@ Create the glossary lazily: if none exists, create it when the first term is res
 - Definitions are one sentence: what the thing *is*, not what it does.
 - Flag conflicts explicitly rather than silently picking a winner.
 - A decision that is hard to reverse, surprising without context, and the result of a real trade-off
-  belongs in an ADR, not the glossary. See the `knowledge-base` skill (references/adr-convention.md).
+  belongs in an ADR, not the glossary. See the `agents-tasks:knowledge-base` skill (references/adr-convention.md).
 
 ## Quality bar
 

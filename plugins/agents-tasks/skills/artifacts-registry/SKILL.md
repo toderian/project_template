@@ -126,7 +126,7 @@ file, the decrypted plaintext, or both.
 
 ## Relationship to workbooks
 
-If a `workbook` skill bundle produces large, external, generated, encrypted, or reproducible outputs
+If a `agents-tasks:workbook` skill bundle produces large, external, generated, encrypted, or reproducible outputs
 that should not live directly in Git, register them here rather than committing them into the workbook
 folder; keep only the runnable workflow, metadata, safe samples, and output documentation in the
 workbook itself.

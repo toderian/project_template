@@ -36,9 +36,9 @@ Use the rest of the task system as context, not as the primary audit target:
 Do not edit task files, archive tasks, capture follow-ups, reorder the roadmap, or regenerate ledgers
 by default. If the audit finds work to close or change, recommend the existing workflow:
 
-- `/complete-task` for done or cancelled closeout
-- `/capture-idea` or `/add-task` for follow-ups
-- `/roadmap` for sequencing cleanup
+- `/agents-tasks:complete-task` for done or cancelled closeout
+- `/agents-tasks:capture-idea` or `/agents-tasks:add-task` for follow-ups
+- `/agents-tasks:roadmap` for sequencing cleanup
 
 Evidence controls the recommendation. Age alone never justifies closing, cancelling, or changing a
 task. A task that is old but still valid is `keep`.
@@ -102,9 +102,9 @@ Use exactly one primary classification per task:
 - `needs-update` - the task is still worth doing, but its brief, phases, acceptance criteria, related
   tests, area, dependencies, or roadmap placement no longer match the repo.
 - `appears-done` - current code/tests/docs satisfy the task's acceptance criteria closely enough that
-  `/complete-task` should verify and close it.
+  `/agents-tasks:complete-task` should verify and close it.
 - `cancel-or-close` - evidence shows the task is obsolete, superseded, duplicated by another task, no
-  longer in scope, or should be intentionally cancelled; require user confirmation or `/complete-task`
+  longer in scope, or should be intentionally cancelled; require user confirmation or `/agents-tasks:complete-task`
   cancellation.
 - `split-follow-up` - the original task can close or shrink, but a distinct remaining idea should be
   captured or promoted separately.
@@ -180,19 +180,19 @@ search terms and explain what was not found.
 ## Scenario guide
 
 - Active task appears implemented in code/tests: classify `appears-done` only when repo evidence maps
-  to the task's acceptance criteria; recommend `/complete-task`.
+  to the task's acceptance criteria; recommend `/agents-tasks:complete-task`.
 - Active task has execution commits/logs showing completed work but stale phase checkboxes or missing
-  archive move: classify `appears-done` when acceptance evidence is strong; recommend `/complete-task`
+  archive move: classify `appears-done` when acceptance evidence is strong; recommend `/agents-tasks:complete-task`
   to reconcile task progress, fill completion harvest, optionally squash task commits, and archive.
 - Active task is obsolete or superseded: classify `cancel-or-close` only with concrete current-state
   evidence such as a replacement task, archived completion, removed subsystem, or documented decision.
 - Active task duplicates another task: classify `cancel-or-close` or `needs-user-decision`, cite the
   canonical task candidate, and do not merge or cancel without the user's choice.
 - Task remains open but needs updated criteria/tests: classify `needs-update`, cite the mismatch, and
-  recommend the exact task-field changes for a separate user-approved maintenance pass; use `/roadmap`
-  only for sequencing cleanup and `/capture-idea` or `/add-task` only for distinct new work.
-- Task should close with a follow-up: classify `split-follow-up`, recommend `/complete-task` for the
-  satisfied core and `/capture-idea` or `/add-task` for the remaining distinct work.
+  recommend the exact task-field changes for a separate user-approved maintenance pass; use `/agents-tasks:roadmap`
+  only for sequencing cleanup and `/agents-tasks:capture-idea` or `/agents-tasks:add-task` only for distinct new work.
+- Task should close with a follow-up: classify `split-follow-up`, recommend `/agents-tasks:complete-task` for the
+  satisfied core and `/agents-tasks:capture-idea` or `/agents-tasks:add-task` for the remaining distinct work.
 - No matching code evidence found: do not treat absence as completion or cancellation; classify `keep`
   when the task is still coherent, otherwise `needs-user-decision`.
 
@@ -203,5 +203,5 @@ search terms and explain what was not found.
 - Every `appears-done` recommendation maps current code/tests/docs to acceptance criteria.
 - Every `cancel-or-close` recommendation explains why active work should not continue.
 - Every `split-follow-up` recommendation separates closeout work from the follow-up.
-- Recommended mutations are delegated to `/complete-task`, `/capture-idea`, `/add-task`, or `/roadmap`.
+- Recommended mutations are delegated to `/agents-tasks:complete-task`, `/agents-tasks:capture-idea`, `/agents-tasks:add-task`, or `/agents-tasks:roadmap`.
 - The audit itself leaves the worktree unchanged.

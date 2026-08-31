@@ -15,7 +15,7 @@ verification. Use when the user asks to build web components, pages, application
 games, or redesign/restyle existing UI. Generate creative, polished code that avoids generic AI
 aesthetics and proves the result in a browser.
 
-Imported from Anthropic's [`frontend-design`](https://github.com/anthropics/claude-plugins-official/tree/main/plugins/frontend-design) plugin.
+Imported from Anthropic's [`agents-extras:frontend-design`](https://github.com/anthropics/claude-plugins-official/tree/main/plugins/frontend-design) plugin.
 
 ## Process
 
@@ -116,4 +116,4 @@ must not be committed. If screenshots or reports need to be durable, use
 `docs/resources/_reports/<workflow>/` for Markdown findings and register large kept artifacts in
 `artifacts/README.md`.
 
-For a dedicated post-build critique, use the `ui-design-review` skill.
+For a dedicated post-build critique, use the `agents-extras:ui-design-review` skill.

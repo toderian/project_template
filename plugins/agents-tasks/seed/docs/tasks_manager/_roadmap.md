@@ -40,7 +40,7 @@ _Nothing scheduled yet._
 
 ## Now
 
-_Nothing scheduled yet. Use the `roadmap` skill to place tasks here._
+_Nothing scheduled yet. Use the `agents-tasks:roadmap` skill to place tasks here._
 
 ## Next
 

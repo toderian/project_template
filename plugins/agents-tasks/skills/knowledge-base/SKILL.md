@@ -84,7 +84,7 @@ authoritative.
   migration proposals. Use timestamped filenames per `references/generated-artifacts.md` (in this
   skill) so repeated runs preserve previous observations and can include a delta.
 - Root `workbooks/` stores workbook bundles: one folder per reusable working set, with local scripts,
-  data, assets, templates, examples, outputs, and a workbook `README.md`. See the `workbook` skill.
+  data, assets, templates, examples, outputs, and a workbook `README.md`. See the `agents-tasks:workbook` skill.
 - Raw transcripts, one-off debugging logs, and pasted terminal output are not runbooks. Put raw source
   material in `_inbox/`, distilled reusable facts in `_digests/`, and rerunnable output in `_reports/`;
   promote only stable procedures into `runbooks/`.
@@ -134,7 +134,7 @@ search the relevant area runbooks and `docs/resources/global/runbooks/`. If a ru
 values.
 
 Do not scan `docs/resources/_inbox/` as routine project context. Raw inbox files may be large,
-duplicative, sensitive, or stale. Use `/distill-knowledge` when the task is to process that material.
+duplicative, sensitive, or stale. Use `/agents-tasks:distill-knowledge` when the task is to process that material.
 
 When `CONTEXT_DOCS_DIR` is configured as a central docs repo, use
 `$CONTEXT_DOCS_DIR/resources/<area>/` as the canonical writable home for shared cross-repo area docs,
@@ -159,7 +159,7 @@ evidence about work status, not durable knowledge.
 Use the two inboxes for different things:
 
 - `docs/tasks_manager/_inbox/` is for raw ideas and work items (`I-NNN`) awaiting triage — see the
-  `task-ledger` skill.
+  `agents-tasks:task-ledger` skill.
 - `docs/resources/_inbox/` is for raw uploaded knowledge files awaiting distillation.
 
 Use `docs/resources/_inbox/` as the drop zone for raw source material: PDFs, notes, exports, vendor
@@ -181,7 +181,7 @@ large or sensitive files stay ignored or external by default unless the downstre
 intentionally enables versioning, usually with Git LFS. A batch folder represents a source event, not a
 permanent area folder or task folder; record the related area and task in the manifest instead.
 
-Run `/distill-knowledge` to process raw material. The workflow creates a digest at:
+Run `/agents-tasks:distill-knowledge` to process raw material. The workflow creates a digest at:
 
 ```text
 docs/resources/_digests/<area-or-bucket>/YYYY-MM-DD-<source-slug>.md
@@ -247,10 +247,10 @@ feature contracts, and component context docs instead of duplicating their conte
 Ask before creating a new area or materially changing which area owns a subsystem. Routine updates
 inside an existing registered area do not need a separate area-ownership question.
 
-Use `/define-area` when the area spans repos, packages, install modes, or runtime boundaries. Use
-`/cross-repo-feature` for one concrete feature contract inside an existing area.
+Use `/agents-tasks:define-area` when the area spans repos, packages, install modes, or runtime boundaries. Use
+`/agents-tasks:cross-repo-feature` for one concrete feature contract inside an existing area.
 
-Use `/map-system` when the project needs a top-level repo/capability picture or when several area docs
+Use `/agents-tasks:map-system` when the project needs a top-level repo/capability picture or when several area docs
 need to be connected. `system-map.md` should link to area docs and record statuses; it should not
 duplicate the details that belong in summaries, dependency graphs, contracts, or component contexts.
 
@@ -342,7 +342,7 @@ run under `docs/resources/_reports/<workflow>/`, with a delta section when a pri
 
 ## Refreshing
 
-Use `/refresh-context` when code, task logs, or recent colleague work may have made the knowledge base
+Use `/agents-tasks:refresh-context` when code, task logs, or recent colleague work may have made the knowledge base
 stale. A refresh updates only docs supported by evidence from code, tasks, existing docs, or recorded
 review notes. If ownership or architecture is uncertain, record the uncertainty and optionally capture
 a follow-up inbox idea rather than inventing structure.

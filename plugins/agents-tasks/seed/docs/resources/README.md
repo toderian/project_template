@@ -18,7 +18,7 @@ ignored local binding files under `.local/runbooks/<scenario-slug>.local.md`.
 Raw source material waiting to be processed belongs in `_inbox/`. Related files from one call,
 teammate input, upload bundle, or research bundle may live together in an inbox batch folder with a
 `README.md` manifest. Curated Markdown summaries of those sources belong in `_digests/`. Use the
-`distill-knowledge` skill to extract the important information and promote stable facts into the
+`agents-tasks:distill-knowledge` skill to extract the important information and promote stable facts into the
 canonical knowledge files.
 
 Long-lived committed source documents and binaries, such as `.docx`, PDFs, spreadsheets, diagrams, or

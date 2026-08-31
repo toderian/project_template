@@ -22,4 +22,4 @@
 
 ## Distillation Notes
 
-- <important extraction hints, timestamps, sections, or questions for `/distill-knowledge`>
+- <important extraction hints, timestamps, sections, or questions for `/agents-tasks:distill-knowledge`>

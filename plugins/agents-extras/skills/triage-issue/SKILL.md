@@ -19,7 +19,7 @@ The output is an issue that has cleared triage: it carries a clear category labe
 ## Triage roles
 
 Two-role labelling. Every triaged issue should carry exactly one **category** role and one **state**
-role. Canonical taxonomy (2 category roles, 5 state roles) is owned by `github-triage`'s
+role. Canonical taxonomy (2 category roles, 5 state roles) is owned by `agents-extras:github-triage`'s
 [`## Labels`](../github-triage/SKILL.md#labels) table — same roles here, just named `bug`/`enhancement`
 for category and `needs-triage`/`needs-info`/`ready-for-agent`/`ready-for-human`/`wontfix` for state.
 

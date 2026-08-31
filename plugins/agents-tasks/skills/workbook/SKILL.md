@@ -154,10 +154,10 @@ branching, retries, human interrupts, or parallel lanes. See the `agents-core:su
 
 Keep these lanes distinct:
 
-- `docs/tasks_manager/_inbox/` is for raw ideas and work items — see the `task-ledger` skill.
+- `docs/tasks_manager/_inbox/` is for raw ideas and work items — see the `agents-tasks:task-ledger` skill.
 - `docs/resources/_inbox/` is for raw uploaded knowledge files awaiting distillation; related files
   from one source event may be grouped in a batch folder with a `README.md` manifest — see the
-  `knowledge-base` skill.
+  `agents-tasks:knowledge-base` skill.
 - `docs/resources/_digests/` is for curated Markdown summaries extracted from raw sources.
 - `docs/resources/<area>/sources.md` is for area source history: why a source was added, where it is
   stored, and which digests, tasks, or canonical docs depend on it.
@@ -178,5 +178,5 @@ private local paths, customer-specific values, very large generated outputs, and
 committed workbooks unless the project has an explicit policy allowing them.
 
 If a workbook produces large, external, generated, encrypted, or reproducible artifacts that should not
-live directly in Git, register them via the `artifacts-registry` skill (`artifacts/README.md`) and keep
+live directly in Git, register them via the `agents-tasks:artifacts-registry` skill (`artifacts/README.md`) and keep
 only the runnable workflow, metadata, safe samples, and output documentation in the workbook.

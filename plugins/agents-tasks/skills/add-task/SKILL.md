@@ -11,11 +11,11 @@ metadata:
 ## Purpose
 
 Create a full task directly in `docs/tasks_manager/_todos/` when the work is already clear enough to
-commit to the backlog. This complements `capture-idea`: vague thoughts go to the inbox quickly, while
+commit to the backlog. This complements `agents-tasks:capture-idea`: vague thoughts go to the inbox quickly, while
 clear tasks get area, prefix, priority, phases, acceptance criteria, tests, and optional scheduling
 metadata only when the user asks for scheduling.
 
-Follow the `task-ledger` skill (references/todo-convention.md) for the file format and lifecycle.
+Follow the `agents-tasks:task-ledger` skill (references/todo-convention.md) for the file format and lifecycle.
 
 Prerequisite: `docs/tasks_manager/` must already be initialized. If it is missing, run `/init` first.
 
@@ -24,9 +24,9 @@ Prerequisite: `docs/tasks_manager/` must already be initialized. If it is missin
 ### 1. Confirm this is a task, not an inbox idea
 
 Use this skill when the user asks to add, create, file, or track a task and the request is already
-actionable. If the request is vague, low-context, or mostly a thought for later, use `capture-idea`
+actionable. If the request is vague, low-context, or mostly a thought for later, use `agents-tasks:capture-idea`
 instead. If the work is too big for one session and the way to the goal is not yet
-visible, use `wayfinder` instead: it charts the effort as one task holding decision tickets.
+visible, use `agents-tasks:wayfinder` instead: it charts the effort as one task holding decision tickets.
 
 Do not over-interview. Only ask when a required field cannot be inferred safely:
 
@@ -41,7 +41,7 @@ date.
 
 ### 2. Check for duplicates and overlap
 
-Run the discovery scan from the `task-ledger` skill §"Discovery gate"
+Run the discovery scan from the `agents-tasks:task-ledger` skill §"Discovery gate"
 (inbox and archived inbox, active and archived tasks, `_roadmap.md`, ledgers, area pages,
 `docs/resources/` + `docs/archive/`, and likely code/tests when the task ties to existing behavior).
 
@@ -119,7 +119,7 @@ at repos-check
 
 If the user wants this scheduled, add the task ID to `docs/tasks_manager/_roadmap.md` under Urgent,
 Now, Next, Later, or Someday in the intended order (horizon semantics and soft thresholds:
-the `task-ledger` skill (references/todo-convention.md) §Roadmap). If they gave goal-level timing, place the task
+the `agents-tasks:task-ledger` skill (references/todo-convention.md) §Roadmap). If they gave goal-level timing, place the task
 under a milestone heading such as `### Milestone: <name> (target: YYYY-MM-DD)` or
 `### Milestone: <name> (deadline: YYYY-MM-DD)` inside the chosen horizon. Then run sync and `--check`
 again so `docs/areas/_overview.md` and generated area blocks reflect the roadmap placement. Run

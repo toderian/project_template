@@ -15,18 +15,18 @@ flat list of everything open, the roadmap adds the thing a flat list can't: **se
 what is interrupting, what to do now, what's queued next, and what is intentionally deferred, in the
 order you mean to do it.
 
-It sits above the per-change planning skills (`agents-core:planning-workflow`, `prd-to-plan` plan a single change);
+It sits above the per-change planning skills (`agents-core:planning-workflow`, `agents-tasks:prd-to-plan` plan a single change);
 the roadmap is the portfolio view that decides *which* changes happen, in what order, and roughly when
 dated goals should land.
 
 ## Model
 
 - **Horizons** — `Urgent`, `Now`, `Next`, `Later`, and `Someday`. Their semantics and soft item
-  thresholds are defined in the `task-ledger` skill (references/todo-convention.md) §Roadmap.
+  thresholds are defined in the `agents-tasks:task-ledger` skill (references/todo-convention.md) §Roadmap.
   Placement is a deliberate human decision, never auto-derived from status or priority.
 - **Items** — each line references an area-prefixed task ID such as `AUTH-001` or `T-001`. Task IDs may
   appear in any horizon. `Someday` may also hold an `I-NNN` idea as a parking-lot signal, but raw inbox
-  ideas must be promoted through `/triage-inbox` before moving into any other horizon. Keep item lines
+  ideas must be promoted through `/agents-tasks:triage-inbox` before moving into any other horizon. Keep item lines
   short; the roadmap owns placement and ordering, not task detail.
 - **Milestones** — optional `### Milestone: <name> (target: YYYY-MM-DD)` or
   `### Milestone: <name> (deadline: YYYY-MM-DD)` headings inside a horizon. `target` is a soft planning
@@ -106,7 +106,7 @@ acceptance detail here.
 - `docs/areas/_overview.md` and `docs/areas/<slug>.md` — generated area views derived from task metadata
   and recognizable roadmap IDs.
 - `docs/tasks_manager/_inbox/` — raw ideas; `Someday` can hold an inbox ID as a reminder, but promote with
-  `/triage-inbox` before scheduling it into `Urgent`, `Now`, `Next`, or `Later`.
+  `/agents-tasks:triage-inbox` before scheduling it into `Urgent`, `Now`, `Next`, or `Later`.
 
 ## Quality bar
 
@@ -115,7 +115,7 @@ acceptance detail here.
   horizon.
 - Dated milestones appear only as `### Milestone: <name> (target: YYYY-MM-DD)` or
   `### Milestone: <name> (deadline: YYYY-MM-DD)` under an existing horizon.
-- Soft thresholds are review pressure only. Mention when a horizon is overloaded during `/roadmap`
+- Soft thresholds are review pressure only. Mention when a horizon is overloaded during `/agents-tasks:roadmap`
   review, but do not treat threshold pressure as validation failure.
 - Every referenced `<PREFIX>-NNN`/`I-NNN` exists; done/cancelled items are off the roadmap, and inbox
   IDs appear only in `Someday`.

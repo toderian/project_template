@@ -14,7 +14,7 @@ metadata:
 
 Build features or fix bugs using TDD with a red-green-refactor loop and vertical slices.
 
-For the shared vocabulary of test layers (acceptance, contract, property-based, integration, unit), see the `tdd` skill (references/test-taxonomy.md). This skill is the loop that produces tests; the taxonomy is the layer they belong to.
+For the shared vocabulary of test layers (acceptance, contract, property-based, integration, unit), see the `agents-core:tdd` skill (references/test-taxonomy.md). This skill is the loop that produces tests; the taxonomy is the layer they belong to.
 
 ## Philosophy
 
@@ -24,7 +24,7 @@ For the shared vocabulary of test layers (acceptance, contract, property-based, 
 
 **Bad tests** are coupled to implementation. They mock internal collaborators, test private methods, or verify through external means (like querying a database directly instead of using the interface). The warning sign: your test breaks when you refactor, but behavior hasn't changed. If you rename an internal function and tests fail, those tests were testing implementation, not behavior.
 
-See `tdd` skill references/tests.md for examples and `tdd` skill references/mocking.md for mocking guidelines.
+See `agents-core:tdd` skill references/tests.md for examples and `agents-core:tdd` skill references/mocking.md for mocking guidelines.
 
 ## Anti-Pattern: Tautological Tests
 
@@ -72,7 +72,7 @@ Before writing any code:
       written at an unconfirmed seam: agreeing them up front is how testing effort lands on critical
       paths instead of every edge case
 - [ ] Identify opportunities for deep modules, and design the interface for testability (the
-      `codebase-design` skill owns the module/interface/seam/depth vocabulary)
+      `agents-core:codebase-design` skill owns the module/interface/seam/depth vocabulary)
 - [ ] List the behaviors to test (not implementation steps)
 - [ ] Get user approval on the plan
 
@@ -109,7 +109,7 @@ Rules:
 
 ### 4. Refactor
 
-After all tests pass, look for refactor candidates (see `tdd` skill references/refactoring.md):
+After all tests pass, look for refactor candidates (see `agents-core:tdd` skill references/refactoring.md):
 
 - [ ] Extract duplication
 - [ ] Deepen modules (move complexity behind simple interfaces)

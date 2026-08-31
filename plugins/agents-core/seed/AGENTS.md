@@ -35,7 +35,7 @@ Run every task through these passes, and loop again whenever a pass finds a real
 ## Autonomy and git
 
 - Default autonomy is **L1** (local development): inspect, edit, and commit locally; no pushes and no
-  destructive or remote operations without an explicit ask. Full ladder: `git-discipline`.
+  destructive or remote operations without an explicit ask. Full ladder: `agents-core:git-discipline`.
 - Work on the current or default branch unless the task, this file, or `.config/repos.project.md` says
   otherwise. Do not open a branch merely because commits will happen.
 - Hooks shipped with the plugins block `git push`, `git reset --hard`, `git clean -f`,

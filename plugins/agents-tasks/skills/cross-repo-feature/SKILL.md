@@ -13,7 +13,7 @@ metadata:
 Capture a concrete feature contract inside a durable area. A feature contract is the shared agreement
 for one change that crosses repo, package, runtime, or deployment boundaries.
 
-Use this after `/define-area` has indexed the area. Examples:
+Use this after `/agents-tasks:define-area` has indexed the area. Examples:
 
 - `service-request-signing`
 - `dynamic-runtime-env`
@@ -49,7 +49,7 @@ When guiding the user, enforce these defaults:
   in the verification matrix and capture the gap as a follow-up instead of leaving it implicit.
 - Prefer executable checks for high-risk boundaries. Docs-only contracts are acceptable for V1, but
   API/schema/env/Docker compatibility should grow tests or CI checks when the risk justifies it.
-- Link implementation tasks and PRs back to the contract, and run `/refresh-context` during closeout
+- Link implementation tasks and PRs back to the contract, and run `/agents-tasks:refresh-context` during closeout
   when code changes affect recorded boundaries.
 - Keep the contract `Status` honest: `accepted` is the target, `implemented` requires evidence, and
   mixed rollout states should use `partially-implemented` until all required boundaries are verified.
@@ -68,7 +68,7 @@ Before writing a feature contract, locate the area summary and dependency graph:
 - `docs/resources/<area>/dependency-graph.md`
 - or the matching central-docs paths under `$CONTEXT_DOCS_DIR/resources/<area>/`
 
-If the area does not exist, run `/define-area` first or create only a minimal area stub after user
+If the area does not exist, run `/agents-tasks:define-area` first or create only a minimal area stub after user
 confirmation. Do not bury cross-repo contracts in a repo-local note.
 
 ### 2. Fix the Feature Slug
@@ -168,7 +168,7 @@ End with:
 - repos and boundaries inspected
 - compatibility and rollout expectations captured
 - verification matrix gaps
-- area docs that may need `/refresh-context`
+- area docs that may need `/agents-tasks:refresh-context`
 - commands/checks run
 
 Use the shared status vocabulary:

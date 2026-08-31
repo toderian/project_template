@@ -19,7 +19,7 @@ pattern, CI-repair loop, or draft-PR loop. Keep the first version small, reversi
 | Allowed stop point | The furthest action the loop may take before reporting or asking. |
 | Must ask before | Actions that always require fresh human approval. |
 
-Autonomy levels come from the `git-discipline` skill (references/autonomy-levels.md). Work mode still
+Autonomy levels come from the `agents-core:git-discipline` skill (references/autonomy-levels.md). Work mode still
 controls where work happens. The strictest rule wins.
 
 ## Examples

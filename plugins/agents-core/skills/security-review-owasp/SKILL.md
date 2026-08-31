@@ -10,7 +10,7 @@ metadata:
 
 Apply current OWASP standards when writing or reviewing code. Covers OWASP Top 10:2025, ASVS 5.0, the OWASP LLM Top 10 (2025), and Agentic AI security (2026).
 
-Vendored from [agamm/claude-code-owasp](https://github.com/agamm/claude-code-owasp) (MIT). Per-language quirks live in `security-review-owasp` skill references/languages.md — read them only for the language you're reviewing.
+Vendored from [agamm/claude-code-owasp](https://github.com/agamm/claude-code-owasp) (MIT). Per-language quirks live in `agents-core:security-review-owasp` skill references/languages.md — read them only for the language you're reviewing.
 
 ## Quick reference: OWASP Top 10:2025
 
@@ -289,7 +289,7 @@ When reviewing any language, think like a senior security researcher:
 9. **Runtime behavior** — debug vs release differences (Rust overflow, C++ assertions)
 10. **Error handling** — does the language fail silently? With stack traces? Fail-open?
 
-For language-specific quirks (JS/TS, Python, Java, C#, PHP, Go, Ruby, Rust, Swift, Kotlin, C/C++, Scala, R, Perl, Shell, Lua, Elixir, Dart/Flutter, PowerShell, SQL), read `security-review-owasp` skill references/languages.md. Read only the section for the language you're reviewing.
+For language-specific quirks (JS/TS, Python, Java, C#, PHP, Go, Ruby, Rust, Swift, Kotlin, C/C++, Scala, R, Perl, Shell, Lua, Elixir, Dart/Flutter, PowerShell, SQL), read `agents-core:security-review-owasp` skill references/languages.md. Read only the section for the language you're reviewing.
 
 ## When to apply this skill
 

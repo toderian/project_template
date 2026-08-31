@@ -13,14 +13,14 @@ metadata:
 
 Record an idea into the inbox the instant the user has it, with near-zero friction. The user gets an
 idea — a feature, a bug they noticed, something to look into — and it gets written down immediately as
-an `I-NNN` inbox file. No phases, no acceptance criteria, no commitment; triage (`triage-inbox`) turns
+an `I-NNN` inbox file. No phases, no acceptance criteria, no commitment; triage (`agents-tasks:triage-inbox`) turns
 the good ones into real tasks later.
 
 The single most important quality of this skill is **speed of capture**. An idea that takes a
 conversation to record is an idea lost. Don't interrogate the user — capture what they said, make a
 reasonable area guess, and confirm in one line.
 
-Follow the `task-ledger` skill (references/inbox-convention.md) for the format and ID rules.
+Follow the `agents-tasks:task-ledger` skill (references/inbox-convention.md) for the format and ID rules.
 
 Prerequisite: `docs/tasks_manager/` must already be initialized. If it is missing, run `/init` first.
 

@@ -19,7 +19,7 @@ Use this workflow when work was completed but the task was never moved to `done`
 implemented work sitting in `_todos/` just because the closeout step was missed; verify it, update the
 task file, harvest the outcome, and archive it.
 
-Follow the `task-ledger` skill (references/todo-convention.md) for the task format and lifecycle.
+Follow the `agents-tasks:task-ledger` skill (references/todo-convention.md) for the task format and lifecycle.
 
 ## Prerequisites
 
@@ -78,7 +78,7 @@ Complete every row under `## Completion harvest`:
 ```
 
 Use explicit `None` rows when there is nothing to harvest. If a follow-up is needed, capture it with
-`/capture-idea` first and list the `I-NNN`.
+`/agents-tasks:capture-idea` first and list the `I-NNN`.
 
 ### 6. Write the completion summary
 

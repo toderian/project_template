@@ -13,7 +13,7 @@ Lifecycle:
 Inbox idea (I-NNN) -> triage or direct creation -> Task (<PREFIX>-NNN, typed) -> done/cancelled -> archive
 ```
 
-Use `capture-idea` for vague ideas and follow-ups. Use `add-task`, `triage-inbox`, `prd-to-todos`, or
+Use `agents-tasks:capture-idea` for vague ideas and follow-ups. Use `agents-tasks:add-task`, `agents-tasks:triage-inbox`, `agents-tasks:prd-to-todos`, or
 another task-producing skill when the work is clear enough to become a full task immediately.
 
 ## Directory structure
@@ -138,8 +138,8 @@ Cross-repo projects use a two-layer repo convention:
   `.local/repos.map` by hand per machine.
 
 Set this up during downstream project setup, after project-specific `README.md` and `AGENTS.md` are in
-place and before running `/init`, `/define-area`, `/cross-repo-feature`, `/add-task`, `/triage-inbox`,
-or `/prd-to-todos` for multi-repo work. Single-repo projects can skip it until they need repo-scope
+place and before running `/init`, `/agents-tasks:define-area`, `/agents-tasks:cross-repo-feature`, `/agents-tasks:add-task`, `/agents-tasks:triage-inbox`,
+or `/agents-tasks:prd-to-todos` for multi-repo work. Single-repo projects can skip it until they need repo-scope
 tasks or cross-repo docs.
 
 Repo slugs must match `^[a-z][a-z0-9-]*$`. If no `.config/repos.project.md` exists, omit `Repos`
@@ -432,7 +432,7 @@ was captured for session expiry telemetry.
 | Owner | Agent/user working the task, or `N/A` |
 | Blocked by | Task ID or filename this depends on, or `N/A` |
 | Spec refs | Optional comma-separated references to task-local or durable specs; `self` means this task's `### Specification` or `### Design` sections |
-| Source | Skill or process that created the task, for example `add-task`, `inbox`, `prd-to-todos`, `manual` |
+| Source | Skill or process that created the task, for example `agents-tasks:add-task`, `inbox`, `agents-tasks:prd-to-todos`, `manual` |
 | Source ref | Origin reference, for example `I-007`, issue number, file path, or `N/A` |
 
 ## Task body requirements
@@ -449,13 +449,13 @@ was captured for session expiry telemetry.
 - **Repo scope:** optional `### Repo scope` section for cross-repo tasks when metadata alone is not
   enough; explain why each repo is involved and use `<repo-slug>:<repo-relative-path>` references.
 - **Follow-ups:** use `None` if no follow-ups exist. Prefer `I-NNN` inbox captures for new ideas.
-- **Tickets:** optional `## Tickets` section, used only by `wayfinder` maps, holding decision tickets
+- **Tickets:** optional `## Tickets` section, used only by `agents-tasks:wayfinder` maps, holding decision tickets
   as dotted sub-ids of the task (`T-042.1`). It sits after `### Follow-ups` and before
   `## Execution log`. Two constraints, because the validator scans the whole file: the tickets index
   table must start its rows with a `Ticket` column (any `| Key | Value |` line is read as task
   metadata, so a `| Status | resolved |` row would overwrite the task's own status), and ticket bodies
   must use `###` headings without checkboxes (any `####` heading counts as a phase). See the
-  `wayfinder` skill (references/map-template.md).
+  `agents-tasks:wayfinder` skill (references/map-template.md).
 - **Execution log:** append-only. Each entry records actions taken, decisions made, test results, commit
   SHAs when work is committed, and outcome.
 - **Completion harvest:** required before archiving; each row must name updates or explicitly say `None`.
@@ -493,8 +493,8 @@ This gate applies to starting existing tasks. It does not apply to quick inbox c
 
 ## Creating tasks
 
-Any skill that produces actionable work can create tasks. Prefer `/add-task` for direct creation from a
-clear user request, and `/capture-idea` for vague ideas.
+Any skill that produces actionable work can create tasks. Prefer `/agents-tasks:add-task` for direct creation from a
+clear user request, and `/agents-tasks:capture-idea` for vague ideas.
 
 Creation steps:
 
@@ -536,7 +536,7 @@ pressure only, not validation failures:
 
 The roadmap is placement-only. It stores task IDs like `AUTH-001` in the intended horizon and order;
 task IDs may appear in any horizon. Raw inbox ideas like `I-007` may appear only in `Someday` as
-parking-lot signals, and must be promoted through `/triage-inbox` before moving into `Urgent`, `Now`,
+parking-lot signals, and must be promoted through `/agents-tasks:triage-inbox` before moving into `Urgent`, `Now`,
 `Next`, or `Later`. It may group work with
 `### Milestone: <name> (target: YYYY-MM-DD)` or
 `### Milestone: <name> (deadline: YYYY-MM-DD)` headings inside an existing horizon, but it must not add
@@ -567,7 +567,7 @@ and archived tasks without an explicit completion harvest and summary.
 
 ## Active-task audits
 
-Use `/audit-todos` for periodic active-task health checks. It audits files under
+Use `/agents-tasks:audit-todos` for periodic active-task health checks. It audits files under
 `docs/tasks_manager/_todos/` against current code, tests, docs, roadmap placement, generated ledgers,
 area pages, archived task evidence, and `docs/resources/`.
 
@@ -587,7 +587,7 @@ open -> cancelled -> archive
 in_progress -> cancelled -> archive
 ```
 
-Prefer `/complete-task` for this workflow. Before changing a task to `done` or `cancelled`:
+Prefer `/agents-tasks:complete-task` for this workflow. Before changing a task to `done` or `cancelled`:
 
 1. Verify acceptance criteria and related tests.
 2. Reconcile linked specs. If the task implements, partially implements, supersedes, or invalidates a

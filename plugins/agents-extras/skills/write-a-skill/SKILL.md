@@ -17,12 +17,12 @@ Create a reusable agent skill in this marketplace — invoked by name and shared
 Codex — with the right structure, the right plugin, and a description that actually fires.
 
 This skill covers the **mechanics**: layout, frontmatter, bundled resources, validation. The
-**writing** is `writing-for-agents`: context pointers, the two loads, progressive disclosure,
+**writing** is `agents-extras:writing-for-agents`: context pointers, the two loads, progressive disclosure,
 completion criteria, leading words, pruning. Read it first; everything below assumes it.
 
 ## Process
 
-0. **Read `writing-for-agents`** (and its references/skill-mechanics.md for the invocation choice).
+0. **Read `agents-extras:writing-for-agents`** (and its references/skill-mechanics.md for the invocation choice).
 1. **Capture intent** — what the skill should enable, when it should trigger, what the output is.
 2. **Interview and research** — edge cases, input/output formats, example files, success criteria,
    dependencies. Pull from the conversation first; ask the user only for the gaps. Run `agents-core:grilling`
@@ -63,7 +63,7 @@ Edit the skill's own frontmatter in place; it is the single source of its metada
 - `name:` — required; must equal the directory name exactly.
 - `description:` — required; ≤ 1,024 characters, harness-neutral, carrying the trigger branches. It is
   the only thing the agent sees when picking skills. Write it under the context-pointer rules in
-  `writing-for-agents`.
+  `agents-extras:writing-for-agents`.
 - `disable-model-invocation: true` — only for side-effect-heavy skills a human should start, or a
   router. The description then becomes human-facing.
 - `argument-hint:` — optional; set when the skill expects free-text arguments (a path, topic, slug).
@@ -114,7 +114,7 @@ skills are fine; deceptive or covert capability skills are not.
 - [ ] Plugin chosen by audience; `agents-core` stays small because it is always enabled
 - [ ] `plugins/<plugin>/skills/<name>/SKILL.md` exists, `name` matches the directory
 - [ ] Description carries triggers, is harness-neutral, ≤ 1,024 chars, and passes the context-pointer
-      rules in `writing-for-agents`
+      rules in `agents-extras:writing-for-agents`
 - [ ] Body under 500 lines; on-demand material disclosed to `references/`
 - [ ] Every step ends on a completion criterion the agent can check
 - [ ] No no-op lines, no duplicated meaning, no restatement of what the environment already says

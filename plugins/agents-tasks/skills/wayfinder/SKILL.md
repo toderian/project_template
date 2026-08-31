@@ -38,7 +38,7 @@ a glance. The id rides inside the name, it does not stand in for it.
 **The map is one ordinary task file** under `docs/tasks_manager/_todos/`, reserved with
 `at reserve task <PREFIX> R <slug>` (type `R`, research/spike), `Source: wayfinder`,
 `Spec refs: self`. So the map appears in `_active.md`, can be placed on `_roadmap.md`, rolls up on its
-area page, and closes through `/complete-task` like any other task. Follow the `task-ledger` skill
+area page, and closes through `/agents-tasks:complete-task` like any other task. Follow the `agents-tasks:task-ledger` skill
 (references/todo-convention.md) for the file format; the full map layout is in
 [references/map-template.md](references/map-template.md).
 
@@ -118,7 +118,7 @@ The user invokes with a loose idea.
 2. **Map the frontier.** Grill again, **breadth-first**: fan out across the whole space rather than
    deep on any one thread, surfacing the open decisions and the first steps takeable now. **If this
    surfaces no fog** — the way is already clear, the journey small enough for one session — say so and
-   stop: use `add-task` or `agents-core:planning-workflow` instead of a map.
+   stop: use `agents-tasks:add-task` or `agents-core:planning-workflow` instead of a map.
 3. **Create the map.** `at reserve task <PREFIX> R <slug>`, then fill
    [references/map-template.md](references/map-template.md): Destination and Notes written, Decisions
    so far empty, the fog sketched into Not yet specified.
@@ -154,8 +154,8 @@ decision, not the user.
 
 When the frontier is empty, the map has done its job: produce the destination artifact —
 `docs/_plans/<slug>.md` via `agents-core:planning-workflow`, a spec via `agents-core:task-spec-workflow`, implementation tasks
-via `prd-to-todos` with real `Blocked by` edges, ADRs via `agents-extras:domain-modeling` — link it from the map, then
-close the map with `/complete-task`. The harvest names the artifacts the map produced.
+via `agents-tasks:prd-to-todos` with real `Blocked by` edges, ADRs via `agents-extras:domain-modeling` — link it from the map, then
+close the map with `/agents-tasks:complete-task`. The harvest names the artifacts the map produced.
 
 ## Quality bar
 

@@ -39,4 +39,4 @@ Where things go instead of here:
 - Large, external, generated, encrypted, or reproducible outputs → registered in `artifacts/README.md`.
 
 The full convention — when a workflow earns a workbook and how to structure one — lives in the
-`workbook` skill.
+`agents-tasks:workbook` skill.

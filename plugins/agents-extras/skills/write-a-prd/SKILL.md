@@ -23,7 +23,7 @@ You may skip steps if you don't consider them necessary.
 2. Explore the repo to verify their assertions and understand the current state of the codebase.
 
 3. Run the `agents-core:grilling` skill on this plan. If the project already has — or is starting — a
-   domain glossary or ADR log, also run `domain-modeling` so terminology and decisions are
+   domain glossary or ADR log, also run `agents-extras:domain-modeling` so terminology and decisions are
    captured inline.
 
 4. Sketch out the major modules you will need to build or modify to complete the implementation. Actively look for opportunities to extract deep modules that can be tested in isolation.
@@ -92,6 +92,6 @@ Any further notes about the feature.
 
    If yes, follow the `agents-tasks:task-ledger` skill (references/todo-convention.md) to create area-prefixed task files in
    `docs/tasks_manager/_todos/`. Create one task per vertical slice or major actionable item. Set
-   `Source` to `write-a-prd` and `Source ref` to the PRD identifier (issue number, file path, etc.).
+   `Source` to `agents-extras:write-a-prd` and `Source ref` to the PRD identifier (issue number, file path, etc.).
 
    If the user declines, remind them they can run `/agents-tasks:prd-to-todos` later to extract tasks from the PRD.

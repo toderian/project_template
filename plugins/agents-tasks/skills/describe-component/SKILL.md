@@ -76,7 +76,7 @@ suggest running `agents-extras:domain-modeling` - don't silently define it in th
 The path taxonomy for where component contexts live — the
 `docs/resources/<area>/components/<component-slug>/CONTEXT.md` path, area ownership, and the `global`
 fallback for cross-area/shared/default components — is owned by
-the `knowledge-base` skill §"Source of truth split". Follow it rather than
+the `agents-tasks:knowledge-base` skill §"Source of truth split". Follow it rather than
 re-deriving paths here. Ask before creating a new area or materially changing which area owns a
 component.
 

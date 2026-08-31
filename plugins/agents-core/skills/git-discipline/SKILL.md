@@ -83,7 +83,7 @@ whether the hook allows the command to execute — the hook's refusal is not som
 ## Squashing
 
 Once a task is fully implemented, validated, and reviewed, its own phase/review commits may be squashed
-into a single final task commit. Route that cleanup through the `squash-workspace-commits` skill: audit
+into a single final task commit. Route that cleanup through the `agents-core:squash-workspace-commits` skill: audit
 first, squash only safely identifiable task commits, preserve the important commit-message details, and
 never rewrite pushed/shared history without explicit user approval.
 
@@ -101,4 +101,4 @@ task, and user autonomy signals conflict.
 - Commits are conventional, sliced, and carry a What changed / Why / Checks body.
 - No push, force-op, or history rewrite is attempted; the hook and this skill agree pushing is a human
   action.
-- Squashes go through `squash-workspace-commits`; ad hoc history rewrites do not.
+- Squashes go through `agents-core:squash-workspace-commits`; ad hoc history rewrites do not.

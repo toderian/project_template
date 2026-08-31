@@ -11,7 +11,7 @@ metadata:
 # Codebase Design
 
 Design **deep modules**: a lot of behaviour behind a small interface, placed at a clean seam, testable
-through that interface. This is the vocabulary layer — `tdd`, `diagnose`,
+through that interface. This is the vocabulary layer — `agents-core:tdd`, `agents-core:diagnose`,
 `agents-extras:design-an-interface`, `agents-extras:improve-codebase-architecture`,
 `agents-extras:zoom-out` and `agents-extras:write-a-prd` all use these words, and this is where
 they are defined. It is a reference to consult, not a session to run.
@@ -91,7 +91,7 @@ Can I hide more complexity inside?
   *past* the interface, the module is probably the wrong shape.
 - **One adapter means a hypothetical seam; two adapters means a real one.** Don't introduce a seam
   unless something actually varies across it — typically production plus test. A single-adapter seam is
-  indirection, which the `simplicity-review` skill flags as `yagni`; that skill owns the review side of
+  indirection, which the `agents-core:simplicity-review` skill flags as `yagni`; that skill owns the review side of
   this rule.
 
 ## The two senses of "seam"
@@ -100,9 +100,9 @@ Both are live in this repo and they are not the same thing. Say which one you me
 
 - **Design seam** (this skill) — where a module's interface lives, chosen so behaviour can be altered
   without editing in place.
-- **Test seam** (`tdd` skill, references/test-taxonomy.md) — the level a test observes behaviour at.
+- **Test seam** (`agents-core:tdd` skill, references/test-taxonomy.md) — the level a test observes behaviour at.
   Note its inverse rule: stub at the system boundary, *not* at the seam being integrated.
-- **Regression seam** (`diagnose` skill, Phase 5) — a seam where a test exercises the real bug pattern
+- **Regression seam** (`agents-core:diagnose` skill, Phase 5) — a seam where a test exercises the real bug pattern
   as it occurs at the call site. When none exists, that absence is itself the finding.
 
 ## Designing for testability

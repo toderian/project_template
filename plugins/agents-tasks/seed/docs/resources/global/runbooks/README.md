@@ -15,5 +15,5 @@ Keep real hostnames, account names, private paths, customer names, and reusable 
 ```
 
 Use placeholders such as `<HOST>`, `<USER>`, `<SERVICE>`, `<REMOTE_PATH>`, and
-`<CONFIG_PROFILE>` in committed runbooks. See the `knowledge-base` skill (references/runbook-convention.md,
+`<CONFIG_PROFILE>` in committed runbooks. See the `agents-tasks:knowledge-base` skill (references/runbook-convention.md,
 assets/runbook.template.md).

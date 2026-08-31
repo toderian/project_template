@@ -16,8 +16,8 @@ should be promoted into a full area-prefixed task or dropped. This is where type
 priority, phases, acceptance criteria, related tests, and optional scheduling get assigned when the
 user intends to schedule the work.
 
-Follow the `task-ledger` skill (references/inbox-convention.md) (inbox side) and
-the `task-ledger` skill (references/todo-convention.md) (task side).
+Follow the `agents-tasks:task-ledger` skill (references/inbox-convention.md) (inbox side) and
+the `agents-tasks:task-ledger` skill (references/todo-convention.md) (task side).
 
 Prerequisite: `docs/tasks_manager/` must already be initialized. If it is missing, run `/init` first.
 
@@ -31,14 +31,14 @@ empty, say so and stop.
 ### 2. Discovery gate, per idea
 
 Before deciding whether to promote an idea, run the discovery scan from
-the `task-ledger` skill §"Discovery gate" (inbox + archived inbox, active +
+the `agents-tasks:task-ledger` skill §"Discovery gate" (inbox + archived inbox, active +
 archived tasks, roadmap/ledgers/`_active.md`/`_done.md`/area pages, `docs/resources/` + `docs/archive/`
 and their area docs, `CONTEXT_DOCS_DIR` if configured, and likely code/tests). The goal is not
 exhaustive proof; it is enough evidence to avoid creating tasks for duplicate, already tracked, already
 implemented, obsolete, or stale work.
 
 Classify each idea using the six-way scheme defined in
-the `task-ledger` skill (references/inbox-convention.md) (duplicate inbox idea, already tracked task, already
+the `agents-tasks:task-ledger` skill (references/inbox-convention.md) (duplicate inbox idea, already tracked task, already
 implemented, obsolete/stale, related but distinct, genuinely new). That convention is the canonical
 owner of each classification's meaning and the archive/promote action it implies.
 
@@ -61,7 +61,7 @@ Let the user steer; don't unilaterally drop ideas. Batch the decisions in one ex
 
 ### 4. Shape and create each promoted task
 
-For each promoted idea, create the task exactly as `add-task` does — its steps 3–6 are the canonical
+For each promoted idea, create the task exactly as `agents-tasks:add-task` does — its steps 3–6 are the canonical
 ritual for area/prefix, type, priority, the optional `Repos`/`Autonomy`/`Spec refs`/date metadata, the
 full `todo-convention.md` file shape, `at reserve` reservation, and the
 `at ledger sync`/`at ledger check`/`at repos-check` step. Do not restate those field rules

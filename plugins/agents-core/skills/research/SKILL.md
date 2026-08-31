@@ -9,7 +9,7 @@ metadata:
 # Research
 
 Dispatch the work to a background `researcher` subagent so the main thread keeps moving. Without
-subagents, run the same job inline under the researcher personality (`subagent-protocol` skill,
+subagents, run the same job inline under the researcher personality (`agents-core:subagent-protocol` skill,
 references/personalities/researcher.md).
 
 Its job:

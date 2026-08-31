@@ -44,9 +44,10 @@ rules below are the repo-specific constraints those two do not decide.
 - Keep `metadata.source` provenance when moving an existing skill.
 - Put a skill in the plugin that matches its audience (see the table in `README.md`);
   `agents-core` stays small because it is always enabled.
-- Name a skill from another plugin as `plugin:skill` (`agents-tasks:add-task`), never bare. Claude
-  Code resolves skills by that id, and an unqualified name makes the reader guess the prefix —
-  usually wrong. Same-plugin references stay bare.
+- Name every skill by its full `plugin:skill` id (`agents-tasks:add-task`), never bare — including
+  skills in your own plugin. Claude Code resolves skills by that id, and a bare name makes the reader
+  guess the prefix. A bare core name sitting among prefixed ones reads as an elision and teaches the
+  wrong guess, so there is no safe exemption.
 
 ## Versioning and release
 

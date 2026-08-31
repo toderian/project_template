@@ -17,7 +17,7 @@ repos. Areas are long-lived capabilities such as `runtime-platform`, `billing-pl
 This workflow indexes real architecture so future agents can orient from `docs/resources/<area>/`
 instead of rediscovering repo relationships, package names, install modes, and runtime dependencies.
 
-Use `/cross-repo-feature` after an area exists to capture one concrete feature contract inside it.
+Use `/agents-tasks:cross-repo-feature` after an area exists to capture one concrete feature contract inside it.
 
 ## Agent Guidance
 
@@ -37,7 +37,7 @@ When guiding the user, enforce these defaults:
 - Use `unknown` for unproven ownership or dependency edges. Do not fill gaps with plausible guesses.
 - If the area supports independently deployed repos, record which repos can be upgraded separately and
   which version combinations must remain compatible.
-- Add drift signals that tell future agents when to run `/refresh-context`, such as API schema files,
+- Add drift signals that tell future agents when to run `/agents-tasks:refresh-context`, such as API schema files,
   env/config definitions, package manifests, Dockerfiles, generated SDK outputs, and contract docs.
 - When an area changes the top-level repo/capability picture, update or recommend updating
   `docs/resources/system-map.md`. The system map should link to this area's docs and record status; it
@@ -47,7 +47,7 @@ When guiding the user, enforce these defaults:
 
 The full path taxonomy — what lives under `docs/resources/<area>/` (`summary.md`, `dependency-graph.md`,
 `attachments/`, `contracts/`, `runbooks/`, `components/`) — is owned by
-the `knowledge-base` skill §"Source of truth split". Follow it rather than
+the `agents-tasks:knowledge-base` skill §"Source of truth split". Follow it rather than
 re-deriving paths here. Area-specific reminders:
 
 - `docs/areas/<area>.md` remains the generated task-status page. It is useful work-status evidence, not
@@ -164,7 +164,7 @@ repo-a -> package-name
 |--------------|------------------|-------------------|-------|
 
 ## Drift signals
-Files, manifests, or docs that should trigger `/refresh-context` when they change.
+Files, manifests, or docs that should trigger `/agents-tasks:refresh-context` when they change.
 ````
 
 Prefer explicit "unknown" or "not found" entries over confident filler.
@@ -181,7 +181,7 @@ area docs remain under `docs/resources/<area>/`.
 ### 6. Update System Map When Needed
 
 If the area adds or changes participant repos, critical flows, cross-repo boundaries, or capability
-ownership, update `docs/resources/system-map.md` or report that `/map-system` should run next. Keep the
+ownership, update `docs/resources/system-map.md` or report that `/agents-tasks:map-system` should run next. Keep the
 system map as an index with statuses and evidence links. Do not copy full dependency graphs or contract
 details into it.
 
@@ -194,7 +194,7 @@ End with:
 - files written or refreshed
 - system-map updates made or recommended
 - uncertain ownership or dependency facts
-- suggested next `/cross-repo-feature` contracts, if any
+- suggested next `/agents-tasks:cross-repo-feature` contracts, if any
 - commands/checks run
 
 Use the shared status vocabulary:

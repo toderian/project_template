@@ -10,7 +10,7 @@ metadata:
 
 ## Purpose
 
-A heavyweight plan → build → review → fix loop for a single piece of engineering work. Produces four durable artifacts under `specs/<slug>/` (`spec.md`, `design.md`, `tasks.md`, `review.md`) and dispatches parallel implementers via the existing `subagent-protocol`. Runtime-agnostic: same playbook and artifacts on Claude Code and Codex (dispatch mechanics differ — see Phase 2).
+A heavyweight plan → build → review → fix loop for a single piece of engineering work. Produces four durable artifacts under `specs/<slug>/` (`spec.md`, `design.md`, `tasks.md`, `review.md`) and dispatches parallel implementers via the existing `agents-core:subagent-protocol`. Runtime-agnostic: same playbook and artifacts on Claude Code and Codex (dispatch mechanics differ — see Phase 2).
 
 ## When to use
 
@@ -27,7 +27,7 @@ This is the heavyweight cousin of `agents-tasks:prd-to-plan`. Choose it when par
 - Exploratory spikes where you don't yet know what "done" looks like.
 - Anything one builder pass + one critic pass can cover.
 
-Forward those to the default operating loop in `AGENTS.md` § "Standard operating loop". From the `subagent-protocol` skill § "When to dispatch subagents": *if work is tightly coupled, stay single-agent*. The same logic gates this skill.
+Forward those to the default operating loop in `AGENTS.md` § "Standard operating loop". From the `agents-core:subagent-protocol` skill § "When to dispatch subagents": *if work is tightly coupled, stay single-agent*. The same logic gates this skill.
 
 ## Composition with the PRD chain
 
@@ -144,7 +144,7 @@ Groups are sequenced.
 - [ ] F1.1 <one-line task> — addresses: review.md § "Iteration 1" finding 3
 ```
 
-Each task line gets a status annotation once dispatched. Glyphs and status text reuse the `subagent-protocol` skill § "Status vocabulary":
+Each task line gets a status annotation once dispatched. Glyphs and status text reuse the `agents-core:subagent-protocol` skill § "Status vocabulary":
 
 | Glyph | Status |
 |-------|--------|
@@ -193,7 +193,7 @@ No parallel `AGENT_TASKS.json` for this skill — `tasks.md` is the single state
 1. Resolve input source (issue / file / intent). Use `gh issue view N` only if input is an issue number.
 2. Pick `<slug>`; confirm with the user; create `specs/<slug>/` if missing.
 3. Draft `spec.md` from input. Stop and resolve any "Open questions" with the user before
-   proceeding — run the `grilling` skill when there is more than one of them.
+   proceeding — run the `agents-core:grilling` skill when there is more than one of them.
 4. Explore the codebase to ground design choices using Read / Grep / Glob — **single-agent**, no subagent dispatch yet.
 5. Draft `design.md`.
 6. Draft `tasks.md` with parallel groups marked.
@@ -203,13 +203,13 @@ No parallel `AGENT_TASKS.json` for this skill — `tasks.md` is the single state
 
 Group tasks into parallel-safe sets (no shared files, no ordering dependency). For each group:
 
-1. For each task, construct a dispatch brief per the `subagent-protocol` skill § "Dispatch briefing format". Required fields:
+1. For each task, construct a dispatch brief per the `agents-core:subagent-protocol` skill § "Dispatch briefing format". Required fields:
    - Task description (from the `tasks.md` line).
    - Acceptance criteria (lifted from the task + linked `spec.md` criterion).
    - Scope fence (file globs from the task).
    - Personality: the `builder` personality (subagent-protocol skill, references/personalities/builder.md).
    - Context files: `specs/<slug>/spec.md`, `specs/<slug>/design.md`, plus task-relevant existing source files.
-   - Model hint per the `subagent-protocol` skill § "Model selection".
+   - Model hint per the `agents-core:subagent-protocol` skill § "Model selection".
 2. Dispatch the group. **Runtime parity, not runtime identity:**
    - **Claude Code:** use the `Task` tool with `subagent_type: implementer` to dispatch all tasks in the group in parallel.
    - **Codex:** use Codex multi-agent tools when available. If unavailable, invoke the behavioral
@@ -217,7 +217,7 @@ Group tasks into parallel-safe sets (no shared files, no ordering dependency). F
      interleave" intent.
    - Both runtimes use the same brief shape and the same status vocabulary.
 3. Collect each subagent's structured report. Annotate the corresponding `tasks.md` line with its returned status (glyph + status text per § "File schemas").
-4. If any task returns `BLOCKED` or `NEEDS_CONTEXT`, follow the `subagent-protocol` skill § "Escalation rules". Never re-dispatch with an identical prompt.
+4. If any task returns `BLOCKED` or `NEEDS_CONTEXT`, follow the `agents-core:subagent-protocol` skill § "Escalation rules". Never re-dispatch with an identical prompt.
 5. Repeat for the next group until every task in every group is `DONE` or `DONE_WITH_CONCERNS`.
 
 ## Phase 3 — Review
@@ -226,7 +226,7 @@ Group tasks into parallel-safe sets (no shared files, no ordering dependency). F
 2. Build a reviewer brief:
    - Context files: `specs/<slug>/spec.md`, `specs/<slug>/tasks.md`, plus the diff range.
    - Personalities: the `reviewer` personality (subagent-protocol skill, references/personalities/reviewer.md) + the `critic` personality (subagent-protocol skill, references/personalities/critic.md).
-   - Acceptance: two-stage review per the `subagent-protocol` skill § "Two-stage review" — Stage 1 spec compliance (PASS/FAIL), Stage 2 code quality.
+   - Acceptance: two-stage review per the `agents-core:subagent-protocol` skill § "Two-stage review" — Stage 1 spec compliance (PASS/FAIL), Stage 2 code quality.
 3. Dispatch one reviewer:
    - **Claude Code:** `Task` tool with `subagent_type: reviewer`.
    - **Codex:** invoke the `/reviewer` skill.
@@ -246,7 +246,7 @@ When terminating, append a final `### Verdict` line to the last iteration in `re
 
 ## Recursive mitigation
 
-Dispatched implementer and reviewer subagents must **not** load `AGENTS.md` or scan the skills directory — per `.claude/agents/implementer.md` § "What NOT to do" and the `subagent-protocol` skill § "Recursive mitigation".
+Dispatched implementer and reviewer subagents must **not** load `AGENTS.md` or scan the skills directory — per `.claude/agents/implementer.md` § "What NOT to do" and the `agents-core:subagent-protocol` skill § "Recursive mitigation".
 
 spec-workflow is the orchestrator; the implementer/reviewer subagents are leaves. This prevents recursive expansion if a sub-implementer is ever tempted to invoke spec-workflow itself.
 

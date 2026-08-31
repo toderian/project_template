@@ -15,9 +15,9 @@ isn't the bottleneck; this skill enforces the discipline of finding the real hot
 before changing anything, and proving each change moved the metric before keeping it.
 
 Use this when the user wants to optimize performance, reduce latency, cut memory, or asks "why is this
-slow?" and the goal is *improvement against a baseline*. This is distinct from `diagnose`, which is the
+slow?" and the goal is *improvement against a baseline*. This is distinct from `agents-core:diagnose`, which is the
 loop for a performance *regression* (something that got slower and you need to find what changed).
-Reach for `diagnose` to localize a regression; reach for this skill to optimize a known, measured hot
+Reach for `agents-core:diagnose` to localize a regression; reach for this skill to optimize a known, measured hot
 path.
 
 ## The discipline

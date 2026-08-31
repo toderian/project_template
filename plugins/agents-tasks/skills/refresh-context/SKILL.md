@@ -21,14 +21,14 @@ other docs. It is a maintenance workflow, not a brainstorming workflow.
 
 The full path taxonomy — what lives under `docs/resources/` (glossary, `system-map.md`, area
 `summary.md`/`dependency-graph.md`/`contracts/`/`runbooks/`/`attachments/`/`components/`, `_inbox`,
-`_digests`) — is owned by the `knowledge-base` skill §"Source of truth
+`_digests`) — is owned by the `agents-tasks:knowledge-base` skill §"Source of truth
 split". Follow it rather than re-deriving paths here. Refresh-specific reminders:
 
 - `docs/resources/CONTEXT.md` is the primary domain glossary; root `CONTEXT.md` is only a
   pointer/legacy fallback.
 - Generated `docs/areas/<area>.md` pages belong to the ledger generator — never hand-edit them.
 - Refresh uses curated `docs/resources/_digests/` as evidence; raw `_inbox/` processing belongs to
-  `/distill-knowledge`.
+  `/agents-tasks:distill-knowledge`.
 - `.local/runbooks/` and `.local/repos.map` hold machine-local values and must not be cited in
   committed docs.
 
