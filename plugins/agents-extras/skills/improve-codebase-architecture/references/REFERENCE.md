@@ -1,7 +1,7 @@
 # Reference
 
 Dependency categories (in-process, local-substitutable, remote-but-owned, true-external) and the
-replace-don't-layer testing rule live in the `codebase-design` skill
+replace-don't-layer testing rule live in the `agents-core:codebase-design` skill
 (references/deepening.md). This file holds only the RFC issue template.
 
 ## Issue Template

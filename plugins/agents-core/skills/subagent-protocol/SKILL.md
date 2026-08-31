@@ -12,7 +12,7 @@ metadata:
 
 Define how agents dispatch, communicate with, and review subagent work. This is the authoritative reference for multi-agent coordination in any project using this template.
 
-For writing good task briefs, see `github-triage` skill references/AGENT-BRIEF.md.
+For writing good task briefs, see `agents-extras:github-triage` skill references/AGENT-BRIEF.md.
 
 ## When to dispatch subagents
 

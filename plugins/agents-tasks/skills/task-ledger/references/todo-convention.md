@@ -195,7 +195,7 @@ Autonomy levels are permission ceilings layered on top of work mode and branch r
 - `L3`: L2 plus open/update draft PRs and validate PR status.
 
 No level authorizes merge, deploy, release, ready-for-review, force-push/history rewrite, broad
-connector writes, or secret exposure. See the `git-discipline` skill (references/autonomy-levels.md).
+connector writes, or secret exposure. See the `agents-core:git-discipline` skill (references/autonomy-levels.md).
 
 `.local/repos.map` is line-oriented:
 
@@ -477,13 +477,13 @@ depends on current external facts.
    when backed by code, tests, task history, or reviewed docs.
 3. **Plan-critic freshness/applicability review** - challenge whether the task is still valid, sequenced
    correctly, duplicated, stale, or overlapping later work. Use only the relevant axes from the
-   `planning-workflow` skill (references/plan-critique.md) for small tasks; run the full rubric for
+   `agents-core:planning-workflow` skill (references/plan-critique.md) for small tasks; run the full rubric for
    larger or riskier work.
 
 Claude Code may dispatch `researcher` and `plan-critic` subagents when isolated context is useful.
 Codex should use multi-agent tools if available; otherwise run equivalent bounded main-thread passes
-using the `researcher` personality (subagent-protocol skill, references/personalities/researcher.md)
-and the plan-critique convention (planning-workflow skill, references/plan-critique.md).
+using the `researcher` personality (agents-core:subagent-protocol skill, references/personalities/researcher.md)
+and the plan-critique convention (agents-core:planning-workflow skill, references/plan-critique.md).
 
 If the reviews find stale assumptions, duplicate work, ordering issues, or overlapping later tasks,
 reconcile before implementation. Agents may update roadmap ordering, task notes, area status, and

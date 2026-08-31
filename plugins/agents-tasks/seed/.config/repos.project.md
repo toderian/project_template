@@ -27,7 +27,7 @@ Work mode meaning:
 - `ask`: ask before edits or branch changes.
 
 Most repos should use `default-branch` or `same-branch`, not per-task branching. Work mode decides
-*where* work happens; the autonomy ceiling decides *how far* it may go (see the `git-discipline`
+*where* work happens; the autonomy ceiling decides *how far* it may go (see the `agents-core:git-discipline`
 skill); the stricter rule wins. Validate this file with `at repos-check` (add `--local` to also check
 `.local/repos.map`).
 

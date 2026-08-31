@@ -22,13 +22,13 @@ You may skip steps if you don't consider them necessary.
 
 2. Explore the repo to verify their assertions and understand the current state of the codebase.
 
-3. Run the `grilling` skill on this plan. If the project already has — or is starting — a
+3. Run the `agents-core:grilling` skill on this plan. If the project already has — or is starting — a
    domain glossary or ADR log, also run `domain-modeling` so terminology and decisions are
    captured inline.
 
 4. Sketch out the major modules you will need to build or modify to complete the implementation. Actively look for opportunities to extract deep modules that can be tested in isolation.
 
-A deep module encapsulates a lot of behaviour behind a small, testable interface that rarely changes; see the `codebase-design` skill for the vocabulary.
+A deep module encapsulates a lot of behaviour behind a small, testable interface that rarely changes; see the `agents-core:codebase-design` skill for the vocabulary.
 
 Check with the user that these modules match their expectations. Check with the user which modules they want tests written for.
 
@@ -90,8 +90,8 @@ Any further notes about the feature.
 
 6. After the PRD is complete, ask the user: **"Would you like me to generate tasks from this PRD?"**
 
-   If yes, follow the `task-ledger` skill (references/todo-convention.md) to create area-prefixed task files in
+   If yes, follow the `agents-tasks:task-ledger` skill (references/todo-convention.md) to create area-prefixed task files in
    `docs/tasks_manager/_todos/`. Create one task per vertical slice or major actionable item. Set
    `Source` to `write-a-prd` and `Source ref` to the PRD identifier (issue number, file path, etc.).
 
-   If the user declines, remind them they can run `/prd-to-todos` later to extract tasks from the PRD.
+   If the user declines, remind them they can run `/agents-tasks:prd-to-todos` later to extract tasks from the PRD.

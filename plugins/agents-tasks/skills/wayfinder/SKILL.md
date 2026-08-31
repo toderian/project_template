@@ -71,17 +71,17 @@ Every ticket is either **HITL** (worked _with_ a human who speaks for themselves
 the agent alone). A HITL ticket only resolves through that live exchange; the agent never stands in for
 the human's side of it — a grilling that answers its own questions has broken this.
 
-- **grilling** (HITL, the default): conversation. Invoke `grilling` and `domain-modeling`.
+- **grilling** (HITL, the default): conversation. Invoke `agents-core:grilling` and `agents-extras:domain-modeling`.
 - **research** (AFK): a fact a decision waits on, from docs, third-party APIs, or the knowledge base.
-  Invoke the `research` skill; findings land under `docs/resources/_reports/research/` and the ticket
+  Invoke the `agents-core:research` skill; findings land under `docs/resources/_reports/research/` and the ticket
   links them.
 - **prototype** (HITL): raise the fidelity of the discussion with a cheap, rough, concrete artifact to
-  react to. Invoke `prototype` and link what it produced.
+  react to. Invoke `agents-core:prototype` and link what it produced.
 - **task** (HITL or AFK): manual work that must happen before a _decision_ can be made — signing up for
   a service so its API can be judged, provisioning access, moving data so its shape can be seen.
   Nothing to decide, but the discussion is blocked until it is done. The agent drives it alone where it
   can; otherwise it hands the human a precise checklist. When the blocker is another person's
-  knowledge, `to-questionnaire` is the artifact. The answer records what was done and any facts later
+  knowledge, `agents-extras:to-questionnaire` is the artifact. The answer records what was done and any facts later
   tickets depend on (where credentials live, new URLs, row counts).
 
 ## Fog of war
@@ -113,19 +113,19 @@ which records the route actually walked.
 
 The user invokes with a loose idea.
 
-1. **Name the destination.** Invoke `grilling` and `domain-modeling` to pin down what this map is
+1. **Name the destination.** Invoke `agents-core:grilling` and `agents-extras:domain-modeling` to pin down what this map is
    finding its way to. The destination fixes the scope, so it settles first.
 2. **Map the frontier.** Grill again, **breadth-first**: fan out across the whole space rather than
    deep on any one thread, surfacing the open decisions and the first steps takeable now. **If this
    surfaces no fog** — the way is already clear, the journey small enough for one session — say so and
-   stop: use `add-task` or `planning-workflow` instead of a map.
+   stop: use `add-task` or `agents-core:planning-workflow` instead of a map.
 3. **Create the map.** `at reserve task <PREFIX> R <slug>`, then fill
    [references/map-template.md](references/map-template.md): Destination and Notes written, Decisions
    so far empty, the fog sketched into Not yet specified.
 4. **Create the tickets you can specify now**, then wire `Blocked by` in a **second pass** once they
    all have ids. Wiring sorts them into the frontier and the blocked; everything you cannot yet specify
    stays in the fog.
-5. **Fire the research tickets.** For each `research` ticket, invoke `research` so they resolve in
+5. **Fire the research tickets.** For each `research` ticket, invoke `agents-core:research` so they resolve in
    parallel while the conversation continues.
 6. Log the charting session, run `at ledger sync && at ledger check`, and **stop**. Charting is one
    session's work; it hand-resolves nothing.
@@ -153,8 +153,8 @@ decision, not the user.
 ## Hand off
 
 When the frontier is empty, the map has done its job: produce the destination artifact —
-`docs/_plans/<slug>.md` via `planning-workflow`, a spec via `task-spec-workflow`, implementation tasks
-via `prd-to-todos` with real `Blocked by` edges, ADRs via `domain-modeling` — link it from the map, then
+`docs/_plans/<slug>.md` via `agents-core:planning-workflow`, a spec via `agents-core:task-spec-workflow`, implementation tasks
+via `prd-to-todos` with real `Blocked by` edges, ADRs via `agents-extras:domain-modeling` — link it from the map, then
 close the map with `/complete-task`. The harvest names the artifacts the map produced.
 
 ## Quality bar

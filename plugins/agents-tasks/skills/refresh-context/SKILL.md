@@ -135,7 +135,7 @@ For each affected area or component, gather evidence from the smallest useful se
 
 When a subagent runtime is available and the scope splits cleanly, dispatch read-only researcher
 subagents per area or component. Use the status vocabulary and report block from
-the `subagent-protocol` skill; the scope fence must forbid file edits and ask
+the `agents-core:subagent-protocol` skill; the scope fence must forbid file edits and ask
 for cited findings only. If no subagent runtime is available, inspect sequentially on the main thread.
 
 ### 5. Update Only Stale Docs

@@ -46,7 +46,7 @@ Accept any of:
 - a clear idea that should become a task
 - a PRD/plan/contract that should drive a task
 
-If the input is a clear idea but no task exists, create one through `add-task` first. If the idea is
+If the input is a clear idea but no task exists, create one through `agents-tasks:add-task` first. If the idea is
 vague, capture it instead and stop; this workflow is for implementation-ready work.
 
 ### 2. Inspect Existing Context
@@ -54,7 +54,7 @@ vague, capture it instead and stop; this workflow is for implementation-ready wo
 Read:
 
 - the task or source PRD/plan/contract
-- the `task-ledger` skill (references/todo-convention.md)
+- the `agents-tasks:task-ledger` skill (references/todo-convention.md)
 - relevant `docs/resources/system-map.md`, area summaries, dependency graphs, contracts, component
   contexts, and task history
 - likely code/tests only as needed to ground the design

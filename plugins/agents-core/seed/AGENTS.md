@@ -47,31 +47,36 @@ Run every task through these passes, and loop again whenever a pass finds a real
 
 ## Routing table
 
+Skill ids below are `plugin:skill`. Invoke them as `/agents-core:tdd` in Claude Code, or `$tdd`
+(prefix dropped) in Codex. `agents-core` is always enabled; `agents-tasks`, `agents-extras` and
+`agents-personal` are opt-in, so an unknown id means that plugin is not installed here — list the
+available skills and pick from that instead of guessing another prefix.
+
 | Your task | Use |
 |---|---|
-| Implement a tracked task | `execute-plan` (+ `task-ledger` when `docs/tasks_manager/` exists) |
-| New feature or bug fix | `tdd` |
-| Something behaves unexpectedly | `diagnose` |
-| Scope or requirements unclear | `spec-workflow`, or `task-spec-workflow` for a tracked task |
-| Stress-test a plan or decision with the user | `/grill-me`, or `/grill-with-docs` when the glossary matters |
-| Effort too big for one session, way ahead unclear | `wayfinder` |
-| Before writing a plan | `planning-workflow` |
-| Facts needed from docs, APIs, or the web | `research` |
-| Auth, input handling, crypto, or AI surfaces | `security-review-owasp` |
-| Branch, commit, or push question | `git-discipline` |
-| Delegating work | `subagent-protocol` (agents: `implementer`, `reviewer`, `researcher`, `plan-critic`, `security-auditor`, `spec-validator`) |
-| Pausing or handing off | `handoff` |
-| Capture an idea, add a task, triage, plan horizons, close out | `capture-idea`, `add-task`, `triage-inbox`, `roadmap`, `complete-task` |
-| Durable notes, runbooks, ADRs | `knowledge-base`, `domain-modeling` for glossary and ADRs |
-| A decision only another person can answer | `to-questionnaire` |
-| An agent message that did not land | `/wait-what` |
-| Writing a skill, AGENTS.md, or an agent-facing doc | `writing-for-agents` |
-| A workflow worth rerunning | `workbook` |
-| Large, generated, or encrypted files | `artifacts-registry` |
-| Work spanning repos | `cross-repo-feature`, `cross-repo-pr-review`, `.config/repos.project.md` |
-| "Is this over-engineered?" | `simplicity-review` |
-| Module shape, interfaces, seams, testability | `codebase-design` |
-| Setting up this repo, or adopting a template update | `setup-project` (after `at update` + restart) |
+| Implement a tracked task | `agents-core:execute-plan` (+ `agents-tasks:task-ledger` when `docs/tasks_manager/` exists) |
+| New feature or bug fix | `agents-core:tdd` |
+| Something behaves unexpectedly | `agents-core:diagnose` |
+| Scope or requirements unclear | `agents-core:spec-workflow`, or `agents-core:task-spec-workflow` for a tracked task |
+| Stress-test a plan or decision with the user | `/agents-core:grill-me`, or `/agents-extras:grill-with-docs` when the glossary matters |
+| Effort too big for one session, way ahead unclear | `agents-tasks:wayfinder` |
+| Before writing a plan | `agents-core:planning-workflow` |
+| Facts needed from docs, APIs, or the web | `agents-core:research` |
+| Auth, input handling, crypto, or AI surfaces | `agents-core:security-review-owasp` |
+| Branch, commit, or push question | `agents-core:git-discipline` |
+| Delegating work | `agents-core:subagent-protocol` (agents: `implementer`, `reviewer`, `researcher`, `plan-critic`, `security-auditor`, `spec-validator`) |
+| Pausing or handing off | `agents-core:handoff` |
+| Capture an idea, add a task, triage, plan horizons, close out | `agents-tasks:capture-idea`, `agents-tasks:add-task`, `agents-tasks:triage-inbox`, `agents-tasks:roadmap`, `agents-tasks:complete-task` |
+| Durable notes, runbooks, ADRs | `agents-tasks:knowledge-base`, `agents-extras:domain-modeling` for glossary and ADRs |
+| A decision only another person can answer | `agents-extras:to-questionnaire` |
+| An agent message that did not land | `/agents-core:wait-what` |
+| Writing a skill, AGENTS.md, or an agent-facing doc | `agents-extras:writing-for-agents` |
+| A workflow worth rerunning | `agents-tasks:workbook` |
+| Large, generated, or encrypted files | `agents-tasks:artifacts-registry` |
+| Work spanning repos | `agents-tasks:cross-repo-feature`, `agents-tasks:cross-repo-pr-review`, `.config/repos.project.md` |
+| "Is this over-engineered?" | `agents-core:simplicity-review` |
+| Module shape, interfaces, seams, testability | `agents-core:codebase-design` |
+| Setting up this repo, or adopting a template update | `agents-core:setup-project` (after `at update` + restart) |
 
 The skills carry the detail; this file only routes. When a skill covers the task, follow it instead of
 improvising a workflow.

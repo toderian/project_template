@@ -68,7 +68,7 @@ Present designs sequentially so user can absorb each approach before comparison.
 ### 4. Compare Designs
 
 After showing all designs, compare them on the three axes that decide module shape (the
-`codebase-design` skill defines all three):
+`agents-core:codebase-design` skill defines all three):
 
 - **Depth** — leverage at the interface: how much behaviour a caller exercises per unit of interface
   it must learn.

@@ -17,7 +17,7 @@ break the decision against the actual text. A confident answer is not a correct 
 how you find out which kind you have.
 
 Use this when correctness matters more than speed, when working in unfamiliar code, or when the cost
-of being wrong is high. It complements `grilling` (which interrogates a *plan* with the user)
+of being wrong is high. It complements `agents-core:grilling` (which interrogates a *plan* with the user)
 and the `plan-critic` subagent (which scores a *plan*); doubt-driven-development operates one level
 down, on individual implementation decisions as they are made.
 
@@ -35,12 +35,12 @@ Run a doubt cycle before a decision becomes final when it:
 
 Do **not** run a cycle on trivial or reversible decisions. If a decision is easy to reverse, you'll
 just reverse it; spending a review round on it is waste. Mirror the discipline of the ADR offer test
-(the `knowledge-base` skill (references/adr-convention.md)): no real trade-off, no irreversibility → skip the doubt.
+(the `agents-tasks:knowledge-base` skill (references/adr-convention.md)): no real trade-off, no irreversibility → skip the doubt.
 
 ## The fresh-context reviewer
 
 Dispatch the reviewer using the dispatch briefing format in
-the `subagent-protocol` skill. The single most important rule comes from that
+the `agents-core:subagent-protocol` skill. The single most important rule comes from that
 protocol: **"the briefing prompt is the sole data channel."** That property is exactly what makes the
 review adversarial — the reviewer cannot be anchored by reasoning you never sent it.
 
@@ -62,10 +62,10 @@ Pick the engine that fits the decision:
 
 - **Plan-shaped decisions** (an approach, a sequencing, a structural choice) — dispatch the existing
   `plan-critic` subagent (`.claude/agents/plan-critic.md`) against the five-axis rubric in
-  the `planning-workflow` skill (references/plan-critique.md). Do not restate or fork that rubric here; reference it so
+  the `agents-core:planning-workflow` skill (references/plan-critique.md). Do not restate or fork that rubric here; reference it so
   there is one definition.
 - **Code-level decisions** (this function, this query, this boundary) — run the critic stance from
-  the `critic` personality (subagent-protocol skill, references/personalities/critic.md). Require each finding to be classified against the actual text:
+  the `critic` personality (agents-core:subagent-protocol skill, references/personalities/critic.md). Require each finding to be classified against the actual text:
   a quoted line plus the contract clause it violates. Reject vibe-level objections ("feels fragile")
   with no anchor.
 
@@ -88,7 +88,7 @@ looping.
 
 ## Report
 
-Close each cycle with the subagent-protocol report block. The top-level status must use the shared
+Close each cycle with the agents-core:subagent-protocol report block. The top-level status must use the shared
 vocabulary:
 
 - **DONE** — the decision survived review; findings are trivial or resolved.
@@ -100,7 +100,7 @@ vocabulary:
   escalate.
 
 If the decision was both hard-to-reverse and the result of a real trade-off, the surviving decision
-is also a candidate for an ADR (the `knowledge-base` skill (references/adr-convention.md)).
+is also a candidate for an ADR (the `agents-tasks:knowledge-base` skill (references/adr-convention.md)).
 
 ---
 *Adapted from [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) (MIT License).*

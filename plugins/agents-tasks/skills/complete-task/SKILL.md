@@ -113,7 +113,7 @@ For downstream repos, after the task is verified as `done`, archived, synced, an
 you may squash the task's own execution and closeout commits into one final task commit. This is a
 history-cleanup step, not a substitute for phase commits during execution.
 
-Route the cleanup through the `squash-workspace-commits` skill. That skill owns
+Route the cleanup through the `agents-core:squash-workspace-commits` skill. That skill owns
 the audit helper, safe auto-squash policy, pushed/shared-history refusal, unrelated-commit preservation
 rules, backup-ref requirements, and final squashed commit-message requirements.
 

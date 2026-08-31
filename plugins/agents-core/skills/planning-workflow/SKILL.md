@@ -71,7 +71,7 @@ When dispatching to a subagent for critique, use `.claude/agents/plan-critic.md`
 
 ### 6. Decomposition
 
-If the plan covers multiple independent slices, break them into trackable units. Use `prd-to-todos` (for `docs/tasks_manager/_todos/`) or `prd-to-issues` (for GitHub). Each slice should be independently shippable.
+If the plan covers multiple independent slices, break them into trackable units. Use `agents-tasks:prd-to-todos` (for `docs/tasks_manager/_todos/`) or `agents-extras:prd-to-issues` (for GitHub). Each slice should be independently shippable.
 
 ### 7. Plan output
 

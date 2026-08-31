@@ -7,7 +7,7 @@ the code and wonders "why on earth did they do it this way?" finds the answer in
 deliberate choice. The value is in capturing the rationale and the trade-off, not in filling out
 sections.
 
-ADRs are the durable home for architectural rationale. They are distinct from the `handoff` skill's
+ADRs are the durable home for architectural rationale. They are distinct from the `agents-core:handoff` skill's
 `assets/AGENT_DECISIONS.template.md`, which is a lightweight per-task decision log for agent handoffs
 within a single piece of work. Use an ADR when the decision will outlive the task.
 
@@ -83,7 +83,7 @@ Before committing an ADR:
 
 ## Related
 
-The `domain-modeling` skill creates ADRs inline as decisions crystallise during a grilling session,
+The `agents-extras:domain-modeling` skill creates ADRs inline as decisions crystallise during a grilling session,
 using this convention.
 
 ---

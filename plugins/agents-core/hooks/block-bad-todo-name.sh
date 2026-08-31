@@ -36,7 +36,7 @@ check_path() {
       echo "Expected: <PREFIX>-<NNN>-<TYPE>_<short-description>.md" >&2
       echo "Example:  AUTH-001-F_login-session.md" >&2
       echo "Rules: uppercase area prefix, zero-padded id, type F|D|C|R, underscore, lowercase hyphenated description, .md." >&2
-      echo "See the task-ledger skill: references/todo-convention.md." >&2
+      echo "See the agents-tasks:task-ledger skill: references/todo-convention.md." >&2
       return 2
     fi
     local PREFIX="${BASENAME%%-*}"
@@ -52,7 +52,7 @@ check_path() {
       echo "Expected: I-<NNN>_<short-description>.md" >&2
       echo "Example:  I-007_dark-mode-toggle.md" >&2
       echo "Rules: I- + zero-padded id, underscore, lowercase hyphenated description, .md." >&2
-      echo "See the task-ledger skill: references/inbox-convention.md." >&2
+      echo "See the agents-tasks:task-ledger skill: references/inbox-convention.md." >&2
       return 2
     fi
   fi
@@ -61,7 +61,7 @@ check_path() {
   DESCRIPTION="${DESCRIPTION%.md}"
   if [ "${#DESCRIPTION}" -ge 50 ]; then
     echo "BLOCKED: description '${DESCRIPTION}' is ${#DESCRIPTION} chars; must be under 50." >&2
-    echo "See the task-ledger skill: references/todo-convention.md (or inbox-convention.md)." >&2
+    echo "See the agents-tasks:task-ledger skill: references/todo-convention.md (or inbox-convention.md)." >&2
     return 2
   fi
 

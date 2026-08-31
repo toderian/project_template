@@ -46,7 +46,7 @@ used in the map. If the code uses a different word than the glossary canonicalis
 
 ### 5. Stop at the map
 
-This skill produces a map. It does not propose changes, write code, or critique the design. If the map surfaces a real architectural problem, mention it under "Open questions" and let the user decide whether to follow up with `improve-codebase-architecture` or `diagnose`.
+This skill produces a map. It does not propose changes, write code, or critique the design. If the map surfaces a real architectural problem, mention it under "Open questions" and let the user decide whether to follow up with `improve-codebase-architecture` or `agents-core:diagnose`.
 
 ## Quality bar
 

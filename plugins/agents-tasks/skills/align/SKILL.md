@@ -12,7 +12,7 @@ metadata:
 
 Check a proposed feature or change against the project's `PROJECT.md` before non-trivial work begins. Reports one of three verdicts — ALIGNED, NEEDS_CLARIFICATION, OUT_OF_SCOPE — with evidence from the file. The skill is a methodology, not a verdict-issuing service: the user remains in the loop on every meaningful judgment.
 
-This sits at the front of the adversarial review pipeline. `align` runs before planning. `planning-workflow` runs before implementation. `plan-critique` runs against the plan. `spec-validator` runs against the implementation. `security-auditor` runs against the diff. Each layer catches a different class of mistake.
+This sits at the front of the adversarial review pipeline. `align` runs before planning. `agents-core:planning-workflow` runs before implementation. `plan-critique` runs against the plan. `spec-validator` runs against the implementation. `security-auditor` runs against the diff. Each layer catches a different class of mistake.
 
 ## When to use
 
@@ -21,7 +21,7 @@ Invoke `/align` for:
 - non-trivial features (multiple files, multiple plausible approaches)
 - work where scope feels uncertain or the user is exploring
 - any feature whose value or fit you cannot articulate in one sentence against the project's goals
-- before `planning-workflow` for any change that warrants a plan
+- before `agents-core:planning-workflow` for any change that warrants a plan
 
 Skip `/align` for:
 
@@ -140,11 +140,11 @@ All three are valid. Silent drift (do the work without resolving the conflict) i
 - **Soft verdicts.** "Mostly aligned with minor concerns" is not a valid verdict — it is a refusal to choose. Pick one of ALIGNED / NEEDS_CLARIFICATION / OUT_OF_SCOPE and explain the evidence.
 - **Silent PROJECT.md edits.** Updating the alignment doc is a legitimate option but requires explicit user approval. An agent that rewrites `PROJECT.md` to make a feature fit is doing the wrong thing.
 - **Skipping the file read.** "I checked alignment based on context" is not the same as reading `PROJECT.md`. Read the file. Cite the lines.
-- **Using `/align` as a permission slip.** ALIGNED is not "go build whatever". The verdict says the *direction* is right; `planning-workflow` and downstream skills still apply to the *shape*.
+- **Using `/align` as a permission slip.** ALIGNED is not "go build whatever". The verdict says the *direction* is right; `agents-core:planning-workflow` and downstream skills still apply to the *shape*.
 
 ## When `/align` says ALIGNED
 
-Proceed to the next step. For non-trivial work that is the `planning-workflow` skill. For trivial work it is just implementation. The `/align` verdict travels with the work (mention it in the plan, the task, or the commit body when useful) so reviewers can see the basis for the decision.
+Proceed to the next step. For non-trivial work that is the `agents-core:planning-workflow` skill. For trivial work it is just implementation. The `/align` verdict travels with the work (mention it in the plan, the task, or the commit body when useful) so reviewers can see the basis for the decision.
 
 ## When `/align` says NEEDS_CLARIFICATION or OUT_OF_SCOPE
 

@@ -45,7 +45,7 @@ information. Name the `.creds/<file>` path or the environment variable instead o
 
 ### 5. Suggest the right skills
 
-End with a short "Suggested skills" section naming the playbooks the next session is likely to invoke (`planning-workflow`, `spec-workflow`, `tdd`, `triage-issue`, etc.). Use the names; the next agent will pick them up via the standard skill loader.
+End with a short "Suggested skills" section naming the playbooks the next session is likely to invoke (`planning-workflow`, `spec-workflow`, `tdd`, `agents-extras:triage-issue`, etc.). Use the names; the next agent will pick them up via the standard skill loader.
 
 ### 6. Tailor to the user-supplied argument
 

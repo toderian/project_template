@@ -25,7 +25,7 @@ completion criteria, leading words, pruning. Read it first; everything below ass
 0. **Read `writing-for-agents`** (and its references/skill-mechanics.md for the invocation choice).
 1. **Capture intent** — what the skill should enable, when it should trigger, what the output is.
 2. **Interview and research** — edge cases, input/output formats, example files, success criteria,
-   dependencies. Pull from the conversation first; ask the user only for the gaps. Run `grilling`
+   dependencies. Pull from the conversation first; ask the user only for the gaps. Run `agents-core:grilling`
    when the gaps are several and interdependent.
 3. **Draft** — write the skill directly in its plugin.
 4. **Try it on 2–3 realistic prompts** — the kind of thing a real user would actually say. Refine on
@@ -70,7 +70,7 @@ Edit the skill's own frontmatter in place; it is the single source of its metada
 - `metadata:` — optional; this repo uses it for provenance (`source:`, `pack:`). Keep `source` when
   moving or adapting an existing skill, and name the upstream commit when the skill is adapted from
   one.
-- `paths:` — optional glob list scoping the skill to part of the repo (see `task-ledger`).
+- `paths:` — optional glob list scoping the skill to part of the repo (see `agents-tasks:task-ledger`).
 
 ### Template
 

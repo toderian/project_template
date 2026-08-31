@@ -14,7 +14,7 @@ metadata:
 
 Explore a codebase like an AI would, surface architectural friction, discover opportunities for improving testability, and propose module-deepening refactors as GitHub issue RFCs.
 
-A **deep module** has a small interface hiding a large implementation: more testable, more AI-navigable, and testable at the seam instead of inside. The `codebase-design` skill defines depth, seams, leverage and locality; use its words here.
+A **deep module** has a small interface hiding a large implementation: more testable, more AI-navigable, and testable at the seam instead of inside. The `agents-core:codebase-design` skill defines depth, seams, leverage and locality; use its words here.
 
 ## Process
 
@@ -37,7 +37,7 @@ scattered with no clear hot spot should you widen the net across the repo.
 
 **Apply the deletion test** to anything you suspect is shallow: imagine deleting it — would complexity
 vanish (a pass-through) or reappear across N callers (it was earning its keep)? A "reappears" is the
-signal you want. The `codebase-design` skill defines the test and the rest of the vocabulary.
+signal you want. The `agents-core:codebase-design` skill defines the test and the rest of the vocabulary.
 
 ### 2. Present candidates
 
@@ -45,7 +45,7 @@ Present a numbered list of deepening opportunities. For each candidate, show:
 
 - **Cluster**: Which modules/concepts are involved
 - **Why they're coupled**: Shared types, call patterns, co-ownership of a concept
-- **Dependency category**: See the `codebase-design` skill (references/deepening.md) for the four categories
+- **Dependency category**: See the `agents-core:codebase-design` skill (references/deepening.md) for the four categories
 - **Test impact**: What existing tests would be replaced by boundary tests
 
 Do NOT propose interfaces yet. Ask the user: "Which of these would you like to explore?"
@@ -75,7 +75,7 @@ Each exploration outputs:
 1. Interface signature (types, methods, params)
 2. Usage example showing how callers use it
 3. What complexity it hides internally
-4. Dependency strategy (how deps are handled — see the `codebase-design` skill, references/deepening.md)
+4. Dependency strategy (how deps are handled — see the `agents-core:codebase-design` skill, references/deepening.md)
 5. Trade-offs
 
 Present designs sequentially, then compare them in prose.

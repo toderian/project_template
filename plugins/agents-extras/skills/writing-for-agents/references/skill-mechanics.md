@@ -32,8 +32,9 @@ neither can fire the other. Push it to a plain file both point at.
 Split off a model-invoked skill when you have a distinct leading word that should trigger it on its
 own (a trigger word you actually use in your prompts), or another skill must reach it. You pay
 context load for the new always-loaded description, so that independent reach has to be worth it.
-`grilling` and `domain-modeling` are this repo's worked examples: primitives split out of
-user-invoked routers (`grill-me`, `grill-with-docs`) precisely so other skills could reach them.
+`agents-core:grilling` and `domain-modeling` are this repo's worked examples: primitives split out of
+user-invoked routers (`agents-core:grill-me`, `grill-with-docs`) precisely so other skills could reach
+them.
 
 ## Router skills
 
@@ -51,3 +52,7 @@ table plays this role for downstream repos.
   templates to `assets/`, executables to `scripts/`.
 - Codex reads `disable-model-invocation: true` as its own no-implicit-invocation setting; there is no
   separate file to keep in sync.
+- Name a skill from another plugin by its full `plugin:skill` id (`agents-tasks:add-task`), never
+  bare. Claude Code invokes skills by that id, so a bare cross-plugin name leaves the reader guessing
+  a prefix — and the wrong guess is an "Unknown skill" error mid-task. Same-plugin names stay bare;
+  Codex users drop the prefix (`$add-task`).

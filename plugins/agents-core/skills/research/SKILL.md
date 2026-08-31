@@ -23,4 +23,4 @@ Its job:
    otherwise match whatever convention the repo already has, and say where it went.
 
 Report the path and the short answer to the question. Durable conclusions worth keeping graduate
-into `docs/resources/` through the `distill-knowledge` skill; the report itself is a snapshot.
+into `docs/resources/` through the `agents-tasks:distill-knowledge` skill; the report itself is a snapshot.

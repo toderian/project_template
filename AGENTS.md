@@ -31,9 +31,9 @@ Commit messages: `type: summary`, then `What changed:` / `Why:` / `Checks:` sect
 
 ## Writing skills
 
-Follow `writing-for-agents` for the prose (context pointers, the two loads, progressive disclosure,
-completion criteria, pruning) and `write-a-skill` for the mechanics. The rules below are the
-repo-specific constraints those two do not decide.
+Follow `agents-extras:writing-for-agents` for the prose (context pointers, the two loads, progressive
+disclosure, completion criteria, pruning) and `agents-extras:write-a-skill` for the mechanics. The
+rules below are the repo-specific constraints those two do not decide.
 
 - One `SKILL.md` per skill, ≤ 500 lines. Longer material goes to `references/`,
   templates to `assets/`, executables to `scripts/`.
@@ -44,6 +44,9 @@ repo-specific constraints those two do not decide.
 - Keep `metadata.source` provenance when moving an existing skill.
 - Put a skill in the plugin that matches its audience (see the table in `README.md`);
   `agents-core` stays small because it is always enabled.
+- Name a skill from another plugin as `plugin:skill` (`agents-tasks:add-task`), never bare. Claude
+  Code resolves skills by that id, and an unqualified name makes the reader guess the prefix —
+  usually wrong. Same-plugin references stay bare.
 
 ## Versioning and release
 

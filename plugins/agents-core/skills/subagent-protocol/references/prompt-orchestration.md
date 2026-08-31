@@ -33,7 +33,7 @@ Default path:
 
 ## Task Taxonomy
 
-Task filenames follow `<PREFIX>-<NNN>-<TYPE>_<short-description>.md` (the `task-ledger` skill,
+Task filenames follow `<PREFIX>-<NNN>-<TYPE>_<short-description>.md` (the `agents-tasks:task-ledger` skill,
 references/todo-convention.md §"File naming" is authoritative). `<TYPE>` — the third segment, not the leading `<PREFIX>` — is the
 routing hint below; `<PREFIX>` is the task's area (`T` reserved for global/cross-area work, e.g.
 `T-001-R_evaluate-ci.md`). Task types are routing hints, not a replacement for task files or area docs.
@@ -84,7 +84,7 @@ intake -> current-state review -> classify task -> select next phase -> gather w
        -> plan next slice -> verify plan -> critique risks -> checkpoint
 ```
 
-The `prompt-orchestration-long-task` workbook example (see the `workbook` skill) contains a
+The `prompt-orchestration-long-task` workbook example (see the `agents-tasks:workbook` skill) contains a
 standard-library helper that reads a task file and related workbook README, then prints a
 deterministic next-slice brief. Downstream projects can copy it to
 `workbooks/prompt-orchestration-long-task/` with `at init --with-workbooks` or by explicitly adopting
@@ -119,7 +119,7 @@ how to migrate from the simple workbook loop.
 
 - Do not create a new task schema.
 - Do not replace `docs/tasks_manager`.
-- Do not bypass `/complete-task` when a task is implemented or cancelled.
+- Do not bypass `/agents-tasks:complete-task` when a task is implemented or cancelled.
 - Do not add default LangChain, LangGraph, or provider SDK dependencies to the template.
 - Do not grant new autonomy permissions. Branch, commit, push, PR, connector, and secret rules remain
   governed by `AGENTS.md`, `.config/repos.project.md`, and the `git-discipline` skill

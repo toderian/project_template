@@ -35,6 +35,9 @@ than the body:
 Agents under-trigger more often than they over-trigger, so name the concrete contexts the document
 should fire in, including ones the user may never phrase explicitly.
 
+When a pointer names a skill the agent is meant to invoke, give the id it is invoked by, not a
+friendly short name. A name the agent cannot resolve is a pointer to nothing.
+
 ## The two loads
 
 Every document and pointer you add spends one of two budgets:

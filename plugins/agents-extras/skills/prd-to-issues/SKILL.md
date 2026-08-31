@@ -32,7 +32,7 @@ Break the PRD into **tracer bullet** issues. Each issue is a thin vertical slice
 
 Slices may be 'HITL' or 'AFK'. HITL slices require human interaction, such as an architectural decision or a design review. AFK slices can be implemented and merged without human interaction. Prefer AFK over HITL where possible.
 
-Follow the slice rules in the `prd-to-plan` skill (references/vertical-slicing.md).
+Follow the slice rules in the `agents-tasks:prd-to-plan` skill (references/vertical-slicing.md).
 
 ### 4. Quiz the user
 

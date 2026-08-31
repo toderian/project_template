@@ -76,7 +76,7 @@ The skill infers which structure applies:
 - If `docs/resources/CONTEXT.md` exists, single context
 - If only root `CONTEXT.md` exists, treat it as a legacy fallback or pointer
 - If neither exists, create `docs/resources/CONTEXT.md` lazily when the first term is resolved (use
-  the standard `docs/resources/CONTEXT.md` structure — see the `knowledge-base` skill)
+  the standard `docs/resources/CONTEXT.md` structure — see the `agents-tasks:knowledge-base` skill)
 
 The discovery and create locations above mean **docs-primary by default**, but follow the
 `CONTEXT_DOCS_DIR` redirect when set - see "Where the glossary lives" in the skill playbook. A

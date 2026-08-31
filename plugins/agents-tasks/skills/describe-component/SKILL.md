@@ -18,7 +18,7 @@ what it depends on, what data it owns, the non-obvious rules, and how it's teste
 This is the **architectural** counterpart to `docs/resources/CONTEXT.md`, which is a *domain glossary*
 (vocabulary, relationships). Keep the two distinct:
 
-- **`docs/resources/CONTEXT.md`** (maintained by `domain-modeling`) — what the words *mean* across the project.
+- **`docs/resources/CONTEXT.md`** (maintained by `agents-extras:domain-modeling`) — what the words *mean* across the project.
 - **Component `CONTEXT.md`** (this skill) — what *this part of the system* does and how it fits.
 
 A component doc should **link** to domain terms in the docs-primary glossary, not redefine them.
@@ -31,7 +31,7 @@ this module even do" understanding. It's a one-click-deep orientation doc that s
 ## When NOT to use it
 
 - For trivial components (a single small file) — a doc costs more than it saves.
-- For domain vocabulary — that belongs in `docs/resources/CONTEXT.md` via `domain-modeling`.
+- For domain vocabulary — that belongs in `docs/resources/CONTEXT.md` via `agents-extras:domain-modeling`.
 - For step-by-step how-tos or runbooks — this describes structure, not procedures.
 
 ## Process
@@ -69,7 +69,7 @@ tribal knowledge that isn't in the code. If you genuinely find none, say so rath
 
 If the component traffics in domain terms, link them to `docs/resources/CONTEXT.md` instead of
 redefining them. If you hit a domain word that *should* be in the glossary but isn't, note it and
-suggest running `domain-modeling` - don't silently define it in the component doc.
+suggest running `agents-extras:domain-modeling` - don't silently define it in the component doc.
 
 ### 5. Determine where to store it
 

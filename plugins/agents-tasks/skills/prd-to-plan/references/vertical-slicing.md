@@ -3,7 +3,7 @@
 ## Purpose
 
 Shared rules for breaking a PRD (or any large piece of work) into tracer-bullet vertical slices.
-Used by `prd-to-plan`, `prd-to-issues`, and (for its tracer-bullet framing) `prd-to-todos` — each of
+Used by `prd-to-plan`, `agents-extras:prd-to-issues`, and (for its tracer-bullet framing) `prd-to-todos` — each of
 those skills owns its own destination-specific output shape and "quiz the user" field list; this doc
 owns only the slicing rules and the shared quiz pattern that all three build on.
 

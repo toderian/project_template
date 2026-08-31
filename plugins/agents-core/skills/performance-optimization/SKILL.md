@@ -50,13 +50,13 @@ Optimize in a measured loop. Never skip step 2.
   staleness).
 - **Record the numbers.** Note baseline and post-change figures (and the workload) in the
   commit/PR/task so the win is verifiable and the next person doesn't re-litigate it. For rerunnable
-  benchmark output, follow the `knowledge-base` skill (references/generated-artifacts.md)
+  benchmark output, follow the `agents-tasks:knowledge-base` skill (references/generated-artifacts.md)
   (`docs/resources/_reports/<workflow>/...`).
 - **Prefer the cheap win.** Algorithmic and I/O-shape fixes (N+1 queries, missing index, redundant
   serialization, unbounded allocation) usually dwarf micro-optimizations. Exhaust those before
   hand-tuning inner loops.
 - **Consider an ADR** when an optimization makes the code meaningfully harder to read or locks in a
-  trade-off (e.g. caching with staleness risk) — see the `knowledge-base` skill (references/adr-convention.md).
+  trade-off (e.g. caching with staleness risk) — see the `agents-tasks:knowledge-base` skill (references/adr-convention.md).
 
 ---
 *Adapted from [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) (MIT License).*

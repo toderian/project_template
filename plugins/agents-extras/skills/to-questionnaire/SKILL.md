@@ -26,7 +26,7 @@ answer: who it goes to, and what they need back. The questions in the document t
 3. **Write the questionnaire.** Draft questions aimed at that gap, following the structure below.
    Save it to `docs/resources/_inbox/<YYYY-MM-DD>-questionnaire-<slug>.md` when
    `docs/resources/_inbox/` exists — the answered copy comes back to the same place and feeds
-   `distill-knowledge` — otherwise `to-questionnaire-<slug>.md` in the current directory. Report the
+   `agents-tasks:distill-knowledge` — otherwise `to-questionnaire-<slug>.md` in the current directory. Report the
    path. Done when the file exists and every item from step 2 is covered by a question.
 
 ## Document structure

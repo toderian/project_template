@@ -27,7 +27,7 @@ branch, repo, task, connector, or user rule wins.
 - Treat live writes as separate from live reads. Reading a PR is not permission to comment on it;
   reading a document is not permission to edit it.
 - Keep source-of-truth boundaries explicit. Durable project knowledge goes in `docs/resources/` (see
-  the `knowledge-base` skill); volatile connector state stays in the external system unless the user
+  the `agents-tasks:knowledge-base` skill); volatile connector state stays in the external system unless the user
   asks to record a sanitized summary.
 - Record connector actions in task execution logs, plan logs, PR bodies, or reports when they affect
   project state.

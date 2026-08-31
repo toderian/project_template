@@ -2,7 +2,7 @@
 
 > **This is a downstream-owned file.** Seeded by `at init --with-tasks` at
 > `docs/resources/CONTEXT.md`; fill in the project's domain language as it crystallises. The
-> `domain-modeling` skill reads and updates this file inline.
+> `agents-extras:domain-modeling` skill reads and updates this file inline.
 
 > Some templates also describe themselves; this one shows the structure. Replace the placeholders with
 > real terms; delete the explanatory blockquotes once you have filled in your first few entries.
@@ -30,7 +30,7 @@ _Avoid_: <overloaded word>.
 One-sentence definition of the person, system, team, or role that owns or triggers the concept.
 _Avoid_: <imprecise role name>.
 
-(Add more terms below as they crystallise. `domain-modeling` writes here when domain words come up
+(Add more terms below as they crystallise. `agents-extras:domain-modeling` writes here when domain words come up
 during planning.)
 
 ---
@@ -77,15 +77,15 @@ If the project has multiple bounded contexts, create `docs/resources/CONTEXT-MAP
 contexts and how they relate. Put per-context glossaries under `docs/resources/<context>/CONTEXT.md`.
 Keep root `CONTEXT.md` as a pointer, not the primary map or glossary.
 
-See the `domain-modeling` skill (references/CONTEXT-FORMAT.md) for the exact layout.
+See the `agents-extras:domain-modeling` skill (references/CONTEXT-FORMAT.md) for the exact layout.
 
 ---
 
 ## How agents should use this file
 
-- The `domain-modeling` skill reads this file while a plan is stress-tested, and writes back to it
+- The `agents-extras:domain-modeling` skill reads this file while a plan is stress-tested, and writes back to it
   inline when new terms are resolved.
-- The `diagnose`, `zoom-out`, and `refresh-context` skills consult it to use the project's canonical
+- The `agents-core:diagnose`, `agents-extras:zoom-out`, and `refresh-context` skills consult it to use the project's canonical
   vocabulary when describing code.
 - Updates to this file are appropriate any time a domain term is sharpened, an ambiguity is resolved,
   or a new bounded concept emerges. Implementation details, library names, framework choices, and

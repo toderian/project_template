@@ -11,8 +11,9 @@ metadata:
 # Codebase Design
 
 Design **deep modules**: a lot of behaviour behind a small interface, placed at a clean seam, testable
-through that interface. This is the vocabulary layer — `tdd`, `diagnose`, `design-an-interface`,
-`improve-codebase-architecture`, `zoom-out` and `write-a-prd` all use these words, and this is where
+through that interface. This is the vocabulary layer — `tdd`, `diagnose`,
+`agents-extras:design-an-interface`, `agents-extras:improve-codebase-architecture`,
+`agents-extras:zoom-out` and `agents-extras:write-a-prd` all use these words, and this is where
 they are defined. It is a reference to consult, not a session to run.
 
 ## Glossary
@@ -146,5 +147,5 @@ Good interfaces make testing natural.
 
 - Deepening a cluster given its dependencies — dependency categories and the replace-don't-layer
   testing rule: [references/deepening.md](references/deepening.md).
-- Exploring several radically different interfaces for one module: the `design-an-interface` skill.
-- Finding deepening candidates across a codebase: the `improve-codebase-architecture` skill.
+- Exploring several radically different interfaces for one module: the `agents-extras:design-an-interface` skill.
+- Finding deepening candidates across a codebase: the `agents-extras:improve-codebase-architecture` skill.

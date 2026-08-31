@@ -147,7 +147,7 @@ Use a prompt orchestration workbook when the workflow benefits from a durable pa
 
 Keep the first version vendor-neutral when possible. Add LangChain, LangGraph, provider SDKs, or other
 runtime dependencies only in downstream projects that need durable graph state, checkpoint/resume,
-branching, retries, human interrupts, or parallel lanes. See the `subagent-protocol` skill
+branching, retries, human interrupts, or parallel lanes. See the `agents-core:subagent-protocol` skill
 (references/prompt-orchestration.md).
 
 ## Relationship to Resources
