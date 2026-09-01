@@ -52,9 +52,10 @@ plugins/<plugin>/skills/<name>/scripts/     # helper scripts
 ```
 
 Both harnesses discover skills the same way: each plugin manifest points at its `skills/` directory,
-and every subdirectory with a `SKILL.md` is a skill. There is no authoring file, no generated
-wrapper, and no pack/selection file to keep in sync — `scripts/build.py` does not touch skills at all.
-Users opt into a whole plugin, never an individual skill.
+and every subdirectory with a `SKILL.md` is a skill. `SKILL.md` remains the authored copy. For a
+user-invoked skill, `scripts/build.py` generates the adjacent Codex invocation policy at
+`agents/openai.yaml`; never edit that generated file. Users opt into a whole plugin, never an
+individual skill.
 
 ## Frontmatter
 
@@ -65,7 +66,8 @@ Edit the skill's own frontmatter in place; it is the single source of its metada
   the only thing the agent sees when picking skills. Write it under the context-pointer rules in
   `agents-extras:writing-for-agents`.
 - `disable-model-invocation: true` — only for side-effect-heavy skills a human should start, or a
-  router. The description then becomes human-facing.
+  router. The description then becomes human-facing. Run `python3 scripts/build.py` to generate
+  Codex's `agents/openai.yaml`; the frontmatter flag stays the source for Claude.
 - `argument-hint:` — optional; set when the skill expects free-text arguments (a path, topic, slug).
 - `metadata:` — optional; this repo uses it for provenance (`source:`, `pack:`). Keep `source` when
   moving or adapting an existing skill, and name the upstream commit when the skill is adapted from
@@ -116,6 +118,7 @@ skills are fine; deceptive or covert capability skills are not.
 - [ ] Description carries triggers, is harness-neutral, ≤ 1,024 chars, and passes the context-pointer
       rules in `agents-extras:writing-for-agents`
 - [ ] Body under 500 lines; on-demand material disclosed to `references/`
+- [ ] `python3 scripts/build.py --check` confirms any explicit-only Codex policy is current
 - [ ] Every step ends on a completion criterion the agent can check
 - [ ] No no-op lines, no duplicated meaning, no restatement of what the environment already says
 - [ ] The "why" is explained for any non-obvious instruction

@@ -50,8 +50,9 @@ table plays this role for downstream repos.
   harness-neutral: write "the agent" and "the user", never a product name or a product's UI.
 - `name` must equal the directory name. Body ≤ 500 lines; longer material goes to `references/`,
   templates to `assets/`, executables to `scripts/`.
-- Codex reads `disable-model-invocation: true` as its own no-implicit-invocation setting; there is no
-  separate file to keep in sync.
+- Claude reads `disable-model-invocation: true`. Codex uses the generated `agents/openai.yaml` policy
+  beside the skill. Keep the frontmatter flag as the only authored source and run
+  `python3 scripts/build.py`; never hand-edit the generated policy.
 - Name every skill by its full `plugin:skill` id (`agents-tasks:add-task`), never bare — including a
   skill in the same plugin as the one you are writing. Claude Code invokes skills by that id, so a
   bare name leaves the reader guessing a prefix, and the wrong guess is an "Unknown skill" error

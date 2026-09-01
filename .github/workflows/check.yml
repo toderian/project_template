@@ -18,6 +18,9 @@ jobs:
       - name: Generated files are up to date
         run: python3 scripts/build.py --check
 
+      - name: Static Codex compatibility
+        run: python3 scripts/tests/test_codex_compat.py
+
       - name: Hook tests
         run: bash plugins/agents-core/hooks/tests/test-hooks.sh
 

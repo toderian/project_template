@@ -13,6 +13,7 @@ Edit only the sources. Everything else is written by `python3 scripts/build.py`.
 | `plugins/*/.claude-plugin/plugin.json` | `.claude-plugin/marketplace.json`, `.agents/plugins/marketplace.json`, `plugins/*/.codex-plugin/plugin.json` |
 | `plugins/*/hooks/hooks.json` | `plugins/*/hooks/hooks.codex.json` |
 | `plugins/agents-core/agents/*.md` | `plugins/agents-core/codex/agents/*.toml` (copied into the seed) |
+| `plugins/*/skills/*/SKILL.md` with `disable-model-invocation: true` | that skill's `agents/openai.yaml` Codex policy |
 
 Generated files carry a GENERATED banner: never hand-edit one, build and commit instead.
 
@@ -40,7 +41,8 @@ rules below are the repo-specific constraints those two do not decide.
 - Spec-shaped: what to do, in what order, with what checks — not an essay.
 - `description` is harness-neutral ("Use when …"), ≤ 1,024 characters, and never names a
   specific product UI. It is the only thing the model sees before loading the skill.
-- `disable-model-invocation: true` only for side-effect-heavy skills a human should start.
+- `disable-model-invocation: true` only for side-effect-heavy skills a human should start. Keep it
+  as the source; `build.py` generates the matching Codex invocation policy.
 - Keep `metadata.source` provenance when moving an existing skill.
 - Put a skill in the plugin that matches its audience (see the table in `README.md`);
   `agents-core` stays small because it is always enabled.
