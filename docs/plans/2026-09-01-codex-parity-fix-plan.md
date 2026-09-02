@@ -1,6 +1,6 @@
 # Codex parity repair and Claude-safe v1.2.1 release
 
-**Status:** executing  
+**Status:** complete
 **Base revision:** `4569c07`  
 **Repo:** `project_template`  
 **Branch / work mode:** `master` / `default-branch`  
@@ -25,7 +25,7 @@ diagnostics, instructions, and compatibility tests while preserving Claude Code 
 - [x] **Phase 4 — Live compatibility gates.** Add hermetic current/minimum Codex smoke coverage and
   validate skill, agent, hook, and task-recording behavior without making Codex mandatory for
   Claude-only contributors.
-- [ ] **Phase 5 — Review and release.** Run full validation, two independent implementation reviews,
+- [x] **Phase 5 — Review and release.** Run full validation, two independent implementation reviews,
   address findings, update the changelog, and run `scripts/release.sh 1.2.1`.
 
 ## Acceptance criteria
@@ -56,7 +56,7 @@ diagnostics, instructions, and compatibility tests while preserving Claude Code 
 
 ## Compatibility contract
 
-- Minimum supported Codex: `0.147.0`; pinned current validation target: `0.151.0`.
+- Minimum supported Codex: `0.147.0`; pinned current validation target: `0.152.1`.
 - Claude and Codex installation inventories stay independent. Plain `at update` selects only
   configured harnesses; explicit harness flags fail actionably when unavailable.
 - Codex Git marketplace update: run `codex plugin marketplace upgrade agents-template`, then
@@ -108,6 +108,21 @@ diagnostics, instructions, and compatibility tests while preserving Claude Code 
   plugins into a fresh home and validates inventory/cache shape, 71 skills, 10 explicit-only
   policies, six role files, hook manifest and allow/block behavior, cached `at` resolution, strict
   doctor, task capture, ledger validation, and repo-registry validation. CI requires it for Codex
-  0.147.0 and 0.151.0; ordinary local suites skip without Codex, while real releases require the
+  0.147.0 and 0.152.1; ordinary local suites skip without Codex, while real releases require the
   gate. Both pinned versions passed locally and the phase reviewer approved the gate boundaries.
-  Checks: pinned Codex 0.147.0 passed; pinned Codex 0.151.0 passed; release mechanics 32/32 passed.
+  Checks: pinned Codex 0.147.0 passed; pinned Codex 0.152.1 passed; release mechanics 32/32 passed.
+- **2026-09-02 — Final review round 1 addressed.** Independent functional and compatibility reviews
+  found mixed-harness task discovery, generated role namespace loss, stale-cache version display,
+  an outdated current-Codex pin, and two stale documentation claims. The resolver now searches both
+  harness caches, live inventory is authoritative for display, generated roles use full
+  `agents-core:<skill>` ids, CI/release pin current Codex 0.152.1, and the docs describe plugin hooks
+  and full skill ids. Regression tests cover each behavior. Both supported Codex endpoints pass the
+  expanded live smoke, including the installed `at update --codex` path.
+- **2026-09-02 — Phase 5 complete.** The functional reviewer approved the mixed-harness resolver,
+  live inventory display, installed update path, generated roles, hooks guidance, and Claude
+  preservation. The compatibility reviewer approved after the security-auditor source and generated
+  role were normalized to the full `agents-core:security-review-owasp` id and the regression test was
+  strengthened to reject bare referenced skill names. The full repository gate passed after the
+  final correction. Release preparation is complete; the authorized `scripts/release.sh 1.2.1`
+  invocation immediately following this plan update records the release commit and local `v1.2.1`
+  tag.

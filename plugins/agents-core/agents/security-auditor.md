@@ -1,6 +1,6 @@
 ---
 name: security-auditor
-description: Security review of implementation changes. Applies OWASP Top 10 + LLM Top 10 + Agentic AI checks via the security-review-owasp skill. Distinguishes real vulnerabilities from correctly-managed configuration. Use after implementation, before merge.
+description: Security review of implementation changes. Applies OWASP Top 10 + LLM Top 10 + Agentic AI checks via the agents-core:security-review-owasp skill. Distinguishes real vulnerabilities from correctly-managed configuration. Use after implementation, before merge.
 model: inherit
 tools:
   - Read
@@ -32,7 +32,7 @@ Apply the rubric in ${CLAUDE_PLUGIN_ROOT}/skills/security-review-owasp/SKILL.md 
 ## Process
 
 1. Read the changed files. Identify what categories of risk apply (auth, input handling, crypto, deserialization, AI tools, network calls, deps).
-2. For each applicable OWASP category from the security-review-owasp skill, mark a finding or a pass with brief justification.
+2. For each applicable OWASP category from the agents-core:security-review-owasp skill, mark a finding or a pass with brief justification.
 3. For secret detection:
    - grep changed source files for keys, tokens, passwords
    - check `.gitignore` covers `.env`, `.creds/`, `credentials.*`, and similar

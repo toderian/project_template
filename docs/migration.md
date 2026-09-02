@@ -116,7 +116,7 @@ To undo everything: `git reset --hard backup/pre-plugin-migration-<stamp>`.
 Open `AGENTS.md` and replace each `<!-- TODO-FILL … -->` slot: summary, commands, domain rules
 (already populated if the old file had project rules), repos/areas, people. Use
 `.no-commit/AGENTS.md.pre-migration` and the old `README.md` as source material. The
-`setup-project` skill walks through it.
+`agents-core:setup-project` skill walks through it.
 
 ```bash
 at doctor      # 0 warnings once the slots are filled

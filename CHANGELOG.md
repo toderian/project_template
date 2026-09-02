@@ -2,6 +2,32 @@
 
 Notable changes to agents-template. All four plugins share the version of the repository.
 
+## 1.2.1 — 2026-09-02
+
+### Fixed
+
+- Codex now receives generated `agents/openai.yaml` policy files for the ten skills whose Claude
+  source frontmatter disables model invocation. Those skills remain explicitly invocable, but are
+  no longer selected implicitly by either harness.
+- Generated Codex roles preserve full `agents-core:<skill>` ids when translating references from
+  Claude plugin-root paths, so role delegation can resolve the intended skill.
+- `at` discovers installed plugins and the optional `agents-tasks` seed independently across Claude
+  and Codex caches. Mixed installations, semantic version ordering, live-versus-stale cache display,
+  and current Codex local/Git marketplace update flows are handled explicitly.
+- `at doctor` keeps its repository-only default and adds strict `--claude`, `--codex`, and `--all`
+  checks; `at seed-path` exposes the installed seed used to adopt routing updates.
+
+### Changed
+
+- Agent-facing documentation consistently uses full `plugin:skill` ids and documents the distinct
+  Claude `/plugin:skill` and Codex `$plugin:skill` invocation forms, Codex hook trust, and `jq`.
+- CI and releases run a hermetic Codex compatibility smoke covering plugin installation, all 71
+  skills, ten invocation policies, six roles, hooks, updates, task capture, and ledger validation.
+  CI tests the minimum supported Codex `0.147.0` and current Codex `0.152.1`; ordinary local checks
+  still skip the live smoke when Codex is absent.
+- Claude manifests, source hook declarations, slash invocation, and update behavior remain intact;
+  the generated Codex additions are derived from the same existing sources.
+
 ## 1.2.0 — 2026-08-20
 
 ### Added

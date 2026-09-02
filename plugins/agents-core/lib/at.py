@@ -206,9 +206,8 @@ def cli_plugin_inventory(harness: str) -> dict[str, dict] | None:
 def find_tasks_root() -> Path | None:
     """Locate the installed agents-tasks plugin root, or None.
 
-    Order: $AT_TASKS_ROOT; the sibling plugin dir (dev checkout and Codex
-    marketplace layout `plugins/<name>/`); the newest version dir in the Claude
-    cache layout `<marketplace>/<plugin>/<version>/`.
+    Order: $AT_TASKS_ROOT; a sibling plugin dir in a source checkout; then the
+    newest semantic version across both harness caches (Claude wins a version tie).
     """
     env = os.environ.get("AT_TASKS_ROOT")
     if env:
@@ -217,11 +216,21 @@ def find_tasks_root() -> Path | None:
     sibling = core_root().parent / "agents-tasks"
     if (sibling / "skills").is_dir():
         return sibling
-    cached = core_root().parents[1] / "agents-tasks"
-    if cached.is_dir():
-        versions = [d for d in cached.iterdir() if (d / "skills").is_dir()]
-        if versions:
-            return max(versions, key=lambda d: _version_key(d.name))
+    home = Path.home()
+    candidates = []
+    for harness in ("codex", "claude"):
+        versions = cached_plugins_for_harness(harness, home).get("agents-tasks", [])
+        for installed_version in versions:
+            candidate = (
+                home / f".{harness}" / "plugins" / "cache" / MARKETPLACE
+                / "agents-tasks" / installed_version
+            )
+            if (candidate / "skills").is_dir():
+                candidates.append((
+                    _version_key(installed_version), harness == "claude", candidate,
+                ))
+    if candidates:
+        return max(candidates, key=lambda item: (item[0], item[1]))[2]
     return None
 
 
@@ -541,7 +550,7 @@ def _repo_doctor_findings(repo: Path) -> list[tuple[str, str]]:
         slots = text.count(TODO_SLOT_MARKER)
         if slots:
             findings.append(("WARN", f"AGENTS.md still has {slots} TODO-FILL project slot(s) to fill "
-                                     "(see the `setup-project` skill)"))
+                                     "(see the `agents-core:setup-project` skill)"))
         else:
             findings.append(("OK", "AGENTS.md project slots are filled"))
         status, missing = seed_drift(text)
@@ -931,9 +940,13 @@ def cmd_update(args: argparse.Namespace) -> int:
             versions = cached[harness].get(name, [])
             live_inventory = reported[harness] or {}
             reported_version = str(live_inventory.get(name, {}).get("version", ""))
-            newest = versions[-1] if versions else reported_version or "?"
-            extra = f"  (also cached: {', '.join(versions[:-1])})" if len(versions) > 1 else ""
-            print(f"    {name:<16} {newest}{extra}")
+            display_version = reported_version or (versions[-1] if versions else "?")
+            other_versions = [item for item in versions if item != display_version]
+            extra = (
+                f"  (also cached: {', '.join(other_versions)})"
+                if other_versions else ""
+            )
+            print(f"    {name:<16} {display_version}{extra}")
 
     if args.check:
         print("\nat update --check: read-only. Run `at update` to refresh the marketplace and "
@@ -1641,7 +1654,8 @@ def cmd_migrate(args: argparse.Namespace) -> int:
     if (with_tasks or with_artifacts or with_workbooks or with_repos) and find_tasks_root() is None:
         die("this repo needs the agents-tasks seed (task ledger, artifacts, workbooks or repo "
             "registry) but agents-tasks is not installed "
-            "(run: claude plugin install agents-tasks@agents-template, or set AT_TASKS_ROOT)")
+            "(Claude: claude plugin install agents-tasks@agents-template; "
+            "Codex: codex plugin add agents-tasks@agents-template; or set AT_TASKS_ROOT)")
 
     remotes = template_remotes(repo)
     old_agents = (repo / "AGENTS.md").read_text() if (repo / "AGENTS.md").exists() else ""

@@ -605,8 +605,8 @@ Prefer `agents-tasks:complete-task` for this workflow. Before changing a task to
 8. Run `at ledger sync`.
 9. Run `at ledger check`.
 
-Claude hooks may block or remind when a terminal task is missing a completion harvest or remains in the
-active `_todos/` directory. Codex has no hooks, so Codex agents must run the same validation manually.
+Plugin hooks may block or remind when a terminal task is missing a completion harvest or remains in
+the active `_todos/` directory. Run the same validation manually as the authoritative completion check.
 
 ## Listing tasks
 

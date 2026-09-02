@@ -109,6 +109,10 @@ HOOK_RC=$?
 set -e
 [[ "$HOOK_RC" == "2" ]] || fail "git safety hook did not block a forced push: $HOOK_OUTPUT"
 
+# Exercise the installed CLI's real local-marketplace update/reinstall path before using its cache.
+HOME="$TEST_HOME" "$CORE_CACHE/bin/at" update --codex >/dev/null || \
+  fail "at update --codex failed for the local marketplace"
+
 git -C "$PROJECT" init -q
 printf '# Codex live smoke\n' > "$PROJECT/README.md"
 export PATH="$CORE_CACHE/bin:$PATH"

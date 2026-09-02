@@ -318,8 +318,22 @@ root = at._plugin_root_from_record(
     "codex", "agents-core", {"version": "1.2.0"}, home,
 )
 assert root == active, (root, active)
+
+# The selected core harness does not constrain where task wrappers are found.
+cross_home = home / "cross-harness"
+claude_core = cross_home / ".claude/plugins/cache/agents-template/agents-core/1.2.0"
+codex_tasks = cross_home / ".codex/plugins/cache/agents-template/agents-tasks/1.2.0"
+(claude_core / "skills").mkdir(parents=True)
+(codex_tasks / "skills").mkdir(parents=True)
+at.os.environ.pop("AT_TASKS_ROOT", None)
+at.os.environ["HOME"] = str(cross_home)
+at.core_root = lambda: claude_core
+assert at.find_tasks_root() == codex_tasks
+claude_tasks = cross_home / ".claude/plugins/cache/agents-template/agents-tasks/1.2.0"
+(claude_tasks / "skills").mkdir(parents=True)
+assert at.find_tasks_root() == claude_tasks
 PYINVENTORY
-assert_eq "$?" "0" "live inventory preserves empty results and selects the active cache version"
+assert_eq "$?" "0" "live inventory and cross-harness task cache resolution are deterministic"
 
 # Codex command planning is source- and capability-aware and never emits plugin update.
 python3 - "$AT_PY" <<'PYCODEXPLAN'
@@ -352,7 +366,7 @@ PYCODEXPLAN
 assert_eq "$?" "0" "Codex update command plans cover local, modern Git and legacy Git"
 
 python3 - "$AT_PY" <<'PYUPDATEFLOW'
-import argparse, importlib.util, sys
+import argparse, contextlib, importlib.util, io, sys
 spec = importlib.util.spec_from_file_location("at", sys.argv[1])
 at = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(at)
@@ -377,6 +391,20 @@ at.installed_plugins = lambda: {
 at.cli_plugin_inventory = lambda harness: None
 at.shutil.which = lambda harness: f"/fake/{harness}"
 assert at.cmd_update(argparse.Namespace(check=True, claude=False, codex=False)) == 0
+
+# A successful live query is authoritative even when a newer stale cache exists.
+at.installed_plugins = lambda: {
+    "claude": {}, "codex": {"agents-core": ["1.2.0", "9.9.0"]},
+}
+at.cli_plugin_inventory = lambda harness: (
+    {"agents-core": {"version": "1.2.0", "enabled": True}}
+    if harness == "codex" else {}
+)
+display = io.StringIO()
+with contextlib.redirect_stdout(display):
+    display_rc = at.cmd_update(argparse.Namespace(check=True, claude=False, codex=False))
+assert display_rc == 0
+assert "agents-core      1.2.0  (also cached: 9.9.0)" in display.getvalue()
 
 claude = run_case(
     {"claude": {"agents-core": ["1.2.0"]}, "codex": {}},

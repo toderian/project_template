@@ -77,8 +77,16 @@ def render_codex_agent(md_path: Path) -> str:
     name = re.search(r"^name:\s*(.+)$", fm, re.M).group(1).strip()
     desc = re.search(r"^description:\s*(.+)$", fm, re.M).group(1).strip().strip('"')
     desc = desc.replace("\\", "\\\\").replace('"', '\\"')
-    body = re.sub(r"\$\{CLAUDE_PLUGIN_ROOT\}/skills/([\w-]+)/SKILL\.md", r"the `\1` skill ($\1)", body)
-    body = re.sub(r"\$\{CLAUDE_PLUGIN_ROOT\}/skills/([\w-]+)/references/([\w./-]+)", r"the `\1` skill's references/\2", body)
+    body = re.sub(
+        r"\$\{CLAUDE_PLUGIN_ROOT\}/skills/([\w-]+)/SKILL\.md",
+        r"the `agents-core:\1` skill ($agents-core:\1)",
+        body,
+    )
+    body = re.sub(
+        r"\$\{CLAUDE_PLUGIN_ROOT\}/skills/([\w-]+)/references/([\w./-]+)",
+        r"the `agents-core:\1` skill's references/\2",
+        body,
+    )
     body = body.replace('"""', "'''")
     return (f'# {GENERATED_BANNER.format(src=md_path.relative_to(ROOT))}\n'
             f'name = "{name}"\ndescription = "{desc}"\n'

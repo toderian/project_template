@@ -87,10 +87,10 @@ rm -f dirty.txt
 DRY_OUT="$(env -u AT_REQUIRE_CODEX_LIVE bash scripts/release.sh "$NEW_VERSION" --dry-run 2>&1)"; DRY_RC=$?
 assert_eq "$DRY_RC" "0" "release --dry-run exits 0: $DRY_OUT"
 if grep -q "would: set version to $NEW_VERSION" <<<"$DRY_OUT"; then pass; else fail "dry run names the version bump"; fi
-if grep -q "AT_REQUIRE_CODEX_LIVE=1 bash scripts/tests/run-all.sh" <<<"$DRY_OUT"; then
+if grep -q "AT_REQUIRE_CODEX_LIVE=1 AT_EXPECT_CODEX_VERSION=0.152.1 bash scripts/tests/run-all.sh" <<<"$DRY_OUT"; then
   pass
 else
-  fail "release requires the live Codex gate by default"
+  fail "release requires the pinned current Codex gate by default"
 fi
 if grep -q "dry run: nothing changed" <<<"$DRY_OUT"; then pass; else fail "dry run says it changed nothing"; fi
 assert_eq "$(versions)" "$EXPECT_OLD" "dry run leaves every version at $OLD_VERSION"
@@ -111,6 +111,7 @@ if [[ "$FULL" != "0" ]]; then
   # release mechanics use an explicit optional override so Claude-only contributors
   # can run this test without installing Codex.
   export AT_REQUIRE_CODEX_LIVE=0
+  unset AT_EXPECT_CODEX_VERSION
   REAL_OUT="$(AT_RELEASE_TEST=1 bash scripts/release.sh "$NEW_VERSION" 2>&1)"; REAL_RC=$?
   assert_eq "$REAL_RC" "0" "release exits 0: $REAL_OUT"
   assert_eq "$(versions)" "$EXPECT_NEW" "all four manifests and both marketplaces show $NEW_VERSION"

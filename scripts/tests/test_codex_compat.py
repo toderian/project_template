@@ -98,6 +98,29 @@ class SkillContractTests(unittest.TestCase):
             self.assertEqual(orphaned, [])
             self.assertEqual(conflicts, [])
 
+    def test_generated_codex_roles_use_full_skill_ids(self) -> None:
+        targets = build.targets(build.load_plugins())
+        source_dir = ROOT / "plugins/agents-core/agents"
+        target_dir = ROOT / "plugins/agents-core/codex/agents"
+        for source_path in sorted(source_dir.glob("*.md")):
+            target_path = target_dir / f"{source_path.stem}.toml"
+            rendered = targets[target_path]
+            referenced_skills = set(re.findall(
+                r"\$\{CLAUDE_PLUGIN_ROOT\}/skills/([a-z0-9-]+)/(?:SKILL\.md|references/)",
+                source_path.read_text(),
+            ))
+            with self.subTest(agent=source_path.name):
+                for skill in referenced_skills:
+                    self.assertIn(f"agents-core:{skill}", rendered)
+                    self.assertIsNone(re.search(
+                        rf"(?<!agents-core:){re.escape(skill)}", rendered
+                    ))
+                invocation_ids = re.findall(
+                    r"\$([a-z][a-z0-9-]*(?::[a-z][a-z0-9-]*)?)", rendered
+                )
+                self.assertTrue(all(":" in skill_id for skill_id in invocation_ids))
+                self.assertEqual(target_path.read_text(), rendered)
+
     def test_active_skill_references_are_harness_neutral(self) -> None:
         skill_files = [
             path for path in (ROOT / "plugins").glob("*/skills/**/*")

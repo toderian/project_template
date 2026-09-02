@@ -89,12 +89,16 @@ say "python3 scripts/build.py"
 if [[ "$DRY_RUN" == 0 ]]; then python3 scripts/build.py; fi
 
 REQUIRE_CODEX_LIVE=1
+EXPECT_CODEX_VERSION=0.152.1
 if [[ -n "${AT_RELEASE_TEST:-}" ]]; then
   REQUIRE_CODEX_LIVE="${AT_REQUIRE_CODEX_LIVE:-0}"
+  EXPECT_CODEX_VERSION="${AT_EXPECT_CODEX_VERSION:-}"
 fi
-say "AT_REQUIRE_CODEX_LIVE=$REQUIRE_CODEX_LIVE bash scripts/tests/run-all.sh"
+say "AT_REQUIRE_CODEX_LIVE=$REQUIRE_CODEX_LIVE AT_EXPECT_CODEX_VERSION=${EXPECT_CODEX_VERSION:-none} bash scripts/tests/run-all.sh"
 if [[ "$DRY_RUN" == 0 ]]; then
-  AT_REQUIRE_CODEX_LIVE="$REQUIRE_CODEX_LIVE" bash scripts/tests/run-all.sh
+  AT_REQUIRE_CODEX_LIVE="$REQUIRE_CODEX_LIVE" \
+    AT_EXPECT_CODEX_VERSION="$EXPECT_CODEX_VERSION" \
+    bash scripts/tests/run-all.sh
 fi
 
 say "git commit -m 'chore: release $VERSION'"
