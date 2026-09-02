@@ -30,7 +30,33 @@ jobs:
       - name: at CLI tests
         run: bash scripts/tests/test-at.sh
 
+  codex-live:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        codex-version: ["0.147.0", "0.151.0"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install jq and pinned Codex
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq jq
+          npm install --global "@openai/codex@${{ matrix.codex-version }}"
+
+      - name: Live Codex plugin compatibility
+        env:
+          AT_REQUIRE_CODEX_LIVE: "1"
+          AT_EXPECT_CODEX_VERSION: "${{ matrix.codex-version }}"
+        run: bash scripts/tests/test-codex-live.sh
+
 # `claude plugin validate` (in scripts/tests/run-all.sh) needs the Claude Code
 # CLI, which is not available here; the pre-commit hook covers it locally.
+# The live Codex job installs pinned minimum/current CLIs but makes no model call and needs no login.
 # The `at migrate` cases in test-at.sh print SKIP when their local downstream
 # clone sources are absent, which is always true on a runner.

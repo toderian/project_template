@@ -88,8 +88,14 @@ fi
 say "python3 scripts/build.py"
 if [[ "$DRY_RUN" == 0 ]]; then python3 scripts/build.py; fi
 
-say "bash scripts/tests/run-all.sh"
-if [[ "$DRY_RUN" == 0 ]]; then bash scripts/tests/run-all.sh; fi
+REQUIRE_CODEX_LIVE=1
+if [[ -n "${AT_RELEASE_TEST:-}" ]]; then
+  REQUIRE_CODEX_LIVE="${AT_REQUIRE_CODEX_LIVE:-0}"
+fi
+say "AT_REQUIRE_CODEX_LIVE=$REQUIRE_CODEX_LIVE bash scripts/tests/run-all.sh"
+if [[ "$DRY_RUN" == 0 ]]; then
+  AT_REQUIRE_CODEX_LIVE="$REQUIRE_CODEX_LIVE" bash scripts/tests/run-all.sh
+fi
 
 say "git commit -m 'chore: release $VERSION'"
 if [[ "$DRY_RUN" == 0 ]]; then

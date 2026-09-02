@@ -22,7 +22,7 @@ diagnostics, instructions, and compatibility tests while preserving Claude Code 
   updates, current Codex cache resolution, strict doctor modes, and `at seed-path`.
 - [x] **Phase 3 — Harness-neutral instructions.** Normalize active skill references, fix the skill
   authoring doctrine, and document Codex hook trust, `jq`, diagnostics, and updates.
-- [ ] **Phase 4 — Live compatibility gates.** Add hermetic current/minimum Codex smoke coverage and
+- [x] **Phase 4 — Live compatibility gates.** Add hermetic current/minimum Codex smoke coverage and
   validate skill, agent, hook, and task-recording behavior without making Codex mandatory for
   Claude-only contributors.
 - [ ] **Phase 5 — Review and release.** Run full validation, two independent implementation reviews,
@@ -104,3 +104,10 @@ diagnostics, instructions, and compatibility tests while preserving Claude Code 
   approved a correction to `tidy-repo`'s seeded-directory claim. Checks: static compatibility 8/8
   passed; all Claude plugin validations passed; full `run-all.sh` passed (54 hook, 9 ledger, 272 CLI,
   29 release tests).
+- **2026-09-02 — Phase 4 complete.** Added a hermetic no-login Codex smoke that installs all four
+  plugins into a fresh home and validates inventory/cache shape, 71 skills, 10 explicit-only
+  policies, six role files, hook manifest and allow/block behavior, cached `at` resolution, strict
+  doctor, task capture, ledger validation, and repo-registry validation. CI requires it for Codex
+  0.147.0 and 0.151.0; ordinary local suites skip without Codex, while real releases require the
+  gate. Both pinned versions passed locally and the phase reviewer approved the gate boundaries.
+  Checks: pinned Codex 0.147.0 passed; pinned Codex 0.151.0 passed; release mechanics 32/32 passed.
