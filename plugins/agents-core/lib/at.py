@@ -9,6 +9,7 @@ Subcommands:
   ledger       wrapper: `sync` | `check` | `rotate-log <TASK_ID>`
   reserve      wrapper: reserve an inbox idea or task filename
   repos-check  wrapper: validate `.config/repos.project.md`
+  seed-path    print the active agents-core seed AGENTS.md path
   version      print the agents-core plugin version
 
 Exit codes: 0 ok, 1 errors, 2 usage. Python 3 stdlib only, no third-party imports.
@@ -37,21 +38,31 @@ TODO_SLOT_MARKER = "<!-- TODO-FILL"
 
 RESOLVER = r"""#!/usr/bin/env bash
 # Resolver written by `at bootstrap` (agents-template). Safe to re-run.
-# Prefers the newest installed Claude plugin cache version, then the Codex
-# marketplace checkout, then $AT_DEV_ROOT for a local development checkout.
+# Prefers the newest installed plugin cache version across Claude and Codex,
+# then the Codex marketplace checkout, then $AT_DEV_ROOT for development.
 set -u
 
-newest_claude_cache() {
-  local base="$HOME/.claude/plugins/cache/agents-template/agents-core" version
-  [ -d "$base" ] || return 1
-  version="$(cd "$base" && ls -1d -- */ 2>/dev/null | tr -d / \
-    | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1)"
-  [ -n "$version" ] || return 1
-  printf '%s\n' "$base/$version/bin/at"
+newest_plugin_cache() {
+  python3 - "$HOME" <<'PY'
+import pathlib, re, sys
+home = pathlib.Path(sys.argv[1])
+candidates = []
+for harness, priority in ((".codex", 0), (".claude", 1)):
+    base = home / harness / "plugins" / "cache" / "agents-template" / "agents-core"
+    if not base.is_dir():
+        continue
+    for version in base.iterdir():
+        executable = version / "bin" / "at"
+        if version.is_dir() and executable.is_file():
+            key = tuple(int(part) for part in re.findall(r"\d+", version.name)) or (0,)
+            candidates.append((key, priority, str(executable)))
+if candidates:
+    print(max(candidates)[2])
+PY
 }
 
 candidates=()
-cached="$(newest_claude_cache)" && candidates+=("$cached")
+cached="$(newest_plugin_cache)" && [ -n "$cached" ] && candidates+=("$cached")
 candidates+=("$HOME/.codex/.tmp/marketplaces/agents-template/plugins/agents-core/bin/at")
 [ -n "${AT_DEV_ROOT:-}" ] && candidates+=("$AT_DEV_ROOT/plugins/agents-core/bin/at")
 
@@ -59,7 +70,7 @@ for candidate in "${candidates[@]}"; do
   [ -x "$candidate" ] && exec "$candidate" "$@"
 done
 
-echo "at: agents-core not installed (run: claude plugin install agents-core@agents-template)" >&2
+echo "at: agents-core not installed (Claude: claude plugin install agents-core@agents-template; Codex: codex plugin add agents-core@agents-template)" >&2
 exit 1
 """
 
@@ -103,6 +114,95 @@ def _version_key(name: str) -> tuple:
     return tuple(int(p) for p in parts) or (0,)
 
 
+def _run_capture(cmd: list[str], timeout: int = 15) -> subprocess.CompletedProcess | None:
+    """Run a read-only harness query and return None when it cannot be executed."""
+    try:
+        return subprocess.run(
+            cmd, capture_output=True, text=True, check=False, timeout=timeout,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return None
+
+
+def _run_json(cmd: list[str]) -> object | None:
+    proc = _run_capture(cmd)
+    if proc is None or proc.returncode != 0:
+        return None
+    try:
+        return json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        return None
+
+
+def cached_plugins_for_harness(harness: str, home: Path | None = None) -> dict[str, list[str]]:
+    """Return versioned agents-template cache entries for one harness."""
+    if harness not in {"claude", "codex"}:
+        raise ValueError(f"unknown harness: {harness}")
+    home = home or Path.home()
+    cache = home / f".{harness}" / "plugins" / "cache" / MARKETPLACE
+    found: dict[str, list[str]] = {}
+    if not cache.is_dir():
+        return found
+    for plugin in sorted(path for path in cache.iterdir() if path.is_dir()):
+        versions = sorted(
+            (version.name for version in plugin.iterdir() if version.is_dir()),
+            key=_version_key,
+        )
+        if versions:
+            found[plugin.name] = versions
+    return found
+
+
+def cli_plugin_inventory(harness: str) -> dict[str, dict] | None:
+    """Installed plugins reported by a harness, or None when the query failed."""
+    if harness == "claude":
+        data = _run_json(["claude", "plugin", "list", "--json"])
+        if not isinstance(data, list):
+            return None
+        records = data
+        out = {}
+        for record in records:
+            if not isinstance(record, dict):
+                continue
+            plugin_id = str(record.get("id", ""))
+            if not plugin_id.endswith(f"@{MARKETPLACE}"):
+                continue
+            name = plugin_id.rsplit("@", 1)[0]
+            current = out.get(name)
+            version_name = str(record.get("version", ""))
+            if current is None or _version_key(version_name) > _version_key(str(current.get("version", ""))):
+                out[name] = {
+                    "version": version_name,
+                    "enabled": record.get("enabled") is True,
+                    "install_path": record.get("installPath"),
+                }
+        return out
+    if harness == "codex":
+        data = _run_json(["codex", "plugin", "list", "--json"])
+        if not isinstance(data, dict) or not isinstance(data.get("installed"), list):
+            return None
+        records = data["installed"]
+        out = {}
+        for record in records:
+            if not isinstance(record, dict) or record.get("marketplaceName") != MARKETPLACE:
+                continue
+            name = str(record.get("name", ""))
+            if not name:
+                continue
+            marketplace_source = record.get("marketplaceSource")
+            out[name] = {
+                "version": str(record.get("version", "")),
+                "enabled": record.get("enabled") is True,
+                "installed": record.get("installed") is True,
+                "source_type": (
+                    marketplace_source.get("sourceType")
+                    if isinstance(marketplace_source, dict) else None
+                ),
+            }
+        return out
+    raise ValueError(f"unknown harness: {harness}")
+
+
 def find_tasks_root() -> Path | None:
     """Locate the installed agents-tasks plugin root, or None.
 
@@ -130,7 +230,8 @@ def tasks_root() -> Path:
     found = find_tasks_root()
     if found is None:
         die("agents-tasks is not installed "
-            "(run: claude plugin install agents-tasks@agents-template, "
+            "(Claude: claude plugin install agents-tasks@agents-template; "
+            "Codex: codex plugin add agents-tasks@agents-template; "
             "or set AT_TASKS_ROOT)")
     return found
 
@@ -413,8 +514,7 @@ def seed_drift(repo_agents_md: str) -> tuple[str, list[str]]:
     return ("behind", missing) if missing else ("current", [])
 
 
-def cmd_doctor(args: argparse.Namespace) -> int:
-    repo = repo_root()
+def _repo_doctor_findings(repo: Path) -> list[tuple[str, str]]:
     findings: list[tuple[str, str]] = []
 
     claude_md = repo / "CLAUDE.md"
@@ -480,12 +580,140 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     if (repo / "docs" / "tasks_manager").is_dir():
         _ledger_findings(repo, findings)
 
+    return findings
+
+
+def _active_cached_plugin_root(harness: str, plugin: str, home: Path | None = None) -> Path | None:
+    home = home or Path.home()
+    versions = cached_plugins_for_harness(harness, home).get(plugin, [])
+    if not versions:
+        return None
+    return home / f".{harness}" / "plugins" / "cache" / MARKETPLACE / plugin / versions[-1]
+
+
+def _plugin_root_from_record(
+    harness: str, plugin: str, record: dict, home: Path | None = None,
+) -> Path | None:
+    """Resolve the cache payload that corresponds to a harness inventory record."""
+    home = home or Path.home()
+    install_path = record.get("install_path")
+    if install_path:
+        return Path(str(install_path))
+    installed_version = str(record.get("version", ""))
+    if installed_version:
+        return (
+            home / f".{harness}" / "plugins" / "cache" / MARKETPLACE
+            / plugin / installed_version
+        )
+    return _active_cached_plugin_root(harness, plugin, home)
+
+
+def _cache_payload_missing(root: Path | None, harness: str, plugin: str) -> list[str]:
+    """Return missing or unusable files from one installed plugin payload."""
+    manifest = ".claude-plugin/plugin.json" if harness == "claude" else ".codex-plugin/plugin.json"
+    required_files = [manifest]
+    required_dirs = ["skills"]
+    if plugin == "agents-core":
+        required_files.extend(["bin/at", "lib/at.py", "seed/AGENTS.md"])
+        required_files.append(
+            "hooks/hooks.json" if harness == "claude" else "hooks/hooks.codex.json"
+        )
+        if harness == "codex":
+            required_dirs.append("codex/agents")
+    missing = [rel for rel in required_files if root is None or not (root / rel).is_file()]
+    missing.extend(rel for rel in required_dirs if root is None or not (root / rel).is_dir())
+    if root is not None and (root / "bin/at").is_file() and not os.access(root / "bin/at", os.X_OK):
+        missing.append("bin/at (not executable)")
+    return missing
+
+
+def _runtime_findings(repo: Path, harness: str, strict: bool) -> list[tuple[str, str]]:
+    """Machine/runtime checks. Advisory mode returns only actionable warnings."""
+    findings: list[tuple[str, str]] = []
+    issue = "ERROR" if strict else "WARN"
+    if shutil.which(harness) is None:
+        findings.append((issue, f"{harness} CLI is not on PATH"))
+        return findings
+    if strict:
+        findings.append(("OK", f"{harness} CLI is on PATH"))
+
+    inventory = cli_plugin_inventory(harness)
+    if inventory is None:
+        findings.append((issue, f"could not query the {harness} plugin inventory"))
+        return findings
+    core = inventory.get("agents-core")
+    if core is None:
+        findings.append((issue, f"agents-core@{MARKETPLACE} is not installed in {harness}"))
+        return findings
+    if not core.get("enabled"):
+        findings.append((issue, f"agents-core@{MARKETPLACE} is disabled in {harness}"))
+    elif strict:
+        findings.append(("OK", f"agents-core@{MARKETPLACE} is installed and enabled in {harness}"))
+
+    if harness == "codex":
+        marketplaces = _run_json(["codex", "plugin", "marketplace", "list", "--json"])
+        records = marketplaces.get("marketplaces", []) if isinstance(marketplaces, dict) else []
+        configured = any(
+            isinstance(record, dict) and record.get("name") == MARKETPLACE for record in records
+        )
+        if not configured:
+            findings.append((issue, f"{MARKETPLACE} marketplace is not configured in Codex"))
+        elif strict:
+            findings.append(("OK", f"{MARKETPLACE} marketplace is configured in Codex"))
+
+    cache_root = _plugin_root_from_record(harness, "agents-core", core)
+    missing = _cache_payload_missing(cache_root, harness, "agents-core")
+    if missing:
+        findings.append((issue, f"{harness} agents-core cache is incomplete: {', '.join(missing)}"))
+    elif strict:
+        findings.append(("OK", f"{harness} agents-core cache payload is complete"))
+
+    if shutil.which("jq") is None:
+        findings.append((issue, f"jq is required by the {harness} agents-core hooks"))
+    elif strict:
+        findings.append(("OK", "jq is available for plugin hooks"))
+
+    if harness == "codex":
+        expected_agents = sorted(path.name for path in (core_root() / "codex/agents").glob("*.toml"))
+        agent_root = (
+            core_root() / "codex/agents"
+            if repo == core_root().parents[1]
+            else repo / ".codex/agents"
+        )
+        missing_agents = [name for name in expected_agents if not (agent_root / name).is_file()]
+        if not expected_agents:
+            findings.append((issue, "Codex role source list is empty in agents-core"))
+        elif missing_agents:
+            findings.append((issue, f"Codex role files are missing: {', '.join(missing_agents)}"))
+        elif strict:
+            findings.append(("OK", f"all {len(expected_agents)} Codex role files are present"))
+    return findings
+
+
+def _print_doctor_findings(findings: list[tuple[str, str]]) -> int:
+
     for level, message in findings:
         print(f"{level:<5} {message}")
     errors = sum(1 for level, _ in findings if level == "ERROR")
     warns = sum(1 for level, _ in findings if level == "WARN")
     print(f"at doctor: {len(findings) - errors - warns} ok, {warns} warning(s), {errors} problem(s)")
     return 1 if errors else 0
+
+
+def cmd_doctor(args: argparse.Namespace) -> int:
+    repo = repo_root()
+    findings = _repo_doctor_findings(repo)
+    strict_harnesses = []
+    if getattr(args, "all_harnesses", False):
+        strict_harnesses = ["claude", "codex"]
+    elif getattr(args, "claude", False):
+        strict_harnesses = ["claude"]
+    elif getattr(args, "codex", False):
+        strict_harnesses = ["codex"]
+    if strict_harnesses:
+        for harness in strict_harnesses:
+            findings.extend(_runtime_findings(repo, harness, strict=True))
+    return _print_doctor_findings(findings)
 
 
 # --------------------------------------------------------------------------- #
@@ -607,38 +835,105 @@ def cmd_bootstrap(args: argparse.Namespace) -> int:
 # at update
 # --------------------------------------------------------------------------- #
 
-def installed_plugins(home: Path | None = None) -> dict[str, list[str]]:
-    """Plugins installed from this marketplace, mapped to the versions present in the cache.
+def installed_plugins(home: Path | None = None) -> dict[str, dict[str, list[str]]]:
+    """Cached agents-template plugins, kept separate by harness."""
+    return {
+        harness: cached_plugins_for_harness(harness, home)
+        for harness in ("claude", "codex")
+    }
 
-    The harness caches them as `<cache>/<marketplace>/<plugin>/<version>/`, so an older
-    version staying behind is normal — the newest entry is the one that loads.
-    """
-    home = home or Path.home()
-    found: dict[str, set[str]] = {}
-    for cache in (home / ".claude" / "plugins" / "cache" / MARKETPLACE,
-                  home / ".codex" / "plugins" / "cache" / MARKETPLACE):
-        if not cache.is_dir():
+
+def _command_supported(cmd: list[str]) -> bool:
+    proc = _run_capture([*cmd, "--help"])
+    return proc is not None and proc.returncode == 0
+
+
+def codex_update_commands(
+    plugin_names: list[str], source_type: str,
+    supports=None,
+) -> list[list[str]]:
+    """Build the supported Codex refresh/reinstall command sequence."""
+    supports = supports or _command_supported
+    commands: list[list[str]] = []
+    if source_type == "git":
+        upgrade = ["codex", "plugin", "marketplace", "upgrade", MARKETPLACE]
+        legacy_update = ["codex", "plugin", "marketplace", "update", MARKETPLACE]
+        if supports(upgrade[:-1]):
+            commands.append(upgrade)
+        elif supports(legacy_update[:-1]):
+            commands.append(legacy_update)
+        else:
+            raise ValueError("Codex supports neither marketplace upgrade nor marketplace update")
+    elif source_type != "local":
+        raise ValueError(f"unsupported Codex marketplace source type: {source_type or 'unknown'}")
+    commands.extend(
+        ["codex", "plugin", "add", f"{name}@{MARKETPLACE}"] for name in plugin_names
+    )
+    return commands
+
+
+def codex_marketplace_source_type() -> str | None:
+    data = _run_json(["codex", "plugin", "marketplace", "list", "--json"])
+    records = data.get("marketplaces", []) if isinstance(data, dict) else []
+    for record in records:
+        if not isinstance(record, dict) or record.get("name") != MARKETPLACE:
             continue
-        for plugin in sorted(d for d in cache.iterdir() if d.is_dir()):
-            versions = found.setdefault(plugin.name, set())
-            versions.update(v.name for v in plugin.iterdir() if v.is_dir())
-    return {name: sorted(versions) for name, versions in sorted(found.items())}
+        source = record.get("marketplaceSource")
+        if isinstance(source, dict):
+            source_type = source.get("sourceType")
+            return str(source_type) if source_type else None
+    return None
+
+
+def _verify_codex_cache(plugin_names: list[str]) -> list[str]:
+    """Return verification problems after a Codex reinstall."""
+    problems = []
+    inventory = cli_plugin_inventory("codex")
+    if inventory is None:
+        return ["could not query the Codex plugin inventory"]
+    for name in plugin_names:
+        record = inventory.get(name)
+        if record is None or not record.get("installed") or not record.get("enabled"):
+            problems.append(f"{name}: Codex does not report it installed and enabled")
+            continue
+        root = _plugin_root_from_record("codex", name, record)
+        missing = _cache_payload_missing(root, "codex", name)
+        if missing:
+            problems.append(f"{name}: cache missing {', '.join(missing)}")
+    return problems
 
 
 def cmd_update(args: argparse.Namespace) -> int:
     """Refresh the marketplace and update every installed plugin from it."""
-    plugins = installed_plugins()
-    if not plugins:
+    cached = installed_plugins()
+    reported = {
+        harness: cli_plugin_inventory(harness) if shutil.which(harness) else None
+        for harness in ("claude", "codex")
+    }
+    names = {
+        harness: sorted(
+            reported[harness] if reported[harness] is not None else cached[harness]
+        )
+        for harness in ("claude", "codex")
+    }
+    if not any(names.values()):
         print(f"at update: no {MARKETPLACE} plugins are installed on this machine.")
         print("Install them first: at bootstrap")
         return 1
 
     running = version()
     print(f"agents-core shipping this `at`: {running}")
-    for name, versions in plugins.items():
-        newest = versions[-1] if versions else "?"
-        extra = f"  (also cached: {', '.join(versions[:-1])})" if len(versions) > 1 else ""
-        print(f"  {name:<16} {newest}{extra}")
+    for harness in ("claude", "codex"):
+        if not names[harness]:
+            continue
+        print(f"  {harness}:")
+        for name in names[harness]:
+            versions = cached[harness].get(name, [])
+            live_inventory = reported[harness] or {}
+            reported_version = str(live_inventory.get(name, {}).get("version", ""))
+            newest = versions[-1] if versions else reported_version or "?"
+            extra = f"  (also cached: {', '.join(versions[:-1])})" if len(versions) > 1 else ""
+            print(f"    {name:<16} {newest}{extra}")
 
     if args.check:
         print("\nat update --check: read-only. Run `at update` to refresh the marketplace and "
@@ -648,17 +943,60 @@ def cmd_update(args: argparse.Namespace) -> int:
 
     want_claude, want_codex = args.claude, args.codex
     if not want_claude and not want_codex:
-        want_claude = want_codex = True
+        want_claude = bool(names["claude"] and shutil.which("claude"))
+        want_codex = bool(names["codex"] and shutil.which("codex"))
+    selected = [
+        harness for harness, wanted in (("claude", want_claude), ("codex", want_codex)) if wanted
+    ]
+    if not selected:
+        print("at update: cached plugins exist, but no configured harness CLI is available.", file=sys.stderr)
+        return 1
 
     failures = 0
     if want_claude:
-        failures += not _run(["claude", "plugin", "marketplace", "update", MARKETPLACE])
-        for name in plugins:
-            failures += not _run(["claude", "plugin", "update", f"{name}@{MARKETPLACE}"])
+        if shutil.which("claude") is None or not names["claude"]:
+            print("at update: --claude requested, but no Claude agents-template installation was found.",
+                  file=sys.stderr)
+            failures += 1
+        else:
+            failures += not _run(["claude", "plugin", "marketplace", "update", MARKETPLACE])
+            for name in names["claude"]:
+                failures += not _run(["claude", "plugin", "update", f"{name}@{MARKETPLACE}"])
     if want_codex:
-        failures += not _run(["codex", "plugin", "marketplace", "update", MARKETPLACE])
-        for name in plugins:
-            failures += not _run(["codex", "plugin", "update", f"{name}@{MARKETPLACE}"])
+        if shutil.which("codex") is None or not names["codex"]:
+            print("at update: --codex requested, but no Codex agents-template installation was found.",
+                  file=sys.stderr)
+            failures += 1
+        else:
+            source_types = {
+                str(record.get("source_type")) for record in (reported["codex"] or {}).values()
+                if record.get("source_type")
+            }
+            if not source_types:
+                fallback_source_type = codex_marketplace_source_type()
+                if fallback_source_type:
+                    source_types.add(fallback_source_type)
+            if len(source_types) != 1:
+                print("at update: could not determine one Codex marketplace source type.", file=sys.stderr)
+                failures += 1
+            else:
+                try:
+                    commands = codex_update_commands(names["codex"], source_types.pop())
+                except ValueError as exc:
+                    print(f"at update: {exc}", file=sys.stderr)
+                    failures += 1
+                else:
+                    codex_failed = False
+                    for command in commands:
+                        if not _run(command):
+                            failures += 1
+                            codex_failed = True
+                            break
+                    if not codex_failed:
+                        problems = _verify_codex_cache(names["codex"])
+                        for problem in problems:
+                            print(f"at update: Codex verification failed: {problem}", file=sys.stderr)
+                        failures += len(problems)
 
     print("\nRestart the CLI to load the updated plugins — a running session keeps the old ones.")
     print("Then, in each downstream repo: `at doctor` reports routing-table drift, and "
@@ -1431,7 +1769,7 @@ def cmd_migrate(args: argparse.Namespace) -> int:
         print(f"{status:>7}  {rel}")
 
     print()
-    doctor_rc = cmd_doctor(args)
+    doctor_rc = _print_doctor_findings(_repo_doctor_findings(repo))
 
     print("\nat migrate: summary")
     for entry in removed:
@@ -1545,6 +1883,14 @@ def cmd_version(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_seed_path(args: argparse.Namespace) -> int:
+    seed = core_root() / "seed" / "AGENTS.md"
+    if not seed.is_file():
+        die(f"agents-core seed is missing: {seed}")
+    print(seed)
+    return 0
+
+
 # --------------------------------------------------------------------------- #
 # CLI
 # --------------------------------------------------------------------------- #
@@ -1564,6 +1910,13 @@ def build_parser() -> argparse.ArgumentParser:
     p_init.set_defaults(func=cmd_init)
 
     p_doctor = sub.add_parser("doctor", help="check this repo against the contract")
+    doctor_harness = p_doctor.add_mutually_exclusive_group()
+    doctor_harness.add_argument("--claude", action="store_true",
+                                help="also require Claude runtime readiness")
+    doctor_harness.add_argument("--codex", action="store_true",
+                                help="also require Codex runtime readiness")
+    doctor_harness.add_argument("--all", dest="all_harnesses", action="store_true",
+                                help="require both Claude and Codex runtime readiness")
     p_doctor.set_defaults(func=cmd_doctor)
 
     p_boot = sub.add_parser("bootstrap", help="install the plugins for this machine")
@@ -1614,6 +1967,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_repos = sub.add_parser("repos-check", help="validate .config/repos.project.md")
     p_repos.add_argument("rest", nargs=argparse.REMAINDER)
     p_repos.set_defaults(func=cmd_repos_check)
+
+    p_seed_path = sub.add_parser("seed-path", help="print the active seed AGENTS.md path")
+    p_seed_path.set_defaults(func=cmd_seed_path)
 
     p_version = sub.add_parser("version", help="print the agents-core plugin version")
     p_version.set_defaults(func=cmd_version)

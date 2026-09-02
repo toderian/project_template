@@ -195,6 +195,53 @@ assert_eq "$DOCTOR_PROSE_RC" "0" "at doctor exits 0 when only prose mentions the
 assert_stdout_lacks "$DOCTOR_PROSE" "still has" "a prose mention does not count as a slot"
 sed -i '/Guidance: doctor warns while any/d' AGENTS.md
 
+# Strict harness checks are separate from the repository checks used by migrate.
+python3 - "$AT_PY" "$PROJECT" "$WORKDIR" <<'PYDOCTOR'
+import importlib.util, pathlib, sys
+spec = importlib.util.spec_from_file_location("at", sys.argv[1])
+at = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(at)
+repo = pathlib.Path(sys.argv[2])
+cache = pathlib.Path(sys.argv[3]) / "codex-core"
+for rel in (
+    ".codex-plugin/plugin.json", "skills/marker", "hooks/hooks.codex.json",
+    "bin/at", "lib/at.py", "seed/AGENTS.md", "codex/agents/marker",
+):
+    path = cache / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("ok\n")
+(cache / "bin/at").chmod(0o755)
+at.shutil.which = lambda name: f"/fake/{name}"
+at.cli_plugin_inventory = lambda harness: {
+    "agents-core": {"enabled": True, "installed": True, "version": "1.2.0"}
+}
+at._run_json = lambda cmd: {"marketplaces": [{"name": "agents-template"}]}
+at._plugin_root_from_record = lambda harness, plugin, record: cache
+strict = at._runtime_findings(repo, "codex", strict=True)
+assert not [item for item in strict if item[0] == "ERROR"], strict
+(cache / "lib/at.py").unlink()
+broken = at._runtime_findings(repo, "codex", strict=True)
+assert any(level == "ERROR" and "lib/at.py" in message for level, message in broken)
+repo_only = at._repo_doctor_findings(repo)
+assert not any("Codex role files" in message for _, message in repo_only)
+at.repo_root = lambda: repo
+at._repo_doctor_findings = lambda candidate: [("OK", "repository only")]
+at._runtime_findings = lambda *args, **kwargs: (_ for _ in ()).throw(
+    AssertionError("plain doctor must not inspect a harness runtime")
+)
+plain = type("Args", (), {"all_harnesses": False, "claude": False, "codex": False})()
+assert at.cmd_doctor(plain) == 0
+parser = at.build_parser()
+assert parser.parse_args(["doctor", "--codex"]).codex is True
+try:
+    parser.parse_args(["doctor", "--codex", "--claude"])
+except SystemExit as exc:
+    assert exc.code == 2
+else:
+    raise AssertionError("doctor harness selectors must be mutually exclusive")
+PYDOCTOR
+assert_eq "$?" "0" "strict doctor checks are isolated and detect incomplete Codex payloads"
+
 # --- ledger wrappers --------------------------------------------------------
 at ledger check >/dev/null 2>&1
 assert_eq "$?" "0" "at ledger check exits 0 on the seeded ledger"
@@ -229,11 +276,172 @@ mkdir -p "$FAKEHOME/.claude/plugins/cache/agents-template/agents-core/1.0.1"
 mkdir -p "$FAKEHOME/.claude/plugins/cache/agents-template/agents-core/1.1.0"
 mkdir -p "$FAKEHOME/.claude/plugins/cache/agents-template/agents-tasks/1.1.0"
 UPDATE_CHECK="$(HOME="$FAKEHOME" at update --check 2>&1)"; UPDATE_CHECK_RC=$?
-assert_eq "$UPDATE_CHECK_RC" "0" "at update --check exits 0 when plugins are installed"
-assert_stdout_contains "$UPDATE_CHECK" "agents-core" "--check lists the installed plugin"
-assert_stdout_contains "$UPDATE_CHECK" "1.1.0" "--check reports the newest cached version"
-assert_stdout_contains "$UPDATE_CHECK" "also cached: 1.0.1" "--check names the older cached version"
+assert_eq "$UPDATE_CHECK_RC" "1" "a valid empty live inventory overrides stale cache entries"
+assert_stdout_contains "$UPDATE_CHECK" "no agents-template plugins" \
+  "stale caches are not reported as configured plugins"
 assert_stdout_lacks "$UPDATE_CHECK" "$ claude" "--check runs no harness commands"
+
+# Cache inventories stay separate and sort semantic versions numerically.
+mkdir -p "$FAKEHOME/.codex/plugins/cache/agents-template/agents-core/1.9.0"
+mkdir -p "$FAKEHOME/.codex/plugins/cache/agents-template/agents-core/1.10.0"
+python3 - "$AT_PY" "$FAKEHOME" <<'PYUPDATE'
+import importlib.util, pathlib, sys
+spec = importlib.util.spec_from_file_location("at", sys.argv[1])
+at = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(at)
+inventory = at.installed_plugins(pathlib.Path(sys.argv[2]))
+assert set(inventory) == {"claude", "codex"}
+assert inventory["claude"]["agents-core"] == ["1.0.1", "1.1.0"]
+assert inventory["codex"]["agents-core"] == ["1.9.0", "1.10.0"]
+PYUPDATE
+assert_eq "$?" "0" "installed plugin inventories stay separate and sort semantically"
+
+# Live inventory distinguishes a valid empty result from a failed query, and
+# an inventory record selects its own installed version instead of a newer stale cache.
+python3 - "$AT_PY" "$FAKEHOME" <<'PYINVENTORY'
+import importlib.util, pathlib, sys
+spec = importlib.util.spec_from_file_location("at", sys.argv[1])
+at = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(at)
+home = pathlib.Path(sys.argv[2])
+at._run_json = lambda cmd: [] if cmd[0] == "claude" else {"installed": []}
+assert at.cli_plugin_inventory("claude") == {}
+assert at.cli_plugin_inventory("codex") == {}
+at._run_json = lambda cmd: None
+assert at.cli_plugin_inventory("claude") is None
+assert at.cli_plugin_inventory("codex") is None
+active = home / ".codex/plugins/cache/agents-template/agents-core/1.2.0"
+stale = home / ".codex/plugins/cache/agents-template/agents-core/9.9.0"
+active.mkdir(parents=True, exist_ok=True)
+stale.mkdir(parents=True, exist_ok=True)
+root = at._plugin_root_from_record(
+    "codex", "agents-core", {"version": "1.2.0"}, home,
+)
+assert root == active, (root, active)
+PYINVENTORY
+assert_eq "$?" "0" "live inventory preserves empty results and selects the active cache version"
+
+# Codex command planning is source- and capability-aware and never emits plugin update.
+python3 - "$AT_PY" <<'PYCODEXPLAN'
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("at", sys.argv[1])
+at = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(at)
+names = ["agents-core", "agents-tasks"]
+local = at.codex_update_commands(names, "local", supports=lambda cmd: False)
+assert local == [
+    ["codex", "plugin", "add", "agents-core@agents-template"],
+    ["codex", "plugin", "add", "agents-tasks@agents-template"],
+]
+modern = at.codex_update_commands(
+    names, "git", supports=lambda cmd: cmd[-1] == "upgrade",
+)
+assert modern[0] == ["codex", "plugin", "marketplace", "upgrade", "agents-template"]
+legacy = at.codex_update_commands(
+    names, "git", supports=lambda cmd: cmd[-1] == "update",
+)
+assert legacy[0] == ["codex", "plugin", "marketplace", "update", "agents-template"]
+assert all(command[2] != "update" for command in modern[1:])
+try:
+    at.codex_update_commands(names, "git", supports=lambda cmd: False)
+except ValueError:
+    pass
+else:
+    raise AssertionError("unsupported Codex command set must fail")
+PYCODEXPLAN
+assert_eq "$?" "0" "Codex update command plans cover local, modern Git and legacy Git"
+
+python3 - "$AT_PY" <<'PYUPDATEFLOW'
+import argparse, importlib.util, sys
+spec = importlib.util.spec_from_file_location("at", sys.argv[1])
+at = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(at)
+
+def run_case(cached, reported, args, source_type=None):
+    commands = []
+    at.installed_plugins = lambda: cached
+    at.cli_plugin_inventory = lambda harness: reported.get(harness, {})
+    at.shutil.which = lambda harness: f"/fake/{harness}"
+    at._run = lambda command: commands.append(command) or True
+    at._verify_codex_cache = lambda names: []
+    at._command_supported = lambda command: command[-1] == "upgrade"
+    at.codex_marketplace_source_type = lambda: source_type
+    rc = at.cmd_update(args)
+    assert rc == 0
+    return commands
+
+# A failed live query falls back to cache state; a valid empty result does not.
+at.installed_plugins = lambda: {
+    "claude": {"agents-core": ["1.1.0"]}, "codex": {},
+}
+at.cli_plugin_inventory = lambda harness: None
+at.shutil.which = lambda harness: f"/fake/{harness}"
+assert at.cmd_update(argparse.Namespace(check=True, claude=False, codex=False)) == 0
+
+claude = run_case(
+    {"claude": {"agents-core": ["1.2.0"]}, "codex": {}},
+    {"claude": {"agents-core": {"version": "1.2.0", "enabled": True}}, "codex": {}},
+    argparse.Namespace(check=False, claude=False, codex=False),
+)
+assert claude == [
+    ["claude", "plugin", "marketplace", "update", "agents-template"],
+    ["claude", "plugin", "update", "agents-core@agents-template"],
+]
+
+codex = run_case(
+    {"claude": {}, "codex": {"agents-core": ["1.2.0"]}},
+    {"claude": {}, "codex": {"agents-core": {
+        "version": "1.2.0", "enabled": True, "installed": True, "source_type": "local",
+    }}},
+    argparse.Namespace(check=False, claude=False, codex=False),
+)
+assert codex == [["codex", "plugin", "add", "agents-core@agents-template"]]
+
+mixed = run_case(
+    {
+        "claude": {"agents-core": ["1.2.0"]},
+        "codex": {"agents-core": ["1.2.0"]},
+    },
+    {
+        "claude": {"agents-core": {"version": "1.2.0", "enabled": True}},
+        "codex": {"agents-core": {
+            "version": "1.2.0", "enabled": True, "installed": True, "source_type": "local",
+        }},
+    },
+    argparse.Namespace(check=False, claude=False, codex=False),
+)
+assert mixed == [
+    ["claude", "plugin", "marketplace", "update", "agents-template"],
+    ["claude", "plugin", "update", "agents-core@agents-template"],
+    ["codex", "plugin", "add", "agents-core@agents-template"],
+]
+
+# A successful empty live inventory suppresses stale cache fallback.
+at.installed_plugins = lambda: {
+    "claude": {}, "codex": {"agents-core": ["0.9.0"]},
+}
+at.cli_plugin_inventory = lambda harness: {}
+at.shutil.which = lambda harness: f"/fake/{harness}"
+commands = []
+at._run = lambda command: commands.append(command) or True
+empty_rc = at.cmd_update(argparse.Namespace(check=False, claude=False, codex=False))
+assert empty_rc == 1
+assert commands == []
+
+# An explicitly requested unavailable harness fails without touching the other one.
+at.installed_plugins = lambda: {
+    "claude": {"agents-core": ["1.2.0"]}, "codex": {"agents-core": ["1.2.0"]},
+}
+at.shutil.which = lambda harness: "/fake/claude" if harness == "claude" else None
+at.cli_plugin_inventory = lambda harness: {
+    "agents-core": {"version": "1.2.0", "enabled": True}
+}
+commands = []
+explicit_rc = at.cmd_update(argparse.Namespace(check=False, claude=False, codex=True))
+assert explicit_rc == 1
+assert commands == []
+PYUPDATEFLOW
+assert_eq "$?" "0" "update isolates harnesses, ignores stale caches, and preserves Claude commands"
 
 # --- at doctor: routing-table drift -----------------------------------------
 cp AGENTS.md "$WORKDIR/AGENTS.md.pre-drift"
@@ -266,6 +474,8 @@ cp "$WORKDIR/AGENTS.md.pre-drift" AGENTS.md
 # --- at version -------------------------------------------------------------
 EXPECTED_VERSION="$(python3 -c "import json;print(json.load(open('$REPO/plugins/agents-core/.claude-plugin/plugin.json'))['version'])")"
 assert_eq "$(at version 2>&1)" "$EXPECTED_VERSION" "at version prints the plugin version"
+assert_eq "$(at seed-path 2>&1)" "$REPO/plugins/agents-core/seed/AGENTS.md" \
+  "at seed-path prints the active agents-core seed"
 if [[ "$EXPECTED_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then pass;
 else fail "plugin version '$EXPECTED_VERSION' is not semver X.Y.Z"; fi
 
@@ -353,6 +563,20 @@ for v in 1.2.0 1.9.0 1.10.0; do
 done
 RESOLVED="$(HOME="$FAKEHOME" AT_DEV_ROOT="" bash "$FAKEHOME/.local/bin/at" 2>&1)"
 assert_eq "$RESOLVED" "cache 1.10.0" "resolver picks the newest cached version"
+
+# A newer Codex cache wins across harnesses; Claude wins an exact-version tie.
+CODEX_AT="$FAKEHOME/.codex/plugins/cache/agents-template/agents-core/1.11.0/bin"
+mkdir -p "$CODEX_AT"
+printf '#!/usr/bin/env bash\necho "codex cache 1.11.0"\n' > "$CODEX_AT/at"
+chmod +x "$CODEX_AT/at"
+RESOLVED_CODEX="$(HOME="$FAKEHOME" AT_DEV_ROOT="" bash "$FAKEHOME/.local/bin/at" 2>&1)"
+assert_eq "$RESOLVED_CODEX" "codex cache 1.11.0" "resolver considers the versioned Codex cache"
+CLAUDE_TIE="$FAKEHOME/.claude/plugins/cache/agents-template/agents-core/1.11.0/bin"
+mkdir -p "$CLAUDE_TIE"
+printf '#!/usr/bin/env bash\necho "claude cache 1.11.0"\n' > "$CLAUDE_TIE/at"
+chmod +x "$CLAUDE_TIE/at"
+RESOLVED_TIE="$(HOME="$FAKEHOME" AT_DEV_ROOT="" bash "$FAKEHOME/.local/bin/at" 2>&1)"
+assert_eq "$RESOLVED_TIE" "claude cache 1.11.0" "resolver keeps Claude as the equal-version tie-breaker"
 
 # stale global skill symlinks: only those pointing into a legacy template repo
 LEGACY="$WORKDIR/legacy-repo"

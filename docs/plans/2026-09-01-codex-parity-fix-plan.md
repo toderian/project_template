@@ -18,7 +18,7 @@ diagnostics, instructions, and compatibility tests while preserving Claude Code 
   `agents/openai.yaml` from `disable-model-invocation: true`, safely detect/remove obsolete
   banner-owned outputs, update the generated-file table and skill-authoring doctrine in the same
   phase, add static contract tests, and keep Claude frontmatter intact.
-- [ ] **Phase 2 — Dual-harness `at` lifecycle.** Add per-harness inventory, capability-aware Codex
+- [x] **Phase 2 — Dual-harness `at` lifecycle.** Add per-harness inventory, capability-aware Codex
   updates, current Codex cache resolution, strict doctor modes, and `at seed-path`.
 - [ ] **Phase 3 — Harness-neutral instructions.** Normalize active skill references, fix the skill
   authoring doctrine, and document Codex hook trust, `jq`, diagnostics, and updates.
@@ -89,3 +89,10 @@ diagnostics, instructions, and compatibility tests while preserving Claude Code 
   local and CI gates; updated the source/generated and skill-authoring contracts in the same phase.
   Checks: build check passed; static compatibility 6/6 passed; all Claude plugin validations passed;
   full `run-all.sh` passed (54 hook, 9 ledger, 266 CLI, 29 release tests).
+- **2026-09-02 — Phase 2 complete.** `at` now resolves the newest semantic cache across Claude and
+  Codex, keeps live and cached inventories separate per harness, updates Codex through supported
+  marketplace/reinstall commands, verifies the inventory-recorded payload, and exposes strict
+  `doctor` selectors plus `seed-path`. Plain doctor and migration remain repository-only. The phase
+  reviewer approved the corrected inventory, payload, and doctor boundaries. Checks: build and
+  static compatibility passed; all Claude plugin validations passed; focused CLI 272/272 passed;
+  full `run-all.sh` passed (54 hook, 9 ledger, 272 CLI, 29 release tests).
