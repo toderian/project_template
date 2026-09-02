@@ -19,7 +19,7 @@ user intends to schedule the work.
 Follow the `agents-tasks:task-ledger` skill (references/inbox-convention.md) (inbox side) and
 the `agents-tasks:task-ledger` skill (references/todo-convention.md) (task side).
 
-Prerequisite: `docs/tasks_manager/` must already be initialized. If it is missing, run `/init` first.
+Prerequisite: `docs/tasks_manager/` must already be initialized. If it is missing, run `at init --with-tasks` first.
 
 ## Process
 

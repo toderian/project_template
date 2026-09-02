@@ -169,8 +169,8 @@ the digest and list it as an open question.
 
 When the source implies actionable work, use the task system:
 
-- capture vague follow-ups with `/agents-tasks:capture-idea`
-- create clear committed tasks with `/agents-tasks:add-task`
+- capture vague follow-ups with `agents-tasks:capture-idea`
+- create clear committed tasks with `agents-tasks:add-task`
 - avoid silently changing roadmap order
 
 ### 5. Clean up or retain raw sources intentionally

@@ -47,8 +47,8 @@ Run every task through these passes, and loop again whenever a pass finds a real
 
 ## Routing table
 
-Skill ids below are `plugin:skill`. Invoke them as `/agents-core:tdd` in Claude Code, or `$tdd`
-(prefix dropped) in Codex. `agents-core` is always enabled; `agents-tasks`, `agents-extras` and
+Skill ids below are `plugin:skill`. Invoke them as `/agents-core:tdd` in Claude Code, or
+`$agents-core:tdd` in Codex. `agents-core` is always enabled; `agents-tasks`, `agents-extras` and
 `agents-personal` are opt-in, so an unknown id means that plugin is not installed here — list the
 available skills and pick from that instead of guessing another prefix.
 
@@ -58,7 +58,7 @@ available skills and pick from that instead of guessing another prefix.
 | New feature or bug fix | `agents-core:tdd` |
 | Something behaves unexpectedly | `agents-core:diagnose` |
 | Scope or requirements unclear | `agents-core:spec-workflow`, or `agents-core:task-spec-workflow` for a tracked task |
-| Stress-test a plan or decision with the user | `/agents-core:grill-me`, or `/agents-extras:grill-with-docs` when the glossary matters |
+| Stress-test a plan or decision with the user | `agents-core:grill-me`, or `agents-extras:grill-with-docs` when the glossary matters |
 | Effort too big for one session, way ahead unclear | `agents-tasks:wayfinder` |
 | Before writing a plan | `agents-core:planning-workflow` |
 | Facts needed from docs, APIs, or the web | `agents-core:research` |
@@ -69,7 +69,7 @@ available skills and pick from that instead of guessing another prefix.
 | Capture an idea, add a task, triage, plan horizons, close out | `agents-tasks:capture-idea`, `agents-tasks:add-task`, `agents-tasks:triage-inbox`, `agents-tasks:roadmap`, `agents-tasks:complete-task` |
 | Durable notes, runbooks, ADRs | `agents-tasks:knowledge-base`, `agents-extras:domain-modeling` for glossary and ADRs |
 | A decision only another person can answer | `agents-extras:to-questionnaire` |
-| An agent message that did not land | `/agents-core:wait-what` |
+| An agent message that did not land | `agents-core:wait-what` |
 | Writing a skill, AGENTS.md, or an agent-facing doc | `agents-extras:writing-for-agents` |
 | A workflow worth rerunning | `agents-tasks:workbook` |
 | Large, generated, or encrypted files | `agents-tasks:artifacts-registry` |

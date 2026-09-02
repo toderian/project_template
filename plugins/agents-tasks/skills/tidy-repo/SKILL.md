@@ -24,12 +24,12 @@ to rule on.
 
 This skill orchestrates primitives that already exist rather than reinventing them:
 
-- `/init` — ensures the canonical `docs/tasks_manager/`, `docs/areas/`, `docs/resources/`, and
-  `docs/archive/` layout is present.
+- `at init --with-tasks` — ensures the canonical `docs/tasks_manager/`, `docs/areas/`, and
+  `docs/resources/` layout is present.
 - the **inbox** (the `agents-tasks:task-ledger` skill (references/inbox-convention.md)) — the frictionless holding pen for
   anything that can't be classified confidently. Loose work becomes `I-NNN` ideas, not forced into
   full area-prefixed tasks.
-- `/agents-tasks:triage-inbox` — the deliberate pass that later promotes the worthwhile swept-in ideas into typed
+- `agents-tasks:triage-inbox` — the deliberate pass that later promotes the worthwhile swept-in ideas into typed
   tasks. Tidy-repo deliberately stops *before* triage; sorting quality is triage's job, not the
   sweep's.
 - `at ledger` — reconciles the ledgers after any file moves.
@@ -43,7 +43,7 @@ the `agents-tasks:workbook` skill for workbook bundles.
 | Pile | What it looks like | Destination | Why |
 |------|--------------------|-------------|-----|
 | **Loose work** | ad-hoc `TODO.md`, `NOTES.md`, inline `TODO:`/`FIXME:` clusters, half-finished task files not matching `<PREFIX>-NNN` | `docs/tasks_manager/_inbox/` as `I-NNN` ideas | The inbox is the cheap, reversible capture layer. Re-triaging later beats importing low-quality work as first-class backlog. |
-| **Loose docs** | design notes, stray READMEs, architecture scribbles, `*.md` outside `docs/` that explain *how the system works* | `docs/resources/` | That's the home `/init` seeds for durable project documentation. |
+| **Loose docs** | design notes, stray READMEs, architecture scribbles, `*.md` outside `docs/` that explain *how the system works* | `docs/resources/` | That is the home seeded by `at init --with-tasks` for durable project documentation. |
 | **Durable binaries** | long-lived `.docx`, PDFs, spreadsheets, diagrams, or source documents worth committing | `docs/resources/<area>/attachments/` with Markdown metadata | Raw inbox staging is not an authoritative long-term home for committed source documents. |
 | **Workbook bundles** | a folder of scripts, data, assets, examples, templates, outputs, and instructions for one repeatable workflow | `workbooks/<workbook-slug>/` | Workbooks stay packaged so future users can run or inspect the whole working set together. |
 | **Orphans** | stale scripts, dead configs, abandoned scratch files, `*.bak`, commented-out experiments | **flagged list only** — never moved, never deleted | Only the user knows if these are truly dead. Surface them; let them decide. |
@@ -55,8 +55,8 @@ destination and triage will sort it.
 
 ### Phase 0 — Ensure structure
 
-Confirm `docs/tasks_manager/`, `docs/areas/`, `docs/resources/`, and `docs/archive/` exist. If not, run `/init` (or its playbook
-the `init` skill) first. A tidy needs somewhere to tidy *into*. Never overwrite existing
+Confirm `docs/tasks_manager/`, `docs/areas/`, and `docs/resources/` exist. If not, run
+`at init --with-tasks` first. A tidy needs somewhere to tidy *into*. Never overwrite existing
 ledgers, areas registry, or tasks.
 
 ### Phase 1 — Audit (read-only, always first)
@@ -157,7 +157,7 @@ After moves, run `at ledger` so the ledgers reflect reality.
 ### Phase 4 — Report and hand off to triage
 
 Summarize what moved where, and how many orphans await the user's decision. End by pointing at the
-natural next step: **`/agents-tasks:triage-inbox`** to promote the freshly-swept ideas into typed area-prefixed
+natural next step: **`agents-tasks:triage-inbox`** to promote the freshly-swept ideas into typed area-prefixed
 tasks. The sweep deliberately leaves them as raw `I-NNN` — tidy gets the mess into the right buckets; triage
 decides what's worth doing.
 

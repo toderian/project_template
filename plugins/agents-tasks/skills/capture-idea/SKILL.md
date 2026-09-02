@@ -22,7 +22,7 @@ reasonable area guess, and confirm in one line.
 
 Follow the `agents-tasks:task-ledger` skill (references/inbox-convention.md) for the format and ID rules.
 
-Prerequisite: `docs/tasks_manager/` must already be initialized. If it is missing, run `/init` first.
+Prerequisite: `docs/tasks_manager/` must already be initialized. If it is missing, run `at init --with-tasks` first.
 
 ## Process
 

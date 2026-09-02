@@ -35,7 +35,7 @@ docs/
 │   └── <slug>.md            # Generated area task-status page plus context pointer
 ├── resources/               # Durable reference material, glossary, runbooks, attachments, component docs
 │   ├── CONTEXT.md           # Primary domain glossary
-│   ├── _inbox/              # Raw knowledge files waiting for /distill-knowledge
+│   ├── _inbox/              # Raw knowledge files waiting for agents-tasks:distill-knowledge
 │   ├── _digests/            # Curated Markdown summaries of raw sources
 │   ├── _reports/            # Timestamped rerunnable reports and audits
 │   └── <area>/
@@ -57,7 +57,7 @@ reference folder. `docs/resources/CONTEXT.md` is the primary domain glossary; ro
 `CONTEXT.md` is only a pointer or legacy fallback. Do not add repo slugs to task IDs, filenames,
 prefixes, or areas; use the optional `Repos` metadata row for repo scope.
 
-If these directories do not exist, run `/init` (`at init --with-tasks`) to seed them.
+If these directories do not exist, run `at init --with-tasks` to seed them.
 
 ## File naming
 
@@ -138,8 +138,8 @@ Cross-repo projects use a two-layer repo convention:
   `.local/repos.map` by hand per machine.
 
 Set this up during downstream project setup, after project-specific `README.md` and `AGENTS.md` are in
-place and before running `/init`, `/agents-tasks:define-area`, `/agents-tasks:cross-repo-feature`, `/agents-tasks:add-task`, `/agents-tasks:triage-inbox`,
-or `/agents-tasks:prd-to-todos` for multi-repo work. Single-repo projects can skip it until they need repo-scope
+place and before running `at init --with-tasks`, `agents-tasks:define-area`, `agents-tasks:cross-repo-feature`, `agents-tasks:add-task`, `agents-tasks:triage-inbox`,
+or `agents-tasks:prd-to-todos` for multi-repo work. Single-repo projects can skip it until they need repo-scope
 tasks or cross-repo docs.
 
 Repo slugs must match `^[a-z][a-z0-9-]*$`. If no `.config/repos.project.md` exists, omit `Repos`
@@ -493,8 +493,8 @@ This gate applies to starting existing tasks. It does not apply to quick inbox c
 
 ## Creating tasks
 
-Any skill that produces actionable work can create tasks. Prefer `/agents-tasks:add-task` for direct creation from a
-clear user request, and `/agents-tasks:capture-idea` for vague ideas.
+Any skill that produces actionable work can create tasks. Prefer `agents-tasks:add-task` for direct creation from a
+clear user request, and `agents-tasks:capture-idea` for vague ideas.
 
 Creation steps:
 
@@ -536,7 +536,7 @@ pressure only, not validation failures:
 
 The roadmap is placement-only. It stores task IDs like `AUTH-001` in the intended horizon and order;
 task IDs may appear in any horizon. Raw inbox ideas like `I-007` may appear only in `Someday` as
-parking-lot signals, and must be promoted through `/agents-tasks:triage-inbox` before moving into `Urgent`, `Now`,
+parking-lot signals, and must be promoted through `agents-tasks:triage-inbox` before moving into `Urgent`, `Now`,
 `Next`, or `Later`. It may group work with
 `### Milestone: <name> (target: YYYY-MM-DD)` or
 `### Milestone: <name> (deadline: YYYY-MM-DD)` headings inside an existing horizon, but it must not add
@@ -567,7 +567,7 @@ and archived tasks without an explicit completion harvest and summary.
 
 ## Active-task audits
 
-Use `/agents-tasks:audit-todos` for periodic active-task health checks. It audits files under
+Use `agents-tasks:audit-todos` for periodic active-task health checks. It audits files under
 `docs/tasks_manager/_todos/` against current code, tests, docs, roadmap placement, generated ledgers,
 area pages, archived task evidence, and `docs/resources/`.
 
@@ -587,7 +587,7 @@ open -> cancelled -> archive
 in_progress -> cancelled -> archive
 ```
 
-Prefer `/agents-tasks:complete-task` for this workflow. Before changing a task to `done` or `cancelled`:
+Prefer `agents-tasks:complete-task` for this workflow. Before changing a task to `done` or `cancelled`:
 
 1. Verify acceptance criteria and related tests.
 2. Reconcile linked specs. If the task implements, partially implements, supersedes, or invalidates a

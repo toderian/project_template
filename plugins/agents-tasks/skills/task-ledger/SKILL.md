@@ -34,31 +34,33 @@ behavior.
 
 ## Golden path
 
+Skill lines below use full ids: prefix an id with `/` in Claude Code or `$` in Codex.
+
 ```text
-at init
-/capture-idea "rough idea or follow-up"
-/triage-inbox          # discovery gate, then promote / drop / defer / append
-/roadmap                # place task IDs in Urgent / Now / Next / Later / Someday
+at init --with-tasks
+agents-tasks:capture-idea "rough idea or follow-up"
+agents-tasks:triage-inbox          # discovery gate, then promote / drop / defer / append
+agents-tasks:roadmap                # place task IDs in Urgent / Now / Next / Later / Someday
 # Before implementing an existing task:
 # run the pre-implementation review gate from references/todo-convention.md
 # implement / execute the task
-/complete-task <TASK-ID>
+agents-tasks:complete-task <TASK-ID>
 at ledger check
 ```
 
 Direct creation is also valid when the work is already clear:
 
 ```text
-at init
-/add-task "clear, actionable task"
-/roadmap
+at init --with-tasks
+agents-tasks:add-task "clear, actionable task"
+agents-tasks:roadmap
 # pre-implementation review gate
 # implement / execute the task
-/complete-task <TASK-ID>
+agents-tasks:complete-task <TASK-ID>
 at ledger check
 ```
 
-`docs/tasks_manager/` must already be initialized (`at init` / `at init --with-tasks`) before any of
+`docs/tasks_manager/` must already be initialized with `at init --with-tasks` before any of
 these steps. Task files remain the source of truth; the inbox, roadmap, and generated ledgers/area
 pages are the other layers described in `references/task-system-quickstart.md` §"Source of truth
 split".

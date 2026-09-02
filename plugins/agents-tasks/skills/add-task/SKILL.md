@@ -17,7 +17,7 @@ metadata only when the user asks for scheduling.
 
 Follow the `agents-tasks:task-ledger` skill (references/todo-convention.md) for the file format and lifecycle.
 
-Prerequisite: `docs/tasks_manager/` must already be initialized. If it is missing, run `/init` first.
+Prerequisite: `docs/tasks_manager/` must already be initialized. If it is missing, run `at init --with-tasks` first.
 
 ## Process
 

@@ -44,10 +44,13 @@ install from GitHub, add `--tasks` / `--extras` / `--personal` for the other plu
 cd /path/to/your/repo
 at init --with-tasks          # write the seed: AGENTS.md, CLAUDE.md, .claude/settings.json, …
 at doctor                     # check the repo against the contract
+at doctor --all               # check both runtimes when both CLIs are installed
 ```
 
 `at init` never overwrites a file you own; re-running it is safe. Flags: `--with-tasks`,
-`--with-artifacts`, `--with-workbooks`, `--with-repos`, `--all`.
+`--with-artifacts`, `--with-workbooks`, `--with-repos`, `--all`. Install `jq` before using the
+bundled safety hooks. In Codex, open `/hooks` after installation or an update and review/trust the
+hook definitions; changed hooks are skipped until their new hash is trusted.
 
 ## Keep it up to date
 
@@ -56,11 +59,13 @@ Plugins install per machine, so one update covers every repo that uses them:
 ```bash
 at update --check             # what is installed, and what version
 at update                     # refresh the marketplace and update the installed plugins
+at update --claude            # update only the Claude installation
+at update --codex             # update only the Codex installation
 ```
 
 Restart the CLI afterwards — a running session keeps the old plugins. Then, in each repo,
 `at doctor` reports whether the downstream-owned `AGENTS.md` routing table has fallen behind the
-plugin seed, and `/setup-project` adopts the difference (see its
+plugin seed, and the `agents-core:setup-project` skill adopts the difference (see its
 `references/adopting-updates.md`).
 
 Coming from the pre-1.0 template (a repo with vendored `_base` and `playbooks` trees
@@ -79,8 +84,11 @@ commit — without stashing or committing them first; `--commit` never sweeps th
 | `agents-extras` | 19 skills: architecture review, domain modeling, GitHub triage and PRDs, UI/frontend review, migration safety, pre-commit setup, skill and agent-doc authoring | You want the wider review/GitHub/UI toolkit |
 | `agents-personal` | 8 skills: writing, editing, Obsidian, teaching, niche migrations | Personal repos; not useful in most codebases |
 
-Skills are invoked by name (`/agents-core:tdd` in Claude, `$tdd` in Codex) or picked up by
-the model from their descriptions.
+Skills are invoked by their full id (`/agents-core:tdd` in Claude, `$agents-core:tdd` in Codex) or
+picked up by the model from their descriptions. Use `/skills` in Codex to browse and mention an
+installed skill. The invocation forms follow the
+[official Codex skills documentation](https://developers.openai.com/codex/skills); Codex hook trust
+is described in the [official hooks documentation](https://developers.openai.com/codex/hooks).
 
 ## Layout
 

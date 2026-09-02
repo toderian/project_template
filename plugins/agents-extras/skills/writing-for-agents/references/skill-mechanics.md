@@ -57,4 +57,4 @@ table plays this role for downstream repos.
   skill in the same plugin as the one you are writing. Claude Code invokes skills by that id, so a
   bare name leaves the reader guessing a prefix, and the wrong guess is an "Unknown skill" error
   mid-task. Exempting same-plugin names does not work: a bare name among prefixed ones reads as an
-  elision of *their* prefix. Codex users drop the prefix (`$add-task`).
+  elision of *their* prefix. Codex uses the same full id with `$` (`$agents-tasks:add-task`).

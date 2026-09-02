@@ -12,7 +12,7 @@ metadata:
 Invoke two skills together: `agents-core:grilling` for the interview, and `agents-extras:domain-modeling` so terminology and
 decisions are challenged and written down inline as the rounds resolve.
 
-Use this instead of plain `/agents-core:grill-me` when the project already has — or is starting to grow — a
+Use this instead of plain `agents-core:grill-me` when the project already has — or is starting to grow — a
 domain glossary and an ADR log.
 
 When the frontier is empty, summarise: **Decisions made**, **Glossary changes**

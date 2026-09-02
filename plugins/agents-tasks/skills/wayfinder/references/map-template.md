@@ -134,7 +134,7 @@ Append-only. One entry per charting or ticket session.
 
 ## Completion summary
 
-<!-- filled by /complete-task when the map is handed off -->
+<!-- filled by agents-tasks:complete-task when the map is handed off -->
 ````
 
 ## Resolved ticket shape

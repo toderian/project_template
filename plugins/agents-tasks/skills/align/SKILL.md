@@ -16,14 +16,14 @@ This sits at the front of the adversarial review pipeline. `agents-tasks:align` 
 
 ## When to use
 
-Invoke `/agents-tasks:align` for:
+Invoke `agents-tasks:align` for:
 
 - non-trivial features (multiple files, multiple plausible approaches)
 - work where scope feels uncertain or the user is exploring
 - any feature whose value or fit you cannot articulate in one sentence against the project's goals
 - before `agents-core:planning-workflow` for any change that warrants a plan
 
-Skip `/agents-tasks:align` for:
+Skip `agents-tasks:align` for:
 
 - mechanical changes (rename, typo, dep bump, formatting)
 - bug fixes against documented behavior
@@ -33,7 +33,7 @@ Skipping is fine. Skipping silently on a non-trivial feature is not.
 
 ## Prerequisite: a filled `PROJECT.md`
 
-`/agents-tasks:align` requires `PROJECT.md` at the repo root, with at least these sections filled:
+`agents-tasks:align` requires `PROJECT.md` at the repo root, with at least these sections filled:
 
 - `## Vision`
 - `## Goals`
@@ -41,7 +41,7 @@ Skipping is fine. Skipping silently on a non-trivial feature is not.
 
 If `PROJECT.md` does not exist or those sections are still scaffolding (`<Replace...>` placeholders), stop and tell the user:
 
-> `PROJECT.md` is required for `/agents-tasks:align`. Copy the PROJECT.md template into place and fill in at least Vision, Goals, and Out of scope. The other sections (Constraints, Current phase, Known limitations) sharpen the verdict but are not required.
+> `PROJECT.md` is required for `agents-tasks:align`. Copy the PROJECT.md template into place and fill in at least Vision, Goals, and Out of scope. The other sections (Constraints, Current phase, Known limitations) sharpen the verdict but are not required.
 
 Do not invent goals or scope on the user's behalf. The point of the file is that the user owns those decisions.
 
@@ -105,7 +105,7 @@ All three are valid. Silent drift (do the work without resolving the conflict) i
 ## Output template
 
 ```
-## /align verdict: ALIGNED | NEEDS_CLARIFICATION | OUT_OF_SCOPE
+## agents-tasks:align verdict: ALIGNED | NEEDS_CLARIFICATION | OUT_OF_SCOPE
 
 ## Proposed change (restated)
 <one neutral sentence>
@@ -140,12 +140,12 @@ All three are valid. Silent drift (do the work without resolving the conflict) i
 - **Soft verdicts.** "Mostly aligned with minor concerns" is not a valid verdict — it is a refusal to choose. Pick one of ALIGNED / NEEDS_CLARIFICATION / OUT_OF_SCOPE and explain the evidence.
 - **Silent PROJECT.md edits.** Updating the alignment doc is a legitimate option but requires explicit user approval. An agent that rewrites `PROJECT.md` to make a feature fit is doing the wrong thing.
 - **Skipping the file read.** "I checked alignment based on context" is not the same as reading `PROJECT.md`. Read the file. Cite the lines.
-- **Using `/agents-tasks:align` as a permission slip.** ALIGNED is not "go build whatever". The verdict says the *direction* is right; `agents-core:planning-workflow` and downstream skills still apply to the *shape*.
+- **Using `agents-tasks:align` as a permission slip.** ALIGNED is not "go build whatever". The verdict says the *direction* is right; `agents-core:planning-workflow` and downstream skills still apply to the *shape*.
 
-## When `/agents-tasks:align` says ALIGNED
+## When `agents-tasks:align` says ALIGNED
 
-Proceed to the next step. For non-trivial work that is the `agents-core:planning-workflow` skill. For trivial work it is just implementation. The `/agents-tasks:align` verdict travels with the work (mention it in the plan, the task, or the commit body when useful) so reviewers can see the basis for the decision.
+Proceed to the next step. For non-trivial work that is the `agents-core:planning-workflow` skill. For trivial work it is just implementation. The `agents-tasks:align` verdict travels with the work (mention it in the plan, the task, or the commit body when useful) so reviewers can see the basis for the decision.
 
-## When `/agents-tasks:align` says NEEDS_CLARIFICATION or OUT_OF_SCOPE
+## When `agents-tasks:align` says NEEDS_CLARIFICATION or OUT_OF_SCOPE
 
-Stop. Ask the questions or present the options. Do not loop back to "align it again with adjusted framing" until the underlying question is settled. Repeated `/agents-tasks:align` invocations with rephrased descriptions to chase ALIGNED are a known anti-pattern — the verdict is a signal, not an obstacle to route around.
+Stop. Ask the questions or present the options. Do not loop back to "align it again with adjusted framing" until the underlying question is settled. Repeated `agents-tasks:align` invocations with rephrased descriptions to chase ALIGNED are a known anti-pattern — the verdict is a signal, not an obstacle to route around.

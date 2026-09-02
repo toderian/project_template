@@ -119,7 +119,7 @@ how to migrate from the simple workbook loop.
 
 - Do not create a new task schema.
 - Do not replace `docs/tasks_manager`.
-- Do not bypass `/agents-tasks:complete-task` when a task is implemented or cancelled.
+- Do not bypass `agents-tasks:complete-task` when a task is implemented or cancelled.
 - Do not add default LangChain, LangGraph, or provider SDK dependencies to the template.
 - Do not grant new autonomy permissions. Branch, commit, push, PR, connector, and secret rules remain
   governed by `AGENTS.md`, `.config/repos.project.md`, and the `agents-core:git-discipline` skill

@@ -548,7 +548,7 @@ def _repo_doctor_findings(repo: Path) -> list[tuple[str, str]]:
         if status == "behind":
             findings.append(("WARN", f"AGENTS.md routing table is {len(missing)} row(s) behind the "
                                      f"plugin seed: {'; '.join(missing)} "
-                                     "(run `/setup-project` to adopt them)"))
+                                     "(run the agents-core:setup-project skill to adopt them)"))
         elif status == "current":
             findings.append(("OK", "AGENTS.md routing table matches the plugin seed"))
 
@@ -938,7 +938,8 @@ def cmd_update(args: argparse.Namespace) -> int:
     if args.check:
         print("\nat update --check: read-only. Run `at update` to refresh the marketplace and "
               "update these plugins, then restart the CLI to load them.")
-        print("For the repo side: `at doctor` reports routing-table drift, `/setup-project` adopts it.")
+        print("For the repo side: `at doctor` reports routing-table drift; "
+              "agents-core:setup-project adopts it.")
         return 0
 
     want_claude, want_codex = args.claude, args.codex
@@ -1000,7 +1001,7 @@ def cmd_update(args: argparse.Namespace) -> int:
 
     print("\nRestart the CLI to load the updated plugins — a running session keeps the old ones.")
     print("Then, in each downstream repo: `at doctor` reports routing-table drift, and "
-          "`/setup-project` adopts it.")
+          "agents-core:setup-project adopts it.")
     return 1 if failures else 0
 
 

@@ -58,7 +58,7 @@ Examples:
   at reserve inbox dark-mode-toggle
   at reserve task AUTH F login-session
 
-The task manager must already be initialized. Run /init first if
+The task manager must already be initialized. Run at init --with-tasks first if
 docs/tasks_manager/ is missing.
 EOF
 }
@@ -78,12 +78,12 @@ die() {
 }
 
 require_initialized() {
-  [[ -d "${TM}" ]] || die "docs/tasks_manager/ is missing; run /init first"
-  [[ -d "${TODOS}" ]] || die "$(rel_repo "${TODOS}") is missing; run /init first"
-  [[ -d "${ARCHIVED}" ]] || die "$(rel_repo "${ARCHIVED}") is missing; run /init first"
-  [[ -d "${INBOX}" ]] || die "$(rel_repo "${INBOX}") is missing; run /init first"
-  [[ -d "${INBOX_ARCHIVED}" ]] || die "$(rel_repo "${INBOX_ARCHIVED}") is missing; run /init first"
-  [[ -f "${AREAS_FILE}" ]] || die "$(rel_repo "${AREAS_FILE}") is missing; run /init first"
+  [[ -d "${TM}" ]] || die "docs/tasks_manager/ is missing; run at init --with-tasks first"
+  [[ -d "${TODOS}" ]] || die "$(rel_repo "${TODOS}") is missing; run at init --with-tasks first"
+  [[ -d "${ARCHIVED}" ]] || die "$(rel_repo "${ARCHIVED}") is missing; run at init --with-tasks first"
+  [[ -d "${INBOX}" ]] || die "$(rel_repo "${INBOX}") is missing; run at init --with-tasks first"
+  [[ -d "${INBOX_ARCHIVED}" ]] || die "$(rel_repo "${INBOX_ARCHIVED}") is missing; run at init --with-tasks first"
+  [[ -f "${AREAS_FILE}" ]] || die "$(rel_repo "${AREAS_FILE}") is missing; run at init --with-tasks first"
 }
 
 validate_slug() {

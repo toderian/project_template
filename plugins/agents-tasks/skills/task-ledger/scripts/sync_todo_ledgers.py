@@ -791,7 +791,7 @@ class Generator:
                 horizon = self.roadmap_inbox_horizon.get(ident) or "unknown"
                 self.validate_or_warn(
                     f"roadmap inbox reference '{ident}' appears in {horizon} but inbox ideas may only "
-                    "appear in Someday; promote with /triage-inbox before scheduling into Urgent, Now, Next, or Later"
+                    "appear in Someday; promote with agents-tasks:triage-inbox before scheduling into Urgent, Now, Next, or Later"
                 )
             if ident not in self.inbox_count:
                 self.validate_or_warn(f"missing roadmap inbox reference '{ident}'")
@@ -1232,7 +1232,7 @@ def main(argv: list[str]) -> int:
     if not tm.is_dir():
         action = "check" if check_mode else "sync"
         print(
-            f"No docs/tasks_manager/ directory at {tm} - nothing to {action}. Run /init first.",
+            f"No docs/tasks_manager/ directory at {tm} - nothing to {action}. Run at init --with-tasks first.",
             file=sys.stderr,
         )
         return 0

@@ -23,7 +23,7 @@ Follow the `agents-tasks:task-ledger` skill (references/todo-convention.md) for 
 
 ## Prerequisites
 
-The project must have `docs/tasks_manager/` initialized. If it is missing, run `/init` first.
+The project must have `docs/tasks_manager/` initialized. If it is missing, run `at init --with-tasks` first.
 
 ## Process
 
@@ -78,7 +78,7 @@ Complete every row under `## Completion harvest`:
 ```
 
 Use explicit `None` rows when there is nothing to harvest. If a follow-up is needed, capture it with
-`/agents-tasks:capture-idea` first and list the `I-NNN`.
+`agents-tasks:capture-idea` first and list the `I-NNN`.
 
 ### 6. Write the completion summary
 

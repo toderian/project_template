@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import importlib.util
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -96,6 +97,35 @@ class SkillContractTests(unittest.TestCase):
             orphaned, conflicts = build.classify_skill_policy_files({policy}, {policy})
             self.assertEqual(orphaned, [])
             self.assertEqual(conflicts, [])
+
+    def test_active_skill_references_are_harness_neutral(self) -> None:
+        skill_files = [
+            path for path in (ROOT / "plugins").glob("*/skills/**/*")
+            if path.is_file() and path.suffix in {".md", ".py", ".sh"}
+        ]
+        slash_id = re.compile(r"/(agents-(?:core|extras|personal|tasks):[a-z0-9-]+)")
+        obsolete_bare_commands = re.compile(
+            r"(?<![A-Za-z0-9_-])/(?:init|capture-idea|triage-inbox|roadmap|"
+            r"complete-task|audit-todos|add-task|distill-knowledge|execute-plan|triage|align)"
+            r"(?![A-Za-z0-9_-])"
+        )
+        for path in skill_files:
+            text = path.read_text()
+            with self.subTest(file=path):
+                self.assertIsNone(slash_id.search(text))
+                self.assertIsNone(obsolete_bare_commands.search(text))
+
+    def test_user_docs_show_full_ids_for_both_harnesses(self) -> None:
+        readme = (ROOT / "README.md").read_text()
+        seed = (ROOT / "plugins/agents-core/seed/AGENTS.md").read_text()
+        mechanics = (
+            ROOT / "plugins/agents-extras/skills/writing-for-agents/references/skill-mechanics.md"
+        ).read_text()
+        for text in (readme, seed):
+            self.assertIn("/agents-core:tdd", text)
+            self.assertIn("$agents-core:tdd", text)
+        self.assertIn("$agents-tasks:add-task", mechanics)
+        self.assertNotIn("$add-task", mechanics)
 
 
 if __name__ == "__main__":

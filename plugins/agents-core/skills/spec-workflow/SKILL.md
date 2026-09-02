@@ -212,9 +212,9 @@ Group tasks into parallel-safe sets (no shared files, no ordering dependency). F
    - Model hint per the `agents-core:subagent-protocol` skill § "Model selection".
 2. Dispatch the group. **Runtime parity, not runtime identity:**
    - **Claude Code:** use the `Task` tool with `subagent_type: implementer` to dispatch all tasks in the group in parallel.
-   - **Codex:** use Codex multi-agent tools when available. If unavailable, invoke the behavioral
-     `/implementer` skill per task in a recommended order; the grouping still encodes "safe to
-     interleave" intent.
+   - **Codex:** use Codex multi-agent tools with the `implementer` role. If unavailable, execute the
+     tasks sequentially under the orchestrator using the same brief and builder personality; the
+     grouping still encodes "safe to interleave" intent.
    - Both runtimes use the same brief shape and the same status vocabulary.
 3. Collect each subagent's structured report. Annotate the corresponding `tasks.md` line with its returned status (glyph + status text per § "File schemas").
 4. If any task returns `BLOCKED` or `NEEDS_CONTEXT`, follow the `agents-core:subagent-protocol` skill § "Escalation rules". Never re-dispatch with an identical prompt.
@@ -229,7 +229,8 @@ Group tasks into parallel-safe sets (no shared files, no ordering dependency). F
    - Acceptance: two-stage review per the `agents-core:subagent-protocol` skill § "Two-stage review" — Stage 1 spec compliance (PASS/FAIL), Stage 2 code quality.
 3. Dispatch one reviewer:
    - **Claude Code:** `Task` tool with `subagent_type: reviewer`.
-   - **Codex:** invoke the `/reviewer` skill.
+   - **Codex:** dispatch the `reviewer` role with Codex multi-agent tools. If unavailable, the
+     orchestrator performs both review stages from the same brief.
 4. Append the reviewer's report as a new `## Iteration N — <date>` section to `review.md`. Do not overwrite earlier iterations.
 
 ## Phase 4 — Terminate or loop

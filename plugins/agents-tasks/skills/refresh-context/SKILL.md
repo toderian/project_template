@@ -28,7 +28,7 @@ split". Follow it rather than re-deriving paths here. Refresh-specific reminders
   pointer/legacy fallback.
 - Generated `docs/areas/<area>.md` pages belong to the ledger generator — never hand-edit them.
 - Refresh uses curated `docs/resources/_digests/` as evidence; raw `_inbox/` processing belongs to
-  `/agents-tasks:distill-knowledge`.
+  `agents-tasks:distill-knowledge`.
 - `.local/runbooks/` and `.local/repos.map` hold machine-local values and must not be cited in
   committed docs.
 

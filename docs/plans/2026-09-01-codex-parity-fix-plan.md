@@ -20,7 +20,7 @@ diagnostics, instructions, and compatibility tests while preserving Claude Code 
   phase, add static contract tests, and keep Claude frontmatter intact.
 - [x] **Phase 2 — Dual-harness `at` lifecycle.** Add per-harness inventory, capability-aware Codex
   updates, current Codex cache resolution, strict doctor modes, and `at seed-path`.
-- [ ] **Phase 3 — Harness-neutral instructions.** Normalize active skill references, fix the skill
+- [x] **Phase 3 — Harness-neutral instructions.** Normalize active skill references, fix the skill
   authoring doctrine, and document Codex hook trust, `jq`, diagnostics, and updates.
 - [ ] **Phase 4 — Live compatibility gates.** Add hermetic current/minimum Codex smoke coverage and
   validate skill, agent, hook, and task-recording behavior without making Codex mandatory for
@@ -96,3 +96,11 @@ diagnostics, instructions, and compatibility tests while preserving Claude Code 
   reviewer approved the corrected inventory, payload, and doctor boundaries. Checks: build and
   static compatibility passed; all Claude plugin validations passed; focused CLI 272/272 passed;
   full `run-all.sh` passed (54 hook, 9 ledger, 272 CLI, 29 release tests).
+- **2026-09-02 — Phase 3 complete.** Active agent-facing prose now uses full, harness-neutral skill
+  ids; user docs show `/plugin:skill` for Claude and `$plugin:skill` for Codex. Removed obsolete
+  bare slash commands and nonexistent Codex role skills, routed task initialization through
+  `at init --with-tasks`, switched update adoption to `at seed-path`, and documented `jq`, strict
+  doctor selectors, update selectors, and Codex hook review/trust. The phase reviewer caught and
+  approved a correction to `tidy-repo`'s seeded-directory claim. Checks: static compatibility 8/8
+  passed; all Claude plugin validations passed; full `run-all.sh` passed (54 hook, 9 ledger, 272 CLI,
+  29 release tests).

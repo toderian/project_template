@@ -94,4 +94,4 @@ Any further notes about the feature.
    `docs/tasks_manager/_todos/`. Create one task per vertical slice or major actionable item. Set
    `Source` to `agents-extras:write-a-prd` and `Source ref` to the PRD identifier (issue number, file path, etc.).
 
-   If the user declines, remind them they can run `/agents-tasks:prd-to-todos` later to extract tasks from the PRD.
+   If the user declines, remind them they can run `agents-tasks:prd-to-todos` later to extract tasks from the PRD.

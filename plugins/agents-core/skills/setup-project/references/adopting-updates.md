@@ -34,7 +34,8 @@ Done when `at init` reports no `created` rows you did not expect.
 someone merges them in. This is the step that actually needs an agent.
 
 `at doctor` names the gap: *"AGENTS.md routing table is N row(s) behind the plugin seed: …"*.
-The seed lives at `${CLAUDE_PLUGIN_ROOT}/seed/AGENTS.md` (agents-core).
+Resolve the active agents-core seed with `at seed-path`; this follows whichever harness supplies
+the running `at` instead of assuming a Claude-only environment variable.
 
 Merge the missing rows into the repo's table:
 

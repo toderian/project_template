@@ -124,12 +124,12 @@ at doctor      # 0 warnings once the slots are filled
 
 ## 5. Check both harnesses
 
-- **Claude Code**: open the repo, accept the plugin install prompt for `agents-template`, and
-  run `/context` — `AGENTS.md` must appear (it is loaded through `CLAUDE.md`'s `@AGENTS.md`).
+- **Claude Code**: open the repo, accept the plugin install prompt for `agents-template`, and run
+  `/context` — `AGENTS.md` must appear (it is loaded through `CLAUDE.md`'s `@AGENTS.md`).
   `/agents-core:tdd` should be invocable and `git push --force` should be blocked by the hook.
-- **Codex**: `codex plugin add agents-core@agents-template` if you have not already; the hook
-  trust prompt appears once per machine — accept it. `$execute-plan` and the other skills
-  should be listed, and `.codex/agents/*.toml` gives you the subagent mirrors.
+- **Codex**: `codex plugin add agents-core@agents-template` if you have not already. Open `/hooks`
+  to review and trust the bundled hooks, confirm `$agents-core:tdd` appears in `/skills`, and verify
+  that the same dangerous git command is blocked. `.codex/agents/*.toml` provides the role mirrors.
 
 If a harness still shows the old skills, they are stale global symlinks — see
 `at bootstrap --clean-global-skills`.

@@ -14,7 +14,7 @@ Extract actionable tasks from an existing PRD and create task files following th
 
 ## Prerequisites
 
-The project must have `docs/tasks_manager/` initialized. If it does not exist, run `/init` first.
+The project must have `docs/tasks_manager/` initialized. If it does not exist, run `at init --with-tasks` first.
 
 ## Process
 

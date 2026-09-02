@@ -60,7 +60,7 @@ An issue can only move along these transitions. The maintainer can override any 
 
 ## Invocation
 
-The maintainer invokes `/agents-extras:github-triage` then describes what they want in natural language. The skill interprets the request and takes the appropriate action.
+The maintainer invokes `agents-extras:github-triage` then describes what they want in natural language. The skill interprets the request and takes the appropriate action.
 
 Example requests:
 

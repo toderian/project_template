@@ -17,30 +17,32 @@ For multi-repo projects, set up `.config/repos.project.md` and `.local/repos.map
 `at init --with-repos` before creating tasks, so task-producing skills can fill optional `Repos`
 metadata from stable repo slugs and honor optional `Autonomy max` ceilings.
 
+Skill lines below use full ids: prefix an id with `/` in Claude Code or `$` in Codex.
+
 ```text
-/init
-/capture-idea "rough idea or follow-up"
-/triage-inbox          # discovery gate, then promote / drop / defer / append
-/roadmap               # place task IDs in Urgent / Now / Next / Later / Someday
+at init --with-tasks
+agents-tasks:capture-idea "rough idea or follow-up"
+agents-tasks:triage-inbox          # discovery gate, then promote / drop / defer / append
+agents-tasks:roadmap               # place task IDs in Urgent / Now / Next / Later / Someday
 # Before implementing an existing task:
 # run the pre-implementation review gate from todo-convention.md
 # implement / execute the task
-/complete-task <TASK-ID>
+agents-tasks:complete-task <TASK-ID>
 at ledger check
 
 # Periodic health check:
-/audit-todos          # report-only audit of active tasks against code/tests/docs
+agents-tasks:audit-todos          # report-only audit of active tasks against code/tests/docs
 ```
 
 Direct creation is also valid when the work is already clear:
 
 ```text
-/init
-/add-task "clear, actionable task"
-/roadmap
+at init --with-tasks
+agents-tasks:add-task "clear, actionable task"
+agents-tasks:roadmap
 # pre-implementation review gate
 # implement / execute the task
-/complete-task <TASK-ID>
+agents-tasks:complete-task <TASK-ID>
 at ledger check
 ```
 
@@ -60,7 +62,7 @@ at ledger check
   intent until the task is completed and linked durable specs are reconciled.
 - **Roadmap** (`docs/tasks_manager/_roadmap.md`) owns placement and order only. It references task IDs
   in any horizon and may group them with dated milestone headings inside those horizons; raw inbox IDs
-  may sit only in `Someday` as parking-lot signals until `/agents-tasks:triage-inbox` promotes or drops them. It does
+  may sit only in `Someday` as parking-lot signals until `agents-tasks:triage-inbox` promotes or drops them. It does
   not duplicate task status or phase detail. Horizon semantics and soft thresholds live in
   [todo-convention.md](todo-convention.md) §Roadmap.
 - **Generated ledgers and area pages** (`docs/tasks_manager/_active.md`, `docs/tasks_manager/_done.md`,
@@ -70,7 +72,7 @@ at ledger check
   operational procedures. Local placeholder bindings live in ignored
   `.local/runbooks/<scenario-slug>.local.md`.
 - **Raw knowledge files** (`docs/resources/_inbox/`) are staging for uploads awaiting
-  `/agents-tasks:distill-knowledge`; related files from one source event may be grouped in an inbox batch folder,
+  `agents-tasks:distill-knowledge`; related files from one source event may be grouped in an inbox batch folder,
   and non-Markdown files there stay ignored by default.
 - **System map** (`docs/resources/system-map.md`) is the status-aware index of participant repos,
   capability areas, critical flows, and cross-repo boundaries. It links to area summaries, dependency
@@ -85,18 +87,18 @@ at ledger check
 
 ## Active-task health checks
 
-Use `/agents-tasks:audit-todos` as the periodic active-task health check. It reads `docs/tasks_manager/_todos/`,
+Use `agents-tasks:audit-todos` as the periodic active-task health check. It reads `docs/tasks_manager/_todos/`,
 compares each task with current code, tests, docs, ledgers, roadmap placement, area pages, and
 `docs/resources/`, then reports whether tasks should be kept, updated, closed, cancelled, split into
 follow-ups, or escalated for a user decision.
 
 The audit is report-only by default. It does not edit task files, archive tasks, create follow-ups, or
-reorder the roadmap. Recommended mutations flow through `/agents-tasks:complete-task`, `/agents-tasks:capture-idea`, `/agents-tasks:add-task`,
-or `/agents-tasks:roadmap` after the user chooses a next step.
+reorder the roadmap. Recommended mutations flow through `agents-tasks:complete-task`, `agents-tasks:capture-idea`, `agents-tasks:add-task`,
+or `agents-tasks:roadmap` after the user chooses a next step.
 
 ## Discovery gate
 
-`/agents-tasks:triage-inbox` must run discovery before promoting an inbox idea. Capture is fast; triage is where the
+`agents-tasks:triage-inbox` must run discovery before promoting an inbox idea. Capture is fast; triage is where the
 agent checks reality.
 
 For each idea, inspect likely matches in:
@@ -121,22 +123,22 @@ Present the classification, evidence, and recommendation before creating or chan
 
 ## Which command to use
 
-- Use `/agents-tasks:capture-idea` when the thought is vague, low-context, speculative, or simply worth remembering.
+- Use `agents-tasks:capture-idea` when the thought is vague, low-context, speculative, or simply worth remembering.
   It should stay fast: reserve an `I-NNN`, make a best-guess area, and avoid heavy research.
-- Use `/agents-tasks:add-task` when the work is clear enough to commit directly to the backlog with type, area,
+- Use `agents-tasks:add-task` when the work is clear enough to commit directly to the backlog with type, area,
   priority, phases, acceptance criteria, and tests.
-- Use `/agents-core:task-spec-workflow` when an existing task or clear idea needs a task-local Specification,
+- Use `agents-core:task-spec-workflow` when an existing task or clear idea needs a task-local Specification,
   Design, acceptance criteria, tests, and spec references before implementation.
-- Use `/agents-tasks:triage-inbox` when reviewing captured ideas. It performs discovery, then promotes, drops,
+- Use `agents-tasks:triage-inbox` when reviewing captured ideas. It performs discovery, then promotes, drops,
   defers, or appends details to existing work.
-- Use `/agents-tasks:prd-to-todos` when a PRD or larger design needs to be split into independently executable
+- Use `agents-tasks:prd-to-todos` when a PRD or larger design needs to be split into independently executable
   tasks.
-- Use `/agents-tasks:complete-task` when a task is done or intentionally cancelled. It verifies acceptance/tests,
+- Use `agents-tasks:complete-task` when a task is done or intentionally cancelled. It verifies acceptance/tests,
   reconciles linked specs, fills completion harvest and summary, archives the task, syncs generated
   views, and runs strict validation.
-- Use `/agents-tasks:map-system` when the project needs a refreshed repo/capability system picture. It updates
-  `docs/resources/system-map.md` and points detailed area work to `/agents-tasks:define-area`.
-- Use `/agents-tasks:audit-todos` when reviewing active tasks for drift. It classifies active tasks with evidence
+- Use `agents-tasks:map-system` when the project needs a refreshed repo/capability system picture. It updates
+  `docs/resources/system-map.md` and points detailed area work to `agents-tasks:define-area`.
+- Use `agents-tasks:audit-todos` when reviewing active tasks for drift. It classifies active tasks with evidence
   from code, tests, docs, roadmap, ledgers, and resources, then recommends follow-up workflows without
   mutating files by default.
 
