@@ -1004,7 +1004,13 @@ if [[ -d "$LIGHT_SRC/.git" ]] && clone_legacy "$LIGHT_SRC" "$GITIGNORED" "$LIGHT
   assert_eq "$GI_RC" "0" \
     "migrate succeeds when the downstream's own .gitignore ignores .claude/: $GI_OUT"
   assert_stdout_contains "$(git show --name-only HEAD)" ".claude/settings.json" \
-    "the migration commit includes .claude/settings.json even though it is locally gitignored"
+    "the migration commit includes .claude/settings.json even though it is locally gitignored
+--- migrate output:
+$GI_OUT
+--- git show --stat HEAD:
+$(git show --stat --format='%H %s' HEAD | head -20)
+--- git status --porcelain:
+$(git status --porcelain)"
 else
   echo "SKIP: migrate with a locally gitignored .claude/ (no clone source, or pinned ref unavailable, at $LIGHT_SRC)"
 fi

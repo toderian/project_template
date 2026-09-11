@@ -21,6 +21,10 @@ Notable changes to agents-template. All four plugins share the version of the re
   missing `npx` or a failed install is reported and never fails `at bootstrap` or `at update`, and
   `at doctor --codex` reports whether the Codex skill landed.
 
+### Changed
+
+- CI and releases validate against current Codex `0.154.0` (minimum stays `0.147.0`).
+
 ### Fixed
 
 - `at` finds the installed `agents-tasks` seed through the cache next to its own plugin root, so

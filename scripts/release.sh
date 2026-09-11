@@ -89,7 +89,7 @@ say "python3 scripts/build.py"
 if [[ "$DRY_RUN" == 0 ]]; then python3 scripts/build.py; fi
 
 REQUIRE_CODEX_LIVE=1
-EXPECT_CODEX_VERSION=0.152.1
+EXPECT_CODEX_VERSION=0.154.0
 if [[ -n "${AT_RELEASE_TEST:-}" ]]; then
   REQUIRE_CODEX_LIVE="${AT_REQUIRE_CODEX_LIVE:-0}"
   EXPECT_CODEX_VERSION="${AT_EXPECT_CODEX_VERSION:-}"
