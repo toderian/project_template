@@ -71,7 +71,8 @@ assert_eq "$INIT_RC" "0" "at init --all exits 0: $INIT_OUT"
 for f in AGENTS.md CLAUDE.md .claude/settings.json .claude/statusline.sh .codex/agents/implementer.toml \
          docs/tasks_manager/_todos docs/tasks_manager/_areas.md docs/tasks_manager/_roadmap.md \
          docs/tasks_manager/_logs docs/areas/_overview.md docs/resources/CONTEXT.md \
-         docs/_plans/.gitkeep artifacts/README.md workbooks/README.md .config/repos.project.md; do
+         docs/_plans/.gitkeep artifacts/README.md workbooks/README.md .config/repos.project.md \
+         .caveman.json; do
   assert_exists "$PROJECT/$f" "at init --all creates $f"
 done
 
@@ -84,6 +85,14 @@ assert_contains .gitignore "# BEGIN agents-template" ".gitignore has BEGIN marke
 assert_contains .gitignore "# END agents-template" ".gitignore has END marker"
 assert_contains .gitignore "node_modules/" ".gitignore keeps pre-existing content"
 assert_contains .gitignore ".no-commit/" ".gitignore managed block ignores local-only dirs"
+assert_contains .gitignore ".caveman.json" ".gitignore managed block keeps the local caveman switch uncommitted"
+assert_eq "$(python3 -c 'import json;d=json.load(open(".caveman.json"));print("defaultMode" in d, d["defaultMode"])')" "True None" \
+  "the seeded .caveman.json carries a null defaultMode so caveman falls through to the user config (on by default)"
+assert_eq "$(git check-ignore .caveman.json)" ".caveman.json" "the seeded .caveman.json is ignored by git"
+printf '{"defaultMode": "off"}\n' > .caveman.json
+at init >/dev/null 2>&1
+assert_eq "$(python3 -c 'import json;print(json.load(open(".caveman.json"))["defaultMode"])')" "off" \
+  "re-running at init keeps a locally edited .caveman.json"
 assert_contains .gitattributes "# BEGIN agents-template" ".gitattributes has BEGIN marker"
 assert_contains .gitattributes "# END agents-template" ".gitattributes has END marker"
 
@@ -98,6 +107,8 @@ SETTINGS_CORE="$(python3 -c 'import json;print(json.load(open(".claude/settings.
 assert_eq "$SETTINGS_CORE" "True" "settings.json enables agents-core"
 SETTINGS_TASKS="$(python3 -c 'import json;print(json.load(open(".claude/settings.json"))["enabledPlugins"].get("agents-tasks@agents-template"))')"
 assert_eq "$SETTINGS_TASKS" "True" "settings.json enables agents-tasks with --with-tasks"
+SETTINGS_CAVEMAN="$(python3 -c 'import json;d=json.load(open(".claude/settings.json"));print(d["enabledPlugins"].get("caveman@caveman"), d["extraKnownMarketplaces"]["caveman"]["source"]["repo"])')"
+assert_eq "$SETTINGS_CAVEMAN" "True JuliusBrussee/caveman" "settings.json enables the caveman companion from its own marketplace"
 SETTINGS_DENY="$(python3 -c 'import json;print("\n".join(json.load(open(".claude/settings.json"))["permissions"]["deny"]))')"
 assert_stdout_contains "$SETTINGS_DENY" "Read(./.creds/**)" "settings.json denies reads of the local credential dir"
 
@@ -153,6 +164,25 @@ assert_eq "$DOCTOR_RC" "0" "at doctor exits 0 on a fresh seed: $DOCTOR_OUT"
 assert_stdout_contains "$DOCTOR_OUT" "TODO-FILL" "at doctor warns about unfilled project slots"
 if printf '%s\n' "$DOCTOR_OUT" | grep -q '^WARN .*TODO-FILL'; then pass; else fail "TODO-FILL finding is a WARN"; fi
 assert_stdout_lacks "$DOCTOR_OUT" "ERROR" "at doctor reports no errors on a fresh seed"
+assert_stdout_contains "$DOCTOR_OUT" "caveman@caveman is enabled in .claude/settings.json" \
+  "at doctor checks every plugin the seed enables"
+
+# a settings.json from before the companion existed is reported as behind
+python3 - <<'PY'
+import json, pathlib
+p = pathlib.Path(".claude/settings.json")
+d = json.loads(p.read_text())
+d["enabledPlugins"].pop("caveman@caveman")
+p.write_text(json.dumps(d, indent=2) + "\n")
+PY
+DOCTOR_NOCAVE="$(at doctor 2>&1)"
+if printf '%s\n' "$DOCTOR_NOCAVE" | grep -qE '^WARN +caveman@caveman is not enabled'; then
+  pass
+else
+  fail "doctor warns when the companion is not enabled: $DOCTOR_NOCAVE"
+fi
+INIT_CAVE="$(at init --with-tasks 2>&1)"
+assert_stdout_contains "$INIT_CAVE" " merged  .claude/settings.json" "re-running at init merges the companion back in"
 
 # the warning counts slot markers, not every mention of the token
 MARKERS="$(grep -c '<!-- TODO-FILL' AGENTS.md)"
@@ -332,6 +362,16 @@ assert at.find_tasks_root() == codex_tasks
 claude_tasks = cross_home / ".claude/plugins/cache/agents-template/agents-tasks/1.2.0"
 (claude_tasks / "skills").mkdir(parents=True)
 assert at.find_tasks_root() == claude_tasks
+
+# A cache outside $HOME (CLAUDE_CONFIG_DIR / CODEX_HOME) is found next to the running core plugin.
+elsewhere = home / "elsewhere" / "plugins" / "cache" / "agents-template"
+moved_core = elsewhere / "agents-core" / "1.2.0"
+(moved_core / "skills").mkdir(parents=True)
+for version in ("1.2.0", "1.10.0"):
+    (elsewhere / "agents-tasks" / version / "skills").mkdir(parents=True)
+at.os.environ["HOME"] = str(home / "empty-home")
+at.core_root = lambda: moved_core
+assert at.find_tasks_root() == elsewhere / "agents-tasks" / "1.10.0"
 PYINVENTORY
 assert_eq "$?" "0" "live inventory and cross-harness task cache resolution are deterministic"
 
@@ -371,7 +411,43 @@ spec = importlib.util.spec_from_file_location("at", sys.argv[1])
 at = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(at)
 
-def run_case(cached, reported, args, source_type=None):
+CAVEMAN_INSTALL = [
+    ["claude", "plugin", "marketplace", "add", "JuliusBrussee/caveman"],
+    ["claude", "plugin", "install", "caveman@caveman"],
+]
+CAVEMAN_REFRESH = [
+    ["claude", "plugin", "marketplace", "update", "caveman"],
+    ["claude", "plugin", "update", "caveman@caveman"],
+]
+CAVEMAN_CODEX = [["npx", "--yes", "skills@1", "add", "JuliusBrussee/caveman", "--skill", "caveman",
+                  "-g", "-a", "codex", "-y"]]
+assert at.companion_commands("claude") == CAVEMAN_INSTALL
+assert at.companion_commands("claude", installed=True) == CAVEMAN_REFRESH
+assert at.companion_commands("codex") == at.companion_commands("codex", installed=True) == CAVEMAN_CODEX
+
+# claude_plugin_installed reads the live plugin list: user-scope rows count, project-scope rows do not.
+at._run_json = lambda cmd: [{"id": "caveman@caveman", "scope": "user"}]
+assert at.claude_plugin_installed("caveman@caveman") is True
+at._run_json = lambda cmd: [{"id": "caveman@caveman"}]
+assert at.claude_plugin_installed("caveman@caveman") is True
+at._run_json = lambda cmd: [{"id": "caveman@caveman", "scope": "project", "projectPath": "/elsewhere"}]
+assert at.claude_plugin_installed("caveman@caveman") is False
+at._run_json = lambda cmd: []
+assert at.claude_plugin_installed("caveman@caveman") is False
+at._run_json = lambda cmd: None
+assert at.claude_plugin_installed("caveman@caveman") is False
+
+# A companion failure or missing npx is reported, never counted as a bootstrap/update failure.
+at.shutil.which = lambda name: None if name == "npx" else f"/fake/{name}"
+skipped_cmds = []
+at._run = lambda command: skipped_cmds.append(command) or True
+assert at._install_companions("codex") == "skipped" and skipped_cmds == []
+at.shutil.which = lambda name: f"/fake/{name}"
+at._run = lambda command: False
+at.claude_plugin_installed = lambda plugin_id: False
+assert at._install_companions("claude") == "failed"
+
+def run_case(cached, reported, args, source_type=None, caveman_installed=False):
     commands = []
     at.installed_plugins = lambda: cached
     at.cli_plugin_inventory = lambda harness: reported.get(harness, {})
@@ -380,6 +456,7 @@ def run_case(cached, reported, args, source_type=None):
     at._verify_codex_cache = lambda names: []
     at._command_supported = lambda command: command[-1] == "upgrade"
     at.codex_marketplace_source_type = lambda: source_type
+    at.claude_plugin_installed = lambda plugin_id: caveman_installed
     rc = at.cmd_update(args)
     assert rc == 0
     return commands
@@ -414,7 +491,17 @@ claude = run_case(
 assert claude == [
     ["claude", "plugin", "marketplace", "update", "agents-template"],
     ["claude", "plugin", "update", "agents-core@agents-template"],
+    *CAVEMAN_INSTALL,
 ]
+
+# A machine bootstrapped before the companion existed gets it installed; one that has it gets a refresh.
+claude_refresh = run_case(
+    {"claude": {"agents-core": ["1.2.0"]}, "codex": {}},
+    {"claude": {"agents-core": {"version": "1.2.0", "enabled": True}}, "codex": {}},
+    argparse.Namespace(check=False, claude=False, codex=False),
+    caveman_installed=True,
+)
+assert claude_refresh[2:] == CAVEMAN_REFRESH
 
 codex = run_case(
     {"claude": {}, "codex": {"agents-core": ["1.2.0"]}},
@@ -423,7 +510,7 @@ codex = run_case(
     }}},
     argparse.Namespace(check=False, claude=False, codex=False),
 )
-assert codex == [["codex", "plugin", "add", "agents-core@agents-template"]]
+assert codex == [["codex", "plugin", "add", "agents-core@agents-template"], *CAVEMAN_CODEX]
 
 mixed = run_case(
     {
@@ -441,7 +528,9 @@ mixed = run_case(
 assert mixed == [
     ["claude", "plugin", "marketplace", "update", "agents-template"],
     ["claude", "plugin", "update", "agents-core@agents-template"],
+    *CAVEMAN_INSTALL,
     ["codex", "plugin", "add", "agents-core@agents-template"],
+    *CAVEMAN_CODEX,
 ]
 
 # A successful empty live inventory suppresses stale cache fallback.
@@ -688,6 +777,45 @@ assert_stdout_contains "$BOOT_YES" "removed $CANDIDATE_COUNT symlink(s)" \
   "at bootstrap --yes removes every stale candidate, including the dangling one"
 assert_symlink_gone "$FAKEHOME/.claude/skills/dangling-example" "the dangling symlink is gone after --yes"
 
+# bootstrap installs the caveman companion for exactly the harnesses it sets up
+BOOT_CMDS="$(HOME="$FAKEHOME" python3 - "$AT_PY" "$FAKEHOME" "$REPO" <<'PY'
+import argparse, importlib.util, sys
+spec = importlib.util.spec_from_file_location("at", sys.argv[1])
+at = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(at)
+at.claude_plugin_installed = lambda plugin_id: False
+at.shutil.which = lambda name: f"/fake/{name}"
+CODEX_CMD = "npx --yes skills@1 add JuliusBrussee/caveman --skill caveman -g -a codex -y"
+def case(run=None, **flags):
+    commands = []
+    at._run = run or (lambda cmd: commands.append(" ".join(cmd)) or True)
+    args = argparse.Namespace(local=sys.argv[3], tasks=False, extras=False, personal=False,
+                              clean_global_skills=False, yes=False, **flags)
+    rc = at.cmd_bootstrap(args)
+    return rc, commands
+rc, both = case(claude=False, codex=False)
+assert rc == 0
+assert "claude plugin marketplace add JuliusBrussee/caveman" in both
+assert "claude plugin install caveman@caveman" in both
+assert CODEX_CMD in both
+assert both.index("claude plugin install caveman@caveman") > both.index("claude plugin install agents-core@agents-template")
+rc, only_claude = case(claude=True, codex=False)
+assert rc == 0 and "claude plugin install caveman@caveman" in only_claude
+assert not any(cmd.startswith("npx") or cmd.startswith("codex") for cmd in only_claude)
+rc, only_codex = case(claude=False, codex=True)
+assert rc == 0 and CODEX_CMD in only_codex
+assert not any(cmd.startswith("claude") for cmd in only_codex)
+# a failing companion command does not fail bootstrap; a failing marketplace command still does
+rc, _ = case(run=lambda cmd: "caveman" not in " ".join(cmd), claude=False, codex=False)
+assert rc == 0, "companion failure must not fail bootstrap"
+rc, _ = case(run=lambda cmd: "agents-core" not in " ".join(cmd), claude=True, codex=False)
+assert rc == 1, "a failed agents-core install still fails bootstrap"
+print("bootstrap-companions-ok")
+PY
+)"
+assert_stdout_contains "$BOOT_CMDS" "bootstrap-companions-ok" \
+  "at bootstrap installs the caveman companion per selected harness: $BOOT_CMDS"
+
 # _leaked_untracked_paths: the last-resort safety check `at migrate --commit`
 # runs right before it commits. Exercise the pure function directly with a
 # synthetic staged list — this legitimately drives its die-branch logic
@@ -835,6 +963,9 @@ if [[ -d "$LIGHT_SRC/.git" ]] && clone_legacy "$LIGHT_SRC" "$LIGHT" "$LIGHT_REF"
   assert_exists "$LIGHT/.no-commit/README.md.pre-migration" "migrate keeps the old README.md"
   assert_eq "$(git ls-files .no-commit | wc -l | tr -d ' ')" "0" "the pre-migration copies stay untracked"
   assert_exists "$LIGHT/docs/_plans/.gitkeep" "migrate seeds docs/_plans/"
+  assert_exists "$LIGHT/.caveman.json" "migrate seeds the local .caveman.json"
+  assert_eq "$(git ls-files .caveman.json | wc -l | tr -d ' ')" "0" \
+    "migrate --commit never stages the local .caveman.json"
   assert_exists "$LIGHT/.claude/agents/custom-role.md" "migrate keeps a downstream's own subagent"
   assert_exists "$LIGHT/.agents/plugins/marketplace.json" "migrate keeps other .agents/ entries"
   assert_missing "$LIGHT/CONTEXT.md" "migrate removes a template CONTEXT.md stub"

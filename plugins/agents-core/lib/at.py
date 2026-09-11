@@ -29,6 +29,19 @@ from pathlib import Path
 
 MARKETPLACE = "agents-template"
 DEFAULT_SOURCE = "toderian/project_template"
+# Companion plugin: installed next to the marketplace on every bootstrap/update and enabled by
+# the seed settings, never vendored. Claude installs it as a plugin from its own marketplace;
+# Codex has no marketplace for it, so the skill goes in through the `skills` CLI (needs npx).
+CAVEMAN_REPO = "JuliusBrussee/caveman"
+CAVEMAN_MARKETPLACE = "caveman"
+CAVEMAN_PLUGIN = f"caveman@{CAVEMAN_MARKETPLACE}"
+CAVEMAN_SKILL = "caveman"
+# The `skills` CLI (npm) that installs SKILL.md bundles for Codex. Pinned to a major so `npx`
+# neither prompts to install it (`--yes`) nor silently picks up a breaking release.
+SKILLS_CLI = "skills@1"
+# Seed files that stay local: written by `at init` for the developer to edit, ignored by the
+# managed .gitignore block, and never staged by `at migrate --commit`.
+LOCAL_ONLY_SEED_PATHS = frozenset({".caveman.json"})
 BEGIN_MARKER = "# BEGIN agents-template"
 END_MARKER = "# END agents-template"
 MAX_AGENTS_MD_LINES = 200
@@ -207,7 +220,9 @@ def find_tasks_root() -> Path | None:
     """Locate the installed agents-tasks plugin root, or None.
 
     Order: $AT_TASKS_ROOT; a sibling plugin dir in a source checkout; then the
-    newest semantic version across both harness caches (Claude wins a version tie).
+    newest semantic version across both harness caches (Claude wins a version tie);
+    finally the cache sibling resolved relative to this file, which keeps working
+    when the harness cache does not live under $HOME (CLAUDE_CONFIG_DIR, CODEX_HOME).
     """
     env = os.environ.get("AT_TASKS_ROOT")
     if env:
@@ -231,6 +246,11 @@ def find_tasks_root() -> Path | None:
                 ))
     if candidates:
         return max(candidates, key=lambda item: (item[0], item[1]))[2]
+    cached = core_root().parents[1] / "agents-tasks"
+    if cached.is_dir():
+        versions = [d for d in cached.iterdir() if (d / "skills").is_dir()]
+        if versions:
+            return max(versions, key=lambda d: _version_key(d.name))
     return None
 
 
@@ -412,6 +432,12 @@ def seed_repo(repo: Path, with_tasks: bool = False, with_artifacts: bool = False
         dst = repo / ".codex" / "agents" / toml.name
         report.append((f".codex/agents/{toml.name}", write_seed_file(toml, dst, overwrite=True)))
 
+    # local caveman switch: gitignored, edited (never committed) to turn terse mode off. Seeded
+    # with a null mode so it inherits the user-level config (caveman's own default is "full")
+    # instead of overriding a machine-wide opt-out.
+    report.append((".caveman.json", write_seed_file(
+        seed / "caveman.json", repo / ".caveman.json", overwrite=False)))
+
     # plan scratchpad — several skills write their working plans here
     plans_keep = repo / "docs" / "_plans" / ".gitkeep"
     if plans_keep.exists():
@@ -569,7 +595,11 @@ def _repo_doctor_findings(repo: Path) -> list[tuple[str, str]]:
         findings.append(("OK", "no legacy `_base/` or `playbooks/` tree"))
 
     settings_path = repo / ".claude" / "settings.json"
-    key = f"agents-core@{MARKETPLACE}"
+    try:
+        seed_settings = json.loads((core_root() / "seed" / "settings.json").read_text())
+    except (OSError, ValueError):
+        seed_settings = {}  # incomplete plugin cache: fall back to the one plugin that must exist
+    wanted_plugins = sorted(seed_settings.get("enabledPlugins") or {f"agents-core@{MARKETPLACE}": True})
     if not settings_path.exists():
         findings.append(("WARN", ".claude/settings.json is missing; plugins will not auto-install "
                                  "(run `at init`)"))
@@ -580,11 +610,13 @@ def _repo_doctor_findings(repo: Path) -> list[tuple[str, str]]:
             settings = None
             findings.append(("ERROR", f".claude/settings.json is not valid JSON ({exc})"))
         if settings is not None:
-            if (settings.get("enabledPlugins") or {}).get(key) is True:
-                findings.append(("OK", f"{key} is enabled in .claude/settings.json"))
-            else:
-                findings.append(("WARN", f"{key} is not enabled in .claude/settings.json "
-                                         "(run `at init`)"))
+            enabled = settings.get("enabledPlugins") or {}
+            for key in wanted_plugins:
+                if enabled.get(key) is True:
+                    findings.append(("OK", f"{key} is enabled in .claude/settings.json"))
+                else:
+                    findings.append(("WARN", f"{key} is not enabled in .claude/settings.json "
+                                             "(run `at init`)"))
 
     if (repo / "docs" / "tasks_manager").is_dir():
         _ledger_findings(repo, findings)
@@ -682,7 +714,24 @@ def _runtime_findings(repo: Path, harness: str, strict: bool) -> list[tuple[str,
     elif strict:
         findings.append(("OK", "jq is available for plugin hooks"))
 
+    if harness == "claude":
+        if shutil.which("node") is None:
+            findings.append(("WARN", f"node is required by the {CAVEMAN_PLUGIN} hooks"))
+        elif strict:
+            findings.append(("OK", f"node is available for the {CAVEMAN_PLUGIN} hooks"))
+
     if harness == "codex":
+        codex_skill = Path.home() / ".codex" / "skills" / CAVEMAN_SKILL / "SKILL.md"
+        if codex_skill.is_file():
+            if strict:
+                findings.append(("OK", f"the {CAVEMAN_SKILL} companion skill is installed for Codex"))
+        elif shutil.which("npx") is None:
+            findings.append(("WARN", f"npx is required to install the {CAVEMAN_SKILL} companion skill "
+                                     "for Codex (install Node, then `at update --codex`)"))
+        else:
+            findings.append(("WARN", f"the {CAVEMAN_SKILL} companion skill is not installed for Codex "
+                                     f"({codex_skill}; run `at update --codex`)"))
+
         expected_agents = sorted(path.name for path in (core_root() / "codex/agents").glob("*.toml"))
         agent_root = (
             core_root() / "codex/agents"
@@ -794,6 +843,60 @@ def _run(cmd: list[str]) -> bool:
     return True
 
 
+def claude_plugin_installed(plugin_id: str) -> bool:
+    """Whether `claude plugin list` reports `plugin_id` installed at user scope.
+
+    Project-scoped rows (a `.claude/settings.json` elsewhere) do not count: the
+    machine-level install is what bootstrap/update maintain.
+    """
+    data = _run_json(["claude", "plugin", "list", "--json"])
+    if not isinstance(data, list):
+        return False
+    return any(
+        isinstance(r, dict) and str(r.get("id", "")) == plugin_id
+        and r.get("scope") in (None, "user")
+        for r in data
+    )
+
+
+def companion_commands(harness: str, installed: bool = False) -> list[list[str]]:
+    """Commands that install (or, when `installed`, refresh) the caveman companion."""
+    if harness == "claude":
+        if installed:
+            return [["claude", "plugin", "marketplace", "update", CAVEMAN_MARKETPLACE],
+                    ["claude", "plugin", "update", CAVEMAN_PLUGIN]]
+        return [["claude", "plugin", "marketplace", "add", CAVEMAN_REPO],
+                ["claude", "plugin", "install", CAVEMAN_PLUGIN]]
+    if harness == "codex":
+        # idempotent: re-adding refreshes the copy under ~/.codex/skills. `--yes` answers
+        # npx's own "install skills?" prompt; the trailing `-y` is the skills CLI's.
+        return [["npx", "--yes", SKILLS_CLI, "add", CAVEMAN_REPO, "--skill", CAVEMAN_SKILL,
+                 "-g", "-a", "codex", "-y"]]
+    raise ValueError(f"unknown harness: {harness}")
+
+
+def _install_companions(harness: str) -> str:
+    """Install or refresh the companion for `harness`.
+
+    Returns 'installed', 'skipped' (tooling missing) or 'failed'. The companion is optional,
+    so its outcome is reported but never fails bootstrap/update.
+    """
+    if harness == "codex" and shutil.which("npx") is None:
+        print(f"at: npx is not on PATH — the {CAVEMAN_SKILL} skill for Codex was skipped "
+              "(install Node, then re-run `at update --codex`)", file=sys.stderr)
+        return "skipped"
+    installed = harness == "claude" and claude_plugin_installed(CAVEMAN_PLUGIN)
+    for command in companion_commands(harness, installed):
+        if not _run(command):
+            return "failed"
+    return "installed"
+
+
+def _print_companion_report(outcomes: dict[str, str]) -> None:
+    for harness, status in outcomes.items():
+        print(f"companion {CAVEMAN_PLUGIN} ({CAVEMAN_REPO}) for {harness}: {status}")
+
+
 def cmd_bootstrap(args: argparse.Namespace) -> int:
     source = str(Path(args.local).expanduser().resolve()) if args.local else DEFAULT_SOURCE
     want_claude, want_codex = args.claude, args.codex
@@ -807,14 +910,17 @@ def cmd_bootstrap(args: argparse.Namespace) -> int:
             names.append(name)
 
     failures = 0
+    companions: dict[str, str] = {}
     if want_claude:
         failures += not _run(["claude", "plugin", "marketplace", "add", source])
         for name in names:
             failures += not _run(["claude", "plugin", "install", f"{name}@{MARKETPLACE}"])
+        companions["claude"] = _install_companions("claude")
     if want_codex:
         failures += not _run(["codex", "plugin", "marketplace", "add", source])
         for name in names:
             failures += not _run(["codex", "plugin", "add", f"{name}@{MARKETPLACE}"])
+        companions["codex"] = _install_companions("codex")
 
     resolver = write_resolver(Path.home())
     print(f"wrote {resolver} (make sure ~/.local/bin is on PATH)")
@@ -834,7 +940,9 @@ def cmd_bootstrap(args: argparse.Namespace) -> int:
             else:
                 print("re-run with --yes to remove them")
 
-    print("\nThird-party plugins are installed from their own marketplaces, e.g.:")
+    print()
+    _print_companion_report(companions)
+    print("Other third-party plugins are installed from their own marketplaces the same way, e.g.:")
     print("  claude plugin marketplace add obra/superpowers-marketplace")
     print("  claude plugin install superpowers@superpowers-marketplace")
     return 1 if failures else 0
@@ -967,6 +1075,7 @@ def cmd_update(args: argparse.Namespace) -> int:
         return 1
 
     failures = 0
+    companions: dict[str, str] = {}
     if want_claude:
         if shutil.which("claude") is None or not names["claude"]:
             print("at update: --claude requested, but no Claude agents-template installation was found.",
@@ -976,6 +1085,7 @@ def cmd_update(args: argparse.Namespace) -> int:
             failures += not _run(["claude", "plugin", "marketplace", "update", MARKETPLACE])
             for name in names["claude"]:
                 failures += not _run(["claude", "plugin", "update", f"{name}@{MARKETPLACE}"])
+            companions["claude"] = _install_companions("claude")
     if want_codex:
         if shutil.which("codex") is None or not names["codex"]:
             print("at update: --codex requested, but no Codex agents-template installation was found.",
@@ -1011,8 +1121,11 @@ def cmd_update(args: argparse.Namespace) -> int:
                         for problem in problems:
                             print(f"at update: Codex verification failed: {problem}", file=sys.stderr)
                         failures += len(problems)
+                        companions["codex"] = _install_companions("codex")
 
-    print("\nRestart the CLI to load the updated plugins — a running session keeps the old ones.")
+    print()
+    _print_companion_report(companions)
+    print("Restart the CLI to load the updated plugins — a running session keeps the old ones.")
     print("Then, in each downstream repo: `at doctor` reports routing-table drift, and "
           "agents-core:setup-project adopts it.")
     return 1 if failures else 0
@@ -1721,7 +1834,7 @@ def cmd_migrate(args: argparse.Namespace) -> int:
         print(f"  keep     {entry}")
     print(f"  seed     at init {' '.join(seed_flags)}".rstrip()
           + "  (CLAUDE.md, the managed .gitignore/.gitattributes blocks, "
-            ".claude/settings.json, .codex/agents/, docs/_plans/)")
+            ".claude/settings.json, .codex/agents/, docs/_plans/, a local .caveman.json)")
     for warning in warnings:
         print(f"  WARN     {warning}")
 
@@ -1804,7 +1917,8 @@ def cmd_migrate(args: argparse.Namespace) -> int:
     # does not repeat them.
 
     if args.commit:
-        added = sorted({rel for rel, status in report if status != "kept"}
+        added = sorted({rel for rel, status in report
+                        if status != "kept" and rel not in LOCAL_ONLY_SEED_PATHS}
                        | {rel for rel, _ in rewritten})
         body = "\n".join([
             COMMIT_SUBJECT, "",

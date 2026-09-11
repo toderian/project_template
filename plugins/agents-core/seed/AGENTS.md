@@ -75,6 +75,7 @@ available skills and pick from that instead of guessing another prefix.
 | Large, generated, or encrypted files | `agents-tasks:artifacts-registry` |
 | Work spanning repos | `agents-tasks:cross-repo-feature`, `agents-tasks:cross-repo-pr-review`, `.config/repos.project.md` |
 | "Is this over-engineered?" | `agents-core:simplicity-review` |
+| Terse replies, fewer output tokens | `caveman:caveman` (`/caveman:caveman` in Claude, `$caveman` in Codex; on by default in Claude, off locally via `.caveman.json`, see conventions) |
 | Module shape, interfaces, seams, testability | `agents-core:codebase-design` |
 | Setting up this repo, or adopting a template update | `agents-core:setup-project` (after `at update` + restart) |
 
@@ -90,6 +91,11 @@ improvising a workflow.
   each one for secrets and private context before committing; local-only prompts go to
   `.no-commit/.prompts/`.
 - `.no-commit/` — local scratch: throwaway notes, experiments, raw transcripts. Never committed.
+- `.caveman.json` — local, git-ignored switch for the caveman terse-reply mode, seeded by `at init`
+  with `defaultMode: null`, which inherits the user-level caveman config (default `full`). Set it
+  to `"off"` (or `"lite"`) for work where output wording is the product, such as dataset generation;
+  the edit stays on this checkout and can never be committed. `CAVEMAN_DEFAULT_MODE=off` in the
+  environment outranks it; a committed `.caveman/config.json` sets a repo-wide default for everyone.
 - `.local/` — machine bindings: `repos.map`, runbook values, decrypted artifacts. Never committed.
 - `.inbox/` — local drop-zone for files handed to an agent. Treat it as staging; move anything durable
   into the repo (or `docs/resources/_inbox/`) before relying on it.

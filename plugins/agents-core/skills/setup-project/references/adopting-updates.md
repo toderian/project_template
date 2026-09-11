@@ -26,7 +26,12 @@ Infer the flags from what is already there, so nothing gets dropped:
 | `workbooks/README.md` | `--with-workbooks` |
 | `.config/repos.project.md` | `--with-repos` |
 
-Done when `at init` reports no `created` rows you did not expect.
+Done when `at init` reports no `created` rows you did not expect. A `merged` row for
+`.claude/settings.json` usually means a plugin the seed newly enables (such as the
+`caveman@caveman` companion) was added; Claude Code installs it at the next session start, and
+`at doctor` lists each plugin the seed enables so a repo that is still missing one shows a `WARN`.
+A `created` row for `.caveman.json` is expected once: it is the local, git-ignored caveman switch
+(inherits the user config, `full` by default), so leave it out of any commit.
 
 ## 2. The routing table covers what the seed routes
 

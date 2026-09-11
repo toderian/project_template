@@ -1,0 +1,4 @@
+{
+  "_comment": "Local caveman switch for this checkout, git-ignored. Set defaultMode to \"off\" (or \"lite\", \"full\", \"ultra\") to override; null inherits your user config (~/.config/caveman/config.json), whose default is full.",
+  "defaultMode": null
+}

@@ -2,6 +2,31 @@
 
 Notable changes to agents-template. All four plugins share the version of the repository.
 
+## Unreleased
+
+### Added
+
+- The [caveman](https://github.com/JuliusBrussee/caveman) skill ships as a companion, installed
+  from its own marketplace rather than vendored. `at bootstrap` and `at update` install or refresh
+  it on the machine for each harness they touch (Claude as the `caveman@caveman` plugin, Codex as a
+  global skill through `npx skills add`), and the seed `.claude/settings.json` enables it, so a
+  downstream repo picks it up on its next `at init` and Claude Code installs it at the next session
+  start. `at doctor` now checks every plugin the seed enables and warns when `node`, which the
+  caveman hooks need, is missing. The seed routing table gains a row for it, so existing repos see
+  the drift and adopt it through `agents-core:setup-project`. `at init` writes a local
+  `.caveman.json` with a null `defaultMode` (inherits the user config, default `full`), which the
+  seed `.gitignore` block ignores and `at migrate --commit` never stages, so switching it to `off`
+  is a per-checkout edit that cannot be committed and a machine-wide opt-out is still honoured. Terse mode
+  is session-wide in Claude and per-session (`$caveman`) in Codex. The companion is optional: a
+  missing `npx` or a failed install is reported and never fails `at bootstrap` or `at update`, and
+  `at doctor --codex` reports whether the Codex skill landed.
+
+### Fixed
+
+- `at` finds the installed `agents-tasks` seed through the cache next to its own plugin root, so
+  `at init --with-tasks` works when the harness cache is not under `$HOME` (`CLAUDE_CONFIG_DIR`,
+  `CODEX_HOME`).
+
 ## 1.2.1 — 2026-09-02
 
 ### Fixed

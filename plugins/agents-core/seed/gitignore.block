@@ -18,6 +18,10 @@ __pycache__/
 # also covers the harness's atomic-write temp files.
 .claude/settings.local.json*
 
+# Local caveman switch (seeded by `at init`): edit defaultMode to "off" for this checkout only.
+# A committed .caveman/config.json sets a repo-wide default instead.
+.caveman.json
+
 # Local Codex config/state. Only committed project-scoped agent mirrors are allowed.
 .codex/*
 !.codex/agents/

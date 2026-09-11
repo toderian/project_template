@@ -38,6 +38,18 @@ resolver — after it, plain `at` works everywhere, provided `~/.local/bin` is o
 install from GitHub, add `--tasks` / `--extras` / `--personal` for the other plugins, and
 `--clean-global-skills` to list stale global skill symlinks from the pre-1.0 layout.
 
+`at bootstrap` and `at update` also install the [caveman](https://github.com/JuliusBrussee/caveman)
+companion from its own marketplace: the `caveman@caveman` plugin in Claude Code (its hooks need
+`node`), and the `caveman` skill in Codex through `npx skills add`. The seed settings enable it per
+repo, so `at init` and a session restart are all a downstream repo needs. Invoke it as
+`/caveman:caveman` in Claude or `$caveman` in Codex. In Claude it is on for every session; in Codex
+it is per session, since the skill has no hook there. `at init` also writes a local `.caveman.json`,
+ignored by the seed `.gitignore` block, with `defaultMode` left null so it inherits your user-level
+caveman config (default `full`): set it to `"off"` to turn terse mode off for that checkout only,
+with no risk of committing the change. `CAVEMAN_DEFAULT_MODE=off` in the shell outranks it. The companion
+tracks caveman's default branch and is refreshed by `at update`; it is optional, so a missing `npx`
+or a failed install is reported but never fails `at bootstrap` or `at update`.
+
 ## Use it in a repo
 
 ```bash

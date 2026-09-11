@@ -5,10 +5,17 @@
         "source": "github",
         "repo": "toderian/project_template"
       }
+    },
+    "caveman": {
+      "source": {
+        "source": "github",
+        "repo": "JuliusBrussee/caveman"
+      }
     }
   },
   "enabledPlugins": {
-    "agents-core@agents-template": true
+    "agents-core@agents-template": true,
+    "caveman@caveman": true
   },
   "permissions": {
     "deny": [
