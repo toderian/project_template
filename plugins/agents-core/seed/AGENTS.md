@@ -7,7 +7,8 @@ This file is yours (downstream-owned). Shared skills, hooks and subagents come f
 
 ## Operating loop
 
-Run every task through these passes, and loop again whenever a pass finds a real problem.
+Run every task through these passes, and loop again whenever a pass finds a real problem. A change
+you can describe in one sentence skips Frame and Critique — never Test.
 
 - **Frame** — reduce the task to first principles: goal, constraints, invariants, unknowns. Do not
   inherit assumptions from the prompt, stale docs, or existing code without checking them.
@@ -38,10 +39,10 @@ Run every task through these passes, and loop again whenever a pass finds a real
   destructive or remote operations without an explicit ask. Full ladder: `agents-core:git-discipline`.
 - Work on the current or default branch unless the task, this file, or `.config/repos.project.md` says
   otherwise. Do not open a branch merely because commits will happen.
-- Hooks shipped with the plugins block `git push`, `git reset --hard`, `git clean -f`,
-  `git branch -D`, forced staging, writes into `.creds/` and other secret paths, and dangerous shell.
-  A block is a guardrail: ask, do not route around it. A role subagent that finishes without its
-  `## Status:` block is sent back once to add it.
+- Plugin hooks block `git push`, `git reset --hard`, `git clean -f`, `git branch -D`, forced staging,
+  writes into `.creds/` and other secret paths, and dangerous shell. A block is a guardrail: ask, do not
+  route around it. Task-file conventions are reminders only; `at ledger check` is the gate. A role
+  subagent that finishes without its `## Status:` block is sent back once to add it.
 - Commit after each coherent, reviewable slice — one task phase, one fix, one docs batch. Stage only
   the files that belong to that slice; never sweep in unrelated dirty changes.
 - Commit message: a `type: summary` line, then a body with `What changed:` / `Why:` / `Checks:`.
@@ -58,10 +59,9 @@ available skills and pick from that instead of guessing another prefix.
 | Implement a tracked task | `agents-core:execute-plan` (+ `agents-tasks:task-ledger` when `docs/tasks_manager/` exists) |
 | New feature or bug fix | `agents-core:tdd` |
 | Something behaves unexpectedly | `agents-core:diagnose` |
-| Scope or requirements unclear | `agents-core:spec-workflow`, or `agents-tasks:add-task` (spec sections) for a tracked task |
+| Plan before code, or scope unclear | `agents-core:planning-workflow`; `agents-tasks:add-task` (spec sections) for a tracked task; `agents-core:spec-workflow` only for multi-session spec artifacts |
 | Stress-test a plan or decision with the user | `agents-core:grilling` (+ `agents-extras:domain-modeling` when the glossary matters) |
 | Effort too big for one session, way ahead unclear | `agents-tasks:wayfinder` |
-| Before writing a plan | `agents-core:planning-workflow` |
 | Facts needed from docs, APIs, or the web | a `researcher` dispatch per `agents-core:subagent-protocol` |
 | Auth, input handling, crypto, or AI surfaces | `agents-core:security-review-owasp` |
 | Branch, commit, or push question | `agents-core:git-discipline` |
@@ -85,24 +85,17 @@ improvising a workflow.
 
 ## Repository conventions
 
-- `.creds/` — local-only credentials, never committed. Read a file only when the task genuinely needs
-  it, and list filenames rather than contents. Never echo, paste, summarise, or commit a credential
-  value; if one is missing, name the expected `.creds/<filename>` path instead of inventing it.
-- `.prompts/` — reusable prompts that should travel with the repo. Committable by design, but review
-  each one for secrets and private context before committing; local-only prompts go to
-  `.no-commit/.prompts/`.
+- `.creds/` — local-only credentials, never committed. Read one only when the task needs it, list
+  filenames not contents, never echo or commit a value; name the expected path if one is missing.
+- `.prompts/` — reusable prompts that travel with the repo; review for secrets before committing.
+  Local-only prompts go to `.no-commit/.prompts/`.
 - `.no-commit/` — local scratch: throwaway notes, experiments, raw transcripts. Never committed.
-- `.caveman.json` — local, git-ignored switch for the caveman terse-reply mode, seeded by `at init`
-  with `defaultMode: null`, which inherits the user-level caveman config (default `full`). Set it
-  to `"off"` (or `"lite"`) for work where output wording is the product, such as dataset generation;
-  the edit stays on this checkout and can never be committed. `CAVEMAN_DEFAULT_MODE=off` in the
-  environment outranks it; a committed `.caveman/config.json` sets a repo-wide default for everyone.
+- `.caveman.json` — local, git-ignored switch for the caveman terse-reply mode (`"off"` when output
+  wording is the product); `agents-core:setup-project` has the details.
 - `.local/` — machine bindings: `repos.map`, runbook values, decrypted artifacts. Never committed.
-- `.inbox/` — local drop-zone for files handed to an agent. Treat it as staging; move anything durable
-  into the repo (or `docs/resources/_inbox/`) before relying on it.
-- `tools/python/` — repo-level Python tooling managed with `uv`, not `pip install`. Commit
-  `pyproject.toml`, `uv.lock`, and `.python-version` once real dependencies exist; never commit a
-  `.venv/`. Run managed commands from `tools/python/`.
+- `.inbox/` — local drop-zone for files handed to an agent; move anything durable into the repo.
+- `tools/python/` — repo-level Python tooling managed with `uv`, not `pip install`; commit
+  `pyproject.toml`, `uv.lock`, `.python-version`, never a `.venv/`.
 - Large, external, generated, encrypted, or reproducible files — register them in `artifacts/README.md`
   and fetch/verify through that registry instead of walking the tree.
 
@@ -113,14 +106,6 @@ improvising a workflow.
 - Key assumptions were tested or written down.
 - The result survived at least one critic pass.
 - Task files, docs, and ledgers reflect what is actually true now.
-
-## Anti-patterns
-
-- One-shot implementation with no verification of real output.
-- Speculative abstraction, configuration, or future-proofing nobody asked for.
-- Rewriting, skipping, or loosening tests to hide a failure.
-- Improvising a workflow that an existing skill already covers.
-- Dumping large tool output into context instead of a file.
 
 ## Project
 
@@ -133,9 +118,7 @@ improvising a workflow.
 ### Commands
 
 <!-- TODO-FILL: the real test / lint / build / run commands and their gotchas, one per line, e.g.
-     - test: `make test` (needs a running database; `make test-unit` for the fast subset)
-     - lint: `make lint`
--->
+     - test: `make test` (needs a running database; `make test-unit` for the fast subset) -->
 
 ### Domain rules and invariants
 
