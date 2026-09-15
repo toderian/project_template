@@ -10,6 +10,8 @@ summary and removes the directory.
 ```text
 docs/tasks_manager/_runs/<TASK-ID>/
   state.md                 resume map; rewritten by the orchestrator only; keep under 60 lines
+  lock                     `<pid> <host> <started>` while `at task run` (or an orchestrator that
+                           chooses to) holds the run; git-ignored
   phase-N/brief.md         at task brief <TASK-ID> --phase N, plus the orchestrator notes you append
   phase-N/report.md        implementer's full report (its chat reply is ≤ 15 lines)
   phase-N/diff.patch       git diff <BASE> -- <scope fence>; the reviewers' input (git-ignored)
@@ -74,17 +76,19 @@ A resumed run starts from the file, not from memory:
 2. For every `committed` row, confirm the SHA with `git cat-file -e <sha>^{commit}` and that the phase
    checkboxes in the task file are ticked. A missing commit means the branch moved: stop and ask.
 3. Re-read every `Ruling:` and `Interface:` line; they go into the next brief's orchestrator notes.
-4. `git status --short`. Uncommitted changes inside a phase's scope fence mean an implementer was
+4. If `lock` exists and names a live process on this host, another run is in progress: stop.
+   A dead pid is a stale lock from an aborted run; delete it and continue.
+5. `git status --short`. Uncommitted changes inside a phase's scope fence mean an implementer was
    interrupted: package them as `diff.patch` and go straight to review for that phase, or discard them
    only with the user's consent.
-5. Continue at the first row that is not `committed`:
+6. Continue at the first row that is not `committed`:
    - `pending` → step 5 from the brief.
    - `implementing` → the brief exists; dispatch a fresh implementer (a stale `Agent` id from another
      session cannot be resumed; leave it and continue).
    - `reviewing` / `fixing` → regenerate `diff.patch` from `BASE` and rerun the reviews or the pending
      fix round; the `findings-R.md` files say where the loop stopped.
    - `blocked` / `parked` → a human decision is recorded as missing; ask before continuing.
-6. Set `runtime:` to the runtime you detected now — it may differ from the session that started the run.
+7. Set `runtime:` to the runtime you detected now — it may differ from the session that started the run.
 
 ## Without agents-tasks
 
@@ -101,8 +105,8 @@ with the run directory at `docs/_plans/_runs/<slug>/` and write the files by han
 ## Scripted driver
 
 `at task run <TASK-ID> [--harness claude|codex] [--phase N] [--check CMD]... [--security]
-[--model M] [--strong-model M] [--max-rounds 3] [--no-commit] [--no-final-review] [--retry-blocked]
-[--dry-run]` executes this loop without an orchestrating session: it writes the same files, one
+[--model M] [--strong-model M] [--max-rounds 3] [--timeout 1800] [--budget-usd 5] [--no-commit]
+[--no-final-review] [--retry-blocked] [--force-unlock] [--dry-run]` executes this loop without an orchestrating session: it writes the same files, one
 process per dispatch, and commits each phase (`feat: <ID> phase N — <title>`), leaving `state.md`
 dirty until the next phase's commit sweeps it in and committing the last one as
 `chore: <ID> run state`. Differences from the skill:
@@ -113,4 +117,10 @@ dirty until the next phase's commit sweeps it in and committing the last one as
 - At the fix-loop cap the row becomes `blocked` with the open findings noted; there is no
   adjudication. Add `Ruling:` lines (or fix by hand) and rerun — with `--retry-blocked` if you leave
   the row `blocked`, or plainly after setting it back to `pending`.
-- `driver.log` in the run directory records every process and its stderr.
+- `driver.log` in the run directory records every process, its stderr and (Claude) its cost.
+- Every dispatch is bounded: `--timeout` kills a silent process and marks the row `blocked`;
+  `--budget-usd` is passed to `claude -p` as `--max-budget-usd` (Codex has no equivalent — the
+  timeout is the only cap there). A reply without a status block is asked for once more, like the
+  `SubagentStop` hook does for subagents, then the row is `blocked`.
+- One run at a time: the `lock` file refuses a second driver while the first is alive.
+- After each commit it runs `at task run-state check` and `at ledger check`; a failure blocks the next phase.

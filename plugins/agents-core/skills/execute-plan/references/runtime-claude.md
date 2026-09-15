@@ -9,8 +9,8 @@ Use this reference when you can dispatch the plugin's named subagents (`implemen
   card's `tools` list already fences it: implementers cannot spawn subagents, reviewers cannot edit.
 - Run the implementer in the **foreground** — you need its status before packaging the diff.
 - Run the phase reviewers **in parallel in one turn** (spec, quality, security when applicable),
-  each read-only, each with its own report path. Do the same for the two final reviewers. They must
-  not see each other's replies; you merge the verdicts.
+  each read-only; their replies are the reports and you save each to its review file. Do the same
+  for the two final reviewers. They must not see each other's replies; you merge the verdicts.
 - Pass paths, not contents. The subagent reads `brief.md` and `diff.patch` itself.
 - Every subagent still receives the repo's CLAUDE.md/AGENTS.md hierarchy by default. That is fine for
   implementers (repo conventions) but is pure overhead for reviewers of a diff; when the downstream
@@ -55,7 +55,9 @@ tree with a strict scope fence — is simpler and is what the loop assumes.
 ## Scripted alternative
 
 `at task run <TASK-ID>` drives the same loop from a shell with one `claude -p` process per dispatch
-(`--append-system-prompt` carries the role card, `--permission-mode acceptEdits` for implementers,
-`--disallowedTools Edit Write …` for reviewers, `--resume <session>` for fix rounds 1–2). Use it when
-no session should hold the run at all; it stops at the fix-loop cap instead of adjudicating. See
-`references/run-state.md` §"Scripted driver".
+(`--append-system-prompt` carries the role card; implementers run `--permission-mode acceptEdits
+--allowedTools Bash` so they can run tests, with the plugin's dangerous-git/bash hooks still gating
+each command; reviewers run `--permission-mode dontAsk --disallowedTools Edit Write …`;
+`--resume <session>` for fix rounds 1–2; `--max-budget-usd` and a timeout on every process). Use it
+when no session should hold the run at all; it stops at the fix-loop cap instead of adjudicating.
+See `references/run-state.md` §"Scripted driver".

@@ -28,6 +28,18 @@ STATUS_RE = re.compile(r"^\s*(?:#+\s*)?Status:\s*(DONE_WITH_CONCERNS|DONE|NEEDS_
 VERDICT_RE = re.compile(r"^\s*(?:#+\s*)?Verdict:\s*(PASS|FAIL)\b", re.M)
 FINDING_RE = re.compile(r"^\s*\d+\.\s*\[([CIM])\]\s*(.+?)\s*$", re.M)
 CARD_ROLES = ("implementer", "reviewer", "security-auditor")
+STATUS_REMINDER = ("Your previous reply was missing the report block. Finish with, last and exactly:\n"
+                   "## Status: DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED\n## Summary: <one line>\n\n")
+
+
+def _pid_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
 
 
 class RunError(Exception):
@@ -101,11 +113,21 @@ class State:
 
 class Harness:
     def __init__(self, name: str, repo: Path, core_root: Path, model: str | None, strong: str | None,
-                 driver_cmd: str | None, log: Path) -> None:
+                 driver_cmd: str | None, log: Path, timeout: int, budget_usd: float | None) -> None:
         self.name, self.repo, self.core_root = name, repo, core_root
         self.model, self.strong = model, strong or model
         self.driver_cmd = driver_cmd
         self.log = log
+        self.timeout, self.budget_usd = timeout, budget_usd
+        self.cost_usd = 0.0  # running total of what Claude reported (Codex reports nothing)
+
+    def _sh(self, role: str, cmd: list[str], **kw) -> subprocess.CompletedProcess:
+        try:
+            return sh(cmd, self.repo, timeout=self.timeout, **kw)
+        except subprocess.TimeoutExpired as exc:
+            with self.log.open("a", encoding="utf-8") as fh:
+                fh.write(f"\n### {now_iso()} {role} TIMEOUT after {self.timeout}s\n")
+            raise RunError(f"{role}: no reply within {self.timeout}s (--timeout); process killed") from exc
 
     def run(self, role: str, prompt: str, *, writable: bool, strong: bool = False,
             session: str | None = None, env: dict[str, str] | None = None) -> tuple[str, str | None]:
@@ -119,13 +141,18 @@ class Harness:
             if model:
                 cmd += ["--model", model]
             if writable:
-                cmd += ["--permission-mode", "acceptEdits"]
+                # acceptEdits covers file edits; Bash needs its own allow rule or every test run is
+                # denied in -p mode. The plugin's dangerous-git/bash hooks still gate each command.
+                cmd += ["--permission-mode", "acceptEdits", "--allowedTools", "Bash"]
             else:
-                cmd += ["--disallowedTools", "Edit", "Write", "MultiEdit", "NotebookEdit"]
+                cmd += ["--permission-mode", "dontAsk",
+                        "--disallowedTools", "Edit", "Write", "MultiEdit", "NotebookEdit"]
+            if self.budget_usd:
+                cmd += ["--max-budget-usd", str(self.budget_usd)]
             if session:
                 cmd += ["--resume", session]
             cmd.append(prompt)
-            proc = sh(cmd, self.repo, env=run_env)
+            proc = self._sh(role, cmd, env=run_env)
             self._log(role, cmd, proc)
             if proc.returncode != 0:
                 raise RunError(f"{role}: claude exited {proc.returncode}: {proc.stderr.strip()[-400:]}")
@@ -135,6 +162,11 @@ class Harness:
                 return proc.stdout, None
             if isinstance(data, list):
                 data = next((d for d in reversed(data) if d.get("type") == "result"), data[-1] if data else {})
+            cost = data.get("total_cost_usd")
+            if isinstance(cost, (int, float)):
+                self.cost_usd += float(cost)
+                with self.log.open("a", encoding="utf-8") as fh:
+                    fh.write(f"cost: ${cost:.4f} (run total ${self.cost_usd:.4f})\n")
             return str(data.get("result", "")), data.get("session_id")
         # codex
         out_file = self.log.parent / f"last-message-{role}.txt"
@@ -143,7 +175,7 @@ class Harness:
         if model:
             cmd += ["-m", model]
         cmd.append("-")
-        proc = sh(cmd, self.repo, input=system + "\n\n---\n\n" + prompt, env=run_env)
+        proc = self._sh(role, cmd, input=system + "\n\n---\n\n" + prompt, env=run_env)
         self._log(role, cmd, proc)
         if proc.returncode != 0:
             raise RunError(f"{role}: codex exited {proc.returncode}: {proc.stderr.strip()[-400:]}")
@@ -274,8 +306,25 @@ class Runner:
         self.task_rel = self.task.path.relative_to(repo).as_posix()
         self.runs.mkdir(parents=True, exist_ok=True)
         self.harness = Harness(args.harness, repo, core_root, args.model, args.strong_model,
-                               args.driver_cmd, self.runs / "driver.log")
+                               args.driver_cmd, self.runs / "driver.log", args.timeout, args.budget_usd)
         self.project = args.project or f"{repo.name}; checks: {', '.join(args.check) or 'none configured'}"
+        self.lock = self.runs / "lock"
+        self.ledger_script = tasks_scripts / "sync_todo_ledgers.py"
+
+    # -- lock: one driver (or orchestrator) per run directory
+    def acquire_lock(self) -> None:
+        if self.lock.exists() and not self.args.force_unlock:
+            pid, host, started = (self.lock.read_text(encoding="utf-8").split() + ["?", "?", "?"])[:3]
+            alive = host == os.uname().nodename and pid.isdigit() and _pid_alive(int(pid))
+            if alive:
+                raise RunError(f"run in progress (pid {pid} on {host} since {started}); "
+                               f"wait for it or pass --force-unlock")
+            self.say(f"replacing stale lock (pid {pid} on {host}, not running)")
+        self.lock.write_text(f"{os.getpid()} {os.uname().nodename} {now_iso()}\n", encoding="utf-8")
+
+    def release_lock(self) -> None:
+        if self.lock.exists() and self.lock.read_text(encoding="utf-8").split()[:1] == [str(os.getpid())]:
+            self.lock.unlink()
 
     # -- helpers
     def say(self, msg: str) -> None:
@@ -340,6 +389,11 @@ class Runner:
 
         reply, session = self.dispatch("implementer", implementer_prompt(self.runs_rel, n, self.project),
                                        writable=True, phase=n)
+        if parse_status(reply) == "MISSING":  # the SubagentStop hook does this for subagents; once, like it
+            self.say(f"phase {n}: reply lacks a status block; asking once more")
+            reply, session = self.dispatch("implementer", STATUS_REMINDER + implementer_prompt(self.runs_rel, n, self.project),
+                                           writable=True, phase=n,
+                                           session=session if self.harness.name == "claude" else None)
         (pdir / "implementer-reply.md").write_text(reply, encoding="utf-8")
         status = parse_status(reply)
         if status in ("NEEDS_CONTEXT", "BLOCKED", "MISSING"):
@@ -408,7 +462,9 @@ class Runner:
         # SHA is then written into state.md, which stays dirty until the next phase's commit sweeps
         # it in (the run directory is exempt from the clean-tree gate); the last one is committed by
         # `run()`. Same rule as the skill: no metadata-only commit per phase.
-        self.git("add", "-A", "--", ".")
+        if self.ledger_script.exists():  # ticked checkboxes change the generated ledgers; they ride in the commit
+            sh([sys.executable, str(self.ledger_script), "--root", str(self.repo)], self.repo)
+        self.git("add", "-A", "--", ".", f":(exclude){self.runs_rel}/lock")
         title = self.tb.phase_title(self.task.phases[n - 1])
         msg = (f"feat: {self.task.taskid} phase {n} — {title}\n\nWhat changed:\n- phase {n} of {self.task.title}\n\n"
                f"Why:\n- {self.task_rel}\n\nChecks:\n- {', '.join(self.args.check) or 'none configured'}: pass\n"
@@ -419,8 +475,26 @@ class Runner:
         sha = self.head()
         state.set(n, status="committed", commit=sha, open="0")
         state.note(f"Phase {n}: complete (commit {sha}, {summary})")
+        if self.harness.cost_usd:
+            state.note(f"Note: phase {n} Claude spend so far ${self.harness.cost_usd:.2f} (run total)")
         state.save()
         self.say(f"phase {n}: committed {sha}")
+        return self.post_phase_checks(state, n)
+
+    def post_phase_checks(self, state: State, n: int) -> bool:
+        """The same two checks the skill runs after every phase; a failure blocks the next phase."""
+        problems: list[str] = []
+        errors, _ = self.tb.check_state(state.path, self.task, self.repo)
+        problems += errors
+        if self.ledger_script.exists():
+            proc = sh([sys.executable, str(self.ledger_script), "--check", "--root", str(self.repo)], self.repo)
+            if proc.returncode != 0:
+                problems += [l for l in (proc.stdout + proc.stderr).splitlines() if l.startswith("ERROR")]
+        if problems:
+            state.note(f"Note: post-phase checks failed after phase {n}; fix before continuing: " + "; ".join(problems[:3]))
+            state.save()
+            self.say(f"phase {n}: ledger/run-state check failed:\n  " + "\n  ".join(problems[:5]))
+            return False
         return True
 
     def review_round(self, state: State, n: int, pdir: Path, base: str, round_no: int) -> dict[str, dict]:
@@ -467,6 +541,20 @@ class Runner:
 
     def run(self) -> int:
         state = self.open_state()
+        self.acquire_lock()
+        try:
+            return self._run(state)
+        except RunError as exc:
+            n = int(state.front.get("current_phase", "0") or 0)
+            if n and state.row(n)[1] in ("implementing", "reviewing", "fixing"):
+                state.set(n, status="blocked")
+                state.note(f"Phase {n}: run aborted — {exc}")
+                state.save()
+            raise
+        finally:
+            self.release_lock()
+
+    def _run(self, state: State) -> int:
         todo = [int(r[0]) for r in state.rows if r[1] != "committed"]
         if self.args.phase:
             todo = [n for n in todo if n == self.args.phase]
@@ -490,9 +578,11 @@ class Runner:
         return 0 if ok else 1
 
     def commit_run_dir(self, message: str) -> None:
-        if self.args.no_commit or not self.git("status", "--porcelain", "--", self.runs_rel).stdout.strip():
+        dirty = [l for l in self.git("status", "--porcelain", "--", self.runs_rel).stdout.splitlines()
+                 if not l.endswith("/lock")]
+        if self.args.no_commit or not dirty:
             return
-        self.git("add", "--", self.runs_rel)
+        self.git("add", "--", self.runs_rel, f":(exclude){self.runs_rel}/lock")
         self.git("commit", "-q", "-m", message)
 
 
@@ -523,6 +613,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-commit", action="store_true", help="stop after reviews pass; leave the tree uncommitted")
     p.add_argument("--no-final-review", dest="final_review", action="store_false")
     p.add_argument("--retry-blocked", action="store_true", help="re-run rows marked blocked")
+    p.add_argument("--timeout", type=int, default=1800, metavar="SECONDS", help="per-dispatch limit (default 1800)")
+    p.add_argument("--budget-usd", type=float, default=5.0, metavar="USD",
+                   help="per-dispatch spend cap passed to claude -p (default 5; 0 disables; Codex: timeout only)")
+    p.add_argument("--force-unlock", action="store_true", help="replace a lock left by another live run")
     p.add_argument("--dry-run", action="store_true", help="print the dispatches without running any harness")
     p.add_argument("--driver-cmd", help=argparse.SUPPRESS)  # test hook: binary standing in for the harness
     return p

@@ -87,6 +87,7 @@ assert_contains .gitignore "node_modules/" ".gitignore keeps pre-existing conten
 assert_contains .gitignore ".no-commit/" ".gitignore managed block ignores local-only dirs"
 assert_contains .gitignore ".caveman.json" ".gitignore managed block keeps the local caveman switch uncommitted"
 assert_contains .gitignore "docs/tasks_manager/_runs/**/diff.patch" ".gitignore managed block ignores execute-plan review packages"
+assert_contains .gitignore "docs/tasks_manager/_runs/*/lock" ".gitignore managed block ignores the execute-plan run lock"
 assert_eq "$(python3 -c 'import json;d=json.load(open(".caveman.json"));print("defaultMode" in d, d["defaultMode"])')" "True None" \
   "the seeded .caveman.json carries a null defaultMode so caveman falls through to the user config (on by default)"
 assert_eq "$(git check-ignore .caveman.json)" ".caveman.json" "the seeded .caveman.json is ignored by git"

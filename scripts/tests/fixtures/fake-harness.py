@@ -7,6 +7,8 @@ codex: `exec ... -o FILE -` with the prompt on stdin). Behaviour comes from the 
   pass       every dispatch succeeds
   fail-once  the first spec review of every phase FAILs with one finding, the re-review passes
   no-status  the implementer never emits a status block
+  status-retry  the implementer emits the block only when reminded (second call)
+  hang       every call sleeps 5 s (use with --timeout 1)
 Implementers write src/phase<N>.txt (cwd is the repo). Calls are appended to FAKE_CALLS.
 """
 import json, os, sys, pathlib
@@ -17,10 +19,15 @@ codex = argv[:1] == ["exec"]
 prompt = sys.stdin.read() if codex else argv[-1]
 calls = pathlib.Path(os.environ["FAKE_CALLS"]); calls.parent.mkdir(parents=True, exist_ok=True)
 with calls.open("a") as fh:
-    fh.write(f"{role}|{stage}|{phase}|{'codex' if codex else 'claude'}|resume={'--resume' in argv}|ro={'read-only' in argv or '--disallowedTools' in argv}\n")
+    mode = argv[argv.index("--permission-mode") + 1] if "--permission-mode" in argv else ("sandbox=" + argv[argv.index("-s") + 1] if "-s" in argv else "-")
+    allowed = argv[argv.index("--allowedTools") + 1] if "--allowedTools" in argv else "-"
+    budget = argv[argv.index("--max-budget-usd") + 1] if "--max-budget-usd" in argv else "-"
+    fh.write(f"{role}|{stage}|{phase}|{'codex' if codex else 'claude'}|resume={'--resume' in argv}|ro={'read-only' in argv or '--disallowedTools' in argv}|mode={mode}|allowed={allowed}|budget={budget}\n")
+if scenario == "hang":
+    import time; time.sleep(5)
 seen = calls.read_text().count(f"reviewer|spec|{phase}|")
 if role == "implementer":
-    if scenario == "no-status":
+    if scenario == "no-status" or (scenario == "status-retry" and "missing the report block" not in prompt):
         reply = "I did the work."
     else:
         p = pathlib.Path("src"); p.mkdir(exist_ok=True)

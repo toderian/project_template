@@ -252,7 +252,8 @@ you are adjudicating a finding.
 9. **Verify and record.** Run the phase checks and related tests yourself and read the output. Tick the
    phase checkboxes, update `Updated` and `Last executed`, and append a **≤ 10-line** execution-log entry:
    what changed, the verdicts, any rulings, and the pointer `see docs/tasks_manager/_runs/<TASK-ID>/phase-N/`.
-   Add any interface later phases depend on as an `Interface:` line in `state.md`.
+   Add any interface later phases depend on as an `Interface:` line in `state.md`. Run `at ledger sync`
+   so the regenerated ledgers ride in the phase commit.
 10. **Commit.** Stage with explicit pathspecs — the scope fence, the task/plan file, and
     `docs/tasks_manager/_runs/<TASK-ID>/` — never `git add -A`. Use the phase commit format below.
 11. **Close the row.** Write the SHA, set `committed`, bump `current_phase`, `updated`. Then

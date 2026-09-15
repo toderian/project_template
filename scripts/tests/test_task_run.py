@@ -50,4 +50,31 @@ class TaskRun(unittest.TestCase):
         tmp = repo(); self.assertEqual(run(tmp, "--phase", "1").returncode, 0)
         p = run(tmp); self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
         self.assertNotIn("phase 1: implementer", p.stdout); self.assertEqual(sum("TST-003 phase" in c for c in log(tmp).splitlines()), 3)
+    def test_permissions_budget_and_status_retry(self):
+        tmp = repo(); p = run(tmp, "--phase", "1", scenario="status-retry"); self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        calls = (tmp.parent / (tmp.name + ".calls")).read_text().splitlines()
+        impl = [c for c in calls if c.startswith("implementer|")]; rev = [c for c in calls if c.startswith("reviewer|")]
+        self.assertEqual(len(impl), 2); self.assertIn("resume=True", impl[1]); self.assertIn("asking once more", p.stdout)
+        self.assertTrue(all("mode=acceptEdits|allowed=Bash|budget=5.0" in c for c in impl), impl)
+        self.assertTrue(all("mode=dontAsk|allowed=-|budget=5.0" in c and "ro=True" in c for c in rev), rev)
+        p2 = run(tmp, "--phase", "2", "--budget-usd", "0"); self.assertEqual(p2.returncode, 0, p2.stderr)
+        self.assertIn("budget=-", (tmp.parent / (tmp.name + ".calls")).read_text().splitlines()[-1])
+    def test_timeout_blocks_phase_and_releases_lock(self):
+        tmp = repo(); p = run(tmp, "--phase", "1", "--timeout", "1", scenario="hang"); self.assertEqual(p.returncode, 1)
+        self.assertIn("no reply within 1s", p.stderr); s = (tmp / STATE).read_text()
+        self.assertIn("| 1 | blocked |", s); self.assertIn("run aborted", s)
+        self.assertFalse((tmp / "docs/tasks_manager/_runs/TST-003/lock").exists())
+    def test_lock_refuses_live_run_and_replaces_stale(self):
+        tmp = repo(); lock = tmp / "docs/tasks_manager/_runs/TST-003/lock"; lock.parent.mkdir(parents=True)
+        lock.write_text(f"{os.getpid()} {os.uname().nodename} now\n")
+        p = run(tmp, "--phase", "1"); self.assertEqual(p.returncode, 1); self.assertIn("run in progress", p.stderr)
+        self.assertTrue(lock.exists())
+        lock.write_text(f"999999 {os.uname().nodename} earlier\n")
+        p = run(tmp, "--phase", "1"); self.assertEqual(p.returncode, 0, p.stderr); self.assertIn("stale lock", p.stdout)
+        self.assertFalse(lock.exists())
+    def test_codex_reviewers_are_sandboxed_read_only(self):
+        tmp = repo(); p = run(tmp, "--phase", "1", harness="codex"); self.assertEqual(p.returncode, 0, p.stderr)
+        calls = (tmp.parent / (tmp.name + ".calls")).read_text()
+        self.assertIn("implementer||1|codex|resume=False|ro=False|mode=sandbox=workspace-write", calls)
+        self.assertIn("reviewer|spec|1|codex|resume=False|ro=True|mode=sandbox=read-only", calls)
 if __name__ == "__main__": unittest.main()

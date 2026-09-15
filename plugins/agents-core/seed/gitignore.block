@@ -30,6 +30,7 @@ __pycache__/
 
 # execute-plan review packages: regenerable from the phase commits, so never committed.
 docs/tasks_manager/_runs/**/diff.patch
+docs/tasks_manager/_runs/*/lock
 
 # Worktrees and scratch dirs.
 .worktrees/
