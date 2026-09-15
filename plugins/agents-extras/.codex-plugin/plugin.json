@@ -1,6 +1,6 @@
 {
   "name": "agents-extras",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "description": "Architecture, GitHub triage, UI, database-migration and dev-tooling skills",
   "author": {
     "name": "Vitalii Toderian",
