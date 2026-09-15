@@ -619,6 +619,19 @@ cp "$WORKDIR/AGENTS.md.pre-drift" AGENTS.md
 assert_stdout_contains "$(at doctor 2>&1)" "routing table matches the plugin seed" \
   "a seeded AGENTS.md names no removed skill"
 
+# --- verify-task: the criteria-drift recipe sees a changed criterion --------
+DRIFT_TASK="docs/tasks_manager/_todos/T-900-F_drift-fixture.md"
+mkdir -p "$(dirname "$DRIFT_TASK")"
+printf '### Acceptance criteria\n\n- [ ] returns 200 on success\n' > "$DRIFT_TASK"
+git add "$DRIFT_TASK" && git -c user.name=t -c user.email=t@t commit -q -m "T-900 criteria v1"
+printf '### Acceptance criteria\n\n- [ ] returns 201 on success\n' > "$DRIFT_TASK"
+git add "$DRIFT_TASK" && git -c user.name=t -c user.email=t@t commit -q -m "T-900 criteria v2"
+DRIFT="$(git log -p --follow --format='%h %s' -- "$DRIFT_TASK" | grep -E '^[0-9a-f]{7,}|^[-+]- \[[ x]\]')"
+assert_stdout_contains "$DRIFT" "-- [ ] returns 200 on success" "the drift recipe shows the removed criterion"
+assert_stdout_contains "$DRIFT" "+- [ ] returns 201 on success" "the drift recipe shows the added criterion"
+assert_stdout_contains "$DRIFT" "T-900 criteria v2" "the drift recipe names the commit that changed it"
+git rm -q "$DRIFT_TASK" && git -c user.name=t -c user.email=t@t commit -q -m "T-900 fixture removed"
+
 # --- at version -------------------------------------------------------------
 EXPECTED_VERSION="$(python3 -c "import json;print(json.load(open('$REPO/plugins/agents-core/.claude-plugin/plugin.json'))['version'])")"
 assert_eq "$(at version 2>&1)" "$EXPECTED_VERSION" "at version prints the plugin version"

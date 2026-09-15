@@ -102,7 +102,7 @@ Use exactly one primary classification per task:
 - `needs-update` - the task is still worth doing, but its brief, phases, acceptance criteria, related
   tests, area, dependencies, or roadmap placement no longer match the repo.
 - `appears-done` - current code/tests/docs satisfy the task's acceptance criteria closely enough that
-  `agents-tasks:complete-task` should verify and close it.
+  `agents-tasks:verify-task` should confirm it and `agents-tasks:complete-task` close it.
 - `cancel-or-close` - evidence shows the task is obsolete, superseded, duplicated by another task, no
   longer in scope, or should be intentionally cancelled; require user confirmation or `agents-tasks:complete-task`
   cancellation.

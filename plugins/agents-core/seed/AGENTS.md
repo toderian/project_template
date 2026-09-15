@@ -68,6 +68,8 @@ available skills and pick from that instead of guessing another prefix.
 | Delegating work | `agents-core:subagent-protocol` (agents: `implementer`, `reviewer`, `researcher`, `plan-critic`, `security-auditor`, `spec-validator`) |
 | Pausing or handing off | `agents-core:handoff` |
 | Capture an idea, add a task, triage, plan horizons, close out | `agents-tasks:capture-idea`, `agents-tasks:add-task`, `agents-tasks:triage-inbox`, `agents-tasks:roadmap`, `agents-tasks:complete-task` |
+| A task plan too big or fuzzy | `agents-tasks:simplify-task` |
+| Did a finished task do what its file says | `agents-tasks:verify-task` |
 | Durable notes, runbooks, ADRs | `agents-tasks:knowledge-base`, `agents-extras:domain-modeling` for glossary and ADRs |
 | A decision only another person can answer | `agents-extras:to-questionnaire` |
 | An agent message that did not land | `agents-core:wait-what` |
