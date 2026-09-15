@@ -16,7 +16,26 @@ role = os.environ.get("AT_TASK_ROLE", "?"); stage = os.environ.get("AT_TASK_STAG
 scenario = os.environ.get("FAKE_SCENARIO", "pass")
 argv = sys.argv[1:]
 codex = argv[:1] == ["exec"]
-prompt = sys.stdin.read() if codex else argv[-1]
+def claude_prompt(argv):
+    # Parse like the real CLI: options with values consume exactly one argument each
+    # (tool lists are comma-joined, so a space-separated list here would be a driver bug);
+    # the single positional left over is the prompt. A missing/duplicate positional is an error.
+    valued = {"--output-format", "--append-system-prompt", "--model", "--permission-mode", "--allowedTools",
+              "--disallowedTools", "--max-budget-usd", "--resume"}
+    positionals, i = [], 0
+    while i < len(argv):
+        if argv[i] in valued:
+            i += 2
+        elif argv[i].startswith("-"):
+            i += 1
+        else:
+            positionals.append(argv[i]); i += 1
+    if len(positionals) != 1:
+        sys.stderr.write(f"fake claude: expected one prompt positional, got {positionals!r}\n"); sys.exit(3)
+    return positionals[0]
+prompt = sys.stdin.read() if codex else claude_prompt(argv)
+if not codex and not prompt.startswith(("Project:", "Fix round", "A prior implementer", "Stage:", "Surface:", "Your previous reply")):
+    sys.stderr.write(f"fake claude: prompt does not look like a driver prompt: {prompt[:60]!r}\n"); sys.exit(3)
 calls = pathlib.Path(os.environ["FAKE_CALLS"]); calls.parent.mkdir(parents=True, exist_ok=True)
 with calls.open("a") as fh:
     mode = argv[argv.index("--permission-mode") + 1] if "--permission-mode" in argv else ("sandbox=" + argv[argv.index("-s") + 1] if "-s" in argv else "-")

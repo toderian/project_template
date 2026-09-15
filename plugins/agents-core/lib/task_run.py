@@ -137,7 +137,9 @@ class Harness:
         system = card_body(self.core_root, role)
         run_env = dict(os.environ, AT_TASK_ROLE=role, **(env or {}))
         if self.name == "claude":
-            cmd = [self.driver_cmd or "claude", "-p", "--output-format", "json",
+            # The prompt sits right after -p: --allowedTools/--disallowedTools are variadic and would
+            # swallow a trailing positional as another tool name.
+            cmd = [self.driver_cmd or "claude", "-p", prompt, "--output-format", "json",
                    "--append-system-prompt", system]
             if model:
                 cmd += ["--model", model]
@@ -147,12 +149,11 @@ class Harness:
                 cmd += ["--permission-mode", "acceptEdits", "--allowedTools", "Bash"]
             else:
                 cmd += ["--permission-mode", "dontAsk",
-                        "--disallowedTools", "Edit", "Write", "MultiEdit", "NotebookEdit"]
+                        "--disallowedTools", "Edit,Write,MultiEdit,NotebookEdit"]
             if self.budget_usd:
                 cmd += ["--max-budget-usd", str(self.budget_usd)]
             if session:
                 cmd += ["--resume", session]
-            cmd.append(prompt)
             proc = self._sh(role, cmd, env=run_env)
             self._log(role, cmd, proc)
             if proc.returncode != 0:

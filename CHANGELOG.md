@@ -2,6 +2,16 @@
 
 Notable changes to agents-template. All four plugins share the version of the repository.
 
+## 1.4.2 — 2026-09-15
+
+### Fixed
+
+- `at task run` built the `claude -p` command with the prompt after `--allowedTools` /
+  `--disallowedTools`; both flags take a space-separated list, so the prompt was consumed as a tool
+  name and the dispatch ran without one. The prompt now follows `-p` directly and tool lists are
+  comma-joined. The test fake harness parses argv like the CLI so a misplaced positional fails the
+  suite.
+
 ## 1.4.1 — 2026-09-15
 
 ### Fixed
