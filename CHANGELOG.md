@@ -2,6 +2,42 @@
 
 Notable changes to agents-template. All four plugins share the version of the repository.
 
+## 1.4.1 — 2026-09-15
+
+### Fixed
+
+- Reviewers are read-only on both harnesses (`reviewer` / `security-auditor` cards, `codex -s
+  read-only`), so 1.4.0's "write the review to a report path" could never be honoured. The reply is
+  now the report — verdict block first, evidence after, under 40 lines — and the orchestrator (or
+  `at task run`) saves it to `review-<stage>.md`. Briefs, SKILL.md, run-state layout and
+  subagent-protocol updated; Codex TOML regenerated.
+- `at task run` on Claude ran implementers with `--permission-mode acceptEdits` only, so every Bash
+  call (running the tests the brief asks for) was denied in `-p` mode. Implementers now get
+  `--allowedTools Bash` (the plugin's dangerous-git/bash hooks still gate each command); reviewers
+  run `dontAsk` with the edit tools disallowed.
+- Two parallel Codex reviewers shared one `-o` output file and raced on it; the file is now unique
+  per dispatch.
+
+### Added
+
+- `at task run`: `--timeout` (1800 s) kills a silent dispatch and marks the row `blocked`;
+  `--budget-usd` (5) is passed to `claude -p` as `--max-budget-usd` and the reported cost is logged
+  per dispatch and per phase (Codex: timeout only); a `lock` file in the run directory refuses a
+  second concurrent driver (`--force-unlock` for a stale one); after each phase commit the driver
+  runs the run-state and ledger checks (ledgers are synced before the commit); a status-less
+  implementer reply is asked for once more, as the `SubagentStop` hook does for subagents. Seed
+  `.gitignore` block ignores `_runs/*/lock`.
+- CI now runs `test_task_brief.py` and `test_task_run.py`.
+
+### Changed
+
+- `agents-core:execute-plan` documents its limits: one checkout per run (multi-repo tasks are one
+  run per repo), phases in order, and the trust boundary of an implementer with Bash approval (use
+  worktree isolation for untrusted repositories). Step 9 runs `at ledger sync` before the phase
+  commit so the regenerated ledgers ride in it.
+- README lists the `at task` commands; the setup-project adopt-updates reference covers refreshing
+  `.codex/agents/*.toml`, the `_runs/` ignore rules and trusting the new hook in Codex.
+
 ## 1.4.0 — 2026-09-15
 
 ### Added
