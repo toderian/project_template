@@ -20,9 +20,8 @@ paths: ["docs/tasks_manager/**"]
 This is the canonical home for the project task system: the inbox and task file formats, ID
 reservation, the area and repo registries, roadmap horizons, and the ledger-sync tooling that derives
 `docs/tasks_manager/_active.md`, `docs/tasks_manager/_done.md`, and the generated `docs/areas/` pages.
-Other skills (`agents-tasks:add-task`, `agents-tasks:capture-idea`, `agents-tasks:triage-inbox`, `agents-tasks:complete-task`, `agents-tasks:roadmap`, `agents-tasks:prd-to-todos`,
-`agents-tasks:tidy-repo`, `agents-tasks:audit-todos`, `agents-tasks:define-area`) point here rather than restating field rules or validation
-behavior.
+Every task-producing or task-closing skill points here rather than restating field rules or
+validation behavior.
 
 - [references/todo-convention.md](references/todo-convention.md) — task file format (the core shape
   and the optional rows/sections), filename grammar, ID counters, area registry, the

@@ -11,9 +11,8 @@ metadata:
 # Codebase Design
 
 Design **deep modules**: a lot of behaviour behind a small interface, placed at a clean seam, testable
-through that interface. This is the vocabulary layer — `agents-core:tdd`, `agents-core:diagnose`,
-`agents-extras:design-an-interface`, `agents-extras:improve-codebase-architecture`,
-`agents-extras:zoom-out` and `agents-extras:write-a-prd` all use these words, and this is where
+through that interface. This is the vocabulary layer — the design, testing and review skills all
+use these words, and this is where
 they are defined. It is a reference to consult, not a session to run.
 
 ## Glossary

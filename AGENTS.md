@@ -50,6 +50,10 @@ rules below are the repo-specific constraints those two do not decide.
   skills in your own plugin. Claude Code resolves skills by that id, and a bare name makes the reader
   guess the prefix. A bare core name sitting among prefixed ones reads as an elision and teaches the
   wrong guess, so there is no safe exemption.
+- A skill points at its own `references/`, at `agents-tasks:task-ledger` for the task format, and at
+  the seed routing table for everything else. Name a peer skill only to hand off to it, once, and
+  never to describe how it works; two skills that each point at the other for "how" content are one
+  skill with a seam in the wrong place.
 
 ## Versioning and release
 

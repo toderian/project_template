@@ -113,7 +113,7 @@ which records the route actually walked.
 
 The user invokes with a loose idea.
 
-1. **Name the destination.** Invoke `agents-core:grilling` and `agents-extras:domain-modeling` to pin down what this map is
+1. **Name the destination.** Grill the user (the grilling ticket type above) to pin down what this map is
    finding its way to. The destination fixes the scope, so it settles first.
 2. **Map the frontier.** Grill again, **breadth-first**: fan out across the whole space rather than
    deep on any one thread, surfacing the open decisions and the first steps takeable now. **If this

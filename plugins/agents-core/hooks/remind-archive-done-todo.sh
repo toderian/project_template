@@ -65,7 +65,7 @@ check_path() {
       fi
 
       if [ -n "${missing}" ]; then
-        echo "BLOCKED: '${BASENAME}' has Status: ${STATUS} but is missing required completion archive fields:${missing}" >&2
+        echo "REMINDER: '${BASENAME}' has Status: ${STATUS} but is missing completion archive fields:${missing}" >&2
         echo "Before archiving, complete '## Completion harvest' with docs/resources updates or None, docs/areas updates or None, follow-ups or None, notable decisions/deviations or None, plus '## Completion summary'." >&2
         echo "See the agents-tasks:task-ledger skill: references/todo-convention.md." >&2
         return 2

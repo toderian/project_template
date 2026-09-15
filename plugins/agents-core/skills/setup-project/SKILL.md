@@ -75,11 +75,9 @@ Fix every `ERROR`; the `TODO-FILL` warning disappears once the Project slots are
 ### 4. Report
 
 Tell the user what was created, what they still need to fill, and the entry points they now have:
-`agents-tasks:capture-idea` to record an idea, `agents-tasks:add-task` when the work is already
-clear, `agents-tasks:triage-inbox` to promote ideas into tasks, `agents-tasks:roadmap` to sequence
-them, `agents-core:execute-plan` to implement one. Structure and conventions for the seeded `docs/` tree live in
-the `agents-tasks:task-ledger` and `agents-tasks:knowledge-base` skills; workbook shape in
-`agents-tasks:workbook`; the artifact registry in `agents-tasks:artifacts-registry`.
+the routing table in the seeded `AGENTS.md` names the skill for each job (capture, add, triage,
+sequence, execute, close). Structure and conventions for the seeded `docs/` tree live in the
+`agents-tasks:task-ledger` and `agents-tasks:knowledge-base` skills.
 
 ## Quality Bar
 
