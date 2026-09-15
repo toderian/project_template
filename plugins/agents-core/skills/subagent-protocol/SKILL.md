@@ -23,7 +23,10 @@ Stay single-agent unless at least one of these is true:
 - the context would otherwise grow too large for one session
 - parallel execution justifies the coordination cost
 
-If the work is tightly coupled, stay single-agent and emulate roles sequentially.
+If the work is tightly coupled, stay single-agent and emulate roles sequentially. One dispatch that
+always pays for itself is a fresh-eyes review of a diff you wrote: the reviewer shares none of your
+assumptions. Everything else costs roughly an order of magnitude more tokens than doing it in one
+thread, so it has to buy isolation or parallelism you can name.
 
 ## Status vocabulary
 

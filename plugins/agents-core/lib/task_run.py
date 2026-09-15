@@ -222,9 +222,13 @@ def implementer_prompt(runs_rel: str, n: int, project: str, round_no: int = 0, s
 
 def reviewer_prompt(runs_rel: str, n: int, stage: str, base_rev: str, round_no: int = 0) -> str:
     base = f"{runs_rel}/phase-{n}"
-    report = f"{base}/re-review-{round_no}-{stage}.md" if round_no else f"{base}/review-{stage}.md"
+    suffix = "" if stage == "both" else f"-{stage}"
+    report = f"{base}/re-review-{round_no}{suffix}.md" if round_no else f"{base}/review{suffix}.md"
     scope = (f"Re-review round {round_no}: judge first whether each item in {base}/findings-{round_no}.md is resolved "
              "without a new defect, then the diff as a whole.\n") if round_no else ""
+    if stage == "both":
+        scope += ("You are the only reviewer of this phase: give a verdict per item of the phase checklist first "
+                  "(met / not met, one line each), then the quality findings.\n")
     return (f"Stage: {stage}\n{scope}"
             f"Brief: {base}/brief.md — judge this phase by its own checklist under '## This phase'; the task-wide "
             "acceptance criteria are context and are verified after the last phase, so an unmet task-wide criterion "
@@ -536,8 +540,11 @@ class Runner:
                 encoding="utf-8")
             state.note(f"Phase {n}: implementer changed nothing; reviewing against the run diff since {run_base}")
         state.set(n, status="reviewing"); state.save()
-        jobs = {"spec": ("reviewer", reviewer_prompt(self.runs_rel, n, "spec", base, round_no)),
-                "quality": ("reviewer", reviewer_prompt(self.runs_rel, n, "quality", base, round_no))}
+        if self.mode == "small":
+            jobs = {"both": ("reviewer", reviewer_prompt(self.runs_rel, n, "both", base, round_no))}
+        else:
+            jobs = {"spec": ("reviewer", reviewer_prompt(self.runs_rel, n, "spec", base, round_no)),
+                    "quality": ("reviewer", reviewer_prompt(self.runs_rel, n, "quality", base, round_no))}
         if self.args.security:
             jobs["security"] = ("security-auditor", security_prompt(self.runs_rel, n, base))
         self.say(f"phase {n}: reviews ({', '.join(jobs)})" + (f" re-review {round_no}" if round_no else ""))
@@ -547,19 +554,24 @@ class Runner:
             replies = {k: f.result()[0] for k, f in futures.items()}
         out: dict[str, dict] = {}
         for k, reply in replies.items():
-            name = f"re-review-{round_no}-{k}.md" if round_no else f"review-{k}.md"
+            suffix = "" if k == "both" else f"-{k}"
+            name = f"re-review-{round_no}{suffix}.md" if round_no else f"review{suffix}.md"
             (pdir / name).write_text(reply, encoding="utf-8")
             out[k] = {"verdict": parse_verdict(reply), "findings": findings(reply)}
-            state.set(n, **{k: out[k]["verdict"]})
+            if k == "both":
+                state.set(n, spec=out[k]["verdict"], quality=out[k]["verdict"])
+            else:
+                state.set(n, **{k: out[k]["verdict"]})
         state.save()
         return out
 
     def final_review(self, state: State) -> bool:
         base = state.front.get("base_rev", "")
-        self.say("final review (two reviewers, Stage: both)")
-        with ThreadPoolExecutor(max_workers=2) as pool:
+        ks = (1,) if self.mode == "small" else (1, 2)
+        self.say(f"final review ({len(ks)} reviewer(s), Stage: both)")
+        with ThreadPoolExecutor(max_workers=len(ks)) as pool:
             futures = [pool.submit(self.dispatch, "reviewer", final_prompt(self.runs_rel, k, base, self.task_rel),
-                                   writable=False, strong=True, stage=f"final-{k}") for k in (1, 2)]
+                                   writable=False, strong=True, stage=f"final-{k}") for k in ks]
             replies = [f.result()[0] for f in futures]
         ok = True
         notes = []
@@ -574,7 +586,7 @@ class Runner:
         if ok:
             tick_acceptance(self.task.path, (
                 f"### {now_iso()} - Final review (at task run, {self.harness.name})\n\n"
-                f"**Actions taken:** two whole-task reviewers, Stage: both — {'; '.join(notes)}.\n"
+                f"**Actions taken:** {len(ks)} whole-task reviewer(s), Stage: both — {'; '.join(notes)}.\n"
                 f"**Outcome:** acceptance criteria ticked; non-critical findings stay in "
                 f"`{self.runs_rel}/final-review-1.md` and `-2.md` for the completion summary."))
         return ok
@@ -594,7 +606,35 @@ class Runner:
         finally:
             self.release_lock()
 
+    def decide_mode(self, state: State) -> None:
+        """Small: the orchestrator-side rung (one reviewer per phase, one final reviewer, none for one
+        phase). Large: the full pipeline. `--mode auto` picks large on any large trigger the driver
+        can see; it cannot count files, so the skill's ~10-file rule is not applied here."""
+        text = self.task.path.read_text(encoding="utf-8")
+        reasons = []
+        if self.args.mode == "large":
+            reasons.append("--mode large")
+        elif self.args.mode == "auto":
+            if len(state.rows) >= 3:
+                reasons.append(f"{len(state.rows)} phases")
+            if self.args.security:
+                reasons.append("--security")
+            if re.search(r"^\|\s*Repos\s*\|", text, re.M):
+                reasons.append("Repos row")
+            if re.search(r"^\|\s*Execution\s*\|\s*orchestrated", text, re.M | re.I):
+                reasons.append("Execution: orchestrated")
+            if re.search(r"^### Design\b", text, re.M):
+                reasons.append("Design section")
+        self.mode = "large" if reasons else "small"
+        if state.front.get("mode") in ("small", "large") and state.front["mode"] != self.mode:
+            if state.front["mode"] == "large":  # a run never de-escalates
+                self.mode, reasons = "large", ["state.md"]
+            else:
+                state.note(f"Note: escalated from small to large ({', '.join(reasons)})")
+        state.save(mode=self.mode, mode_reason=", ".join(reasons) or "no large trigger")
+
     def _run(self, state: State) -> int:
+        self.decide_mode(state)
         todo = [int(r[0]) for r in state.rows if r[1] != "committed"]
         if self.args.phase:
             todo = [n for n in todo if n == self.args.phase]
@@ -602,8 +642,10 @@ class Runner:
             self.say("every phase is already committed")
         if self.args.dry_run:
             for n in todo:
-                self.say(f"[dry-run] phase {n}: implementer ({self.harness.name}) -> reviews spec, quality"
-                         + (", security" if self.args.security else "") + f" -> up to {self.args.max_rounds} fix rounds -> commit")
+                reviews = "one reviewer (Stage: both)" if self.mode == "small" else "reviews spec, quality"
+                self.say(f"[dry-run] phase {n}: implementer ({self.harness.name}) -> {reviews}"
+                         + (", security" if self.args.security else "") + f" -> up to {self.args.max_rounds} fix rounds -> commit"
+                         + f"  [mode {self.mode}: {state.front.get('mode_reason')}]")
             return 0
         for n in todo:
             if state.row(n)[1] in ("blocked", "parked") and not self.args.retry_blocked:
@@ -613,7 +655,16 @@ class Runner:
                 return 1
         ok = True
         if self.args.final_review and not self.args.phase and all(r[1] == "committed" for r in state.rows):
-            ok = self.final_review(state)
+            if self.mode == "small" and len(state.rows) == 1:
+                self.say("single phase in small mode: its review is the whole-task review")
+                state.note("Note: final review skipped — one phase, small mode; phase 1 review stands for the task")
+                state.save()
+                tick_acceptance(self.task.path, (
+                    f"### {now_iso()} - Final review (at task run, {self.harness.name})\n\n"
+                    "**Outcome:** one phase in small mode; the phase review is the whole-task review; "
+                    "acceptance criteria ticked."))
+            else:
+                ok = self.final_review(state)
         self.commit_run_dir(f"chore: {self.task.taskid} run state")
         return 0 if ok else 1
 
@@ -632,7 +683,7 @@ def verdicts_pass(v: dict[str, dict]) -> bool:
 
 def open_findings(v: dict[str, dict]) -> list[tuple[str, str, str]]:
     out = []
-    for stage in ("spec", "quality", "security"):
+    for stage in ("spec", "quality", "security", "both"):
         if stage in v and (v[stage]["verdict"] == "FAIL" or any(s == "C" for s, _ in v[stage]["findings"])):
             out += [(s, t, stage) for s, t in v[stage]["findings"]] or [("C", f"{stage} review returned FAIL without findings", stage)]
     return out
@@ -648,6 +699,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--check", action="append", default=[], metavar="CMD",
                    help="shell command run before and after each phase; repeatable")
     p.add_argument("--security", action="store_true", help="also run security-auditor on every phase")
+    p.add_argument("--mode", choices=("small", "large", "auto"), default="auto",
+                   help="small: one reviewer per phase, one final reviewer; large: the full pipeline; "
+                        "auto (default): large on >=3 phases, --security, a Repos row, a Design section or Execution: orchestrated")
     p.add_argument("--max-rounds", type=int, default=3)
     p.add_argument("--project", help="one-line project context for the implementer prompt")
     p.add_argument("--no-commit", action="store_true", help="stop after reviews pass; leave the tree uncommitted")

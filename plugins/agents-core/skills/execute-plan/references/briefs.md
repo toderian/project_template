@@ -57,6 +57,21 @@ Your reply is the report (I save it to docs/tasks_manager/_runs/<TASK-ID>/phase-
 the ## Status / ## Verdict / ## Findings block first, then ## Evidence; at most 40 lines.
 ```
 
+## Single reviewer (small mode, step 5.6, `reviewer`, read-only)
+
+```text
+Stage: both
+You are the only reviewer of this phase. Verdict per item of the phase checklist first (met / not met,
+one line each), then quality findings.
+Brief: docs/tasks_manager/_runs/<TASK-ID>/phase-N/brief.md — the checklist under "## This phase" is the
+spec; task-wide acceptance criteria are context, verified after the last phase.
+Diff: docs/tasks_manager/_runs/<TASK-ID>/phase-N/diff.patch (BASE <rev> → working tree)
+Scope fence: read-only; do not edit files. Run tests only to check a specific doubt.
+Model hint: strongest available.
+Your reply is the report (I save it to docs/tasks_manager/_runs/<TASK-ID>/phase-N/review.md):
+the ## Status / ## Verdict / ## Findings block first, then ## Evidence; at most 40 lines.
+```
+
 ## Security auditor (step 5.6, `security-auditor`, only on a security surface)
 
 ```text
@@ -101,7 +116,7 @@ Your reply is the re-review (I save it to docs/tasks_manager/_runs/<TASK-ID>/pha
 per finding "<n>: resolved | open — one line", then the ## Status / ## Verdict / ## Findings block; at most 40 lines.
 ```
 
-## Final review (step 7, two `reviewer`s in parallel, `Stage: both`)
+## Final review (step 7, `Stage: both`; two `reviewer`s in parallel in large mode, one in small mode)
 
 ```text
 Stage: both

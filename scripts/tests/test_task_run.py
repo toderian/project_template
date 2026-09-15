@@ -75,6 +75,14 @@ class TaskRun(unittest.TestCase):
         lock.write_text(f"999999 {os.uname().nodename} earlier\n")
         p = run(tmp, "--phase", "1"); self.assertEqual(p.returncode, 0, p.stderr); self.assertIn("stale lock", p.stdout)
         self.assertFalse(lock.exists())
+    def test_small_mode_uses_one_reviewer_per_phase_and_one_final(self):
+        tmp = repo(); p = run(tmp, "--mode", "small"); self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        calls = (tmp.parent / (tmp.name + ".calls")).read_text()
+        self.assertIn("reviewer|both|1|claude|resume=False|ro=True", calls); self.assertNotIn("reviewer|spec|", calls)
+        self.assertIn("reviewer|final-1|0|claude", calls); self.assertNotIn("reviewer|final-2|", calls)
+        self.assertTrue((tmp / "docs/tasks_manager/_runs/TST-003/phase-2/review.md").exists())
+        s = (tmp / STATE).read_text(); self.assertIn("mode: small", s); self.assertEqual(s.count("| committed |"), 3)
+        self.assertIn("mode: large", (lambda t: (run(t, "--dry-run"), (t / STATE).read_text())[1])(repo()))  # auto: 3 phases
     def test_codex_reviewers_are_sandboxed_read_only(self):
         tmp = repo(); p = run(tmp, "--phase", "1", harness="codex"); self.assertEqual(p.returncode, 0, p.stderr)
         calls = (tmp.parent / (tmp.name + ".calls")).read_text()

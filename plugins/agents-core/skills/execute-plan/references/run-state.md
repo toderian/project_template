@@ -15,13 +15,14 @@ docs/tasks_manager/_runs/<TASK-ID>/
   phase-N/brief.md         at task brief <TASK-ID> --phase N, plus the orchestrator notes you append
   phase-N/report.md        implementer's full report (its chat reply is ≤ 15 lines)
   phase-N/diff.patch       git diff <BASE> -- <scope fence>; the reviewers' input (git-ignored)
-  phase-N/review-spec.md   reviewer reply, Stage: spec (reviewers are read-only: you save the reply)
-  phase-N/review-quality.md reviewer reply, Stage: quality
+  phase-N/review.md        small mode: the single reviewer's reply, Stage: both (you save it)
+  phase-N/review-spec.md   large mode: reviewer reply, Stage: spec (reviewers are read-only: you save the reply)
+  phase-N/review-quality.md large mode: reviewer reply, Stage: quality
   phase-N/review-security.md security-auditor reply, only when the phase touched a security surface
   phase-N/findings-R.md    numbered open findings handed to fix round R
   phase-N/re-review-R-<stage>.md scoped re-review reply after fix round R
   validation.md            optional spec-validator run over all acceptance criteria (step 6)
-  final-review-1.md, -2.md the whole-task reviews (step 7); final-findings.md if a fix wave ran
+  final-review-1.md, -2.md the whole-task reviews (step 7; only -1 in small mode); final-findings.md if a fix wave ran
 ```
 
 ## `state.md` format
@@ -33,6 +34,8 @@ Written by `at task run-state init`, validated by `at task run-state check`, edi
 task: EGM-012
 task_file: docs/tasks_manager/_todos/EGM-012-F_example.md
 runtime: claude | codex | inline
+mode: small | large
+mode_reason: 3 phases
 base_rev: a1b2c3d
 branch: master
 work_mode: default-branch | same-branch | task-branch | read-only | ask
@@ -57,10 +60,12 @@ Note: e2e is N/A for this repo (no browser harness); recorded in the task file
 Rules the validator enforces:
 
 - Frontmatter keys: `task`, `task_file`, `runtime`, `base_rev`, `branch`, `work_mode`, `autonomy`,
-  `current_phase`, `updated`. `runtime` is `claude`, `codex` or `inline`.
+  `current_phase`, `updated`. `runtime` is `claude`, `codex` or `inline`. `mode` (`small` | `large`)
+  and `mode_reason` are written by the orchestrator; a file without them is a large run.
 - One table row per `#### Phase` heading in the task file, numbered like the ledger's `n/m`.
 - `Status` is one of `pending | implementing | reviewing | fixing | committed | blocked | parked`.
-- `Spec`, `Quality`, `Security` cells are `—` (not run yet), `n/a`, `PASS` or `FAIL`.
+- `Spec`, `Quality`, `Security` cells are `—` (not run yet), `n/a`, `PASS` or `FAIL`. In small mode the
+  single reviewer's verdict fills both `Spec` and `Quality`.
 - A `committed` row has a SHA in `Commit`, and every SHA must exist in the repository.
 - Free lines after the table start with `Phase N:`, `Ruling:`, `Interface:` or `Note:`. Nothing else.
 - `Agent` holds a subagent id when the runtime can resume by id (Claude Code); otherwise `—`.
@@ -104,13 +109,17 @@ with the run directory at `docs/_plans/_runs/<slug>/` and write the files by han
 
 ## Scripted driver
 
-`at task run <TASK-ID> [--harness claude|codex] [--phase N] [--check CMD]... [--security]
+`at task run <TASK-ID> [--harness claude|codex] [--mode small|large|auto] [--phase N] [--check CMD]... [--security]
 [--model M] [--strong-model M] [--max-rounds 3] [--timeout 1800] [--budget-usd 5] [--no-commit]
 [--no-final-review] [--retry-blocked] [--force-unlock] [--dry-run]` executes this loop without an orchestrating session: it writes the same files, one
 process per dispatch, and commits each phase (`feat: <ID> phase N — <title>`), leaving `state.md`
 dirty until the next phase's commit sweeps it in and committing the last one as
 `chore: <ID> run state`. Differences from the skill:
 
+- `--mode auto` (default) picks large on ≥ 3 phases, `--security`, a `Repos` row, a `### Design`
+  section or `Execution: orchestrated`; it cannot count files. Small mode still dispatches an
+  implementer (the driver has no "self") but runs one `Stage: both` reviewer per phase and one
+  final reviewer (none for a single phase). A run never de-escalates from large.
 - The clean-tree gate is strict: any change outside `_runs/` stops the run.
 - The scope fence is "only what the phase requires"; the script cannot infer file lists.
 - Security review runs on every phase or none (`--security`); checks come from `--check`, and on

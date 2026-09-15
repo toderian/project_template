@@ -10,7 +10,9 @@ Use this reference when you can dispatch the plugin's named subagents (`implemen
 - Run the implementer in the **foreground** — you need its status before packaging the diff.
 - Run the phase reviewers **in parallel in one turn** (spec, quality, security when applicable),
   each read-only; their replies are the reports and you save each to its review file. Do the same
-  for the two final reviewers. They must not see each other's replies; you merge the verdicts.
+  for the final reviewers (two in large mode). They must not see each other's replies; you merge
+  the verdicts. In small mode there is one reviewer per phase (`Stage: both`) and you are the
+  implementer.
 - Pass paths, not contents. The subagent reads `brief.md` and `diff.patch` itself.
 - Every subagent still receives the repo's CLAUDE.md/AGENTS.md hierarchy by default. That is fine for
   implementers (repo conventions) but is pure overhead for reviewers of a diff; when the downstream

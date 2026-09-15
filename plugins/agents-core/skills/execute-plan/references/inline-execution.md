@@ -1,8 +1,9 @@
 # Runtime: inline (no subagents)
 
 Use this reference when no subagent tool exists in the session, or the user asked for inline
-execution. You play every role yourself, sequentially, and you say so: every review written this
-way is labelled **not independent** in the execution log and in `state.md`.
+execution. The run is in **small mode** whatever its size (there is nobody to dispatch to), and you
+play every role yourself, sequentially, and say so: every review written this way is labelled
+**not independent** in the execution log and in `state.md`.
 
 The run directory and `state.md` are still written exactly as in `references/run-state.md`, so a
 later session with subagents can resume the run and apply real reviews from the first uncommitted
@@ -17,8 +18,8 @@ phase on.
    checks with real output).
 3. Package `diff.patch` from `BASE`.
 4. Review your own diff **in a separate pass, after a context break**: close the source files, reopen
-   the brief and the diff, and go criterion by criterion. Write `review-spec.md` and
-   `review-quality.md` in the reviewer reply shape, and `review-security.md` when the phase touched a
+   the brief and the diff, and go checklist item by checklist item, then quality. Write `review.md`
+   in the reviewer reply shape (`Stage: both`), and `review-security.md` when the phase touched a
    security surface. Head each file with `Independence: none — main-thread self-review`.
 5. Fix what you found, re-run the checks, and record the findings you left open as `Ruling:` lines.
    The three-round cap still applies: it bounds how long you keep polishing one phase.
@@ -27,12 +28,10 @@ phase on.
 
 ## Architecture and final review (steps 4 and 7)
 
-- Step 4: read the plan against the affected code and write `architecture-review.md` with the
-  `## Architecture verdict:` block, labelled not independent. A `REVISE` you issue yourself still
-  updates the plan before code edits.
-- Step 7: do not pretend two reviewers ran. Write one whole-task self-review to
-  `final-review-1.md`, then **stop and ask the user** whether to accept it as the final review or to
-  rerun step 7 in an environment with subagents. Record the answer in the execution log.
+- Step 4 does not run inline (small mode); the pre-implementation note in the task file stands.
+- Step 7: write one whole-task self-review to `final-review-1.md`, labelled not independent, record
+  it in the execution log and continue. Say in the final report that the reviews were self-reviews
+  so the user can rerun step 7 with subagents if they want an independent verdict.
 
 ## What inline does not change
 
