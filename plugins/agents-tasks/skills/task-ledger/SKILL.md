@@ -83,6 +83,8 @@ split".
   subagent; `run-state init` writes the `_runs/<TASK-ID>/state.md` resume map with one row per phase
   and `run-state check` validates it (status vocabulary, row count, commit SHAs). Used by
   `agents-core:execute-plan`; the run directory is removed by `agents-tasks:complete-task`.
+  `at task run <TASK-ID>` (shipped with agents-core) drives that skill's loop from a shell with one
+  `claude -p` / `codex exec` process per dispatch.
 - `at reserve inbox <slug>` / `at reserve task <PREFIX> <TYPE> <slug>` — wraps
   `scripts/reserve_work_item.sh`. Atomically creates the reserved placeholder file and prints its path
   so parallel agents cannot claim the same ID.

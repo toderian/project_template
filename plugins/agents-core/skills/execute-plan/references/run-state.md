@@ -97,3 +97,20 @@ with the run directory at `docs/_plans/_runs/<slug>/` and write the files by han
 - Phase numbering follows the plan's `## Phase N:` / `#### Phase N:` headings in order.
 
 `at ledger check` does not know this directory; remove it by hand when the plan is done.
+
+## Scripted driver
+
+`at task run <TASK-ID> [--harness claude|codex] [--phase N] [--check CMD]... [--security]
+[--model M] [--strong-model M] [--max-rounds 3] [--no-commit] [--no-final-review] [--retry-blocked]
+[--dry-run]` executes this loop without an orchestrating session: it writes the same files, one
+process per dispatch, and commits each phase (`feat: <ID> phase N — <title>`), leaving `state.md`
+dirty until the next phase's commit sweeps it in and committing the last one as
+`chore: <ID> run state`. Differences from the skill:
+
+- The clean-tree gate is strict: any change outside `_runs/` stops the run.
+- The scope fence is "only what the phase requires"; the script cannot infer file lists.
+- Security review runs on every phase or none (`--security`); checks come from `--check`.
+- At the fix-loop cap the row becomes `blocked` with the open findings noted; there is no
+  adjudication. Add `Ruling:` lines (or fix by hand) and rerun — with `--retry-blocked` if you leave
+  the row `blocked`, or plainly after setting it back to `pending`.
+- `driver.log` in the run directory records every process and its stderr.

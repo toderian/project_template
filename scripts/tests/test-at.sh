@@ -307,6 +307,9 @@ at task run-state check TST-003 >/dev/null 2>&1
 assert_eq "$?" "0" "at task run-state check exits 0 on a fresh state"
 at task >/dev/null 2>&1
 assert_eq "$?" "2" "bare at task exits 2"
+TASK_RUN_DRY="$(at task run TST-003 --harness claude --dry-run 2>&1)"
+assert_eq "$?" "0" "at task run --dry-run exits 0: $TASK_RUN_DRY"
+if printf '%s\n' "$TASK_RUN_DRY" | grep -q '\[dry-run\] phase 3'; then pass; else fail "at task run --dry-run lists every phase: $TASK_RUN_DRY"; fi
 rm -rf docs/tasks_manager/_runs/TST-003 docs/tasks_manager/_todos/TST-003-F_brief-source.md
 at ledger sync >/dev/null 2>&1
 

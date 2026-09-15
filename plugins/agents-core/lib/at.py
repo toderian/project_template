@@ -7,7 +7,7 @@ Subcommands:
   bootstrap    install the plugins into this machine's harnesses, write ~/.local/bin/at
   migrate      convert a legacy `_base/`/`playbooks/` downstream to the plugin layout
   ledger       wrapper: `sync` | `check` | `rotate-log <TASK_ID>`
-  task         wrapper: `brief <TASK_ID> --phase N` | `run-state init|check <TASK_ID>`
+  task         `brief <TASK_ID> --phase N` | `run-state init|check <TASK_ID>` | `run <TASK_ID>` (scripted execute-plan)
   reserve      wrapper: reserve an inbox idea or task filename
   repos-check  wrapper: validate `.config/repos.project.md`
   seed-path    print the active agents-core seed AGENTS.md path
@@ -2006,7 +2006,11 @@ def cmd_reserve(args: argparse.Namespace) -> int:
 
 def cmd_task(args: argparse.Namespace) -> int:
     if not args.rest:
-        die("usage: at task brief <TASK_ID> --phase N | at task run-state init|check <TASK_ID>", code=2)
+        die("usage: at task brief <TASK_ID> --phase N | at task run-state init|check <TASK_ID> | at task run <TASK_ID>", code=2)
+    if args.rest[0] == "run":
+        import task_run  # lib/task_run.py, next to this file
+        scripts = tasks_root() / "skills" / "task-ledger" / "scripts"
+        return task_run.main(list(args.rest[1:]), repo_root(), core_root(), scripts)
     return _run_tasks_script("task_brief.py", list(args.rest))
 
 
@@ -2100,7 +2104,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_reserve.add_argument("rest", nargs=argparse.REMAINDER)
     p_reserve.set_defaults(func=cmd_reserve)
 
-    p_task = sub.add_parser("task", help="brief <TASK_ID> --phase N | run-state init|check <TASK_ID>")
+    p_task = sub.add_parser("task", help="brief <TASK_ID> --phase N | run-state init|check <TASK_ID> | run <TASK_ID>")
     p_task.add_argument("rest", nargs=argparse.REMAINDER)
     p_task.set_defaults(func=cmd_task)
 

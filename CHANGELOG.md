@@ -19,6 +19,17 @@ Notable changes to agents-template. All four plugins share the version of the re
   `at ledger check` when it outlives its task.
 - `agents-core:execute-plan` ships five references: `run-state.md`, `briefs.md`, `runtime-claude.md`,
   `runtime-codex.md`, `inline-execution.md`.
+- `at task run <TASK-ID>`: the scripted driver for that loop. One `claude -p` or `codex exec` process
+  per implementer or reviewer dispatch (role card as system prompt, writable vs read-only fences,
+  `--resume` for Claude fix rounds), the same `_runs/` files, a commit per phase, an optional
+  `--check` command before and after each phase, `--security` for the auditor, `--dry-run`, and a
+  strict clean-tree gate. It stops at the fix-loop cap (`blocked` row, exit 1) instead of adjudicating.
+  Tested against a fake harness (`scripts/tests/test_task_run.py`).
+- A `SubagentStop` hook (`require-subagent-status.sh`) sends `implementer`, `reviewer`,
+  `security-auditor`, `spec-validator`, `plan-critic` and `researcher` subagents back once when their
+  final message lacks the `## Status:` block; it never loops (`stop_hook_active`) and allows the stop
+  when the message is unavailable. Same event, matcher and exit-2 semantics on Claude Code and Codex,
+  so `hooks.codex.json` is generated unchanged. Codex users must trust the new hook in `/hooks`.
 
 ### Changed
 
@@ -37,10 +48,6 @@ Notable changes to agents-template. All four plugins share the version of the re
   brief's report path; `reviewer` honours `Stage:` and replies with a compressed verdict block
   (`## Verdict`, `## Findings: n (C/I/M)`, `## Report`); `security-auditor` and `spec-validator`
   take a report path. Codex TOML twins regenerated.
-
-Follow-ups not in this release: a `SubagentStop` hook that rejects a report without a `## Status:`
-block (`build.py` must learn the event first), and a scripted `at task run` driver over
-`claude -p` / `codex exec`.
 
 ## 1.3.0 — 2026-09-12
 

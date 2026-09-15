@@ -51,3 +51,11 @@ tree with a strict scope fence — is simpler and is what the loop assumes.
   lacks the block, re-dispatch fresh rather than nudging by id again.
 - Hooks shipped with the plugin block dangerous git and secret-path writes inside subagents too; a
   blocked subagent reports `BLOCKED` and you decide, you do not route around the hook.
+
+## Scripted alternative
+
+`at task run <TASK-ID>` drives the same loop from a shell with one `claude -p` process per dispatch
+(`--append-system-prompt` carries the role card, `--permission-mode acceptEdits` for implementers,
+`--disallowedTools Edit Write …` for reviewers, `--resume <session>` for fix rounds 1–2). Use it when
+no session should hold the run at all; it stops at the fix-loop cap instead of adjudicating. See
+`references/run-state.md` §"Scripted driver".

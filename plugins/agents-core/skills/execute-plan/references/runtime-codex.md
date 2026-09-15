@@ -40,9 +40,11 @@ block, so a missing block after that means re-dispatch fresh.
 
 ## Two more fallbacks
 
-- **Scripted driver** (not shipped yet): the same loop can be driven from a shell script that runs
-  `codex exec` once per phase and per review with `--output-schema` for the status block and the
-  identical `_runs/` files; `codex exec resume --last` continues a thread. Until `at task run` exists,
-  this is a manual option, not a supported mode.
+- **Scripted driver**: `at task run <TASK-ID> --harness codex` runs the same loop with no
+  orchestrator session at all — one `codex exec` process per implementer or reviewer dispatch
+  (`-s workspace-write` / `-s read-only`, the role card prepended to the prompt, `-o` for the final
+  message), the identical `_runs/` files, and a commit per phase. It does not adjudicate: at the
+  fix-loop cap it marks the row `blocked` and exits 1 for you to add `Ruling:` lines and rerun. See
+  `references/run-state.md` §"Scripted driver".
 - **Inline**: no subagent tooling in this session — switch `runtime:` to `inline` and follow
   `references/inline-execution.md`.

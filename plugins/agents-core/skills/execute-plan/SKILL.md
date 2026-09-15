@@ -74,7 +74,9 @@ subagent, you are inline.
   with subagents can resume.
 
 The runtime never changes the phase loop, the run-state files, or the commit rules below; only the
-dispatch and resume mechanics differ. A pasted plan or a `docs/_plans/` file without the
+dispatch and resume mechanics differ. When no session should hold the run at all, `at task run
+<TASK-ID>` executes steps 3–7 from a shell with the same files ([references/run-state.md](references/run-state.md)
+§"Scripted driver"); it stops at the fix-loop cap for a human or agent to adjudicate. A pasted plan or a `docs/_plans/` file without the
 `agents-tasks` plugin uses the same loop with hand-written briefs
 ([references/run-state.md](references/run-state.md) §"Without agents-tasks").
 
