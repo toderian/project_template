@@ -2,6 +2,46 @@
 
 Notable changes to agents-template. All four plugins share the version of the repository.
 
+## Unreleased
+
+### Added
+
+- `at task brief <TASK-ID> --phase N` writes one phase of a task file — plus the task brief,
+  acceptance criteria, related tests, specification, design and spec-ref paths, never the execution
+  log or other phases — to `docs/tasks_manager/_runs/<TASK-ID>/phase-N/brief.md` as the sole context
+  for an implementer subagent. `at task run-state init|check <TASK-ID>` writes and validates the
+  `_runs/<TASK-ID>/state.md` resume map (one row per phase with status, review verdicts, commit SHA;
+  `Ruling:` / `Interface:` / `Note:` lines). Both are stdlib scripts under the task-ledger skill,
+  delegated like `at ledger`.
+- `docs/tasks_manager/_runs/` is a governed directory: seeded by `at init --with-tasks`, listed in the
+  task convention, committed with phase commits (only `diff.patch` is git-ignored), removed by
+  `agents-tasks:complete-task` after its rulings are copied into the completion summary, and flagged by
+  `at ledger check` when it outlives its task.
+- `agents-core:execute-plan` ships five references: `run-state.md`, `briefs.md`, `runtime-claude.md`,
+  `runtime-codex.md`, `inline-execution.md`.
+
+### Changed
+
+- `agents-core:execute-plan` is now a thin orchestrator. It detects the runtime once (Claude Code
+  subagents, Codex subagents, or inline), dispatches a fresh `implementer` per phase from a
+  self-contained brief, packages the diff, runs a spec reviewer and a quality reviewer in parallel
+  (plus `security-auditor` when the phase touches a security surface), caps the fix loop at three
+  rounds before adjudicating with `Ruling:` lines, runs the checks and commits itself, and records
+  every step in `_runs/<TASK-ID>/state.md` so a later session resumes from disk. Reports, diffs and
+  reviews are files; the orchestrator's context holds paths and ≤ 20-line verdicts. The final review
+  is one whole-task round with one fix wave. Inline execution remains available and is labelled
+  "not independent".
+- `agents-core:subagent-protocol` gains the artifacts-as-files rule, the fix-loop policy (resume
+  twice, fresh strongest model, then rulings) and the `Stage: spec | quality | both` reviewer line.
+- Agent cards: `implementer` never commits, stages or spawns subagents and writes its report to the
+  brief's report path; `reviewer` honours `Stage:` and replies with a compressed verdict block
+  (`## Verdict`, `## Findings: n (C/I/M)`, `## Report`); `security-auditor` and `spec-validator`
+  take a report path. Codex TOML twins regenerated.
+
+Follow-ups not in this release: a `SubagentStop` hook that rejects a report without a `## Status:`
+block (`build.py` must learn the event first), and a scripted `at task run` driver over
+`claude -p` / `codex exec`.
+
 ## 1.3.0 — 2026-09-12
 
 ### Added
