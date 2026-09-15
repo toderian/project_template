@@ -58,11 +58,11 @@ available skills and pick from that instead of guessing another prefix.
 | Implement a tracked task | `agents-core:execute-plan` (+ `agents-tasks:task-ledger` when `docs/tasks_manager/` exists) |
 | New feature or bug fix | `agents-core:tdd` |
 | Something behaves unexpectedly | `agents-core:diagnose` |
-| Scope or requirements unclear | `agents-core:spec-workflow`, or `agents-core:task-spec-workflow` for a tracked task |
-| Stress-test a plan or decision with the user | `agents-core:grill-me`, or `agents-extras:grill-with-docs` when the glossary matters |
+| Scope or requirements unclear | `agents-core:spec-workflow`, or `agents-tasks:add-task` (spec sections) for a tracked task |
+| Stress-test a plan or decision with the user | `agents-core:grilling` (+ `agents-extras:domain-modeling` when the glossary matters) |
 | Effort too big for one session, way ahead unclear | `agents-tasks:wayfinder` |
 | Before writing a plan | `agents-core:planning-workflow` |
-| Facts needed from docs, APIs, or the web | `agents-core:research` |
+| Facts needed from docs, APIs, or the web | a `researcher` dispatch per `agents-core:subagent-protocol` |
 | Auth, input handling, crypto, or AI surfaces | `agents-core:security-review-owasp` |
 | Branch, commit, or push question | `agents-core:git-discipline` |
 | Delegating work | `agents-core:subagent-protocol` (agents: `implementer`, `reviewer`, `researcher`, `plan-critic`, `security-auditor`, `spec-validator`) |

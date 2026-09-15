@@ -73,8 +73,8 @@ the human's side of it — a grilling that answers its own questions has broken 
 
 - **grilling** (HITL, the default): conversation. Invoke `agents-core:grilling` and `agents-extras:domain-modeling`.
 - **research** (AFK): a fact a decision waits on, from docs, third-party APIs, or the knowledge base.
-  Invoke the `agents-core:research` skill; findings land under `docs/resources/_reports/research/` and the ticket
-  links them.
+  Dispatch a `researcher` (`agents-core:subagent-protocol` §"Research dispatch"); findings land under
+  `docs/resources/_reports/research/` and the ticket links them.
 - **prototype** (HITL): raise the fidelity of the discussion with a cheap, rough, concrete artifact to
   react to. Invoke `agents-core:prototype` and link what it produced.
 - **task** (HITL or AFK): manual work that must happen before a _decision_ can be made — signing up for
@@ -125,8 +125,8 @@ The user invokes with a loose idea.
 4. **Create the tickets you can specify now**, then wire `Blocked by` in a **second pass** once they
    all have ids. Wiring sorts them into the frontier and the blocked; everything you cannot yet specify
    stays in the fog.
-5. **Fire the research tickets.** For each `research` ticket, invoke `agents-core:research` so they resolve in
-   parallel while the conversation continues.
+5. **Fire the research tickets.** For each `research` ticket, dispatch a background `researcher` so they resolve
+   in parallel while the conversation continues.
 6. Log the charting session, run `at ledger sync && at ledger check`, and **stop**. Charting is one
    session's work; it hand-resolves nothing.
 
@@ -153,7 +153,7 @@ decision, not the user.
 ## Hand off
 
 When the frontier is empty, the map has done its job: produce the destination artifact —
-`docs/_plans/<slug>.md` via `agents-core:planning-workflow`, a spec via `agents-core:task-spec-workflow`, implementation tasks
+`docs/_plans/<slug>.md` via `agents-core:planning-workflow`, a task with spec/design sections via `agents-tasks:add-task`, implementation tasks
 via `agents-tasks:prd-to-todos` with real `Blocked by` edges, ADRs via `agents-extras:domain-modeling` — link it from the map, then
 close the map with `agents-tasks:complete-task`. The harvest names the artifacts the map produced.
 

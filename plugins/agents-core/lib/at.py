@@ -587,6 +587,11 @@ def _repo_doctor_findings(repo: Path) -> list[tuple[str, str]]:
                                      "(run the agents-core:setup-project skill to adopt them)"))
         elif status == "current":
             findings.append(("OK", "AGENTS.md routing table matches the plugin seed"))
+        removed = [sid for sid in REMOVED_SKILL_IDS if f"`{sid}`" in text or f"/{sid}" in text or f"${sid}" in text]
+        if removed:
+            findings.append(("WARN", f"AGENTS.md routes to a removed skill: {', '.join(removed)} "
+                                     "(successors: agents-core:setup-project references/adopting-updates.md "
+                                     "§\"Removed skill ids\")"))
 
     legacy = [name for name in ("_base", "playbooks") if (repo / name).is_dir()]
     if legacy:
@@ -1149,6 +1154,13 @@ TEMPLATE_SKILL_FILES = frozenset({
     "SKILL.md", "README.md", ".gitkeep", "install-codex-skills.sh", "link-skills.sh",
 })
 LEGACY_SKILL_TREES = ("skills", ".claude/skills", ".agents/skills")
+
+# Skill ids deleted from the plugins; `at doctor` warns while a downstream AGENTS.md still routes
+# to one. Append, never remove (the successor is documented in adopting-updates.md §"Removed skill ids").
+REMOVED_SKILL_IDS = (
+    "agents-core:grill-me", "agents-extras:grill-with-docs", "agents-core:research",
+    "agents-core:task-spec-workflow", "agents-tasks:prd-to-plan",
+)
 
 # Frozen: every skill the pre-plugin template ever shipped (57 playbook skills plus the
 # two generated role wrappers). The legacy set can no longer grow, so this list is final;

@@ -30,8 +30,8 @@ Ask the user for the PRD source. It can be:
 
 Break the PRD into actionable items. Prefer vertical slices (end-to-end through all layers) over
 horizontal slices (one layer at a time) — see
-[the `agents-tasks:prd-to-plan` skill (references/vertical-slicing.md)](../prd-to-plan/references/vertical-slicing.md) for the shared
-tracer-bullet framing `agents-tasks:prd-to-plan` and `agents-extras:prd-to-issues` also use.
+the `agents-core:planning-workflow` skill (references/vertical-slicing.md) for the shared
+tracer-bullet framing `agents-extras:prd-to-issues` also uses.
 
 Each item should be:
 

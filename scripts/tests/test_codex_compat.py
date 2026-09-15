@@ -25,7 +25,7 @@ class SkillContractTests(unittest.TestCase):
         cls.metadata = {path: build.skill_frontmatter(path) for path in cls.skills}
 
     def test_repository_has_expected_skill_inventory(self) -> None:
-        self.assertEqual(len(self.skills), 71)
+        self.assertEqual(len(self.skills), 66)
         names = [str(metadata["name"]) for metadata in self.metadata.values()]
         self.assertEqual(len(names), len(set(names)), "Codex $skill names must be globally unique")
 
@@ -40,18 +40,16 @@ class SkillContractTests(unittest.TestCase):
                 plugin = path.parents[2].name
                 self.assertLessEqual(len(f"{plugin}:{name}"), 64)
 
-    def test_exactly_ten_skills_are_explicit_only(self) -> None:
+    def test_exactly_eight_skills_are_explicit_only(self) -> None:
         disabled = {
             f"{path.parents[2].name}:{metadata['name']}"
             for path, metadata in self.metadata.items()
             if metadata["disable_model_invocation"]
         }
         self.assertEqual(disabled, {
-            "agents-core:grill-me",
             "agents-core:setup-project",
             "agents-core:squash-workspace-commits",
             "agents-core:wait-what",
-            "agents-extras:grill-with-docs",
             "agents-extras:to-questionnaire",
             "agents-personal:google-docs-refine",
             "agents-tasks:complete-task",
@@ -65,7 +63,7 @@ class SkillContractTests(unittest.TestCase):
             path: content for path, content in targets.items()
             if path.name == "openai.yaml" and path.parent.name == "agents"
         }
-        self.assertEqual(len(policies), 10)
+        self.assertEqual(len(policies), 8)
         for skill_path, metadata in self.metadata.items():
             policy_path = skill_path.parent / "agents" / "openai.yaml"
             with self.subTest(skill=skill_path):

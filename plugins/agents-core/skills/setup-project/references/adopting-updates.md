@@ -58,6 +58,23 @@ Done when `at doctor` reports *"AGENTS.md routing table matches the plugin seed"
 Watch the size: `at doctor` warns past 200 lines, and adding rows can cross it. If it does, say so —
 trimming a downstream's own content is the user's call, not yours.
 
+## 2b. Removed skill ids
+
+Releases occasionally delete a skill whose job another one now covers. `at doctor` warns
+*"AGENTS.md routes to a removed skill: …"* while a downstream table still names one; replace the id
+with its successor and keep the row's wording otherwise:
+
+| Removed in | Old id | Use instead |
+|---|---|---|
+| 1.5.0 | `agents-core:grill-me` | `agents-core:grilling` |
+| 1.5.0 | `agents-extras:grill-with-docs` | `agents-core:grilling` + `agents-extras:domain-modeling` |
+| 1.5.0 | `agents-core:research` | a `researcher` dispatch (`agents-core:subagent-protocol` §"Research dispatch") |
+| 1.5.0 | `agents-core:task-spec-workflow` | `agents-tasks:add-task` step 4b (references/spec-sections.md) |
+| 1.5.0 | `agents-tasks:prd-to-plan` | `agents-core:planning-workflow` step 7 "From a PRD" |
+
+Also grep the repo's own skills, docs and `.prompts/` for the old ids; the plugin's generated
+`.codex/agents/*.toml` never referenced them.
+
 ## 3. Conventions the current plugins expect
 
 Check each; fix only what is actually present.

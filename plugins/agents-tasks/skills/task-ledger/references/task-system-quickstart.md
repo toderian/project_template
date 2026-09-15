@@ -127,8 +127,8 @@ Present the classification, evidence, and recommendation before creating or chan
   It should stay fast: reserve an `I-NNN`, make a best-guess area, and avoid heavy research.
 - Use `agents-tasks:add-task` when the work is clear enough to commit directly to the backlog with type, area,
   priority, phases, acceptance criteria, and tests.
-- Use `agents-core:task-spec-workflow` when an existing task or clear idea needs a task-local Specification,
-  Design, acceptance criteria, tests, and spec references before implementation.
+- Use `agents-tasks:add-task` step 4b (references/spec-sections.md) when an existing task needs a task-local
+  Specification, Design, or spec references before implementation.
 - Use `agents-tasks:triage-inbox` when reviewing captured ideas. It performs discovery, then promotes, drops,
   defers, or appends details to existing work.
 - Use `agents-tasks:prd-to-todos` when a PRD or larger design needs to be split into independently executable

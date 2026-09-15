@@ -1,6 +1,6 @@
 ---
 name: planning-workflow
-description: "Seven-step pre-implementation planning workflow with a five-axis adversarial critique rubric. Use when the user wants to plan a non-trivial change before writing code: multi-file features, multiple plausible approaches, or work needing scope bounded."
+description: "Seven-step pre-implementation planning workflow with a five-axis adversarial critique rubric, including tracer-bullet vertical slicing for plans built from a PRD. Use when the user wants to plan a non-trivial change before writing code, break a PRD into implementation phases, or mentions \"tracer bullets\"."
 metadata:
   source: playbooks/skills/productivity/planning-workflow.md
   pack: core
@@ -79,6 +79,13 @@ Write the plan to a durable location:
 
 - ephemeral / discussion-stage plans → keep in the conversation
 - plans that will outlive a session → `docs/_plans/<slug>.md`, or attach to a task file under its `Phases` section per `todo-convention.md`
+
+**From a PRD.** When the input is a PRD (issue, file, or pasted), the plan's phases are tracer-bullet
+vertical slices, each cutting through every integration layer end to end, per
+[references/vertical-slicing.md](references/vertical-slicing.md). Put the durable architectural
+decisions (routes, schema shape, key models, auth approach, service boundaries) in a header every
+phase can reference; show the user the phase list with the user stories each covers and let them
+merge or split before writing `docs/_plans/<slug>.md`. Fewer, thicker slices beat many thin ones.
 
 ## Required plan sections
 

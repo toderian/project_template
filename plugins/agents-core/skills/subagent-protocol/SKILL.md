@@ -78,6 +78,17 @@ When dispatching a subagent, the parent must construct a self-contained prompt w
 
 Do not assume the subagent inherits any context from the parent session. The briefing prompt is the sole data channel.
 
+## Research dispatch
+
+A question that needs facts from docs, APIs, source code, or the web goes to a background
+`researcher` so the main thread keeps moving (inline: the researcher personality,
+references/personalities/researcher.md). The brief names the question, the primary sources to prefer
+(official docs, source, specs — not write-ups of them), and the report path:
+`docs/resources/_reports/research/<YYYY-MM-DDTHHMMSS+ZZZZ>_<slug>.md` when `docs/resources/` exists,
+otherwise the repo's own convention. The researcher cites every claim and says when a claim has no
+primary source. Its reply is the short answer plus the path; durable conclusions graduate into
+`docs/resources/` through `agents-tasks:distill-knowledge`.
+
 ## Escalation rules
 
 - **DONE**: proceed to review

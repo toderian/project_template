@@ -30,10 +30,13 @@ answer depends on another question still open in this round belongs to a _later_
 
 Finding _facts_ is your job, never the user's. When a frontier question needs a fact from the
 environment (code, tests, docs, tools, the web), dispatch a sub-agent or look it up yourself
-(`researcher` per `agents-core:subagent-protocol`, or the `agents-core:research` skill for external sources); never ask the
+(a `researcher` dispatch per `agents-core:subagent-protocol` §"Research dispatch"); never ask the
 user for anything you could find. Do not block on it: a running lookup is an unsettled
 prerequisite, so only the questions downstream of it wait; ask the rest of the frontier now. The
 _decisions_ are the user's: put each one to them and wait.
+
+When the topic has a domain vocabulary or ADR trail, load `agents-extras:domain-modeling` alongside
+this skill so questions use the glossary's terms and settled decisions are not re-asked.
 
 The session is done when the frontier is empty: every branch of the design tree visited, nothing
 left silently assumed. Close with a short summary — **Decisions made**, **Open questions**

@@ -15,7 +15,7 @@ flat list of everything open, the roadmap adds the thing a flat list can't: **se
 what is interrupting, what to do now, what's queued next, and what is intentionally deferred, in the
 order you mean to do it.
 
-It sits above the per-change planning skills (`agents-core:planning-workflow`, `agents-tasks:prd-to-plan` plan a single change);
+It sits above the per-change planning skill (`agents-core:planning-workflow` plans a single change);
 the roadmap is the portfolio view that decides *which* changes happen, in what order, and roughly when
 dated goals should land.
 

@@ -608,6 +608,17 @@ assert_stdout_contains "$DOCTOR_DRIFT" "Pausing or handing off" \
 assert_stdout_contains "$DOCTOR_DRIFT" "setup-project" "the drift warning points at setup-project"
 cp "$WORKDIR/AGENTS.md.pre-drift" AGENTS.md
 
+# --- at doctor: removed skill ids -------------------------------------------
+printf '| Stress-test with the user | `agents-core:grill-me` |\n' >> AGENTS.md
+DOCTOR_REMOVED="$(at doctor 2>&1)"; DOCTOR_REMOVED_RC=$?
+assert_eq "$DOCTOR_REMOVED_RC" "0" "a removed skill id is a warning, not a problem"
+assert_stdout_contains "$DOCTOR_REMOVED" "routes to a removed skill: agents-core:grill-me" \
+  "at doctor names the removed skill id"
+assert_stdout_contains "$DOCTOR_REMOVED" "Removed skill ids" "the warning points at adopting-updates"
+cp "$WORKDIR/AGENTS.md.pre-drift" AGENTS.md
+assert_stdout_contains "$(at doctor 2>&1)" "routing table matches the plugin seed" \
+  "a seeded AGENTS.md names no removed skill"
+
 # --- at version -------------------------------------------------------------
 EXPECTED_VERSION="$(python3 -c "import json;print(json.load(open('$REPO/plugins/agents-core/.claude-plugin/plugin.json'))['version'])")"
 assert_eq "$(at version 2>&1)" "$EXPECTED_VERSION" "at version prints the plugin version"

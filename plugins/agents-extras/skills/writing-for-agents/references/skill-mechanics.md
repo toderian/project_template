@@ -32,9 +32,9 @@ neither can fire the other. Push it to a plain file both point at.
 Split off a model-invoked skill when you have a distinct leading word that should trigger it on its
 own (a trigger word you actually use in your prompts), or another skill must reach it. You pay
 context load for the new always-loaded description, so that independent reach has to be worth it.
-`agents-core:grilling` and `agents-extras:domain-modeling` are this repo's worked examples: primitives split out of
-user-invoked routers (`agents-core:grill-me`, `agents-extras:grill-with-docs`) precisely so other skills could reach
-them.
+`agents-core:grilling` and `agents-extras:domain-modeling` are this repo's worked examples: primitives that other
+skills reach directly. The user-invoked routers that once wrapped them were deleted once the routing
+table could point at the primitives itself — an alias skill is context load with no trigger of its own.
 
 ## Router skills
 
