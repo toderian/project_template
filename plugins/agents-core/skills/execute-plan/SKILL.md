@@ -1,6 +1,6 @@
 ---
 name: execute-plan
-description: "Execute an approved task or implementation plan phase-by-phase, committing each phase and running independent reviews. Use when the user says \"execute plan\" or \"execute-plan\", explicitly invokes this skill, or points to docs/tasks_manager/_todos/<TASK>.md or docs/_plans/<slug>.md and wants it implemented."
+description: "Execute an approved task or implementation plan phase-by-phase as a thin orchestrator: each phase is implemented by a fresh subagent and reviewed by separate spec, quality and security reviewers, every phase is committed, and run state on disk lets a later session resume. Use when the user says \"execute plan\" or \"execute-plan\", explicitly invokes this skill, or points to docs/tasks_manager/_todos/<TASK>.md or docs/_plans/<slug>.md and wants it implemented."
 argument-hint: "Which task file, plan file, or approved plan should I execute?"
 metadata:
   source: playbooks/skills/engineering/execute-plan.md
@@ -12,7 +12,14 @@ metadata:
 ## Purpose
 
 Execute an already-approved task or implementation plan with phase discipline, per-phase commits,
-required checks, and independent implementation review before declaring the work satisfactory.
+required checks, and independent review before declaring the work satisfactory — without letting the
+whole execution pile up in one context window.
+
+You are the **orchestrator**. You read the task file, the run state, and short verdicts; you dispatch
+one fresh implementer per phase and separate reviewers per phase; you own every commit. You do not
+implement phases yourself unless the runtime has no subagents (see step 0). Everything larger than a
+verdict lives in `docs/tasks_manager/_runs/<TASK-ID>/` and travels as a file path, so a fresh session
+can pick the run up from disk.
 
 Use this skill when the user points to:
 
@@ -29,19 +36,47 @@ normal phase commit, but do protect unrelated local work. In downstream repos, t
 commits may be squashed after the task is complete and reviewed, following
 the `agents-core:squash-workspace-commits` skill.
 
+The dispatch rules, status vocabulary, fix-loop cap and `Ruling:` format come from the
+`agents-core:subagent-protocol` skill; this skill only says when to apply them.
+
 ## Required outcome
 
 The implementation is satisfactory only when all of these are true:
 
 - Every phase acceptance criterion is met.
 - Required unit, integration, and explicitly requested e2e checks pass.
-- During execution, each completed phase has its own commit.
-- Two independent xhigh implementation reviewers report no blocking or acceptance-failing findings.
+- Each completed phase has its own commit, made by the orchestrator, and a `committed` row with its
+  SHA in `_runs/<TASK-ID>/state.md`.
+- Each phase passed a spec review and a quality review from separate reviewers (plus a security
+  review when the phase touched a security surface), or every open finding carries a `Ruling:` line.
+- One final whole-task review reports no blocking or acceptance-failing findings.
 - Any residual concerns are recorded as non-blocking.
 
-If review fails three rounds, stop and report the remaining issues instead of looping indefinitely.
+If a phase does not converge within the fix-loop cap, or the final review does not converge in one
+fix wave, stop and report the remaining issues instead of looping.
 
 ## Process
+
+### 0. Detect the runtime
+
+Decide once, record it as `runtime:` in the run state (step 3), and follow the matching reference for
+every dispatch in steps 4–7. Do not guess: if you cannot name the tool you would call to start a
+subagent, you are inline.
+
+- `claude` — you can dispatch named subagents (`implementer`, `reviewer`, `security-auditor`,
+  `spec-validator`, `plan-critic`) and resume one by its id: follow
+  [references/runtime-claude.md](references/runtime-claude.md).
+- `codex` — you can spawn agents from the project's `.codex/agents/*.toml` roles but cannot resume a
+  finished one by id: follow [references/runtime-codex.md](references/runtime-codex.md).
+- `inline` — no subagent tool, or the user asked for inline execution: follow
+  [references/inline-execution.md](references/inline-execution.md). Every review is labelled
+  "not independent" in the execution log, and the run state is still written so a later session
+  with subagents can resume.
+
+The runtime never changes the phase loop, the run-state files, or the commit rules below; only the
+dispatch and resume mechanics differ. A pasted plan or a `docs/_plans/` file without the
+`agents-tasks` plugin uses the same loop with hand-written briefs
+([references/run-state.md](references/run-state.md) §"Without agents-tasks").
 
 ### 1. Resolve and normalize the input
 
@@ -53,6 +88,11 @@ Read the task or plan file before editing. Extract:
 - required checks, including related tests and any explicit e2e requirements
 - expected files, components, and user-facing behavior
 - where progress should be recorded
+
+**Resume check.** If `docs/tasks_manager/_runs/<TASK-ID>/state.md` already exists, this is a resumed
+run: follow [references/run-state.md](references/run-state.md) §"Resume" (verify every recorded
+commit exists, re-read `Ruling:` and `Interface:` lines, continue at the first row that is not
+`committed`). Never re-run a committed phase; never rebuild the state file from chat memory.
 
 For task files, use the existing `## Execution log` and phase checklists. For `docs/_plans` files,
 update phase checkboxes if present; if no execution log exists, append a lightweight `## Execution log`
@@ -126,7 +166,7 @@ Keep `Work mode` separate from autonomy: work mode decides where/how work happen
 how far the loop may proceed. If a later phase would push, repair CI, open/update a PR, or write to an
 external connector, re-check and log that the effective autonomy permits that action before doing it.
 
-### 3. Protect the worktree
+### 3. Protect the worktree and open the run
 
 Before any implementation phase:
 
@@ -137,44 +177,27 @@ Before any implementation phase:
 4. If unrelated changes are inside files the phase must edit, stop and ask how to proceed.
 5. Record the execution base revision with `git rev-parse --short HEAD` in the task/plan execution
    log.
+6. Open the run state (skip on a resumed run):
+
+   ```bash
+   at task run-state init <TASK-ID> --base <rev> --branch <branch> --work-mode <mode> --autonomy <L?> --runtime <claude|codex|inline>
+   ```
+
+   Without `agents-tasks`, write `state.md` by hand from the format in
+   [references/run-state.md](references/run-state.md).
 
 Never use destructive cleanup to get a clean tree. Work with existing changes or ask when they collide
 with the phase.
 
 ### 4. Run the pre-implementation architect review
 
-Before code execution, run an architect review subagent, or the closest architecture review facility
-the runtime supports, over the plan and affected code. The goal is to catch bad phase boundaries, poor
-system fit, risky dependencies, and inadequate tests before implementation creates churn.
+Before code execution, run an architect review over the plan and affected code. The goal is to catch
+bad phase boundaries, poor system fit, risky dependencies, and inadequate tests before implementation
+creates churn.
 
-Preferred dispatch:
-
-- Claude Code: dispatch a read-only subagent with the strongest available model. If only named
-  subagents are available, use `plan-critic` with the architecture brief below.
-- Codex: use multi-agent/subagent tools when available. If no subagent runtime is available, perform a
-  documented main-thread architecture review and label it as not independent.
-
-Architecture review brief:
-
-```text
-Task description: Review this approved implementation plan before execution.
-Acceptance criteria:
-- The plan fits the existing architecture and local patterns.
-- Phase boundaries are independently committable and do not hide cross-phase dependencies.
-- Test strategy is sufficient for the stated acceptance criteria.
-- Resolved specs are classified as planned intent vs implemented evidence before code edits.
-- Risks, migrations, rollout concerns, and compatibility constraints are identified.
-Scope fence: read-only; do not edit files.
-Context files: <plan/task file>, affected source files, relevant tests, component docs if present.
-Model hint: strongest/xhigh available.
-Report:
-## Status: DONE | DONE_WITH_CONCERNS | BLOCKED
-## Architecture verdict: PROCEED | REVISE | BLOCKED
-## Blocking findings:
-## Non-blocking risks:
-## Required plan changes:
-## Summary:
-```
+Dispatch a read-only `plan-critic` on the strongest available model with the architecture brief from
+[references/briefs.md](references/briefs.md) §"Architecture review", per the runtime reference.
+Inline: perform a documented main-thread architecture review and label it as not independent.
 
 If the verdict is `BLOCKED`, stop and ask the user or fix the plan before implementation. If the
 verdict is `REVISE`, update the plan/execution log, rerun or explicitly reconcile the review, and only
@@ -184,22 +207,53 @@ For existing task files, this review can satisfy or extend the task-system pre-i
 plan-critic review when it covers freshness and applicability. If a separate researcher current-state
 review is required by the task convention, run and log that bounded review before code edits as well.
 
-### 5. Execute one phase at a time
+### 5. Orchestrate one phase at a time
 
-For each phase, keep the loop narrow:
+For each phase whose `state.md` row is not `committed`, in order. Keep your own context to paths,
+verdict blocks and the state file; never open a report, diff or test log that a subagent wrote unless
+you are adjudicating a finding.
 
-1. Re-check `git status --short` and protect unrelated changes.
-2. Run the baseline/relevant checks listed for that phase. If required checks are already failing,
-   stop unless the failure is clearly unrelated and recorded as an accepted baseline condition.
-3. Implement only that phase. Do not pull future phase work forward unless the plan is updated first.
-4. Run the phase checks and related tests.
-5. Verify each phase acceptance criterion against observable behavior or code.
-6. Update progress markers and append an execution log entry with actions, decisions, test results,
-   and outcome.
-7. Stage only files that belong to the phase.
-8. Commit before moving to the next phase.
-9. Record the phase commit SHA in the next execution-log update or closeout summary. Do not create an
-   extra metadata-only commit solely to record the SHA unless the project explicitly wants that.
+1. **Gate.** Re-check `git status --short`. Run the baseline/relevant checks for the phase; if required
+   checks already fail, stop unless the failure is clearly unrelated and recorded as an accepted
+   baseline condition.
+2. **Brief.** `at task brief <TASK-ID> --phase N` writes
+   `_runs/<TASK-ID>/phase-N/brief.md` (without `agents-tasks`, write it by hand with the same
+   headings). Append under `## Orchestrator notes`: work mode and autonomy, the **scope fence** (files
+   and directories this phase may touch), every `Interface:` and `Ruling:` line from `state.md`, and
+   any clarification from step 1. Implement only that phase; if the brief would need work from a later
+   phase, update the plan first.
+3. **Mark.** Set the row to `implementing`, `Attempt` +1, and record `BASE=$(git rev-parse --short HEAD)`
+   as a `Phase N:` line.
+4. **Implement.** Dispatch a fresh `implementer` with the dispatch prompt from
+   [references/briefs.md](references/briefs.md) §"Implementer". On `NEEDS_CONTEXT`, answer inside the
+   brief's orchestrator notes and re-dispatch; on `BLOCKED`, triage per `agents-core:subagent-protocol`.
+   Never re-dispatch an identical prompt.
+5. **Package.** `git diff <BASE> -- <scope fence> > _runs/<TASK-ID>/phase-N/diff.patch` (git-ignored,
+   regenerable). Set the row to `reviewing`.
+6. **Review in parallel**, all read-only, each with its own report path:
+   - `reviewer` with `Stage: spec` → `review-spec.md`
+   - `reviewer` with `Stage: quality` → `review-quality.md`
+   - `security-auditor` → `review-security.md`, only when the phase touches a **security surface**:
+     auth or sessions, input parsing or deserialization, subprocess/shell/file-path handling,
+     network or HTTP, secrets/config/env, permissions or ACLs, SQL or query building, crypto, CI or
+     hook configuration, new dependencies. Otherwise write `n/a` in the `Security` cell.
+   Record each `Verdict` and findings count in the row.
+7. **Fix loop.** While any verdict is `FAIL` or a critical finding is open, run the fix loop from
+   `agents-core:subagent-protocol` (cap: three rounds). Write the numbered open findings to
+   `phase-N/findings-R.md`, hand that path to the implementer with the round prompt from briefs.md, set
+   the row to `fixing`, then re-review only those findings against the fix diff
+   (`phase-N/re-review-R.md`). A spec `FAIL` is fixed before quality findings are acted on.
+8. **Adjudicate at the cap.** Decide each still-open finding yourself and record a `Ruling:` line in
+   `state.md`; small defects you can fix in a few lines, you fix and rule. If every path forward is a
+   guess, set the row to `blocked`, write what is needed, and stop.
+9. **Verify and record.** Run the phase checks and related tests yourself and read the output. Tick the
+   phase checkboxes, update `Updated` and `Last executed`, and append a **≤ 10-line** execution-log entry:
+   what changed, the verdicts, any rulings, and the pointer `see docs/tasks_manager/_runs/<TASK-ID>/phase-N/`.
+   Add any interface later phases depend on as an `Interface:` line in `state.md`.
+10. **Commit.** Stage with explicit pathspecs — the scope fence, the task/plan file, and
+    `docs/tasks_manager/_runs/<TASK-ID>/` — never `git add -A`. Use the phase commit format below.
+11. **Close the row.** Write the SHA, set `committed`, bump `current_phase`, `updated`. Then
+    `at ledger check` and `at task run-state check <TASK-ID>`.
 
 Phase commit format:
 
@@ -214,11 +268,13 @@ Why:
 
 Checks:
 - <command>: <result>
+- reviews: spec <PASS|FAIL>, quality <PASS|FAIL>, security <PASS|FAIL|n/a>; rulings: <n>
 ```
 
 Infer `<type>` conservatively (`feat`, `fix`, `chore`, `docs`, `test`, or `refactor`). If commit hooks
-fail, fix the issue and rerun the required checks before committing. Never proceed to the next phase
-with failing required tests. Never commit a phase whose acceptance criteria are unmet.
+fail, fix the issue (yourself, or through a fix-round dispatch) and rerun the required checks before
+committing. Never proceed to the next phase with failing required tests. Never commit a phase whose
+acceptance criteria are unmet, or whose row still has an unruled open finding.
 
 For task files, progress updates are not optional: update phase checkboxes, `Updated`, `Last executed`,
 and the append-only execution log before considering the phase complete. If a phase changes code and
@@ -230,65 +286,39 @@ After all phases are committed:
 
 1. Run the final required checks from the plan/task.
 2. Run e2e only at the end unless a phase explicitly requires e2e earlier.
-3. Fix failures until required checks pass or a real blocker is reached.
-4. Commit final validation fixes or execution-log-only updates if they were not included in the last
+3. Optionally dispatch `spec-validator` over **all** acceptance criteria (report path
+   `_runs/<TASK-ID>/validation.md`) when the criteria are behavioral enough to test spec-blind; it is
+   too heavy per phase and runs once here.
+4. Fix failures until required checks pass or a real blocker is reached.
+5. Commit final validation fixes or execution-log-only updates if they were not included in the last
    phase commit.
 
 If e2e is marked `N/A`, record why. If the project has no e2e command and the plan did not require one,
 do not invent a heavyweight e2e harness; record the available validation instead.
 
-### 7. Run the two-reviewer validation loop
+### 7. Run the final whole-task review
 
-Run up to three review rounds. Each round dispatches two independent xhigh implementation reviewers.
-They must not see each other's reports before both have returned.
+Per-phase reviews saw one diff each; this round looks at the whole. Dispatch two read-only `reviewer`
+subagents in parallel with `Stage: both`, on the strongest available model, using the whole-task brief
+from [references/briefs.md](references/briefs.md) §"Final review"; report paths
+`_runs/<TASK-ID>/final-review-1.md` and `-2.md`. They must not see each other's reports.
 
-Reviewer dispatch rules:
+Outcomes:
 
-- Claude Code: dispatch two read-only `reviewer` subagents in parallel with the strongest available
-  model/configuration.
-- Codex: use multi-agent/subagent tools when available. If no subagent runtime is available, do not
-  pretend independent xhigh review occurred. Stop and ask the user whether to accept a documented
-  main-thread fallback review or to run in an environment with subagent support.
+- Both `Verdict: PASS` with no critical findings: record the result and finish.
+- Only non-critical findings: record them explicitly as non-blocking and finish.
+- Any `FAIL`, critical finding, or `BLOCKED`: **one** fix wave — merge the open findings into
+  `_runs/<TASK-ID>/final-findings.md`, dispatch one implementer (fresh, strongest model) with the
+  round-3 prompt, commit as `fix: address execute-plan final review`, then **one** scoped re-review of
+  those findings. If it still fails, stop: report the remaining issues, last passing checks, and why the
+  loop did not converge. No second fix wave.
 
-Implementation review brief:
-
-```text
-Task description: Review the completed execution of this approved plan.
-Acceptance criteria:
-- All plan/task acceptance criteria are satisfied.
-- The implementation satisfies every accepted/planned spec source resolved for this task.
-- Current-state claims rely only on implemented or evidence-backed partially-implemented specs, code,
-  tests, or task history.
-- Required checks pass and are meaningful for the changed behavior.
-- Phase commits are scoped and do not include unrelated cleanup.
-- No blocking regressions, security issues, or maintainability problems remain.
-Scope fence: read-only; do not edit files.
-Context files: <plan/task file>, execution log, relevant source/tests, git diff <base>..HEAD.
-Model hint: strongest/xhigh available.
-Report:
-## Status: DONE | DONE_WITH_CONCERNS | BLOCKED
-## Spec compliance: PASS | FAIL
-## Blocking findings:
-## Non-blocking concerns:
-## Spec sources checked:
-## Checks reviewed:
-## Summary:
-```
-
-Review outcomes:
-
-- If both reviewers report `Spec compliance: PASS` and no blocking findings, record the review result
-  and finish.
-- If reviewers raise only non-blocking concerns, record them explicitly and finish.
-- If either reviewer reports acceptance failure, blocking findings, or `BLOCKED`, fix the actionable
-  findings, rerun relevant and final required checks, commit the fixes as
-  `fix: address execute-plan review round <N>`, and start the next review round.
-- After three failed rounds, stop. Report remaining issues, last passing checks, and why the loop did
-  not converge.
+Inline: a documented main-thread review labelled "not independent"; ask the user whether to accept it
+or to rerun in an environment with subagents.
 
 ### 8. Optionally squash completed task commits
 
-After all implementation phases, final validation, and reviewer rounds pass, downstream repos may
+After all implementation phases, final validation, and the final review pass, downstream repos may
 squash the task's own step commits into one final task commit. This is a cleanup step after the task is
 done; do not squash early because phase commits are the review and recovery boundary during execution.
 
@@ -299,12 +329,20 @@ requirements, and final squashed commit-message requirements.
 For multi-repo tasks, audit and squash independently per downstream repo. Do not squash read-only repos,
 repos outside the task scope, or upstream template-maintenance history unless the user explicitly asks.
 
+The run directory stays until `agents-tasks:complete-task` copies its rulings into the completion
+summary and removes it.
+
 ## Quality bar
 
 - The plan/task remains the source of truth; implementation notes do not replace acceptance criteria.
-- Each phase is independently reviewable from its commit.
+- `_runs/<TASK-ID>/state.md` is the source of truth for resume; subagent ids are an accelerator, never
+  a requirement. A fresh session must be able to continue from the file alone.
+- The orchestrator's context holds paths and verdicts, not report bodies, diffs, or test logs.
+- Each phase is independently reviewable from its commit and its `phase-N/` directory.
 - If task commits are squashed, the final commit message preserves the phase/review/check summary.
-- Required checks are named with exact commands and outcomes.
+- Required checks are named with exact commands and outcomes, run by the orchestrator, not taken from
+  an implementer's report.
 - E2e timing follows the plan: end-only by default, earlier only when explicitly required.
 - Unrelated work is neither staged nor committed.
 - Subagent availability is represented honestly; fallback reviews are labeled as fallback reviews.
+- Every finding that was not fixed has a `Ruling:` line a later reader can audit.
