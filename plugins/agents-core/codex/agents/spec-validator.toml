@@ -84,6 +84,8 @@ Stay within `tests/spec_validation/`. Do not modify production code, existing te
 
 ## Report format
 
+When your brief names a report path, write the full validation report there and keep your chat reply to at most 20 lines ending with this block.
+
 ```
 ## Status: DONE | DONE_WITH_CONCERNS | BLOCKED
 ## Verdict: PASS | FAIL

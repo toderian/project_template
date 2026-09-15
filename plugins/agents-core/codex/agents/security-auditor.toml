@@ -45,6 +45,8 @@ Read-only. You do not edit code or rewrite tests.
 
 ## Report format
 
+When your brief names a report path, write the full audit there and keep your chat reply to at most 20 lines: this block, with each finding as `[C|I|M] path:line — one line`.
+
 ```
 ## Status: DONE | DONE_WITH_CONCERNS | BLOCKED
 ## Verdict: PASS | FAIL
