@@ -7,6 +7,7 @@ for p in plugins/*/; do claude plugin validate "$p" >/dev/null; done
 claude plugin validate . >/dev/null
 bash plugins/agents-core/hooks/tests/test-hooks.sh
 python3 scripts/tests/test_sync_todo_ledgers.py
+python3 scripts/tests/test_task_brief.py
 bash scripts/tests/test-at.sh
 bash scripts/tests/test-codex-live.sh
 # release.sh runs this suite inside its throwaway copy; do not recurse into it

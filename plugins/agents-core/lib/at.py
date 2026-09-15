@@ -7,6 +7,7 @@ Subcommands:
   bootstrap    install the plugins into this machine's harnesses, write ~/.local/bin/at
   migrate      convert a legacy `_base/`/`playbooks/` downstream to the plugin layout
   ledger       wrapper: `sync` | `check` | `rotate-log <TASK_ID>`
+  task         wrapper: `brief <TASK_ID> --phase N` | `run-state init|check <TASK_ID>`
   reserve      wrapper: reserve an inbox idea or task filename
   repos-check  wrapper: validate `.config/repos.project.md`
   seed-path    print the active agents-core seed AGENTS.md path
@@ -2003,6 +2004,12 @@ def cmd_reserve(args: argparse.Namespace) -> int:
     return _run_tasks_script("reserve_work_item.sh", list(args.rest))
 
 
+def cmd_task(args: argparse.Namespace) -> int:
+    if not args.rest:
+        die("usage: at task brief <TASK_ID> --phase N | at task run-state init|check <TASK_ID>", code=2)
+    return _run_tasks_script("task_brief.py", list(args.rest))
+
+
 def cmd_repos_check(args: argparse.Namespace) -> int:
     return _run_tasks_script("check_repos_config.sh", list(args.rest))
 
@@ -2092,6 +2099,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_reserve = sub.add_parser("reserve", help="reserve an inbox idea or task filename")
     p_reserve.add_argument("rest", nargs=argparse.REMAINDER)
     p_reserve.set_defaults(func=cmd_reserve)
+
+    p_task = sub.add_parser("task", help="brief <TASK_ID> --phase N | run-state init|check <TASK_ID>")
+    p_task.add_argument("rest", nargs=argparse.REMAINDER)
+    p_task.set_defaults(func=cmd_task)
 
     p_repos = sub.add_parser("repos-check", help="validate .config/repos.project.md")
     p_repos.add_argument("rest", nargs=argparse.REMAINDER)

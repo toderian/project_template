@@ -295,6 +295,21 @@ fi
 if printf '%s\n' "$DOCTOR_LEDGER" | grep -qE '^ERROR +ledger: '; then pass; else fail "ledger errors are ERROR"; fi
 rm docs/tasks_manager/_todos/TST-002-C_oversized-execution-log.md
 
+# --- task wrappers (brief + run-state) ---------------------------------------
+cp "$REPO/scripts/tests/fixtures/task-brief/docs/tasks_manager/_todos/TST-003-F_brief-source.md" docs/tasks_manager/_todos/
+at task brief TST-003 --phase 2 >/dev/null 2>&1
+assert_eq "$?" "0" "at task brief exits 0"
+assert_exists docs/tasks_manager/_runs/TST-003/phase-2/brief.md "at task brief writes the phase brief"
+assert_contains docs/tasks_manager/_runs/TST-003/phase-2/brief.md "#### Phase 2: Implementation" "brief carries the requested phase"
+at task run-state init TST-003 --runtime claude >/dev/null 2>&1
+assert_eq "$?" "0" "at task run-state init exits 0"
+at task run-state check TST-003 >/dev/null 2>&1
+assert_eq "$?" "0" "at task run-state check exits 0 on a fresh state"
+at task >/dev/null 2>&1
+assert_eq "$?" "2" "bare at task exits 2"
+rm -rf docs/tasks_manager/_runs/TST-003 docs/tasks_manager/_todos/TST-003-F_brief-source.md
+at ledger sync >/dev/null 2>&1
+
 # --- at update --------------------------------------------------------------
 FAKEHOME="$WORKDIR/fakehome"
 mkdir -p "$FAKEHOME"

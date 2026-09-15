@@ -76,6 +76,13 @@ split".
   and on a `_runs/<TASK-ID>/` run directory whose task is archived or missing.
   `rotate-log` moves a task's `## Execution log` body into `docs/tasks_manager/_logs/<TASK-ID>.md`,
   leaving a short pointer in the task file.
+- `at task brief <TASK-ID> --phase N` / `at task run-state init|check <TASK-ID>` — wraps
+  `scripts/task_brief.py`. `brief` writes phase N of a task (plus the task brief, acceptance criteria,
+  related tests, specification, design, and spec-ref paths — never the execution log or other phases)
+  to `docs/tasks_manager/_runs/<TASK-ID>/phase-N/brief.md` as the sole context for an implementer
+  subagent; `run-state init` writes the `_runs/<TASK-ID>/state.md` resume map with one row per phase
+  and `run-state check` validates it (status vocabulary, row count, commit SHAs). Used by
+  `agents-core:execute-plan`; the run directory is removed by `agents-tasks:complete-task`.
 - `at reserve inbox <slug>` / `at reserve task <PREFIX> <TYPE> <slug>` — wraps
   `scripts/reserve_work_item.sh`. Atomically creates the reserved placeholder file and prints its path
   so parallel agents cannot claim the same ID.
