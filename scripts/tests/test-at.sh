@@ -70,7 +70,7 @@ assert_eq "$INIT_RC" "0" "at init --all exits 0: $INIT_OUT"
 
 for f in AGENTS.md CLAUDE.md .claude/settings.json .claude/statusline.sh .codex/agents/implementer.toml \
          docs/tasks_manager/_todos docs/tasks_manager/_areas.md docs/tasks_manager/_roadmap.md \
-         docs/tasks_manager/_logs docs/areas/_overview.md docs/resources/CONTEXT.md \
+         docs/tasks_manager/_logs docs/tasks_manager/_runs docs/areas/_overview.md docs/resources/CONTEXT.md \
          docs/_plans/.gitkeep artifacts/README.md workbooks/README.md .config/repos.project.md \
          .caveman.json; do
   assert_exists "$PROJECT/$f" "at init --all creates $f"
@@ -86,6 +86,7 @@ assert_contains .gitignore "# END agents-template" ".gitignore has END marker"
 assert_contains .gitignore "node_modules/" ".gitignore keeps pre-existing content"
 assert_contains .gitignore ".no-commit/" ".gitignore managed block ignores local-only dirs"
 assert_contains .gitignore ".caveman.json" ".gitignore managed block keeps the local caveman switch uncommitted"
+assert_contains .gitignore "docs/tasks_manager/_runs/**/diff.patch" ".gitignore managed block ignores execute-plan review packages"
 assert_eq "$(python3 -c 'import json;d=json.load(open(".caveman.json"));print("defaultMode" in d, d["defaultMode"])')" "True None" \
   "the seeded .caveman.json carries a null defaultMode so caveman falls through to the user config (on by default)"
 assert_eq "$(git check-ignore .caveman.json)" ".caveman.json" "the seeded .caveman.json is ignored by git"

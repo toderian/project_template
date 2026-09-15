@@ -28,6 +28,9 @@ __pycache__/
 .codex/agents/*
 !.codex/agents/*.toml
 
+# execute-plan review packages: regenerable from the phase commits, so never committed.
+docs/tasks_manager/_runs/**/diff.patch
+
 # Worktrees and scratch dirs.
 .worktrees/
 worktrees/

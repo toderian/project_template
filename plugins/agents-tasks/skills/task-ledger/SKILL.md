@@ -72,7 +72,8 @@ split".
   and the generated blocks in each `docs/areas/<slug>.md`. `check` is read-only and fails (non-zero
   exit) on duplicate/ambiguous IDs, malformed required metadata, status-directory mismatches,
   unregistered areas/prefixes, bad roadmap references, and stale generated files; it only warns on an
-  archived task's missing completion harvest and on tasks that are growing large (see "Task size" below).
+  archived task's missing completion harvest, on tasks that are growing large (see "Task size" below),
+  and on a `_runs/<TASK-ID>/` run directory whose task is archived or missing.
   `rotate-log` moves a task's `## Execution log` body into `docs/tasks_manager/_logs/<TASK-ID>.md`,
   leaving a short pointer in the task file.
 - `at reserve inbox <slug>` / `at reserve task <PREFIX> <TYPE> <slug>` — wraps

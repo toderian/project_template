@@ -35,8 +35,8 @@ Run `at init` with the flags for what the project needs (skip a flag and nothing
 at init --with-tasks --with-artifacts --with-workbooks --with-repos   # or: at init --all
 ```
 
-- `--with-tasks` — `docs/tasks_manager/` (inbox, tasks, archives, logs, areas registry, roadmap,
-  ledgers), `docs/areas/`, `docs/resources/`. Take it whenever the project will track work.
+- `--with-tasks` — `docs/tasks_manager/` (inbox, tasks, archives, logs, run state, areas registry,
+  roadmap, ledgers), `docs/areas/`, `docs/resources/`. Take it whenever the project will track work.
 - `--with-artifacts` — `artifacts/README.md`, the registry for large/generated/encrypted files.
 - `--with-workbooks` — `workbooks/README.md`, the index for repeatable workflow bundles.
 - `--with-repos` — `.config/repos.project.md`, the repo registry for multi-repo work.

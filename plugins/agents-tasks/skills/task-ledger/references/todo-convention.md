@@ -29,7 +29,9 @@ docs/
 │   ├── _inbox/              # Raw ideas (see inbox-convention.md)
 │   ├── _inbox_archived/     # Promoted or dropped ideas
 │   ├── _todos/              # Active task files
-│   └── _todos_archived/     # Completed or cancelled task files
+│   ├── _todos_archived/     # Completed or cancelled task files
+│   ├── _logs/               # Rotated execution logs (`at ledger rotate-log`)
+│   └── _runs/<TASK-ID>/     # execute-plan run state: state.md + phase-N/ artifacts; removed at completion
 ├── areas/
 │   ├── _overview.md         # Generated area/task overview
 │   └── <slug>.md            # Generated area task-status page plus context pointer
@@ -577,6 +579,16 @@ archive, capture follow-ups, or reorder roadmap entries unless the user explicit
 workflow. Age alone is not enough to close or cancel work; each meaningful recommendation must cite
 current repo evidence.
 
+## Run state
+
+`agents-core:execute-plan` keeps its per-task working state in `docs/tasks_manager/_runs/<TASK-ID>/`:
+`state.md` (the resume map: one row per phase, commit SHAs, review verdicts, `Ruling:` lines) and one
+`phase-N/` directory per phase (brief, implementer report, review reports). The directory is created by
+`at task run-state init <TASK-ID>` and `at task brief <TASK-ID> --phase N`, committed with the phase
+commits so a fresh session or machine can resume, and removed when the task is completed. Format and
+resume procedure: the `agents-core:execute-plan` skill (references/run-state.md). `at ledger check`
+warns when a run directory has no task or its task is already archived.
+
 ## Completion and archive
 
 Status transitions:
@@ -599,7 +611,9 @@ Prefer `agents-tasks:complete-task` for this workflow. Before changing a task to
    - Area updates in `docs/areas/`, or `None`
    - Follow-ups, usually `I-NNN` inbox items, or `None`
    - Notable decisions/deviations, or `None`
-5. Write the completion summary.
+5. Write the completion summary. Copy any `Ruling:` lines from
+   `docs/tasks_manager/_runs/<TASK-ID>/state.md` into it, then remove the run directory
+   (`git rm -r docs/tasks_manager/_runs/<TASK-ID>`) when one exists.
 6. Change `Status`.
 7. Move the file to `docs/tasks_manager/_todos_archived/`.
 8. Run `at ledger sync`.

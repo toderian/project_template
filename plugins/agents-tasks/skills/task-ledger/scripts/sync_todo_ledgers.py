@@ -20,6 +20,7 @@ Sources of truth:
   docs/tasks_manager/_roadmap.md
   docs/tasks_manager/_todos/*.md
   docs/tasks_manager/_todos_archived/*.md
+  docs/tasks_manager/_runs/<TASK-ID>/   (read-only: execute-plan run state, checked for orphans)
 
 Generated outputs:
   docs/tasks_manager/_active.md
@@ -156,6 +157,7 @@ class Generator:
         self.archived = self.tm / "_todos_archived"
         self.inbox = self.tm / "_inbox"
         self.inbox_archived = self.tm / "_inbox_archived"
+        self.runs = self.tm / "_runs"
         self.areas_file = self.tm / "_areas.md"
         self.roadmap = self.tm / "_roadmap.md"
         self.active_ledger = self.tm / "_active.md"
@@ -267,6 +269,18 @@ class Generator:
         for ok, message in checks:
             if not ok:
                 self.check_only_error(message)
+
+    def check_run_dirs(self) -> None:
+        """Warn on `_runs/<TASK-ID>` directories that outlive their task (never an error)."""
+        if not self.runs.is_dir():
+            return
+        for run_dir in sorted(p for p in self.runs.iterdir() if p.is_dir()):
+            taskid = run_dir.name
+            rel = self.rel_repo(run_dir)
+            if taskid not in self.task_dir:
+                self.warn(f"run directory {rel} has no matching task (delete it: git rm -r {rel})")
+            elif self.task_dir[taskid] == "_todos_archived":
+                self.warn(f"run directory {rel} outlives archived task {taskid} (delete it: git rm -r {rel})")
 
     # ---- area registry ---------------------------------------------------
 
@@ -1133,6 +1147,8 @@ class Generator:
             self.record_inbox(path, "_inbox")
         for path in sorted(self.inbox_archived.glob("*.md")) if self.inbox_archived.is_dir() else []:
             self.record_inbox(path, "_inbox_archived")
+
+        self.check_run_dirs()
 
         self.write_or_check(self.active_ledger, self.render_active(), "active ledger")
         self.write_or_check(self.done_ledger, self.render_done(), "done ledger")
