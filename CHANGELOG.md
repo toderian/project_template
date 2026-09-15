@@ -2,6 +2,14 @@
 
 Notable changes to agents-template. All four plugins share the version of the repository.
 
+## 1.4.4 — 2026-09-15
+
+### Changed
+
+- `at task run` on Claude lets reviewers execute exactly the `--check` commands (`Bash(<cmd>)`
+  allow rules under `dontAsk`) so they can confirm a test result instead of inferring it; edits stay
+  disallowed and no other command is approved.
+
 ## 1.4.3 — 2026-09-15
 
 Found by the first real run of the flow (a two-phase task driven by `at task run` against the

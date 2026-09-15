@@ -114,8 +114,10 @@ class State:
 
 class Harness:
     def __init__(self, name: str, repo: Path, core_root: Path, model: str | None, strong: str | None,
-                 driver_cmd: str | None, log: Path, timeout: int, budget_usd: float | None) -> None:
+                 driver_cmd: str | None, log: Path, timeout: int, budget_usd: float | None,
+                 checks: list[str] | None = None) -> None:
         self.name, self.repo, self.core_root = name, repo, core_root
+        self.checks = list(checks or [])  # reviewers may run exactly these, nothing else
         self.model, self.strong = model, strong or model
         self.driver_cmd = driver_cmd
         self.log = log
@@ -150,6 +152,8 @@ class Harness:
             else:
                 cmd += ["--permission-mode", "dontAsk",
                         "--disallowedTools", "Edit,Write,MultiEdit,NotebookEdit"]
+                if self.checks:  # exact-match rules: the check commands and nothing else
+                    cmd += ["--allowedTools", ",".join(f"Bash({c})" for c in self.checks)]
             if self.budget_usd:
                 cmd += ["--max-budget-usd", str(self.budget_usd)]
             if session:
@@ -325,7 +329,8 @@ class Runner:
         self.task_rel = self.task.path.relative_to(repo).as_posix()
         self.runs.mkdir(parents=True, exist_ok=True)
         self.harness = Harness(args.harness, repo, core_root, args.model, args.strong_model,
-                               args.driver_cmd, self.runs / "driver.log", args.timeout, args.budget_usd)
+                               args.driver_cmd, self.runs / "driver.log", args.timeout, args.budget_usd,
+                               args.check)
         self.project = args.project or f"{repo.name}; checks: {', '.join(args.check) or 'none configured'}"
         self.lock = self.runs / "lock"
         self.ledger_script = tasks_scripts / "sync_todo_ledgers.py"

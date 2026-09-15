@@ -113,7 +113,8 @@ dirty until the next phase's commit sweeps it in and committing the last one as
 
 - The clean-tree gate is strict: any change outside `_runs/` stops the run.
 - The scope fence is "only what the phase requires"; the script cannot infer file lists.
-- Security review runs on every phase or none (`--security`); checks come from `--check`.
+- Security review runs on every phase or none (`--security`); checks come from `--check`, and on
+  Claude the reviewers may run exactly those commands (`Bash(<cmd>)` allow rules) and nothing else.
 - At the fix-loop cap the row becomes `blocked` with the open findings noted; there is no
   adjudication. Add `Ruling:` lines (or fix by hand) and rerun — with `--retry-blocked` if you leave
   the row `blocked`, or plainly after setting it back to `pending`.

@@ -58,8 +58,10 @@ class TaskRun(unittest.TestCase):
         self.assertEqual(len(impl), 2); self.assertIn("resume=True", impl[1]); self.assertIn("asking once more", p.stdout)
         self.assertTrue(all("mode=acceptEdits|allowed=Bash|budget=5.0" in c for c in impl), impl)
         self.assertTrue(all("mode=dontAsk|allowed=-|budget=5.0" in c and "ro=True" in c for c in rev), rev)
-        p2 = run(tmp, "--phase", "2", "--budget-usd", "0"); self.assertEqual(p2.returncode, 0, p2.stderr)
-        self.assertIn("budget=-", (tmp.parent / (tmp.name + ".calls")).read_text().splitlines()[-1])
+        p2 = run(tmp, "--phase", "2", "--budget-usd", "0", "--check", "true"); self.assertEqual(p2.returncode, 0, p2.stderr)
+        tail = (tmp.parent / (tmp.name + ".calls")).read_text().splitlines()[-3:]
+        self.assertTrue(all("budget=-" in c for c in tail), tail)
+        self.assertTrue(any("reviewer|" in c and "allowed=Bash(true)" in c for c in tail), tail)
     def test_timeout_blocks_phase_and_releases_lock(self):
         tmp = repo(); p = run(tmp, "--phase", "1", "--timeout", "1", scenario="hang"); self.assertEqual(p.returncode, 1)
         self.assertIn("no reply within 1s", p.stderr); s = (tmp / STATE).read_text()
