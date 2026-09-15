@@ -626,10 +626,17 @@ printf '### Acceptance criteria\n\n- [ ] returns 200 on success\n' > "$DRIFT_TAS
 git add "$DRIFT_TASK" && git -c user.name=t -c user.email=t@t commit -q -m "T-900 criteria v1"
 printf '### Acceptance criteria\n\n- [ ] returns 201 on success\n' > "$DRIFT_TASK"
 git add "$DRIFT_TASK" && git -c user.name=t -c user.email=t@t commit -q -m "T-900 criteria v2"
-DRIFT="$(git log -p --follow --format='%h %s' -- "$DRIFT_TASK" | grep -E '^[0-9a-f]{7,}|^[-+]- \[[ x]\]')"
-assert_stdout_contains "$DRIFT" "-- [ ] returns 200 on success" "the drift recipe shows the removed criterion"
-assert_stdout_contains "$DRIFT" "+- [ ] returns 201 on success" "the drift recipe shows the added criterion"
+printf '### Acceptance criteria\n\n- [x] returns 201 on success\n' > "$DRIFT_TASK"
+git add "$DRIFT_TASK" && git -c user.name=t -c user.email=t@t commit -q -m "T-900 ticked"
+DRIFT="$(for c in $(git log --follow --format=%h -- "$DRIFT_TASK"); do
+  echo "== $c $(git log -1 --format=%s "$c")"
+  git show "$c" -- "$DRIFT_TASK" | grep -E '^[-+]- \[[ x]\] ' | sed -E 's/^[-+]- \[[ x]\] //' | sort | uniq -u
+done)"
+assert_stdout_contains "$DRIFT" "returns 200 on success" "the drift recipe shows the removed criterion"
+assert_stdout_contains "$DRIFT" "returns 201 on success" "the drift recipe shows the added criterion"
 assert_stdout_contains "$DRIFT" "T-900 criteria v2" "the drift recipe names the commit that changed it"
+TICK_BLOCK="$(printf '%s\n' "$DRIFT" | sed -n '/T-900 ticked/,/^== /p' | grep -v '^== ')"
+assert_eq "$TICK_BLOCK" "" "a tick-only commit prints no drift"
 git rm -q "$DRIFT_TASK" && git -c user.name=t -c user.email=t@t commit -q -m "T-900 fixture removed"
 
 # --- at version -------------------------------------------------------------

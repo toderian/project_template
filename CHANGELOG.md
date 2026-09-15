@@ -2,6 +2,60 @@
 
 Notable changes to agents-template. All four plugins share the version of the repository.
 
+## 1.5.0 — 2026-09-15
+
+The simplicity release (`docs/meta/2026-09-15-simplicity-audit.md`): the skills now do the simplest
+plan that works and climb to the heavy machinery on a trigger instead of starting there.
+
+### Removed
+
+Five skills whose job another one already covered. `at doctor` warns while a downstream `AGENTS.md`
+still routes to one; `agents-core:setup-project` references/adopting-updates.md §"Removed skill ids"
+has the mapping.
+
+| Old id | Use instead |
+|---|---|
+| `agents-core:grill-me` | `agents-core:grilling` |
+| `agents-extras:grill-with-docs` | `agents-core:grilling` + `agents-extras:domain-modeling` |
+| `agents-core:research` | a `researcher` dispatch (`agents-core:subagent-protocol` §"Research dispatch") |
+| `agents-core:task-spec-workflow` | `agents-tasks:add-task` step 4b (references/spec-sections.md) |
+| `agents-tasks:prd-to-plan` | `agents-core:planning-workflow` step 7 "From a PRD" |
+
+### Changed
+
+- `agents-core:execute-plan` picks a rung. **Small** (default: ≤ 2 phases, ≤ ~10 files, no trigger):
+  the orchestrator implements each phase itself, one read-only `reviewer` with `Stage: both` judges
+  the phase checklist first, one final reviewer only for a two-phase task. **Large** (≥ 3 phases, a
+  security surface, migration, public contract, multi-repo scope, a `### Design` section or external
+  `Spec refs`, `Execution: orchestrated`, or a small run that blows its context): the unchanged
+  pipeline. A run never de-escalates. `state.md` carries `mode:` / `mode_reason:`; `phase-N/review.md`
+  holds the single review. The inline runtime is small mode and no longer stops to ask about a rerun.
+- Task files have a required core (Task ID, Type, Area, Created, Updated, Status, Priority, Source,
+  title, brief, phases, acceptance criteria); everything else is optional and added when first
+  needed. `add-task` writes no execution-log, harvest or summary placeholders and prefers one phase.
+  The pre-implementation gate is a ≤ 3-line current-state note for a trivial task. Repo registry and
+  spec lifecycle moved to `task-ledger/references/repos-and-autonomy.md` and `spec-lifecycle.md`.
+- Plan critique: the score decides; no minimum rounds, no "surface at least one gap" rule.
+- Seed `AGENTS.md`: a one-sentence diff skips Frame and Critique; the two planning rows merged (a
+  downstream table shows "1 row behind" once); caveman detail moved to adopting-updates; the
+  anti-patterns section (all duplicates) removed. 153 → 138 lines.
+- Skills hand off to a peer once and never describe it; task-ledger, setup-project, codebase-design
+  and wayfinder lost their sibling lists. Repo `AGENTS.md` records the rule.
+- `remind-archive-done-todo.sh` says REMINDER, not BLOCKED (it is PostToolUse and never blocked).
+
+### Added
+
+- `agents-tasks:simplify-task` (explicit-only): reduces an existing task to the smallest plan —
+  keep / merge / cut / defer per item, brief-stated items protected, deferred work recorded — and
+  rewrites the file only after showing the diff.
+- `agents-tasks:verify-task` (report-only): re-runs the task's tests fresh, checks each criterion
+  goal-backward (exists / substantive / wired), detects criteria that changed during the task from
+  the file's git history, dispatches `spec-validator` and a `Stage: both` reviewer, and reports
+  MET / NOT MET / UNVERIFIABLE per criterion with PASS / GAPS / HUMAN_NEEDED.
+- `at task run --mode small|large|auto` (auto: large on ≥ 3 phases, `--security`, a `Repos` row, a
+  `### Design` section or `Execution: orchestrated`).
+- `at doctor` warning for removed skill ids (`REMOVED_SKILL_IDS`, append-only).
+
 ## 1.4.4 — 2026-09-15
 
 ### Changed

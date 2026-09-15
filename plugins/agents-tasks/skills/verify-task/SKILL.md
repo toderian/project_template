@@ -38,10 +38,15 @@ Criteria that changed while the work was done are the finding no reviewer sees. 
 file's history:
 
 ```bash
-git log -p --follow --format='%h %s' -- <task file> | grep -E '^[0-9a-f]{7,}|^[-+]- \[[ x]\]'
+for c in $(git log --follow --format=%h -- <task file>); do
+  echo "== $c $(git log -1 --format=%s "$c")"
+  git show "$c" -- <task file> | grep -E '^[-+]- \[[ x]\] ' | sed -E 's/^[-+]- \[[ x]\] //' | sort | uniq -u
+done
 ```
 
-Classify each current criterion `unchanged | changed-during-task | added-during-task`, with the
+Under each commit this prints the checklist items and criteria whose **text** was added, removed
+or reworded there; a commit that only ticks a box yields the same text twice and prints nothing.
+The creation commit lists every item once. Classify each current criterion `unchanged | changed-during-task | added-during-task`, with the
 commit that changed it, and list any criterion that was **removed** during the task. Cross-check
 against the execution log: a change the log explains (a `Ruling:`, a user decision) is a decision;
 one it does not explain is a finding.
