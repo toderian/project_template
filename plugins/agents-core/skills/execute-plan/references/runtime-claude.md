@@ -46,7 +46,8 @@ tree with a strict scope fence — is simpler and is what the loop assumes.
 
 - A foreground subagent cut off mid-run returns partial output flagged as such: treat it as `BLOCKED`,
   keep its `report.md` if written, and re-dispatch fresh with a note about what was already done.
-- A reply without a `## Status:` block is not a report. Ask the same subagent (by id) for the block
-  once; if it still does not comply, re-dispatch fresh.
+- A reply without a `## Status:` block is not a report. The plugin's `SubagentStop` hook
+  (`require-subagent-status.sh`) already sends a role subagent back once for it; if the reply still
+  lacks the block, re-dispatch fresh rather than nudging by id again.
 - Hooks shipped with the plugin block dangerous git and secret-path writes inside subagents too; a
   blocked subagent reports `BLOCKED` and you decide, you do not route around the hook.

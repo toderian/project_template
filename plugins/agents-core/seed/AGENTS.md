@@ -40,7 +40,8 @@ Run every task through these passes, and loop again whenever a pass finds a real
   otherwise. Do not open a branch merely because commits will happen.
 - Hooks shipped with the plugins block `git push`, `git reset --hard`, `git clean -f`,
   `git branch -D`, forced staging, writes into `.creds/` and other secret paths, and dangerous shell.
-  A block is a guardrail: ask, do not route around it.
+  A block is a guardrail: ask, do not route around it. A role subagent that finishes without its
+  `## Status:` block is sent back once to add it.
 - Commit after each coherent, reviewable slice — one task phase, one fix, one docs batch. Stage only
   the files that belong to that slice; never sweep in unrelated dirty changes.
 - Commit message: a `type: summary` line, then a body with `What changed:` / `Why:` / `Checks:`.

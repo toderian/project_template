@@ -96,7 +96,8 @@ done
 jq -e '
   (.hooks.PreToolUse | length) == 2 and
   (.hooks.PostToolUse | length) == 1 and
-  ([.hooks[][]?.hooks[]?.command] | length) == 5
+  (.hooks.SubagentStop | length) == 1 and
+  ([.hooks[][]?.hooks[]?.command] | length) == 6
 ' "$CORE_CACHE/hooks/hooks.codex.json" >/dev/null || fail "installed Codex hook manifest is malformed"
 
 SAFE_PAYLOAD="$(jq -nc --arg command 'git status --short' '{tool_input: {command: $command}}')"

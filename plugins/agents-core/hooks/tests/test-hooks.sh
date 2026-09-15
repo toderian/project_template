@@ -297,6 +297,34 @@ run_case "remind: jq missing fails closed" "${REMIND_HOOK}" \
   "$(file_payload "${INPROGRESS_TODO}")" 2 "${NONEXISTENT_PATH}"
 
 # ---------------------------------------------------------------------------
+# require-subagent-status.sh
+# ---------------------------------------------------------------------------
+STATUS_HOOK="${HOOKS_DIR}/require-subagent-status.sh"
+
+# stop_payload <agent_type> <last_assistant_message> [stop_hook_active]
+stop_payload() {
+  jq -n --arg t "$1" --arg m "$2" --argjson a "${3:-false}" \
+    '{hook_event_name: "SubagentStop", agent_type: $t, last_assistant_message: $m, stop_hook_active: $a}'
+}
+
+run_case "status: reply ending in ## Status: DONE stays allowed" "${STATUS_HOOK}" \
+  "$(stop_payload implementer $'Changed two files.\n\n## Status: DONE\n## Summary: added validator')" 0
+run_case "status: reviewer verdict block stays allowed" "${STATUS_HOOK}" \
+  "$(stop_payload reviewer $'## Status: DONE_WITH_CONCERNS\n## Verdict: FAIL\n## Findings: 1 (C:1 I:0 M:0)')" 0
+run_case "status: NEEDS_CONTEXT stays allowed" "${STATUS_HOOK}" \
+  "$(stop_payload implementer $'## Status: NEEDS_CONTEXT\n## Blocking on: scope fence')" 0
+run_case "status: prose without a status block is sent back" "${STATUS_HOOK}" \
+  "$(stop_payload implementer 'I added the validator and all tests pass.')" 2
+run_case "status: unknown status word is sent back" "${STATUS_HOOK}" \
+  "$(stop_payload reviewer '## Status: FINISHED')" 2
+run_case "status: already-continued subagent is never sent back again" "${STATUS_HOOK}" \
+  "$(stop_payload implementer 'still no block' true)" 0
+run_case "status: empty final message is allowed (cannot judge)" "${STATUS_HOOK}" \
+  "$(stop_payload implementer '')" 0
+run_case "status: jq missing fails closed" "${STATUS_HOOK}" \
+  "$(stop_payload implementer '## Status: DONE')" 2 "${NONEXISTENT_PATH}"
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo

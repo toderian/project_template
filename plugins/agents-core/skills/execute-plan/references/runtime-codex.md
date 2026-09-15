@@ -34,7 +34,9 @@ session on the model you would want the reviewers to have.
 ## Hooks
 
 The plugin's hooks are installed through `hooks.codex.json`; after `at update`, review and trust
-them in `/hooks` or they silently stay off. They apply to subagents as to the parent.
+them in `/hooks` or they silently stay off. They apply to subagents as to the parent; the
+`SubagentStop` hook sends a role subagent back once when its final message lacks the `## Status:`
+block, so a missing block after that means re-dispatch fresh.
 
 ## Two more fallbacks
 

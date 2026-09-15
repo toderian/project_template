@@ -38,6 +38,17 @@
           }
         ]
       }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "implementer|reviewer|security-auditor|spec-validator|plan-critic|researcher",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${PLUGIN_ROOT}\"/hooks/require-subagent-status.sh"
+          }
+        ]
+      }
     ]
   }
 }

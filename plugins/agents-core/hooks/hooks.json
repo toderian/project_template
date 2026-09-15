@@ -11,6 +11,10 @@
     "PostToolUse": [
       { "matcher": "Write|Edit|MultiEdit|apply_patch", "hooks": [
         { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/remind-archive-done-todo.sh" } ] }
+    ],
+    "SubagentStop": [
+      { "matcher": "implementer|reviewer|security-auditor|spec-validator|plan-critic|researcher", "hooks": [
+        { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/require-subagent-status.sh" } ] }
     ]
   }
 }
