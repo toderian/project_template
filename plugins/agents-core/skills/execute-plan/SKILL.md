@@ -312,7 +312,8 @@ from [references/briefs.md](references/briefs.md) §"Final review"; save the rep
 
 Outcomes:
 
-- Both `Verdict: PASS` with no critical findings: record the result and finish.
+- Both `Verdict: PASS` with no critical findings: tick the task-wide acceptance criteria, record the
+  result in the execution log, and finish.
 - Only non-critical findings: record them explicitly as non-blocking and finish.
 - Any `FAIL`, critical finding, or `BLOCKED`: **one** fix wave — merge the open findings into
   `_runs/<TASK-ID>/final-findings.md`, dispatch one implementer (fresh, strongest model) with the

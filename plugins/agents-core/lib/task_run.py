@@ -296,6 +296,21 @@ def tick_phase(task_path: Path, n: int, entry: str) -> None:
     task_path.write_text("\n".join(lines), encoding="utf-8")
 
 
+def tick_acceptance(task_path: Path, entry: str) -> None:
+    """After a passing final review: tick the task-wide acceptance criteria and log it."""
+    lines = task_path.read_text(encoding="utf-8").split("\n")
+    inside = False
+    for i, line in enumerate(lines):
+        if line.startswith("### "):
+            inside = line[4:].strip().lower() == "acceptance criteria"
+        elif line.startswith("#") or line.strip() == "---":
+            inside = False
+        elif inside and line.lstrip().startswith("- [ ]"):
+            lines[i] = line.replace("- [ ]", "- [x]", 1)
+    task_path.write_text("\n".join(lines), encoding="utf-8")
+    tick_phase(task_path, 0, entry)  # phase 0 ticks nothing; appends the entry and stamps the dates
+
+
 # ---- the loop --------------------------------------------------------------------
 
 class Runner:
@@ -542,13 +557,21 @@ class Runner:
                                    writable=False, strong=True, stage=f"final-{k}") for k in (1, 2)]
             replies = [f.result()[0] for f in futures]
         ok = True
+        notes = []
         for k, reply in enumerate(replies, 1):
             (self.runs / f"final-review-{k}.md").write_text(reply, encoding="utf-8")
             v = parse_verdict(reply)
             crit = [f for f in findings(reply) if f[0] == "C"]
-            state.note(f"Note: final review {k}: {v}, {len(findings(reply))} finding(s), {len(crit)} critical")
+            notes.append(f"final review {k}: {v}, {len(findings(reply))} finding(s), {len(crit)} critical")
+            state.note("Note: " + notes[-1])
             ok = ok and v == "PASS" and not crit
         state.save()
+        if ok:
+            tick_acceptance(self.task.path, (
+                f"### {now_iso()} - Final review (at task run, {self.harness.name})\n\n"
+                f"**Actions taken:** two whole-task reviewers, Stage: both — {'; '.join(notes)}.\n"
+                f"**Outcome:** acceptance criteria ticked; non-critical findings stay in "
+                f"`{self.runs_rel}/final-review-1.md` and `-2.md` for the completion summary."))
         return ok
 
     def run(self) -> int:
@@ -590,11 +613,11 @@ class Runner:
         return 0 if ok else 1
 
     def commit_run_dir(self, message: str) -> None:
-        dirty = [l for l in self.git("status", "--porcelain", "--", self.runs_rel).stdout.splitlines()
+        dirty = [l for l in self.git("status", "--porcelain", "--", self.runs_rel, self.task_rel).stdout.splitlines()
                  if not l.endswith("/lock")]
         if self.args.no_commit or not dirty:
             return
-        self.git("add", "--", self.runs_rel, f":(exclude){self.runs_rel}/lock")
+        self.git("add", "--", self.runs_rel, self.task_rel, f":(exclude){self.runs_rel}/lock")
         self.git("commit", "-q", "-m", message)
 
 

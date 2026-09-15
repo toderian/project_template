@@ -2,6 +2,26 @@
 
 Notable changes to agents-template. All four plugins share the version of the repository.
 
+## 1.4.3 — 2026-09-15
+
+Found by the first real run of the flow (a two-phase task driven by `at task run` against the
+Claude CLI: both phases committed, final review green, $2.68).
+
+### Fixed
+
+- A phase was judged against the task-wide acceptance criteria: the spec reviewer failed phase 1
+  for criteria that belonged to phase 2, the fix round pulled phase 2's work forward, and phase 2
+  then burned three fix rounds on "implementer changed no files" before blocking. `at task brief`
+  now states that the phase checklist is the whole scope and that the task-wide criteria are
+  verified after the last phase; reviewer prompts and SKILL.md step 5.6 say the same; an empty
+  phase diff is reviewed against the run's diff since `base_rev` instead of failing on principle.
+
+### Added
+
+- After a passing final review the driver ticks the task-wide acceptance criteria, logs the
+  review in the execution log, and includes the task file in the closing run-state commit; the
+  skill's step 7 does the same.
+
 ## 1.4.2 — 2026-09-15
 
 ### Fixed
