@@ -61,9 +61,9 @@ Let the user steer; don't unilaterally drop ideas. Batch the decisions in one ex
 
 ### 4. Shape and create each promoted task
 
-For each promoted idea, create the task exactly as `agents-tasks:add-task` does — its steps 3–6 are the canonical
+For each promoted idea, create the task exactly as `agents-tasks:add-task` does — its steps 3–5 are the canonical
 ritual for area/prefix, type, priority, the optional `Repos`/`Autonomy`/`Spec refs`/date metadata, the
-full `todo-convention.md` file shape, `at reserve` reservation, and the
+core `todo-convention.md` file shape (no placeholder sections), `at reserve` reservation, and the
 `at ledger sync`/`at ledger check`/`at repos-check` step. Do not restate those field rules
 here. Triage-specific overrides:
 

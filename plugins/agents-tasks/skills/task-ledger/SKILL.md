@@ -24,9 +24,13 @@ Other skills (`agents-tasks:add-task`, `agents-tasks:capture-idea`, `agents-task
 `agents-tasks:tidy-repo`, `agents-tasks:audit-todos`, `agents-tasks:define-area`) point here rather than restating field rules or validation
 behavior.
 
-- [references/todo-convention.md](references/todo-convention.md) — task file format, filename grammar,
-  ID counters, area registry, repo registry, spec lifecycle, roadmap semantics, ledger/area sync, and
-  the completion/archive workflow.
+- [references/todo-convention.md](references/todo-convention.md) — task file format (the core shape
+  and the optional rows/sections), filename grammar, ID counters, area registry, the
+  pre-implementation note, roadmap semantics, ledger/area sync, and the completion/archive workflow.
+- [references/repos-and-autonomy.md](references/repos-and-autonomy.md) — repo registry, local checkout
+  map, work modes and autonomy ceilings (multi-repo projects only).
+- [references/spec-lifecycle.md](references/spec-lifecycle.md) — durable spec statuses and the
+  resolution order before implementation.
 - [references/inbox-convention.md](references/inbox-convention.md) — inbox file format, capture, and
   the six-way triage classification.
 - [references/task-system-quickstart.md](references/task-system-quickstart.md) — the full quickstart:
@@ -42,7 +46,7 @@ agents-tasks:capture-idea "rough idea or follow-up"
 agents-tasks:triage-inbox          # discovery gate, then promote / drop / defer / append
 agents-tasks:roadmap                # place task IDs in Urgent / Now / Next / Later / Someday
 # Before implementing an existing task:
-# run the pre-implementation review gate from references/todo-convention.md
+# write the current-state note (todo-convention.md §"Before implementing an existing task")
 # implement / execute the task
 agents-tasks:complete-task <TASK-ID>
 at ledger check
@@ -54,7 +58,7 @@ Direct creation is also valid when the work is already clear:
 at init --with-tasks
 agents-tasks:add-task "clear, actionable task"
 agents-tasks:roadmap
-# pre-implementation review gate
+# current-state note (todo-convention.md §"Before implementing an existing task")
 # implement / execute the task
 agents-tasks:complete-task <TASK-ID>
 at ledger check

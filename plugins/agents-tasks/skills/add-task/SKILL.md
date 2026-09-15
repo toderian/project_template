@@ -1,6 +1,6 @@
 ---
 name: add-task
-description: "Create a full area-prefixed task in docs/tasks_manager/_todos/ with phases, acceptance criteria, related tests, priority, optional roadmap placement, and dates only when scheduling intent is explicit. Use when the user says \"add task\", \"create task\", \"file a task\", or \"track this task\"."
+description: "Create an area-prefixed task in docs/tasks_manager/_todos/ with a brief, phases, acceptance criteria, priority, optional spec/design sections, optional roadmap placement, and dates only when scheduling intent is explicit. Use when the user says \"add task\", \"create task\", \"file a task\", \"track this task\", or wants an existing task made implementation-ready with spec and design sections."
 metadata:
   source: playbooks/skills/productivity/add-task.md
   pack: task-management
@@ -10,40 +10,31 @@ metadata:
 
 ## Purpose
 
-Create a full task directly in `docs/tasks_manager/_todos/` when the work is already clear enough to
-commit to the backlog. This complements `agents-tasks:capture-idea`: vague thoughts go to the inbox quickly, while
-clear tasks get area, prefix, priority, phases, acceptance criteria, tests, and optional scheduling
-metadata only when the user asks for scheduling.
+Create a task directly in `docs/tasks_manager/_todos/` when the work is already clear enough to
+commit to the backlog, or make an existing task implementation-ready. Vague thoughts go to the inbox
+through `agents-tasks:capture-idea`; clear tasks get an area, a type, a priority, a brief, phases and
+acceptance criteria — and nothing else until it is needed.
 
-Follow the `agents-tasks:task-ledger` skill (references/todo-convention.md) for the file format and lifecycle.
-
-Prerequisite: `docs/tasks_manager/` must already be initialized. If it is missing, run `at init --with-tasks` first.
+The file format, lifecycle and validation live in the `agents-tasks:task-ledger` skill
+(references/todo-convention.md). Prerequisite: `docs/tasks_manager/` exists (`at init --with-tasks`).
 
 ## Process
 
 ### 1. Confirm this is a task, not an inbox idea
 
-Use this skill when the user asks to add, create, file, or track a task and the request is already
-actionable. If the request is vague, low-context, or mostly a thought for later, use `agents-tasks:capture-idea`
-instead. If the work is too big for one session and the way to the goal is not yet
-visible, use `agents-tasks:wayfinder` instead: it charts the effort as one task holding decision tickets.
+Use this skill when the request is actionable. If it is vague, low-context, or a thought for later,
+use `agents-tasks:capture-idea`. If the work is too big for one session and the way to the goal is
+not yet visible, use `agents-tasks:wayfinder`.
 
-Do not over-interview. Only ask when a required field cannot be inferred safely:
-
-- area / prefix
-- type (`F`, `D`, `C`, `R`)
-- priority (`high`, `medium`, `low`)
-- acceptance criteria
-
-Do not ask for target dates or deadlines during ordinary task creation. Add dates only when the user
-explicitly gives scheduling intent such as a target date, deadline, milestone, launch window, or "by"
-date.
+Do not over-interview. Ask only when a required field cannot be inferred safely: area / prefix, type
+(`F`, `D`, `C`, `R`), priority, acceptance criteria. Never ask for target dates or deadlines; add
+them only when the user gives explicit scheduling intent.
 
 ### 2. Check for duplicates and overlap
 
-Run the discovery scan from the `agents-tasks:task-ledger` skill §"Discovery gate"
-(inbox and archived inbox, active and archived tasks, `_roadmap.md`, ledgers, area pages,
-`docs/resources/` + `docs/archive/`, and likely code/tests when the task ties to existing behavior).
+Run the discovery scan from the `agents-tasks:task-ledger` skill §"Discovery gate" (inbox, active and
+archived tasks, `_roadmap.md`, ledgers, area pages, `docs/resources/` + `docs/archive/`, and likely
+code/tests when the task ties to existing behavior).
 
 If the work appears already captured, tracked, or implemented, report the matching `I-NNN`, task ID,
 doc, or code path and ask whether to append detail, link the existing item, or create a distinct task.
@@ -51,105 +42,67 @@ Do not merge, cancel, or archive tasks without explicit user approval.
 
 ### 3. Assign area and prefix
 
-Read `docs/tasks_manager/_areas.md`.
+Read `docs/tasks_manager/_areas.md`. Pick the best existing area row; use `global` / prefix `T` for
+default, global, or cross-area work. If no area fits, propose an `Area`, `Prefix`, `Description`, and
+`Page` row and ask before appending.
 
-- Pick the best existing area row.
-- Use `global` / prefix `T` for default, global, or cross-area work.
-- If no area fits, propose an `Area`, `Prefix`, `Description`, and `Page` row and ask before appending.
+If `.config/repos.project.md` exists, infer the relevant repo slugs and fill the optional `Repos` row
+when the scope is clear; omit it otherwise. Fill the optional `Autonomy` row only when the task must
+be stricter than the repo default (never above the repo `Autonomy max`).
 
-If `.config/repos.project.md` exists, also infer the relevant repo slugs from the request, nearby docs, code
-paths, or area ownership. Fill the optional `Repos` metadata row with comma-separated slugs when the
-scope is clear. If repo scope is unclear, omit the row rather than guessing. Do not encode repo slugs
-into the task ID, filename, prefix, or area.
+### 4. Shape the task — the core, and only the core
 
-If the user explicitly asks for a loop autonomy level, or the task should be stricter than the repo
-default, fill optional `Autonomy` metadata with `L0`, `L1`, `L2`, or `L3`. Omit it otherwise. The value
-must not exceed the resolved repo `Autonomy max`; raise the repo registry only with explicit user
-approval.
+Reserve the file first: `at reserve task <PREFIX> <TYPE> <short-description>` (lowercase, hyphenated,
+under 50 characters). Then fill the reserved path with the core shape from `todo-convention.md`:
 
-### 4. Shape the task
+- metadata: Task ID, Type, Area, Created, Updated, Status `open`, Priority, `Source: add-task`
+- title and a 2–4 sentence brief: the user outcome and the constraints that matter
+- phases with checklists — **one phase is the default**; add a second only when it is separately
+  committable and reviewable
+- acceptance criteria: observable, testable, each one traceable to a phase item
 
-Create one atomic task. Fill:
+Optional rows and sections (`Source ref`, `Related tests`, `Follow-ups`, `Spec refs`, dates, …) go in
+only when they carry a real value now. Do not write an execution log, completion harvest, or
+completion summary: the first execution appends the log and `agents-tasks:complete-task` writes the
+rest.
 
-- type (`F`, `D`, `C`, `R`)
-- priority (`high`, `medium`, `low`)
-- optional `Repos` metadata when inferable from `.config/repos.project.md`
-- optional `Autonomy` metadata only when the task intentionally differs from the repo default/max
-- optional `Spec refs` metadata when the request comes from or depends on a task-local spec, PRD,
-  durable contract, system-map entry, area summary, dependency graph, or component context
-- optional `Target date` / `Deadline` metadata only when the user explicitly gives task-specific
-  scheduling intent
-- 2-4 sentence brief
-- optional `### Specification` and `### Design` sections when acceptance criteria alone would lose
-  important planned intent
-- phases with checklists
-- acceptance criteria
-- related tests, or `N/A - <reason>`
-- follow-ups (`None` if empty)
-- execution log placeholder
-- completion harvest placeholder with explicit `None` entries
-- completion summary placeholder
-- optional `### Repo scope` section for cross-repo tasks when repo responsibilities need explanation
+Prefer fewer phases and fewer criteria. If the shape you are about to write has more than three
+phases or a criterion that no phase delivers, stop and cut before saving (the
+`agents-tasks:simplify-task` rules apply at creation too).
 
-Use `Source: add-task`. Set `Source ref` to an issue, PRD, inbox idea, conversation note, or `N/A`.
-After choosing the type and short description, reserve the task file with
-`at reserve task <PREFIX> <TYPE> <short-description>`. The helper creates the
-placeholder atomically so parallel agents cannot claim the same ID.
+### 4b. Spec and design sections, when the criteria alone would lose intent
 
-### 5. Write the file
+For a task whose behavior or approach needs agreement before code — a public interface, a data
+change, several plausible designs, or open questions that change the architecture — add
+`### Specification` and/or `### Design` and the `Spec refs` row per
+[references/spec-sections.md](references/spec-sections.md). That reference also covers making an
+**existing** task implementation-ready and the approval boundary before `agents-core:execute-plan`.
 
-Fill the reserved path printed by:
-
-```text
-at reserve task <PREFIX> <TYPE> <short-description>
-```
-
-Use the template shape from `todo-convention.md`. Keep the short description lowercase, hyphenated, and
-under 50 characters.
-
-### 6. Sync and optionally schedule
-
-Run:
+### 5. Sync and optionally schedule
 
 ```bash
 at ledger sync
 at ledger check
-at repos-check
+at repos-check        # only when the task carries Repos or Autonomy
 ```
 
 If the user wants this scheduled, add the task ID to `docs/tasks_manager/_roadmap.md` under Urgent,
-Now, Next, Later, or Someday in the intended order (horizon semantics and soft thresholds:
-the `agents-tasks:task-ledger` skill (references/todo-convention.md) §Roadmap). If they gave goal-level timing, place the task
-under a milestone heading such as `### Milestone: <name> (target: YYYY-MM-DD)` or
-`### Milestone: <name> (deadline: YYYY-MM-DD)` inside the chosen horizon. Then run sync and `--check`
-again so `docs/areas/_overview.md` and generated area blocks reflect the roadmap placement. Run
-`at repos-check` again after any task metadata changes.
+Now, Next, Later, or Someday in the intended order (horizon semantics: `todo-convention.md`
+§Roadmap); goal-level timing goes under a `### Milestone: <name> (target|deadline: YYYY-MM-DD)`
+heading inside the horizon. Run sync and check again afterwards.
 
-### 7. Report
+### 6. Report
 
-Return:
-
-- created task ID and file path
-- area, type, priority
-- whether it was placed on the roadmap
-- any area row created
-
-Remind the user only when relevant that starting implementation later requires the pre-implementation
-review gate in `todo-convention.md`.
+Return the task ID and path; area, type, priority; whether it was placed on the roadmap; any area row
+created; and whether spec/design sections were added.
 
 ## Quality bar
 
-- The filename passes `block-bad-todo-name.sh`.
-- The task has the complete template required by `todo-convention.md`.
-- The task ID uses the selected area's prefix and the next per-prefix counter.
-- Optional `Repos` metadata uses slugs from `.config/repos.project.md`; repo slugs are not encoded into task IDs,
-  filenames, prefixes, or areas.
-- Optional `Autonomy` metadata is one of `L0`-`L3` and does not exceed the resolved repo max.
-- Optional `Spec refs` points to task-local `self`, an existing durable spec, PRD, plan, or `N/A`;
-  never imply a planned spec is implemented.
-- Optional `Target date` / `Deadline` metadata is used only for explicit task-specific dates and uses
-  `YYYY-MM-DD` or `N/A`.
+- The filename passes `block-bad-todo-name.sh`; the ID uses the area's prefix and the next counter.
+- The task has the core shape and no placeholder sections; optional rows carry real values or are
+  absent.
+- Acceptance criteria are testable and each maps to a phase item.
+- Optional `Repos` / `Autonomy` / `Spec refs` / date rows follow the rules in `todo-convention.md`.
 - New area rows are user-approved and include a page path.
-- Ledgers and area pages are synced and pass `at ledger check`.
-- Repo registry and task `Repos` / `Autonomy` metadata pass `at repos-check`.
-- Roadmap placement is explicit; the skill does not silently schedule work.
+- `at ledger check` (and `at repos-check` when relevant) pass; roadmap placement is explicit, never
+  silent.

@@ -93,9 +93,9 @@ Iterate until approved.
 
 ### 6. Create task files
 
-For each approved slice, create the task exactly as `agents-tasks:add-task` does — its steps 3–6 are the canonical
+For each approved slice, create the task exactly as `agents-tasks:add-task` does — its steps 3–5 are the canonical
 ritual for area/prefix, type, priority, the optional `Repos`/`Autonomy`/`Spec refs`/date metadata, the
-full `todo-convention.md` file shape, `at reserve` reservation, and the
+core `todo-convention.md` file shape (no placeholder sections), `at reserve` reservation, and the
 `at ledger sync`/`at ledger check`/`at repos-check` step. Do not restate those field rules
 here. PRD-specific overrides:
 
@@ -111,8 +111,8 @@ here. PRD-specific overrides:
 ### 7. Report
 
 List all created files with their phase counts, dependency order, and roadmap placement. Remind the
-user that starting any existing task requires the pre-implementation review gate from
-the `agents-tasks:task-ledger` skill (references/todo-convention.md).
+user that each task starts with the current-state note from the `agents-tasks:task-ledger` skill
+(references/todo-convention.md §"Before implementing an existing task").
 
 ## Quality bar
 

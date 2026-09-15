@@ -42,7 +42,8 @@ clear.
 
 For `done`:
 
-- Check every acceptance criterion and phase item that must be complete.
+- Check every acceptance criterion and phase item that must be complete. For a task with more than
+  one phase or an execute-plan run, run `agents-tasks:verify-task` first and act on its verdict.
 - Resolve `Spec refs` and task-local spec/design sections. If the task implemented, partially
   implemented, superseded, or invalidated a durable spec, update that spec's status/evidence or record
   a follow-up when the update is outside closeout scope.
@@ -68,9 +69,11 @@ Keep the log append-only.
 
 ### 5. Fill the completion harvest
 
-Complete every row under `## Completion harvest`:
+Add `## Completion harvest` (after the execution log) with every row filled:
 
 ```markdown
+| Item | Result |
+|------|--------|
 | Resource updates | docs/resources/... or None |
 | Area updates | docs/areas/... or None |
 | Follow-ups | I-NNN... or None |
@@ -82,8 +85,7 @@ Use explicit `None` rows when there is nothing to harvest. If a follow-up is nee
 
 ### 6. Write the completion summary
 
-Replace the placeholder under `## Completion summary` with a short outcome summary and final validation
-state. Include any tests that were skipped or could not be run. When `docs/tasks_manager/_runs/<TASK-ID>/`
+Add `## Completion summary` with a short outcome summary and final validation state. Include any tests that were skipped or could not be run. When `docs/tasks_manager/_runs/<TASK-ID>/`
 exists (the task ran through `agents-core:execute-plan`), copy its `Ruling:` lines from `state.md` into
 the summary so the decisions survive the run directory.
 

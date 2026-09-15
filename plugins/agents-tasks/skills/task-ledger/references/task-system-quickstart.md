@@ -25,7 +25,7 @@ agents-tasks:capture-idea "rough idea or follow-up"
 agents-tasks:triage-inbox          # discovery gate, then promote / drop / defer / append
 agents-tasks:roadmap               # place task IDs in Urgent / Now / Next / Later / Someday
 # Before implementing an existing task:
-# run the pre-implementation review gate from todo-convention.md
+# write the current-state note (todo-convention.md §"Before implementing an existing task")
 # implement / execute the task
 agents-tasks:complete-task <TASK-ID>
 at ledger check
@@ -40,7 +40,7 @@ Direct creation is also valid when the work is already clear:
 at init --with-tasks
 agents-tasks:add-task "clear, actionable task"
 agents-tasks:roadmap
-# pre-implementation review gate
+# current-state note (todo-convention.md §"Before implementing an existing task")
 # implement / execute the task
 agents-tasks:complete-task <TASK-ID>
 at ledger check

@@ -5,6 +5,10 @@
 Shared format for committed task files used across all skills. Raw thoughts still start in the inbox;
 tasks are the point where work becomes planned, typed, sequenced, and ready for agents to execute.
 
+A task file is the smallest document that lets an agent do the work and a reader see it was done: a
+short metadata table, a brief, one or more phases, and acceptance criteria. Everything else is
+optional and added when it is first needed.
+
 ## Where this fits
 
 Lifecycle:
@@ -93,7 +97,7 @@ at reserve task <PREFIX> <TYPE> <short-description>
 ```
 
 The helper atomically creates the empty placeholder file and prints its path, so parallel agents cannot
-claim the same ID. Fill the placeholder immediately with the full task template. If an agent is
+claim the same ID. Fill the placeholder immediately with the task template. If an agent is
 interrupted after reservation, `at ledger check` catches the malformed placeholder.
 
 Under the hood, the helper scans both active and archived task directories so archived tasks still
@@ -127,396 +131,173 @@ Rules:
 `docs/areas/_overview.md`, and refresh generated Urgent / Now / Next / Later / Someday blocks in each area page. Do not
 add durable architecture notes to area pages; write them under `docs/resources/<area>/`.
 
-## Repo registry and local checkout map
+## Repo registry and autonomy
 
-Cross-repo projects use a two-layer repo convention:
-
-- `.config/repos.project.md` is created and committed by each downstream project that opts into this convention.
-  It defines stable repo slugs, whether each repo is required, branch defaults, work mode, optional
-  autonomy ceiling, and related areas.
-- `.local/repos.map` is a local-only, gitignored map from repo slug to absolute checkout path. It is
-  machine-specific and must never be referenced from committed docs.
-- `at init --with-repos` seeds `.config/repos.project.md` from the upstream example; create
-  `.local/repos.map` by hand per machine.
-
-Set this up during downstream project setup, after project-specific `README.md` and `AGENTS.md` are in
-place and before running `at init --with-tasks`, `agents-tasks:define-area`, `agents-tasks:cross-repo-feature`, `agents-tasks:add-task`, `agents-tasks:triage-inbox`,
-or `agents-tasks:prd-to-todos` for multi-repo work. Single-repo projects can skip it until they need repo-scope
-tasks or cross-repo docs.
-
-Repo slugs must match `^[a-z][a-z0-9-]*$`. If no `.config/repos.project.md` exists, omit `Repos`
-metadata from new task files; existing `Repos: N/A` rows remain valid. Cross-repo docs should
-reference source paths as `<repo-slug>:<repo-relative-path>`, never as absolute local paths. The
-branch/work policy in `.config/repos.project.md` is a default; explicit user instructions, task files,
-or repo-specific `AGENTS.md` instructions override it.
-
-`.config/repos.project.md` is Markdown with one required table.
-
-New shape:
-
-```md
-| Repo | Required | Role | Default branch | Integration branch | Work mode | Autonomy max | Areas | Notes |
-|------|----------|------|----------------|--------------------|-----------|--------------|-------|-------|
-| project-template | yes | Agent template | master | master | default-branch | L1 | global | Work directly on default branch |
-```
-
-Legacy shape, still valid and treated as `Autonomy max: L1`:
-
-```md
-| Repo | Required | Role | Default branch | Integration branch | Work mode | Areas | Notes |
-|------|----------|------|----------------|--------------------|-----------|-------|-------|
-| project-template | yes | Agent template | master | master | default-branch | global | Work directly on default branch |
-```
-
-Allowed values:
-
-- `Required`: `yes` or `no`
-- branch fields: a branch name, `N/A`, or `unknown`
-- `Work mode`: `default-branch`, `task-branch`, `same-branch`, `read-only`, or `ask`
-- `Autonomy max`: optional permission ceiling, one of `L0`, `L1`, `L2`, or `L3`; old registries
-  without this column remain valid and default to `L1`
-- `Areas`: comma-separated area slugs or `N/A`
-
-Work mode meaning:
-
-- `default-branch`: work and commit directly on `Default branch`; ask if the checkout is elsewhere.
-- `same-branch`: stay on the current branch and do not create or switch branches.
-- `task-branch`: use an explicitly named task branch; ask before creating or switching if none is
-  specified.
-- `read-only`: inspect only; do not edit or commit.
-- `ask`: ask the user before edits or branch changes.
-
-Template-inherited downstream repos should normally use `default-branch` or `same-branch`. Do not use
-branching for those repos unless the user explicitly asks or the host/CI policy requires it.
-
-Autonomy levels are permission ceilings layered on top of work mode and branch rules:
-
-- `L0`: read-only inspection and reporting.
-- `L1`: local edits, checks, iteration, and local commits inside an approved workflow.
-- `L2`: L1 plus push/update the approved branch and repair CI for that branch.
-- `L3`: L2 plus open/update draft PRs and validate PR status.
-
-No level authorizes merge, deploy, release, ready-for-review, force-push/history rewrite, broad
-connector writes, or secret exposure. See the `agents-core:git-discipline` skill (references/autonomy-levels.md).
-
-`.local/repos.map` is line-oriented:
-
-```text
-# Format: <repo-slug>: <absolute-path>
-project-template: /home/you/repos/project_template
-naeural-core: /home/you/repos/naeural_core
-```
-
-Blank lines and `#` comment lines are allowed. Entries split on the first `:`, with whitespace trimmed
-around slug and path. Duplicate slugs are invalid. Paths must be absolute local paths to existing
-directories. No shell expansion is performed; this is not dotenv.
-
-Validate committed repo config when present with:
-
-```bash
-at repos-check
-```
-
-Validate local checkout mappings too with:
-
-```bash
-at repos-check --local
-```
+Multi-repo projects declare their repos in `.config/repos.project.md` and map them to local checkouts
+in `.local/repos.map`; tasks then carry an optional `Repos` row, and an optional `Autonomy` row may
+lower the permission ceiling. Shapes, allowed values, work modes and `at repos-check` are in
+[repos-and-autonomy.md](repos-and-autonomy.md). Single-repo projects skip all of it.
 
 ## Spec lifecycle
 
-Specs can describe either planned intent or implemented system behavior. Agents must distinguish those
-states before using a spec as evidence.
-
-Use these statuses for durable specs under `docs/resources/`, including `system-map.md`, area
-summaries when they describe explicit contracts, dependency graphs, component contexts, and feature
-contracts:
-
-| Status | Meaning |
-|--------|---------|
-| `draft` | Proposal or rough design. Do not treat it as approved or implemented. |
-| `accepted` | Approved target behavior. Use it as implementation intent, not current-state evidence. |
-| `partially-implemented` | Some evidence exists. Separate the live behavior from the remaining planned work. |
-| `implemented` | Verified current behavior, backed by code, tests, task history, or other evidence. |
-| `superseded` | Obsolete. Link the replacement or state why it no longer applies. |
-
-Task-local `### Specification` and `### Design` sections are planned intent until the task is completed
-and its linked durable specs are reconciled. A completed task proves only its acceptance criteria and
-recorded changes; it does not automatically make every linked durable spec `implemented`.
-
-Before implementation, agents must resolve spec sources in this order and record the result in the
-execution log:
-
-1. Task-local `### Specification` and `### Design` when present.
-2. Optional `Spec refs` metadata, including `self`, PRDs, plans, `docs/resources/system-map.md`, area
-   summaries, dependency graphs, component contexts, and feature contracts.
-3. Task acceptance criteria and related tests.
-4. Relevant durable docs discovered during the current-state review.
-5. User-provided context from the current request.
-
-For each resolved spec source, record whether it is planned intent (`draft` or `accepted`) or
-current-state evidence (`implemented` or evidence-backed `partially-implemented`). If a source is
-`superseded`, follow the replacement if one is named; otherwise ignore it and record the uncertainty.
+Durable specs under `docs/resources/` carry a status (`draft`, `accepted`, `partially-implemented`,
+`implemented`, `superseded`); task-local `### Specification` / `### Design` sections are planned
+intent until closeout reconciles them. The status table and the resolution order agents follow before
+implementation are in [spec-lifecycle.md](spec-lifecycle.md).
 
 ## File format
 
-Every task starts with a metadata table, then a short title, a brief, phases, acceptance criteria,
-related tests, follow-ups, execution log, completion harvest, and completion summary. Tasks may also
-include optional spec metadata and task-local spec/design sections.
+The **core** shape every task has. Nothing below it is a placeholder: sections appear when they carry
+content.
 
 ````markdown
-| Field         | Value                              |
-|---------------|------------------------------------|
-| Task ID       | AUTH-001                           |
-| Type          | F                                  |
-| Area          | auth                               |
-| Created       | 2026-04-14T10:30:00                |
-| Updated       | 2026-04-14T10:30:00                |
-| Last executed | N/A                                |
-| Status        | open                               |
-| Priority      | high                               |
-| Owner         | N/A                                |
-| Blocked by    | N/A                                |
-| Spec refs     | self, docs/resources/auth/contracts/session-validation.md |
-| Source        | add-task                           |
-| Source ref    | N/A                                |
+| Field    | Value               |
+|----------|---------------------|
+| Task ID  | AUTH-001            |
+| Type     | F                   |
+| Area     | auth                |
+| Created  | 2026-04-14T10:30:00 |
+| Updated  | 2026-04-14T10:30:00 |
+| Status   | open                |
+| Priority | high                |
+| Source   | add-task            |
 
 ## Login session hardening
 
 ### Brief
 
 Harden session handling so users stay signed in reliably without weakening token storage. The current
-implementation has several scattered checks, so this task consolidates the behavior behind one
-testable boundary. The first pass should preserve public behavior, then add the stricter validation.
-
-When `.config/repos.project.md` exists and repo scope is inferable, add the optional row near `Area`:
-
-```md
-| Repos | auth-service, web-app |
-```
-
-When a task should be more restrictive than the repo ceiling, or when the user explicitly requests a
-higher loop level that the repo already allows, add the optional row near `Repos`:
-
-```md
-| Autonomy | L0 |
-```
-
-Omit `Autonomy` to inherit the repo default/max. `Autonomy` may lower the effective ceiling. It cannot
-exceed the resolved repo `Autonomy max`; raise the repo registry deliberately before creating tasks
-that should repeatably run at L2 or L3.
-
-When the user explicitly gives task-specific scheduling intent, add optional date rows near
-`Priority`:
-
-```md
-| Target date | 2026-07-10 |
-| Deadline    | N/A        |
-```
-
-Use `Target date` for soft planning dates and `Deadline` for hard external commitments. Values must be
-`YYYY-MM-DD` or `N/A`. Omit both rows for normal undated tasks; roadmap milestones are the preferred
-place for goal-level dates.
-
-When the task has a local spec or depends on durable specs, add an optional row near `Blocked by`:
-
-```md
-| Spec refs | self, docs/resources/auth/contracts/session-validation.md |
-```
-
-Use `self` when the task contains `### Specification` or `### Design`. Use `N/A` only when explicitly
-helpful for a task created from a spec-like source that does not need a durable reference.
-
-### Specification
-
-Planned behavior for this task: problem, desired behavior, non-goals, constraints, and open questions.
-This section is optional for routine tasks, but use it when acceptance criteria alone would lose
-important intent.
-
-### Design
-
-Planned implementation shape: approach, affected components, data/API/interface changes, test
-strategy, and rollout/reversibility notes. This section is optional and should stay concise.
+checks are scattered across middleware and token helpers; this task consolidates them behind one
+testable boundary while preserving public behavior.
 
 ### Phases
 
-#### Phase 1: Current-state review
+#### Phase 1: Validation boundary
 
-- [ ] Map current session creation and validation paths
-- [ ] Identify existing tests and missing coverage
-
-#### Phase 2: Implementation
-
-- [ ] Add the validation boundary
-- [ ] Route existing session checks through it
+- [ ] Add `SessionValidator` and route the existing middleware checks through it
+- [ ] Cover valid, expired, and malformed sessions in `tests/auth/test_sessions.py`
 
 ### Acceptance criteria
 
 - [ ] Existing valid sessions continue to work
 - [ ] Expired sessions are rejected consistently
 - [ ] Related tests cover valid, expired, and malformed sessions
+````
 
-### Related tests
+One phase is the normal case. Split into more only when each phase is separately committable and
+reviewable; a phase that only reads code ("current-state review") is not a phase, it is the
+pre-implementation note below.
 
-- `tests/auth/test_sessions.py` - session validation behavior
+### Optional metadata rows
 
-### Follow-ups
+Add a row when it carries a real value; omit it otherwise (never fill `N/A` to satisfy a template).
 
-- None
+| Row | When | Value |
+|-----|------|-------|
+| `Last executed` | after the first execution | ISO 8601 datetime |
+| `Owner` | someone specific owns it | agent or user |
+| `Blocked by` | a dependency exists | task ID or filename |
+| `Source ref` | the task came from somewhere | `I-007`, issue number, PRD path |
+| `Spec refs` | task-local spec/design sections exist (`self`) or the task depends on durable specs | comma-separated references |
+| `Repos` | `.config/repos.project.md` exists and scope is inferable | repo slugs |
+| `Autonomy` | the task must be stricter than the repo default | `L0`–`L3`, never above the repo max |
+| `Target date` / `Deadline` | the user gave explicit scheduling intent | `YYYY-MM-DD` |
+| `Execution` | the task must run through the full orchestrated pipeline regardless of size | `orchestrated` |
 
+`Status` is `open`, `in_progress`, `done`, or `cancelled`. `Priority` is `high`, `medium`, or `low`;
+roadmap order decides the execution sequence. `Source` names the skill or process that created the
+task (`add-task`, `inbox`, `prd-to-todos`, `manual`).
+
+### Optional sections
+
+In this order when present, between the core sections and the execution log:
+
+- `### Specification` (after Brief) — planned behavior, non-goals, constraints, open questions. Add
+  it when acceptance criteria alone would lose intent.
+- `### Design` (after Specification) — approach, touched components, interface/data changes, test
+  strategy, rollout. Add it when the approach needs agreement before code edits.
+- `### Related tests` (after Acceptance criteria) — known tests, or `N/A - <reason>` when tests do
+  not apply. Add it once tests are known.
+- `### Repo scope` — cross-repo tasks when the `Repos` row alone does not explain the split; use
+  `<repo-slug>:<repo-relative-path>` references.
+- `### Follow-ups` — `I-NNN` captures for work deliberately left out. Add it when the first one exists.
+- `## Tickets` — decision tickets, only in `agents-tasks:wayfinder` maps (its `references/map-template.md`
+  has the two validator constraints: ticket tables start with a `Ticket` column, ticket bodies use
+  `###` headings without checkboxes).
+
+### Execution log
+
+Appended by the first execution, append-only after that, under `## Execution log` after a `---` rule:
+
+```markdown
 ---
 
 ## Execution log
 
-Append-only record of actions taken, decisions made, test results, and outcome.
+### 2026-04-15T14:30:00 - Phase 1: Validation boundary
 
-### 2026-04-15T09:00:00 - Pre-implementation review gate
-
-**Researcher current-state review:**
-- Current session validation is split across middleware and token helpers.
-- Existing coverage is limited to happy-path login.
-
-**Plan-critic freshness/applicability review:**
-- Verdict: PROCEED.
-- Risk accepted: malformed-token coverage needs to be added before implementation is marked done.
-
-**Outcome:** Gate passed. Scope unchanged.
-
-### 2026-04-15T14:30:00 - Phase 2: Implementation
-
-**Actions taken:**
-- Implemented SessionValidator.
-- Routed middleware validation through the new boundary.
-
-**Decisions made:**
+- Implemented SessionValidator; routed middleware validation through it.
 - Kept token parsing in the existing helper to avoid a wider refactor.
-
-**Test results:**
-```text
-tests/auth/test_sessions.py - 8 passed, 0 failed
+- tests/auth/test_sessions.py: 8 passed. Committed as a1b2c3d.
 ```
 
-**Outcome:** Phase 2 complete. Committed as `feat: harden session validation` (a1b2c3d).
+Each entry records actions, decisions, test results with real output, commit SHAs when work is
+committed, and outcome. Keep entries short; `at ledger check` warns past 200 lines and
+`at ledger rotate-log` moves old entries to `_logs/`.
 
----
+### Completion harvest and summary
 
+Written by `agents-tasks:complete-task` when the task closes, never at creation:
+
+```markdown
 ## Completion harvest
 
 | Item | Result |
 |------|--------|
 | Resource updates | docs/resources/auth/session-validation.md |
-| Area updates | docs/areas/auth.md |
+| Area updates | None |
 | Follow-ups | I-012 |
 | Notable decisions/deviations | Kept token parsing in the existing helper. |
 
 ## Completion summary
 
-Completed session validation hardening over 2 phases. Final validation: 8 tests passed. One follow-up
-was captured for session expiry telemetry.
-````
+Completed session validation hardening in 1 phase. Final validation: 8 tests passed. One follow-up
+captured for session expiry telemetry.
+```
 
-### Field definitions
+Each harvest row names updates or says `None`. The summary states the outcome and final validation
+state, and carries any `Ruling:` lines from the task's `_runs/` state.
 
-| Field | Description |
-|-------|-------------|
-| Task ID | Stable `<PREFIX>-NNN` handle, assigned at creation, never changed or reused |
-| Type | `F` feature, `D` debug/bug, `C` chore/refactor, `R` research/spike |
-| Area | Area slug from `docs/tasks_manager/_areas.md` |
-| Repos | Optional comma-separated repo slugs from `.config/repos.project.md`, or `N/A`; existing tasks without this row remain valid |
-| Autonomy | Optional permission ceiling/request (`L0`-`L3`); omitted inherits repo default/max, and values above repo max are invalid |
-| Created | ISO 8601 datetime when the file was created |
-| Updated | ISO 8601 datetime of the last metadata or content update |
-| Last executed | ISO 8601 datetime when implementation/research last happened, or `N/A` |
-| Status | `open`, `in_progress`, `done`, or `cancelled` |
-| Priority | `high`, `medium`, or `low`; roadmap order decides execution sequence |
-| Target date | Optional soft task-specific planning date as `YYYY-MM-DD` or `N/A`; omit unless explicitly provided |
-| Deadline | Optional hard task-specific commitment date as `YYYY-MM-DD` or `N/A`; omit unless explicitly provided |
-| Owner | Agent/user working the task, or `N/A` |
-| Blocked by | Task ID or filename this depends on, or `N/A` |
-| Spec refs | Optional comma-separated references to task-local or durable specs; `self` means this task's `### Specification` or `### Design` sections |
-| Source | Skill or process that created the task, for example `agents-tasks:add-task`, `inbox`, `agents-tasks:prd-to-todos`, `manual` |
-| Source ref | Origin reference, for example `I-007`, issue number, file path, or `N/A` |
+## Before implementing an existing task
 
-## Task body requirements
+Read the task, then write a ≤ 3-line current-state note as the first execution-log entry: what already
+exists in code, docs and tests; whether the task is still valid, correctly sequenced and not
+duplicated; which spec sources apply and whether they are planned intent or evidence
+([spec-lifecycle.md](spec-lifecycle.md)). That note is the whole gate for a trivial task (≤ 2 phases,
+one concern, no dependence on external facts).
 
-- **Title:** the first `##` after metadata is the short human-readable title.
-- **Brief:** 2-4 sentences explaining the user outcome and relevant constraints.
-- **Specification:** optional planned behavior section for tasks whose intent is richer than acceptance
-  criteria alone.
-- **Design:** optional planned implementation section for tasks that need a shared approach before code
-  edits.
-- **Phases:** one or more logical, committable phases with checklists.
-- **Acceptance criteria:** verifiable criteria for marking the whole task done.
-- **Related tests:** list known tests, or write `N/A - <reason>` when tests do not apply.
-- **Repo scope:** optional `### Repo scope` section for cross-repo tasks when metadata alone is not
-  enough; explain why each repo is involved and use `<repo-slug>:<repo-relative-path>` references.
-- **Follow-ups:** use `None` if no follow-ups exist. Prefer `I-NNN` inbox captures for new ideas.
-- **Tickets:** optional `## Tickets` section, used only by `agents-tasks:wayfinder` maps, holding decision tickets
-  as dotted sub-ids of the task (`T-042.1`). It sits after `### Follow-ups` and before
-  `## Execution log`. Two constraints, because the validator scans the whole file: the tickets index
-  table must start its rows with a `Ticket` column (any `| Key | Value |` line is read as task
-  metadata, so a `| Status | resolved |` row would overwrite the task's own status), and ticket bodies
-  must use `###` headings without checkboxes (any `####` heading counts as a phase). See the
-  `agents-tasks:wayfinder` skill (references/map-template.md).
-- **Execution log:** append-only. Each entry records actions taken, decisions made, test results, commit
-  SHAs when work is committed, and outcome.
-- **Completion harvest:** required before archiving; each row must name updates or explicitly say `None`.
-- **Completion summary:** required when archived, with the outcome and final validation state.
+For a larger, stale, high-risk task, or one that depends on current third-party facts, replace the
+note with two bounded reviews recorded as concise bullets: a **current-state review** (`researcher`
+subagent or the researcher personality) and a **plan freshness review** (`plan-critic` subagent, or
+the relevant axes of the `agents-core:planning-workflow` critique rubric on the main thread).
 
-## Pre-implementation review gate
-
-Before starting implementation of any existing task, run two bounded reviews and record both in the
-execution log before code edits. For routine tasks, each review can be a concise bullet list; use the
-full researcher or plan-critique workflow only when the task is large, stale, high-risk, or materially
-depends on current external facts.
-
-1. **Researcher current-state review** - inspect relevant code, docs, tests, ledgers, and area pages.
-   Record what already exists, likely conflicts, and current test coverage. Search externally only when
-   the task depends on third-party/current facts that the repo cannot answer.
-2. **Spec-resolution review** - resolve the task-local spec/design, `Spec refs`, acceptance criteria,
-   related tests, and relevant durable docs. Record each source and lifecycle status. Treat `draft` and
-   `accepted` as planned intent, not live behavior; treat `implemented` as current-state evidence only
-   when backed by code, tests, task history, or reviewed docs.
-3. **Plan-critic freshness/applicability review** - challenge whether the task is still valid, sequenced
-   correctly, duplicated, stale, or overlapping later work. Use only the relevant axes from the
-   `agents-core:planning-workflow` skill (references/plan-critique.md) for small tasks; run the full rubric for
-   larger or riskier work.
-
-Claude Code may dispatch `researcher` and `plan-critic` subagents when isolated context is useful.
-Codex should use multi-agent tools if available; otherwise run equivalent bounded main-thread passes
-using the `researcher` personality (agents-core:subagent-protocol skill, references/personalities/researcher.md)
-and the plan-critique convention (agents-core:planning-workflow skill, references/plan-critique.md).
-
-If the reviews find stale assumptions, duplicate work, ordering issues, or overlapping later tasks,
-reconcile before implementation. Agents may update roadmap ordering, task notes, area status, and
-cross-links. Agents must ask before merging tasks, cancelling tasks, or materially changing scope.
-
-This gate applies to starting existing tasks. It does not apply to quick inbox capture.
+If either finds stale assumptions, duplicate work, ordering issues, or overlap with later tasks,
+reconcile before implementation: agents may update roadmap ordering, task notes, area status and
+cross-links, and must ask before merging, cancelling, or materially rescoping tasks. This gate applies
+to starting existing tasks, not to inbox capture.
 
 ## Creating tasks
 
 Any skill that produces actionable work can create tasks. Prefer `agents-tasks:add-task` for direct creation from a
 clear user request, and `agents-tasks:capture-idea` for vague ideas.
 
-Creation steps:
-
-1. Read this convention.
-2. Pick or confirm an area from `docs/tasks_manager/_areas.md`.
-3. Reserve the task filename with `at reserve task <PREFIX> <TYPE> <desc>`. Use `T`
-   only for global/cross-area/default work.
-4. Pick a type (`F`, `D`, `C`, or `R`) and priority (`high`, `medium`, or `low`).
-5. Fill the reserved file in `docs/tasks_manager/_todos/` named `<PREFIX>-NNN-<TYPE>_<desc>.md`.
-6. Fill the full template: brief, optional specification/design when useful, phases, acceptance
-   criteria, related tests, follow-ups, execution log, completion harvest, and completion summary
-   placeholders. Add a `Repos` metadata row when repo scope is inferable from
-   `.config/repos.project.md`; omit it when it is not. Add an `Autonomy` row only when the task
-   intentionally differs from the repo default/max. Add `Spec refs` when the task comes from or depends
-   on task-local or durable specs. Add `Target date` or `Deadline` only when the user explicitly
-   provides task-specific scheduling intent; do not ask for fake dates during ordinary task creation.
-7. Set `Source` and `Source ref`.
-8. Run `at ledger sync`.
-9. Run `at repos-check` to validate optional task `Repos` / `Autonomy` metadata.
-10. Optionally place the task on `docs/tasks_manager/_roadmap.md` if the user wants it scheduled.
+1. Pick or confirm an area from `docs/tasks_manager/_areas.md`.
+2. Reserve the filename with `at reserve task <PREFIX> <TYPE> <desc>` (`T` only for global or
+   cross-area work).
+3. Fill the core shape: metadata, title, brief, phases, acceptance criteria. Add optional rows and
+   sections only when they carry a value now.
+4. Run `at ledger sync`, then `at repos-check` when the task carries `Repos` or `Autonomy`.
+5. Place the task on `docs/tasks_manager/_roadmap.md` only if the user wants it scheduled.
 
 Keep tasks atomic: one clear deliverable per file.
 
@@ -601,26 +382,19 @@ in_progress -> cancelled -> archive
 
 Prefer `agents-tasks:complete-task` for this workflow. Before changing a task to `done` or `cancelled`:
 
-1. Verify acceptance criteria and related tests.
-2. Reconcile linked specs. If the task implements, partially implements, supersedes, or invalidates a
-   referenced durable spec, update that spec's status/evidence or record an explicit follow-up when the
-   update is outside the closeout scope.
+1. Verify acceptance criteria and related tests (`agents-tasks:verify-task` for anything with more
+   than one phase or an execute-plan run).
+2. Reconcile linked specs ([spec-lifecycle.md](spec-lifecycle.md) §"At completion").
 3. Append a final execution log entry.
-4. Complete the harvest table:
-   - Resource updates in `docs/resources/`, or `None`
-   - Area updates in `docs/areas/`, or `None`
-   - Follow-ups, usually `I-NNN` inbox items, or `None`
-   - Notable decisions/deviations, or `None`
-5. Write the completion summary. Copy any `Ruling:` lines from
-   `docs/tasks_manager/_runs/<TASK-ID>/state.md` into it, then remove the run directory
-   (`git rm -r docs/tasks_manager/_runs/<TASK-ID>`) when one exists.
-6. Change `Status`.
-7. Move the file to `docs/tasks_manager/_todos_archived/`.
-8. Run `at ledger sync`.
-9. Run `at ledger check`.
+4. Write the completion harvest table and the completion summary (format above), copying any
+   `Ruling:` lines from `docs/tasks_manager/_runs/<TASK-ID>/state.md` into the summary, then remove
+   the run directory (`git rm -r docs/tasks_manager/_runs/<TASK-ID>`) when one exists.
+5. Change `Status`.
+6. Move the file to `docs/tasks_manager/_todos_archived/`.
+7. Run `at ledger sync`, then `at ledger check`.
 
-Plugin hooks may block or remind when a terminal task is missing a completion harvest or remains in
-the active `_todos/` directory. Run the same validation manually as the authoritative completion check.
+Plugin hooks remind when a terminal task is missing its harvest or remains in the active `_todos/`
+directory. Run the same validation manually as the authoritative completion check.
 
 ## Listing tasks
 

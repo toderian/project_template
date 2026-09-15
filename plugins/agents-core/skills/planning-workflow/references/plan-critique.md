@@ -60,20 +60,15 @@ A critique round MUST produce:
 - on REVISE: the concrete changes required before re-review
 - on round ≥ 2: a delta column showing change since the previous round
 
-## Minimum rounds
+## Rounds
 
-A plan does not earn PROCEED in a single round unless it is genuinely trivial. Scale by complexity:
-
-- 1 round — trivial plans (single file, single concern)
-- 2 rounds — typical plans
-- 3 rounds — plans touching multiple components, or any plan whose previous round contained a score of 1
-
-If round N produces PROCEED but the previous round contained any score of 1, run one more round to confirm convergence.
+The score decides, not a round count. A plan that scores PROCEED in its first round proceeds; a
+REVISE verdict earns exactly one more round after the plan changes. Do not run a round to look
+thorough.
 
 ## Failure modes to prevent
 
 - issuing PROCEED while any axis sits at 1
-- providing only positive feedback — a round must surface at least one gap until convergence
 - accepting claims without evidence — unverified claims score 1 on Assumption Audit
 - assigning Existing Solutions a score above 1 without citing a search result
 - overriding the verdict mapping or softening verdicts with qualifiers ("mostly proceed", "soft block")
