@@ -50,6 +50,19 @@ Every subagent must end with a structured report block:
 ## Files changed: list of files created or modified
 ```
 
+## Artifacts as files, verdicts in chat
+
+Anything longer than a verdict goes to a file and comes back as a path. The parent's context is the
+scarce resource: it should hold the brief paths, the report paths, and the status blocks — never a
+report body, a diff, or a test log.
+
+- The dispatch prompt names the brief file to read and the report file to write. Implementers reply in
+  at most 15 lines, reviewers in at most 20, each ending with the status block.
+- The parent passes paths forward (brief, diff package, prior report), not contents. A reviewer reads
+  the diff file; it does not receive the implementer's report pasted into its prompt.
+- A run that spans phases records its state in a file the parent rewrites (see `agents-core:execute-plan`,
+  references/run-state.md); a fresh session resumes from that file, not from chat history.
+
 ## Dispatch briefing format
 
 When dispatching a subagent, the parent must construct a self-contained prompt with:
@@ -74,6 +87,28 @@ Never re-dispatch with an identical prompt. If a subagent failed, change somethi
 
 Never ignore an escalation or force the same approach without changes.
 
+## Fix loop
+
+When a review returns `FAIL` or blocking findings, the parent runs at most **three** fix rounds per
+slice, then adjudicates. Each round hands the implementer the numbered open-findings list verbatim
+(never a paraphrase, never the whole review) and is followed by a re-review scoped to those findings
+and the fix diff only.
+
+| Round | Who | Prompt |
+|---|---|---|
+| 1–2 | the same implementer, resumed where the runtime allows; otherwise a fresh dispatch with the findings file | "Address findings 1..n; do not touch anything else." |
+| 3 | a fresh implementer on the strongest model class | "A prior implementer attempted this slice twice; you own it now. Findings: …" |
+
+At the cap the parent decides each open finding itself and records the decision as one line the
+next reader can audit:
+
+```
+Ruling: <finding> — <decision: fixed by parent | accepted as-is | parked> — cost if wrong: <one clause>
+```
+
+Stop with `BLOCKED` only when every path forward is a guess; a defect the parent can fix in a few
+lines is fixed by the parent and recorded as a ruling.
+
 ## Two-stage review
 
 Review implementation in two stages, in order:
@@ -82,6 +117,10 @@ Review implementation in two stages, in order:
 2. **Code quality**: maintainability, clarity, regressions, security
 
 There is no point reviewing code quality if the implementation does not match the specification. If spec compliance fails, send back to the implementer before requesting a quality review.
+
+The brief's `Stage: spec | quality | both` line selects what a `reviewer` runs. When the parent owns
+the merge of verdicts, the two stages may run as two parallel read-only reviewers on the same diff;
+a spec `FAIL` still sends the slice back before quality findings are acted on.
 
 ### Skepticism directive for reviewers
 
@@ -102,6 +141,7 @@ Guidance for choosing subagent model class. Availability varies by platform.
 | Mechanical implementation with detailed plan | Fast (Haiku/Sonnet-class) | Plan provides all decisions |
 | Multi-file integration | Default (Sonnet-class) | Needs cross-file reasoning |
 | Architecture, complex review | Strongest (Opus-class) | Judgment-heavy, high stakes |
+| Fix round 3 after two failed rounds | Strongest (Opus-class) | Fresh perspective on a slice that resisted two attempts |
 
 When the plan is specific enough (exact file paths, code snippets, acceptance criteria), cheaper models can execute reliably.
 
