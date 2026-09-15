@@ -40,7 +40,9 @@ in a new session, ignore the stored id and dispatch fresh; `state.md` is the sou
 Phase implementers may run in an isolated worktree when the phase touches files you also need to keep
 editable in the main tree; the card can request it. When they do, package `diff.patch` from that
 worktree, and apply the patch to the main tree before review and commit. The default — the shared
-tree with a strict scope fence — is simpler and is what the loop assumes.
+tree with a strict scope fence — is simpler and is what the loop assumes. Prefer the worktree for a
+repository whose content you do not trust: an implementer with Bash approval executes what it reads,
+and a worktree keeps that blast radius away from your main tree until you have seen the diff.
 
 ## Failure handling
 

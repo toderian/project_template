@@ -26,7 +26,10 @@ Infer the flags from what is already there, so nothing gets dropped:
 | `workbooks/README.md` | `--with-workbooks` |
 | `.config/repos.project.md` | `--with-repos` |
 
-Done when `at init` reports no `created` rows you did not expect. A `merged` row for
+Done when `at init` reports no `created` rows you did not expect. `.codex/agents/*.toml` are
+copied, never merged: when a plugin release changes an agent card (the 1.4.x releases changed the
+implementer and reviewer contracts), refresh them from the installed plugin —
+`cp "$(dirname "$(at seed-path)")/../codex/agents/"*.toml .codex/agents/` — and commit the result. A `merged` row for
 `.claude/settings.json` usually means a plugin the seed newly enables (such as the
 `caveman@caveman` companion) was added; Claude Code installs it at the next session start, and
 `at doctor` lists each plugin the seed enables so a repo that is still missing one shows a `WARN`.
@@ -68,6 +71,10 @@ Check each; fix only what is actually present.
   of continuing here.
 - **Status line.** `.claude/statusline.sh` exists and `.claude/settings.json` points at it, unless
   the repo set a `statusLine` of its own — `at init` never replaces a custom one.
+- **Run state.** `docs/tasks_manager/_runs/` exists (seeded by `at init --with-tasks`) and the
+  managed `.gitignore` block carries the `_runs/**/diff.patch` and `_runs/*/lock` rules — re-run
+  `at init` if the block predates them. Codex users open `/hooks` once after the update to trust the
+  `SubagentStop` hook (`require-subagent-status.sh`); untrusted hooks stay silently off.
 
 ## 4. The ledger is consistent
 

@@ -20,6 +20,7 @@ import re
 import shutil
 import subprocess
 import sys
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
@@ -169,7 +170,7 @@ class Harness:
                     fh.write(f"cost: ${cost:.4f} (run total ${self.cost_usd:.4f})\n")
             return str(data.get("result", "")), data.get("session_id")
         # codex
-        out_file = self.log.parent / f"last-message-{role}.txt"
+        out_file = self.log.parent / f"last-message-{role}-{uuid.uuid4().hex[:8]}.txt"  # parallel reviewers share a role
         cmd = [self.driver_cmd or "codex", "exec", "-C", str(self.repo),
                "-s", "workspace-write" if writable else "read-only", "-o", str(out_file)]
         if model:

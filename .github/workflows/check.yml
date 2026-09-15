@@ -27,6 +27,12 @@ jobs:
       - name: Task-ledger tests
         run: python3 scripts/tests/test_sync_todo_ledgers.py
 
+      - name: Task brief and run-state tests
+        run: python3 scripts/tests/test_task_brief.py
+
+      - name: Scripted execute-plan driver tests (fake harness)
+        run: python3 scripts/tests/test_task_run.py
+
       - name: at CLI tests
         run: bash scripts/tests/test-at.sh
 

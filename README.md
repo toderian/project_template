@@ -57,6 +57,9 @@ cd /path/to/your/repo
 at init --with-tasks          # write the seed: AGENTS.md, CLAUDE.md, .claude/settings.json, …
 at doctor                     # check the repo against the contract
 at doctor --all               # check both runtimes when both CLIs are installed
+at task brief AUTH-001 --phase 2      # one phase of a task as a self-contained implementer brief
+at task run-state init AUTH-001       # open the resume map for agents-core:execute-plan
+at task run AUTH-001 --check "make test"   # drive the whole execute-plan loop from a shell
 ```
 
 `at init` never overwrites a file you own; re-running it is safe. Flags: `--with-tasks`,

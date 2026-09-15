@@ -336,6 +336,19 @@ repos outside the task scope, or upstream template-maintenance history unless th
 The run directory stays until `agents-tasks:complete-task` copies its rulings into the completion
 summary and removes it.
 
+## Limits
+
+- **One checkout per run.** The loop diffs, reviews and commits in the repository that holds the
+  task file. A task whose `Repos` metadata spans several repos is executed as one run per repo, in
+  the order the task's phases require; step 2 only decides which repos are in scope.
+- **Phases run in order.** There is no wave parallelism for independent phases; a phase starts when
+  the previous one is committed, so `Interface:` lines are always complete.
+- **Implementers execute what they read.** An implementer with edit and Bash approval acts on the
+  repository's content, including anything injected into it; the plugin hooks gate dangerous git,
+  shell and secret paths, nothing else. For a repository you do not trust, run implementers in the
+  worktree isolation from [references/runtime-claude.md](references/runtime-claude.md) and review the
+  diff package before it reaches the main tree.
+
 ## Quality bar
 
 - The plan/task remains the source of truth; implementation notes do not replace acceptance criteria.
