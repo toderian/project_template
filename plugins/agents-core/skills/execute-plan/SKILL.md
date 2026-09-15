@@ -233,7 +233,10 @@ you are adjudicating a finding.
 5. **Package.** `git diff <BASE> -- <scope fence> > _runs/<TASK-ID>/phase-N/diff.patch` (git-ignored,
    regenerable). Set the row to `reviewing`.
 6. **Review in parallel**, all read-only. Reviewers cannot write files, so each reply *is* the report:
-   save it verbatim to its file, then keep only the verdict block in mind.
+   save it verbatim to its file, then keep only the verdict block in mind. The spec stage judges the
+   **phase checklist**; the task-wide acceptance criteria are verified once, in steps 6–7 — a spec
+   reviewer that fails a phase for a later phase's criterion is answered with that, not with a fix
+   round. An implementer that changed nothing is reviewed against the run's diff since `base_rev`.
    - `reviewer` with `Stage: spec` → `review-spec.md`
    - `reviewer` with `Stage: quality` → `review-quality.md`
    - `security-auditor` → `review-security.md`, only when the phase touches a **security surface**:

@@ -45,7 +45,9 @@ Never paste the task file, prior reports, or the conversation into this prompt.
 
 ```text
 Stage: spec | quality | both
-Brief: docs/tasks_manager/_runs/<TASK-ID>/phase-N/brief.md (requirements and acceptance criteria)
+Brief: docs/tasks_manager/_runs/<TASK-ID>/phase-N/brief.md — judge this phase by its own checklist under
+"## This phase"; the task-wide acceptance criteria are context, verified after the last phase, so an
+unmet criterion that belongs to a later phase is not a finding here.
 Diff: docs/tasks_manager/_runs/<TASK-ID>/phase-N/diff.patch (BASE <rev> → working tree)
 Implementer report: docs/tasks_manager/_runs/<TASK-ID>/phase-N/report.md — treat its claims as unverified.
 Scope fence: read-only; do not edit files. Run tests only to check a specific doubt.

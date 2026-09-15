@@ -138,10 +138,14 @@ def render_brief(task: Task, n: int, root: Path) -> str:
     if rows:
         out += ["", "## Metadata", "", "| Field | Value |", "|---|---|"]
         out += [f"| {k} | {v} |" for k, v in rows]
-    out += ["", "## This phase", "", f"#### {phase.heading}"]
+    out += ["", "## This phase", "",
+            f"Phase {n} of {len(task.phases)}. Its checklist below is the whole scope of this dispatch: do not pull",
+            "later phases forward, and do not stop short of it. The task-wide acceptance criteria further down are",
+            "context — they are verified after the last phase, not against this phase alone.",
+            "", f"#### {phase.heading}"]
     if phase.body:
         out += [""] + phase.body
-    for name, heading in (("acceptance criteria", "Acceptance criteria"),
+    for name, heading in (("acceptance criteria", "Acceptance criteria (whole task — verified after the last phase)"),
                           ("related tests", "Related tests"),
                           ("specification", "Specification"),
                           ("design", "Design")):

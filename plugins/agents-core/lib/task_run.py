@@ -222,7 +222,9 @@ def reviewer_prompt(runs_rel: str, n: int, stage: str, base_rev: str, round_no: 
     scope = (f"Re-review round {round_no}: judge first whether each item in {base}/findings-{round_no}.md is resolved "
              "without a new defect, then the diff as a whole.\n") if round_no else ""
     return (f"Stage: {stage}\n{scope}"
-            f"Brief: {base}/brief.md (requirements and acceptance criteria)\n"
+            f"Brief: {base}/brief.md — judge this phase by its own checklist under '## This phase'; the task-wide "
+            "acceptance criteria are context and are verified after the last phase, so an unmet task-wide criterion "
+            "that belongs to a later phase is not a finding here.\n"
             f"Diff: {base}/diff.patch (BASE {base_rev} → working tree)\n"
             f"Implementer report: {base}/report.md — treat its claims as unverified.\n"
             "Scope fence: read-only; do not edit files. Run tests only to check a specific doubt.\n"
@@ -504,7 +506,15 @@ class Runner:
         diff = self.git("diff", base, "--", ".", f":(exclude){self.runs_rel}").stdout
         (pdir / "diff.patch").write_text(diff, encoding="utf-8")
         if not diff.strip():
-            return {"spec": {"verdict": "FAIL", "findings": [("C", "implementer changed no files outside the run directory")]}}
+            # Nothing changed this phase — usually an earlier phase already delivered it. Review the
+            # phase against everything the run has produced so far rather than failing on principle.
+            run_base = state.front.get("base_rev", base)
+            diff = self.git("diff", run_base, "--", ".", f":(exclude){self.runs_rel}").stdout
+            (pdir / "diff.patch").write_text(
+                f"# No changes since BASE {base}: the implementer reports the phase was already satisfied.\n"
+                f"# Below: the whole run's diff since {run_base}, for judging this phase's checklist.\n" + diff,
+                encoding="utf-8")
+            state.note(f"Phase {n}: implementer changed nothing; reviewing against the run diff since {run_base}")
         state.set(n, status="reviewing"); state.save()
         jobs = {"spec": ("reviewer", reviewer_prompt(self.runs_rel, n, "spec", base, round_no)),
                 "quality": ("reviewer", reviewer_prompt(self.runs_rel, n, "quality", base, round_no))}
