@@ -232,7 +232,8 @@ you are adjudicating a finding.
    Never re-dispatch an identical prompt.
 5. **Package.** `git diff <BASE> -- <scope fence> > _runs/<TASK-ID>/phase-N/diff.patch` (git-ignored,
    regenerable). Set the row to `reviewing`.
-6. **Review in parallel**, all read-only, each with its own report path:
+6. **Review in parallel**, all read-only. Reviewers cannot write files, so each reply *is* the report:
+   save it verbatim to its file, then keep only the verdict block in mind.
    - `reviewer` with `Stage: spec` → `review-spec.md`
    - `reviewer` with `Stage: quality` → `review-quality.md`
    - `security-auditor` → `review-security.md`, only when the phase touches a **security surface**:
@@ -243,8 +244,8 @@ you are adjudicating a finding.
 7. **Fix loop.** While any verdict is `FAIL` or a critical finding is open, run the fix loop from
    `agents-core:subagent-protocol` (cap: three rounds). Write the numbered open findings to
    `phase-N/findings-R.md`, hand that path to the implementer with the round prompt from briefs.md, set
-   the row to `fixing`, then re-review only those findings against the fix diff
-   (`phase-N/re-review-R.md`). A spec `FAIL` is fixed before quality findings are acted on.
+   the row to `fixing`, then re-review only those findings against the fix diff (save the reply as
+   `phase-N/re-review-R-<stage>.md`). A spec `FAIL` is fixed before quality findings are acted on.
 8. **Adjudicate at the cap.** Decide each still-open finding yourself and record a `Ruling:` line in
    `state.md`; small defects you can fix in a few lines, you fix and rule. If every path forward is a
    guess, set the row to `blocked`, write what is needed, and stop.
@@ -302,7 +303,7 @@ do not invent a heavyweight e2e harness; record the available validation instead
 
 Per-phase reviews saw one diff each; this round looks at the whole. Dispatch two read-only `reviewer`
 subagents in parallel with `Stage: both`, on the strongest available model, using the whole-task brief
-from [references/briefs.md](references/briefs.md) §"Final review"; report paths
+from [references/briefs.md](references/briefs.md) §"Final review"; save the replies as
 `_runs/<TASK-ID>/final-review-1.md` and `-2.md`. They must not see each other's reports.
 
 Outcomes:

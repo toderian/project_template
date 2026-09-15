@@ -2,7 +2,8 @@
 
 Every prompt below is self-contained: the subagent inherits nothing from your session. Paths are
 repo-relative. Replace `<…>`; delete lines that do not apply. Keep the prompt short — the brief file
-carries the requirements, the prompt carries the contract.
+carries the requirements, the prompt carries the contract. Implementers write their own report file;
+reviewers are read-only, so their reply is the report and **you** save it to the path the prompt names.
 
 ## Architecture review (step 4, `plan-critic`, read-only)
 
@@ -16,14 +17,12 @@ Acceptance criteria:
 - Risks, migrations, rollout concerns, and compatibility constraints are identified.
 Scope fence: read-only; do not edit files.
 Context files: <plan/task file>, affected source files, relevant tests, component docs if present.
-Report path: docs/tasks_manager/_runs/<TASK-ID>/architecture-review.md
 Model hint: strongest available.
-Reply with at most 20 lines ending in:
+Your reply is the review (I save it to docs/tasks_manager/_runs/<TASK-ID>/architecture-review.md); at most 40 lines ending in:
 ## Status: DONE | DONE_WITH_CONCERNS | BLOCKED
 ## Architecture verdict: PROCEED | REVISE | BLOCKED
 ## Blocking findings: <count>, one line each
 ## Required plan changes: <one line each>
-## Report: <report path>
 ```
 
 ## Implementer (step 5.4, fresh `implementer`)
@@ -49,11 +48,11 @@ Stage: spec | quality | both
 Brief: docs/tasks_manager/_runs/<TASK-ID>/phase-N/brief.md (requirements and acceptance criteria)
 Diff: docs/tasks_manager/_runs/<TASK-ID>/phase-N/diff.patch (BASE <rev> → working tree)
 Implementer report: docs/tasks_manager/_runs/<TASK-ID>/phase-N/report.md — treat its claims as unverified.
-Report path: docs/tasks_manager/_runs/<TASK-ID>/phase-N/review-<spec|quality>.md
 Scope fence: read-only; do not edit files. Run tests only to check a specific doubt.
 Global constraints: <work mode, autonomy, anything the phase must not break>
 Model hint: strongest available.
-Reply with at most 20 lines: the ## Status / ## Verdict / ## Findings / ## Report block only.
+Your reply is the report (I save it to docs/tasks_manager/_runs/<TASK-ID>/phase-N/review-<spec|quality>.md):
+the ## Status / ## Verdict / ## Findings block first, then ## Evidence; at most 40 lines.
 ```
 
 ## Security auditor (step 5.6, `security-auditor`, only on a security surface)
@@ -62,9 +61,9 @@ Reply with at most 20 lines: the ## Status / ## Verdict / ## Findings / ## Repor
 Surface: <why this phase is a security surface: auth | input parsing | subprocess | network | secrets | permissions | queries | crypto | CI/hooks | new dependency>
 Brief: docs/tasks_manager/_runs/<TASK-ID>/phase-N/brief.md
 Diff: docs/tasks_manager/_runs/<TASK-ID>/phase-N/diff.patch
-Report path: docs/tasks_manager/_runs/<TASK-ID>/phase-N/review-security.md
 Scope fence: read-only; do not edit files.
-Reply with at most 20 lines ending in the ## Status / ## Verdict / ## Findings block; each finding as [C|I|M] path:line — one line.
+Your reply is the audit (I save it to docs/tasks_manager/_runs/<TASK-ID>/phase-N/review-security.md):
+the ## Status / ## Verdict / ## Findings block first, each finding as a numbered [C|I|M] path:line — one line, then the detail; at most 40 lines.
 ```
 
 ## Fix round R (step 5.7)
@@ -95,9 +94,9 @@ Same reviewer card and stage as the original review, read-only:
 Re-review round <R> for phase N. Stage: <spec | quality | security>.
 Findings under review: docs/tasks_manager/_runs/<TASK-ID>/phase-N/findings-<R>.md
 Fix diff: <git diff <sha or BASE> -- <scope fence>, written to phase-N/fix-<R>.patch>
-Report path: docs/tasks_manager/_runs/<TASK-ID>/phase-N/re-review-<R>.md
 Judge only whether each numbered finding is resolved without a new defect; do not reopen the whole diff.
-Reply with at most 20 lines: per finding "<n>: resolved | open — one line", then the ## Status / ## Verdict block.
+Your reply is the re-review (I save it to docs/tasks_manager/_runs/<TASK-ID>/phase-N/re-review-<R>-<stage>.md):
+per finding "<n>: resolved | open — one line", then the ## Status / ## Verdict / ## Findings block; at most 40 lines.
 ```
 
 ## Final review (step 7, two `reviewer`s in parallel, `Stage: both`)
@@ -115,10 +114,10 @@ Acceptance criteria:
 - No blocking regressions, security issues, or maintainability problems remain.
 Context: <plan/task file>, docs/tasks_manager/_runs/<TASK-ID>/state.md (rulings are decisions, not defects),
 git diff <base_rev>..HEAD.
-Report path: docs/tasks_manager/_runs/<TASK-ID>/final-review-<1|2>.md
 Scope fence: read-only; do not edit files.
 Model hint: strongest available.
-Reply with at most 20 lines: the ## Status / ## Verdict / ## Findings / ## Report block only.
+Your reply is the review (I save it to docs/tasks_manager/_runs/<TASK-ID>/final-review-<1|2>.md):
+the ## Status / ## Verdict / ## Findings block first, then ## Evidence; at most 40 lines.
 ```
 
 ## Adjudication line (step 5.8)

@@ -56,8 +56,10 @@ Anything longer than a verdict goes to a file and comes back as a path. The pare
 scarce resource: it should hold the brief paths, the report paths, and the status blocks — never a
 report body, a diff, or a test log.
 
-- The dispatch prompt names the brief file to read and the report file to write. Implementers reply in
-  at most 15 lines, reviewers in at most 20, each ending with the status block.
+- The dispatch prompt names the brief file to read and the report file to write. Implementers write
+  the file and reply in at most 15 lines ending with the status block. Reviewers are read-only, so
+  their reply *is* the report (status block first, evidence after, at most 40 lines) and the parent
+  saves it to the file it named.
 - The parent passes paths forward (brief, diff package, prior report), not contents. A reviewer reads
   the diff file; it does not receive the implementer's report pasted into its prompt.
 - A run that spans phases records its state in a file the parent rewrites (see `agents-core:execute-plan`,

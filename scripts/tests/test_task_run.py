@@ -22,7 +22,7 @@ class TaskRun(unittest.TestCase):
         self.assertIn("run state", commits[0])
         s = (tmp / STATE).read_text(); self.assertEqual(s.count("| committed |"), 3); self.assertIn("runtime: claude", s)
         self.assertTrue((tmp / "docs/tasks_manager/_runs/TST-003/phase-2/brief.md").exists())
-        self.assertTrue((tmp / "docs/tasks_manager/_runs/TST-003/phase-2/review-quality-reply.md").exists())
+        self.assertTrue((tmp / "docs/tasks_manager/_runs/TST-003/phase-2/review-quality.md").exists())
         task = next((tmp / "docs/tasks_manager/_todos").glob("TST-003-*.md")).read_text()
         self.assertNotIn("- [ ]", task.split("### Acceptance criteria")[0]); self.assertIn("Phase 3: Hardening (at task run", task)
         calls = (tmp.parent / (tmp.name + ".calls")).read_text()

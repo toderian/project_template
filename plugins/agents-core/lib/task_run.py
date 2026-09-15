@@ -191,27 +191,26 @@ def reviewer_prompt(runs_rel: str, n: int, stage: str, base_rev: str, round_no: 
             f"Brief: {base}/brief.md (requirements and acceptance criteria)\n"
             f"Diff: {base}/diff.patch (BASE {base_rev} → working tree)\n"
             f"Implementer report: {base}/report.md — treat its claims as unverified.\n"
-            f"Report path: {report}\n"
             "Scope fence: read-only; do not edit files. Run tests only to check a specific doubt.\n"
-            "Reply with at most 20 lines: the ## Status / ## Verdict / ## Findings / ## Report block only, "
-            "each finding as a numbered line '[C|I|M] path:line — one line'.")
+            f"Your reply is the report (it is saved to {report}): the ## Status / ## Verdict / ## Findings block first, "
+            "each finding as a numbered line '[C|I|M] path:line — one line', then ## Evidence; at most 40 lines.")
 
 
 def security_prompt(runs_rel: str, n: int, base_rev: str) -> str:
     base = f"{runs_rel}/phase-{n}"
     return (f"Surface: the orchestrator flagged this phase for a security audit.\n"
             f"Brief: {base}/brief.md\nDiff: {base}/diff.patch (BASE {base_rev} → working tree)\n"
-            f"Report path: {base}/review-security.md\nScope fence: read-only; do not edit files.\n"
-            "Reply with at most 20 lines ending in the ## Status / ## Verdict / ## Findings block; "
-            "each finding as a numbered line '[C|I|M] path:line — one line'.")
+            "Scope fence: read-only; do not edit files.\n"
+            f"Your reply is the audit (it is saved to {base}/review-security.md): the ## Status / ## Verdict / ## Findings "
+            "block first, each finding as a numbered line '[C|I|M] path:line — one line', then the detail; at most 40 lines.")
 
 
 def final_prompt(runs_rel: str, k: int, base_rev: str, task_rel: str) -> str:
     return ("Stage: both\nTask description: Review the completed execution of this approved plan as a whole.\n"
             f"Context: {task_rel}, {runs_rel}/state.md (Ruling: lines are decisions, not defects), "
-            f"git diff {base_rev}..HEAD.\nReport path: {runs_rel}/final-review-{k}.md\n"
-            "Scope fence: read-only; do not edit files.\n"
-            "Reply with at most 20 lines: the ## Status / ## Verdict / ## Findings / ## Report block only.")
+            f"git diff {base_rev}..HEAD.\nScope fence: read-only; do not edit files.\n"
+            f"Your reply is the review (it is saved to {runs_rel}/final-review-{k}.md): the ## Status / ## Verdict / "
+            "## Findings block first, then ## Evidence; at most 40 lines.")
 
 
 # ---- parsing replies -------------------------------------------------------------
@@ -442,8 +441,8 @@ class Runner:
             replies = {k: f.result()[0] for k, f in futures.items()}
         out: dict[str, dict] = {}
         for k, reply in replies.items():
-            suffix = f"-reply-{round_no}" if round_no else "-reply"
-            (pdir / f"review-{k}{suffix}.md").write_text(reply, encoding="utf-8")
+            name = f"re-review-{round_no}-{k}.md" if round_no else f"review-{k}.md"
+            (pdir / name).write_text(reply, encoding="utf-8")
             out[k] = {"verdict": parse_verdict(reply), "findings": findings(reply)}
             state.set(n, **{k: out[k]["verdict"]})
         state.save()
@@ -458,7 +457,7 @@ class Runner:
             replies = [f.result()[0] for f in futures]
         ok = True
         for k, reply in enumerate(replies, 1):
-            (self.runs / f"final-review-{k}-reply.md").write_text(reply, encoding="utf-8")
+            (self.runs / f"final-review-{k}.md").write_text(reply, encoding="utf-8")
             v = parse_verdict(reply)
             crit = [f for f in findings(reply) if f[0] == "C"]
             state.note(f"Note: final review {k}: {v}, {len(findings(reply))} finding(s), {len(crit)} critical")

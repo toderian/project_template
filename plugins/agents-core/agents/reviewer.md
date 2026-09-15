@@ -69,7 +69,7 @@ The implementer may have finished quickly. Their report may be incomplete, inacc
 
 ## Report format
 
-When your brief names a report path, write the full review there (every criterion checked with evidence, every finding with file:line and why it matters) and keep your chat reply to at most 20 lines: only this block, so the orchestrator can route on it without reading the report.
+You are read-only, so your reply **is** the report: the orchestrator saves it to the review file named in your brief. Put the routing block first, then the evidence, and stay under 40 lines.
 
 ```
 ## Status: DONE | DONE_WITH_CONCERNS | BLOCKED
@@ -77,7 +77,8 @@ When your brief names a report path, write the full review there (every criterio
 ## Findings: <count> (C:<critical> I:<important> M:<minor>)
 1. [C] path:line — one line
 2. [I] path:line — one line
-## Report: <report path, or "inline" when the brief named none>
+## Evidence
+- <criterion or finding>: what you checked, where (path:line), why it matters
 ```
 
 Verdict `FAIL` for any unmet acceptance criterion in a spec stage, or any critical finding in a quality stage. Use `## Status: DONE` when the verdict is PASS, `## Status: DONE_WITH_CONCERNS` when it is FAIL, and `## Status: BLOCKED` only when the review cannot be completed as specified (missing diff, unreadable brief).

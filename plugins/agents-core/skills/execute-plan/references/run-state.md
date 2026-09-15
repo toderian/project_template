@@ -13,11 +13,11 @@ docs/tasks_manager/_runs/<TASK-ID>/
   phase-N/brief.md         at task brief <TASK-ID> --phase N, plus the orchestrator notes you append
   phase-N/report.md        implementer's full report (its chat reply is ≤ 15 lines)
   phase-N/diff.patch       git diff <BASE> -- <scope fence>; the reviewers' input (git-ignored)
-  phase-N/review-spec.md   reviewer, Stage: spec
-  phase-N/review-quality.md reviewer, Stage: quality
-  phase-N/review-security.md security-auditor, only when the phase touched a security surface
+  phase-N/review-spec.md   reviewer reply, Stage: spec (reviewers are read-only: you save the reply)
+  phase-N/review-quality.md reviewer reply, Stage: quality
+  phase-N/review-security.md security-auditor reply, only when the phase touched a security surface
   phase-N/findings-R.md    numbered open findings handed to fix round R
-  phase-N/re-review-R.md   scoped re-review after fix round R
+  phase-N/re-review-R-<stage>.md scoped re-review reply after fix round R
   validation.md            optional spec-validator run over all acceptance criteria (step 6)
   final-review-1.md, -2.md the whole-task reviews (step 7); final-findings.md if a fix wave ran
 ```

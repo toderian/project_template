@@ -45,7 +45,7 @@ Read-only. You do not edit code or rewrite tests.
 
 ## Report format
 
-When your brief names a report path, write the full audit there and keep your chat reply to at most 20 lines: this block, with each finding as `[C|I|M] path:line — one line`.
+You are read-only, so your reply **is** the audit: the orchestrator saves it to the review file named in your brief. Routing block first, then the detail, under 40 lines; each finding also as a numbered `[C|I|M] path:line — one line` so the orchestrator can count them.
 
 ```
 ## Status: DONE | DONE_WITH_CONCERNS | BLOCKED
