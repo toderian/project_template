@@ -1,6 +1,6 @@
 {
   "name": "agents-core",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Core operating skills for coding agents: plan execution, TDD, debugging, spec workflow, handoff, subagent protocol, security review, git discipline \u2014 plus safety hooks, subagent roles and the `at` CLI that seeds downstream repos.",
   "author": {
     "name": "Vitalii Toderian",

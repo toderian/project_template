@@ -2,6 +2,12 @@
 
 Notable changes to agents-template. All four plugins share the version of the repository.
 
+## 1.5.1 — 2026-09-17
+
+- Seed `statusline.sh` shows absolute context tokens next to the percentage, e.g.
+  `ctx 10% (96k/1M)`, also when a GSD status line renders line 1. Existing downstream repos keep
+  their copy (`at init` never overwrites it); copy the new seed file to adopt it.
+
 ## 1.5.0 — 2026-09-15
 
 The simplicity release (`docs/meta/2026-09-15-simplicity-audit.md`): the skills now do the simplest

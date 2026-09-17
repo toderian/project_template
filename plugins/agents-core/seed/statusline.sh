@@ -82,17 +82,25 @@ def window(key: str, label: str) -> None:
 window("five_hour", "5h")
 window("seven_day", "7d")
 
-# Context usage. GSD's line already renders a context bar (scaled to usable
-# context, i.e. excluding the auto-compact buffer), so when GSD supplied line 1
-# the raw percentage is redundant — but only skip it while there is something
-# else to show. `rate_limits` is Pro/Max-only and absent until the first API
-# response of a session, so without this the whole line would vanish.
-ctx_pct = (data.get("context_window") or {}).get("used_percentage")
+# Context usage as percent plus absolute tokens. `total_input_tokens` is the
+# same input-only count `used_percentage` is computed from, and is 0 before the
+# first API response. GSD's line 1 already has a percent bar, but not the token
+# count, so this segment is shown in both modes.
+def fmt_tokens(n: float) -> str:
+    if n >= 1_000_000:
+        return f"{n / 1_000_000:.1f}".rstrip("0").rstrip(".") + "M"
+    return f"{n / 1000:.0f}k" if n >= 1000 else str(int(n))
+
+
+ctx = data.get("context_window") or {}
+ctx_pct = ctx.get("used_percentage")
+ctx_used = ctx.get("total_input_tokens")
+ctx_size = ctx.get("context_window_size")
 if isinstance(ctx_pct, (int, float)):
-    if os.environ.get("AT_STATUSLINE_SKIP_LINE1") != "1":
-        parts.insert(0, f"ctx {int(ctx_pct)}%")
-    elif not parts:
-        parts.append(f"ctx {int(ctx_pct)}%")
+    piece = f"ctx {int(ctx_pct)}%"
+    if isinstance(ctx_used, (int, float)) and isinstance(ctx_size, (int, float)) and ctx_size > 0:
+        piece += f" ({fmt_tokens(ctx_used)}/{fmt_tokens(ctx_size)})"
+    parts.insert(0, piece)
 
 # GSD already rendered line 1; only this script's metrics line is wanted then.
 if os.environ.get("AT_STATUSLINE_SKIP_LINE1") != "1":
