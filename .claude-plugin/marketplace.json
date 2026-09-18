@@ -9,25 +9,25 @@
     {
       "name": "agents-core",
       "description": "Core operating skills for coding agents: plan execution, TDD, debugging, spec workflow, handoff, subagent protocol, security review, git discipline \u2014 plus safety hooks, subagent roles and the `at` CLI that seeds downstream repos.",
-      "version": "1.5.1",
+      "version": "1.6.0",
       "source": "./plugins/agents-core"
     },
     {
       "name": "agents-extras",
       "description": "Architecture, GitHub triage, UI, database-migration and dev-tooling skills",
-      "version": "1.5.1",
+      "version": "1.6.0",
       "source": "./plugins/agents-extras"
     },
     {
       "name": "agents-personal",
       "description": "Writing, Obsidian, teaching and niche migration skills (personal)",
-      "version": "1.5.1",
+      "version": "1.6.0",
       "source": "./plugins/agents-personal"
     },
     {
       "name": "agents-tasks",
       "description": "Task ledger, knowledge base, workbooks, artifact registry and cross-repo workflows",
-      "version": "1.5.1",
+      "version": "1.6.0",
       "source": "./plugins/agents-tasks"
     }
   ]
