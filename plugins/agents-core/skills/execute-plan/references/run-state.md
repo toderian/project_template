@@ -15,7 +15,8 @@ docs/tasks_manager/_runs/<TASK-ID>/
   phase-N/brief.md         at task brief <TASK-ID> --phase N, plus the orchestrator notes you append
   phase-N/report.md        implementer's full report (its chat reply is ≤ 15 lines)
   phase-N/diff.patch       git diff <BASE> -- <scope fence>; the reviewers' input (git-ignored)
-  phase-N/size.md          at task size <TASK-ID> --phase N: lines per file before/after, code/test split, Flagged:
+  phase-N/size.md          at task size <TASK-ID> --phase N: lines per file before/after, code/test/docs split,
+                           Flagged:. Size files are committed with the run directory (evidence; diff.patch is not)
   phase-N/size-fix-R.md    at task size <TASK-ID> --phase N --fix R: what fix round R alone changed
   phase-N/review.md        small mode: the single reviewer's reply, Stage: both (you save it)
   phase-N/review-spec.md   large mode: reviewer reply, Stage: spec (reviewers are read-only: you save the reply)

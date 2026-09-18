@@ -78,8 +78,8 @@ Dispatch read-only, in parallel, per `agents-core:subagent-protocol`:
   under a scratch path outside the repo; nothing lands in the tree.
 - `reviewer` with `Stage: both` over `git diff <base>..<head>`, with the task file as the spec and
   the instruction to report scope creep: files changed that no phase names. Give it the size table
-  from `at task size <ID> --final --base <base>` (`_runs/<ID>/size.md`; run it against a throwaway
-  `state.md` when the run directory is gone).
+  from `at task size <ID> --final --base <base>` (`_runs/<ID>/size.md`; with `--base` it needs no
+  `state.md`, so it works after the run directory is gone — delete the file it leaves afterwards).
 
 Without subagents, do both passes yourself in a separate context break and label them
 `not independent`.

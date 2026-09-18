@@ -29,21 +29,25 @@ class TaskSize(unittest.TestCase):
     def test_measures_grown_new_shrunk_and_test_files_and_flags(self):
         tmp, base = repo()
         (tmp / "src/a.py").write_text("\n".join(f"a{i}" for i in range(160)) + "\n")      # +60 = +60 % → flagged
-        (tmp / "src/b.py").write_text("\n".join(f"b{i}" for i in range(150)) + "\n")      # −50
         (tmp / "src/new.py").write_text("\n".join(f"n{i}" for i in range(130)) + "\n")    # new, 130 ≥ 120 → flagged
         (tmp / "src/small.py").write_text("x\n")                                           # new, small → not flagged
         (tmp / "tests/test_a.py").write_text("\n".join(f"t{i}" for i in range(300)) + "\n")  # test growth never flagged
         (tmp / "runs.bin").write_bytes(b"\x00\x01\xff")
+        (tmp / "docs/guide.md").write_text("\n".join(f"d{i}" for i in range(200)) + "\n")   # docs: never flagged, own net
+        subprocess.run(["git", "-C", str(tmp), "mv", "src/b.py", "src/b2.py"], check=True)      # rename + shrink: measured on new path
         p = at(tmp, "--phase", "1"); self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
         out = (tmp / RUNS / "phase-1/size.md").read_text()
         self.assertIn("Shape: b.py net shrinks; ≤ ~100 code lines", out)
         self.assertIn("| src/a.py | 100 | 160 | +60 | code |", out)
-        self.assertIn("| src/b.py | 200 | 150 | -50 | code |", out)
+        (tmp / "src/b2.py").write_text("\n".join(f"b{i}" for i in range(150)) + "\n")
+        p = at(tmp, "--phase", "1"); out = (tmp / RUNS / "phase-1/size.md").read_text()
+        self.assertIn("| src/b.py | 200 | 0 | -200 (deleted) | code |", out); self.assertIn("| src/b2.py | 0 | 150 | +150 (new) | code |", out)
+        self.assertIn("| docs/guide.md | 0 | 200 | +200 (new) | docs |", out); self.assertNotIn("guide.md", out.split("Flagged:")[1])
         self.assertIn("| src/new.py | 0 | 130 | +130 (new) | code |", out)
         self.assertIn("| tests/test_a.py | 1 | 300 | +299 | test |", out)
         self.assertIn("| runs.bin | – | – | binary | binary |", out)
-        self.assertIn("Code net +141 (4 files). Test net +299 (1 files).", out)
-        self.assertIn("Flagged: new.py (new, 130), a.py (+60 %, +60)", out)
+        self.assertIn("Code net +141 (5 files). Test net +299 (1 files). Docs net +200 (1 files).", out)
+        self.assertIn("Flagged: b2.py (new, 150), new.py (new, 130), a.py (+60 %, +60)", out)
         self.assertNotIn("small.py", out.split("Flagged:")[1]); self.assertNotIn("test_a", out.split("Flagged:")[1])
         self.assertIn("-> docs/tasks_manager/_runs/TST-009/phase-1/size.md", p.stdout)
     def test_no_changes_and_thresholds(self):
@@ -71,9 +75,14 @@ class TaskSize(unittest.TestCase):
         out = (tmp / RUNS / "phase-1/size-fix-2.md").read_text()
         self.assertIn("| src/a.py | 140 | 110 | -30 | code |", out); self.assertNotIn("src/b.py", out)
         self.assertIn("Fix round 2: code net -30 in none", out)
+        (tmp / "src/a.py").write_text("\n".join(f"a{i}" for i in range(100)) + "\n")   # fix 3: a fully reverted to base
+        p = at(tmp, "--phase", "1", "--fix", "3"); self.assertIn("| src/a.py | 110 | 100 | -10 | code |", (tmp / RUNS / "phase-1/size-fix-3.md").read_text())
+        (tmp / RUNS / "phase-1/size-fix-3.md").unlink(); (tmp / "src/a.py").write_text("\n".join(f"a{i}" for i in range(110)) + "\n")
         # --base REV measures the fix from a committed pre-fix state instead of the previous size file
-        p = at(tmp, "--phase", "1", "--fix", "3", "--base", base); self.assertEqual(p.returncode, 0, p.stderr)
+        (tmp / RUNS / "state.md").write_text(STATE.format(base=base).replace(f"Phase 1: BASE {base}", "Phase 1: attempt 1"))  # no BASE line: --base suffices
+        p = at(tmp, "--phase", "1", "--fix", "3", "--base", base); self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
         self.assertIn("Fix round 3: code net +0 in a.py +10", (tmp / RUNS / "phase-1/size-fix-3.md").read_text())
+        (tmp / RUNS / "state.md").write_text(STATE.format(base=base))
         (tmp / RUNS / "phase-1/size-fix-3.md").unlink()
         p = at(tmp, "--phase", "1", "--fix", "4"); self.assertEqual(p.returncode, 2); self.assertIn("no previous size file size-fix-3.md", p.stdout)
     def test_final_uses_base_rev_and_bad_base_exits_2(self):

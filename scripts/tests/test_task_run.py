@@ -31,7 +31,7 @@ class TaskRun(unittest.TestCase):
         self.assertIn("reviewer|final-simplicity|0|claude", calls); self.assertNotIn("reviewer|final-1|0|claude|resume=False|ro=True|mode=dontAsk|allowed=-|budget=5.0|structural", calls)
         self.assertTrue(all("|size" in c for c in calls.splitlines() if c.startswith(("reviewer|quality", "reviewer|final"))), calls)
         self.assertFalse(any("|size" in c for c in calls.splitlines() if c.startswith("reviewer|spec")), calls)
-        size = (tmp / "docs/tasks_manager/_runs/TST-003/phase-1/size.md").read_text(); self.assertIn("| src/phase1.txt | 0 | 1 | +1 (new) | code |", size)
+        size = (tmp / "docs/tasks_manager/_runs/TST-003/phase-1/size.md").read_text(); self.assertIn("| src/phase1.py | 0 | 1 | +1 (new) | code |", size)
         self.assertIn("TST-003 whole run", (tmp / "docs/tasks_manager/_runs/TST-003/size.md").read_text())
         self.assertIn("- size: +1/−0, code net +1, test net +0; flagged: none", subprocess.run(["git", "-C", str(tmp), "log", "-1", "--format=%B", "HEAD~1"], capture_output=True, text=True).stdout)
         self.assertIn("**Size:** +1/−0", task); self.assertIn("Note: run size +", s); self.assertIn("Note: final review simplicity: PASS", s)
@@ -45,8 +45,8 @@ class TaskRun(unittest.TestCase):
         tmp = repo(); p = run(tmp, "--phase", "1", "--mode", "large", scenario="grow"); self.assertEqual(p.returncode, 1, p.stdout + p.stderr)
         calls = (tmp.parent / (tmp.name + ".calls")).read_text().splitlines(); impl = [c for c in calls if c.startswith("implementer|")]
         self.assertEqual(len(impl), 4, impl); self.assertNotIn("structural", impl[2]); self.assertIn("|structural", impl[3])
-        s = (tmp / STATE).read_text(); self.assertIn("| 1 | blocked |", s); self.assertIn("structural round still grew phase1.txt", s)
-        self.assertIn("Note: Phase 1 fix 1: code net +51 (phase1.txt +51)", s); self.assertIn("Note: Phase 1 fix 3: code net +51", s)
+        s = (tmp / STATE).read_text(); self.assertIn("| 1 | blocked |", s); self.assertIn("structural round still grew phase1.py", s)
+        self.assertIn("Note: Phase 1 fix 1: code net +51 (phase1.py +51)", s); self.assertIn("Note: Phase 1 fix 3: code net +51", s)
         self.assertTrue((tmp / "docs/tasks_manager/_runs/TST-003/phase-1/size-fix-3.md").exists())
         self.assertTrue(all("|size" in c for c in calls if c.startswith("reviewer|quality")), calls)
     def test_codex_harness_uses_fresh_dispatch_and_read_only_reviews(self):

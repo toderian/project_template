@@ -9,9 +9,9 @@ codex: `exec ... -o FILE -` with the prompt on stdin). Behaviour comes from the 
   no-status  the implementer never emits a status block
   status-retry  the implementer emits the block only when reminded (second call)
   hang       every call sleeps 5 s (use with --timeout 1)
-  grow       every quality review FAILs; each fix round appends 50 lines to src/phase<N>.txt, so the
+  grow       every quality review FAILs; each fix round appends 50 lines to src/phase<N>.py, so the
              driver's structural-round rule fires on round 3 and blocks the phase when it still grows
-Implementers write src/phase<N>.txt (cwd is the repo). Calls are appended to FAKE_CALLS.
+Implementers write src/phase<N>.py (cwd is the repo). Calls are appended to FAKE_CALLS.
 """
 import json, os, sys, pathlib
 role = os.environ.get("AT_TASK_ROLE", "?"); stage = os.environ.get("AT_TASK_STAGE", ""); phase = os.environ.get("AT_TASK_PHASE", "0")
@@ -53,15 +53,15 @@ if role == "implementer":
         reply = "I did the work."
     else:
         p = pathlib.Path("src"); p.mkdir(exist_ok=True)
-        with (p / f"phase{phase}.txt").open("a") as fh:
+        with (p / f"phase{phase}.py").open("a") as fh:
             fh.write(f"work for phase {phase}, round {calls.read_text().count(f'implementer||{phase}|')}\n")
             if scenario == "grow" and prompt.startswith(("Fix round", "Two fix rounds")):
                 fh.write("guard\n" * 50)
-        reply = "Done.\n\n## Status: DONE\n## Summary: wrote src/phase.txt"
+        reply = "Done.\n\n## Status: DONE\n## Summary: wrote src/phase.py"
 elif role == "reviewer" and stage == "quality" and scenario == "grow":
-    reply = "## Status: DONE_WITH_CONCERNS\n## Verdict: FAIL\n## Findings: 1 (C:1 I:0 M:0)\n1. [C] src/phase.txt:1 — still racy\n## Report: r.md"
+    reply = "## Status: DONE_WITH_CONCERNS\n## Verdict: FAIL\n## Findings: 1 (C:1 I:0 M:0)\n1. [C] src/phase.py:1 — still racy\n## Report: r.md"
 elif role == "reviewer" and stage == "spec" and scenario == "fail-once" and seen == 1:
-    reply = "## Status: DONE_WITH_CONCERNS\n## Verdict: FAIL\n## Findings: 1 (C:1 I:0 M:0)\n1. [C] src/phase.txt:1 — missing newline\n## Report: r.md"
+    reply = "## Status: DONE_WITH_CONCERNS\n## Verdict: FAIL\n## Findings: 1 (C:1 I:0 M:0)\n1. [C] src/phase.py:1 — missing newline\n## Report: r.md"
 else:
     reply = "## Status: DONE\n## Verdict: PASS\n## Findings: 0 (C:0 I:0 M:0)\n## Report: r.md"
 if codex:

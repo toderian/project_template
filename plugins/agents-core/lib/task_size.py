@@ -8,8 +8,9 @@ Writes a size table next to the diff it describes so every review point in the
                      (or --base REV → working tree when the pre-fix state was committed)
   --final            base_rev (state.md frontmatter) → working tree   → size.md
 
-Lines per file before and after, code vs test split, and a `Flagged:` line for growth a reviewer
-must see a reason for. Flags are prompts for judgement, not failures: the command exits 0 whenever
+Lines per file before and after, code / test / docs split (only code is flagged), and a `Flagged:`
+line for growth a reviewer must see a reason for. The table is never truncated: the next fix round's
+delta is read back from it. Flags are prompts for judgement, not failures: the command exits 0 whenever
 it could measure, 2 on a usage or base error. Python 3 stdlib only. Imported by lib/at.py.
 """
 from __future__ import annotations
@@ -22,6 +23,7 @@ from pathlib import Path
 
 RUNS_DIR = "docs/tasks_manager/_runs"
 TEST_RE = re.compile(r"(^|/)(tests?|spec|specs|__tests__|fixtures?)(/|$)|(^|/)(test[-_.]|[-_.]test\.|.*\.spec\.)")
+DOCS_RE = re.compile(r"\.(md|mdx|rst|txt|adoc|json|ya?ml|toml|ini|cfg|csv|lock)$|(^|/)(docs|CHANGELOG)(/|$)", re.I)
 GROW_MIN_LINES, GROW_MIN_PCT, NEW_FILE_MAX, PHASE_NET_MAX = 40, 25, 120, 300
 
 
@@ -37,7 +39,9 @@ class FileSize:
     def kind(self) -> str:
         if self.before is None or self.after is None:
             return "binary"
-        return "test" if TEST_RE.search(self.path) else "code"
+        if TEST_RE.search(self.path):
+            return "test"
+        return "docs" if DOCS_RE.search(self.path) else "code"
 
     @property
     def net(self) -> int:
@@ -116,7 +120,8 @@ def measure(repo: Path, base: str, exclude: str = RUNS_DIR) -> Report:
         raise ValueError(f"base revision not found: {base}")
     pathspec = [".", f":(exclude){exclude}"]
     files: list[FileSize] = []
-    numstat = _git(repo, "diff", "--numstat", base, "--", *pathspec).stdout
+    # --no-renames: a renamed file is a delete plus a new file, so its size is measured on the new path
+    numstat = _git(repo, "diff", "--numstat", "--no-renames", base, "--", *pathspec).stdout
     for line in numstat.splitlines():
         added, deleted, path = line.split("\t", 2)
         if added == "-":  # binary
@@ -154,9 +159,10 @@ def render(report: Report, title: str, shape: list[str] | None = None, fix_round
             continue
         net = f"{f.net:+d}" + (" (new)" if f.is_new else " (deleted)" if f.after == 0 else "")
         out.append(f"| {f.path} | {f.before} | {f.after} | {net} | {f.kind} |")
-    code, test = report.by_kind("code"), report.by_kind("test")
+    code, test, docs = report.by_kind("code"), report.by_kind("test"), report.by_kind("docs")
     out += ["", f"Total: +{report.added} / −{report.deleted}, {len(report.files)} files. "
-                f"Code net {report.net('code'):+d} ({len(code)} files). Test net {report.net('test'):+d} ({len(test)} files)."]
+                f"Code net {report.net('code'):+d} ({len(code)} files). Test net {report.net('test'):+d} ({len(test)} files). "
+                f"Docs net {report.net('docs'):+d} ({len(docs)} files)."]
     flagged = report.flagged()
     out.append("Flagged: " + (", ".join(flagged) if flagged else "none"))
     if fix_round is not None:
@@ -178,7 +184,7 @@ def parse_after(size_file: Path) -> dict[str, int]:
     return out
 
 
-def delta(prev_after: dict[str, int], current: Report) -> Report:
+def delta(prev_after: dict[str, int], current: Report, repo: Path | None = None) -> Report:
     """What one fix round changed: line counts at the previous review point → now, same base."""
     files = []
     for f in current.files:
@@ -188,9 +194,10 @@ def delta(prev_after: dict[str, int], current: Report) -> Report:
         net = (f.after or 0) - before
         if net:
             files.append(FileSize(f.path, before, f.after, max(net, 0), max(-net, 0)))
-    for path, before in prev_after.items():  # touched last round, back to base now
+    for path, before in prev_after.items():  # touched last round, reverted to base by this round
         if not any(f.path == path for f in current.files):
-            files.append(FileSize(path, before, before, 0, 0))
+            after = _lines_now(repo, path) if repo else before
+            files.append(FileSize(path, before, after, max(after - before, 0), max(before - after, 0)))
     files.sort(key=lambda f: (-abs(f.net), f.path))
     return Report(current.base, files)
 
@@ -236,7 +243,7 @@ def write_phase(repo: Path, runs: Path, task_file: Path, task_id: str, n: int, b
         prev = pdir / ("size.md" if fix_round == 1 else f"size-fix-{fix_round - 1}.md")
         if not prev.is_file():
             raise ValueError(f"no previous size file {prev.name} to diff fix round {fix_round} against; pass --base")
-        report = delta(parse_after(prev), report)
+        report = delta(parse_after(prev), report, repo)
     name = f"size-fix-{fix_round}.md" if fix_round else "size.md"
     title = f"{task_id} phase {n}" + (f" fix round {fix_round}" if fix_round else "")
     out = pdir / name
@@ -277,7 +284,7 @@ def main(argv: list[str], repo: Path) -> int:
                 raise ValueError("state.md has no base_rev; pass --base")
             out, report = write_final(repo, runs, args.task_id, base)
         else:
-            base = phase_base(ledger, args.phase) if args.fix else (args.base or phase_base(ledger, args.phase))
+            base = args.base or phase_base(ledger, args.phase)
             if not base:
                 raise ValueError(f"no `Phase {args.phase}: BASE <rev>` line in state.md; pass --base")
             out, report = write_phase(repo, runs, task_file, args.task_id, args.phase, base, args.fix,
