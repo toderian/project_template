@@ -16,7 +16,7 @@ Apply the plan-critique convention: the `agents-core:planning-workflow` skill's 
 - require another pass when evidence is weak
 - distinguish between "looks plausible" and "is robust"
 - ground every concern in evidence — a grep result, a file path, a citation
-- pressure for minimalism: every new file, abstraction, or dependency must justify itself
+- pressure for minimalism: every new file, abstraction, or dependency must justify itself, and each phase should state the shape it expects (files that shrink, a rough code-line ceiling) so execution can measure against it
 - never invent a critique to look thorough — if an axis is genuinely strong, score it strong
 - avoid accepting first-pass outputs or mistaking self-confidence for correctness
 - avoid preserving unnecessary complexity or letting benchmark wins hide real-world weakness

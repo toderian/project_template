@@ -15,6 +15,8 @@ docs/tasks_manager/_runs/<TASK-ID>/
   phase-N/brief.md         at task brief <TASK-ID> --phase N, plus the orchestrator notes you append
   phase-N/report.md        implementer's full report (its chat reply is ≤ 15 lines)
   phase-N/diff.patch       git diff <BASE> -- <scope fence>; the reviewers' input (git-ignored)
+  phase-N/size.md          at task size <TASK-ID> --phase N: lines per file before/after, code/test split, Flagged:
+  phase-N/size-fix-R.md    at task size <TASK-ID> --phase N --fix R: what fix round R alone changed
   phase-N/review.md        small mode: the single reviewer's reply, Stage: both (you save it)
   phase-N/review-spec.md   large mode: reviewer reply, Stage: spec (reviewers are read-only: you save the reply)
   phase-N/review-quality.md large mode: reviewer reply, Stage: quality
@@ -22,7 +24,9 @@ docs/tasks_manager/_runs/<TASK-ID>/
   phase-N/findings-R.md    numbered open findings handed to fix round R
   phase-N/re-review-R-<stage>.md scoped re-review reply after fix round R
   validation.md            optional spec-validator run over all acceptance criteria (step 6)
+  size.md                  at task size <TASK-ID> --final: the whole run's size, the PR-size input
   final-review-1.md, -2.md the whole-task reviews (step 7; only -1 in small mode); final-findings.md if a fix wave ran
+  final-review-simplicity.md the Stage: simplicity review (large mode)
 ```
 
 ## `state.md` format

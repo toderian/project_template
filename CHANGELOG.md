@@ -2,6 +2,40 @@
 
 Notable changes to agents-template. All four plugins share the version of the repository.
 
+## 1.6.0 — 2026-09-18
+
+Size is measured at every review point. A five-round fix loop on a downstream task had turned a
+386-line component into 680 lines with 13 new state primitives; every finding was right and every
+fix added a guard, and nothing in the loop looked at the total until the human read the PR diffstat.
+
+### Added
+
+- `at task size <TASK-ID> --phase N [--fix R] | --final` (agents-core `lib/task_size.py`): lines per
+  file before and after, code/test split, a `Flagged:` line (code file +40 lines and +25 %, new code
+  file ≥ 120 lines, phase code net ≥ 300) and, for a fix round, what that round alone changed.
+  Writes `phase-N/size.md`, `phase-N/size-fix-R.md` or the run's `size.md`; prints the phase's
+  `Shape:` line when the task file has one.
+- `agents-core:execute-plan` structural-round rule: when fix rounds 1 and 2 each grew the same code
+  file, round 3 restructures instead of adding a third guard; if it still grows, the phase blocks and
+  the user decides. `at task run` implements it.
+- `reviewer` card `Stage: simplicity` (delete / shrink / reuse / yagni findings; fails on an
+  unjustified flagged file or a code net over the plan's `Shape:`). The final whole-task review
+  dispatches it as a third reviewer in large mode and folds it into the single reviewer in small mode.
+- Optional `Shape:` line under a phase heading (`agents-tasks:task-ledger` todo convention) stating
+  the size the phase should end at; the spec reviewer checks it like a checklist item.
+- Final validation logs the run's size and a `Note: PR size … split candidate` line at code net ≥ 600
+  or ≥ 15 files, so the size is seen before a PR exists.
+
+### Changed
+
+- Quality reviewers and re-reviews receive the size table; unexplained growth is a finding and a
+  file that grew in a phase meant to shrink it is critical. The fix-round prompt prefers
+  restructuring or deleting over adding a flag, ref, effect, lock or retry.
+- Phase commits carry a `size:` line under `Checks:`; execution-log entries carry the size.
+- `agents-tasks:add-task`: a second independent report against an open task becomes a second task,
+  not another phase. `agents-tasks:verify-task` reports the size table in `Scope:`.
+- `agents-core:planning-workflow` and the `plan-critic` card ask for an expected shape per phase.
+
 ## 1.5.1 — 2026-09-17
 
 - Seed `statusline.sh` shows absolute context tokens next to the percentage, e.g.

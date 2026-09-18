@@ -87,7 +87,8 @@ split".
   and `run-state check` validates it (status vocabulary, row count, commit SHAs). Used by
   `agents-core:execute-plan`; the run directory is removed by `agents-tasks:complete-task`.
   `at task run <TASK-ID>` (shipped with agents-core) drives that skill's loop from a shell with one
-  `claude -p` / `codex exec` process per dispatch.
+  `claude -p` / `codex exec` process per dispatch, and `at task size <TASK-ID> --phase N [--fix R]
+  | --final` (also agents-core) writes the size table (`size.md`) reviewers judge growth against.
 - `at reserve inbox <slug>` / `at reserve task <PREFIX> <TYPE> <slug>` — wraps
   `scripts/reserve_work_item.sh`. Atomically creates the reserved placeholder file and prints its path
   so parallel agents cannot claim the same ID.

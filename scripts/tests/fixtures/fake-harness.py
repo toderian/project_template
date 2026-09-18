@@ -9,6 +9,8 @@ codex: `exec ... -o FILE -` with the prompt on stdin). Behaviour comes from the 
   no-status  the implementer never emits a status block
   status-retry  the implementer emits the block only when reminded (second call)
   hang       every call sleeps 5 s (use with --timeout 1)
+  grow       every quality review FAILs; each fix round appends 50 lines to src/phase<N>.txt, so the
+             driver's structural-round rule fires on round 3 and blocks the phase when it still grows
 Implementers write src/phase<N>.txt (cwd is the repo). Calls are appended to FAKE_CALLS.
 """
 import json, os, sys, pathlib
@@ -34,14 +36,15 @@ def claude_prompt(argv):
         sys.stderr.write(f"fake claude: expected one prompt positional, got {positionals!r}\n"); sys.exit(3)
     return positionals[0]
 prompt = sys.stdin.read() if codex else claude_prompt(argv)
-if not codex and not prompt.startswith(("Project:", "Fix round", "A prior implementer", "Stage:", "Surface:", "Your previous reply")):
+if not codex and not prompt.startswith(("Project:", "Fix round", "A prior implementer", "Two fix rounds", "Stage:", "Surface:", "Your previous reply")):
     sys.stderr.write(f"fake claude: prompt does not look like a driver prompt: {prompt[:60]!r}\n"); sys.exit(3)
 calls = pathlib.Path(os.environ["FAKE_CALLS"]); calls.parent.mkdir(parents=True, exist_ok=True)
 with calls.open("a") as fh:
     mode = argv[argv.index("--permission-mode") + 1] if "--permission-mode" in argv else ("sandbox=" + argv[argv.index("-s") + 1] if "-s" in argv else "-")
     allowed = argv[argv.index("--allowedTools") + 1] if "--allowedTools" in argv else "-"
     budget = argv[argv.index("--max-budget-usd") + 1] if "--max-budget-usd" in argv else "-"
-    fh.write(f"{role}|{stage}|{phase}|{'codex' if codex else 'claude'}|resume={'--resume' in argv}|ro={'read-only' in argv or '--disallowedTools' in argv}|mode={mode}|allowed={allowed}|budget={budget}\n")
+    fh.write(f"{role}|{stage}|{phase}|{'codex' if codex else 'claude'}|resume={'--resume' in argv}|ro={'read-only' in argv or '--disallowedTools' in argv}|mode={mode}|allowed={allowed}|budget={budget}"
+             + ("|structural" if "Do not add another guard" in prompt else "") + ("|size" if "\nSize: " in prompt else "") + "\n")
 if scenario == "hang":
     import time; time.sleep(5)
 seen = calls.read_text().count(f"reviewer|spec|{phase}|")
@@ -52,7 +55,11 @@ if role == "implementer":
         p = pathlib.Path("src"); p.mkdir(exist_ok=True)
         with (p / f"phase{phase}.txt").open("a") as fh:
             fh.write(f"work for phase {phase}, round {calls.read_text().count(f'implementer||{phase}|')}\n")
+            if scenario == "grow" and prompt.startswith(("Fix round", "Two fix rounds")):
+                fh.write("guard\n" * 50)
         reply = "Done.\n\n## Status: DONE\n## Summary: wrote src/phase.txt"
+elif role == "reviewer" and stage == "quality" and scenario == "grow":
+    reply = "## Status: DONE_WITH_CONCERNS\n## Verdict: FAIL\n## Findings: 1 (C:1 I:0 M:0)\n1. [C] src/phase.txt:1 — still racy\n## Report: r.md"
 elif role == "reviewer" and stage == "spec" and scenario == "fail-once" and seen == 1:
     reply = "## Status: DONE_WITH_CONCERNS\n## Verdict: FAIL\n## Findings: 1 (C:1 I:0 M:0)\n1. [C] src/phase.txt:1 — missing newline\n## Report: r.md"
 else:

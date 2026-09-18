@@ -188,6 +188,11 @@ One phase is the normal case. Split into more only when each phase is separately
 reviewable; a phase that only reads code ("current-state review") is not a phase, it is the
 pre-implementation note below.
 
+A phase may carry one optional `Shape:` line directly under its heading, before the checklist —
+`Shape: ExposedPortRow.tsx net shrinks; ≤ ~150 new code lines.` It states the size the phase is
+expected to have; `at task size` prints it above the phase's size table and the spec reviewer checks
+it like a checklist item.
+
 ### Optional metadata rows
 
 Add a row when it carries a real value; omit it otherwise (never fill `N/A` to satisfy a template).

@@ -49,6 +49,7 @@ Brief: docs/tasks_manager/_runs/<TASK-ID>/phase-N/brief.md — judge this phase 
 "## This phase"; the task-wide acceptance criteria are context, verified after the last phase, so an
 unmet criterion that belongs to a later phase is not a finding here.
 Diff: docs/tasks_manager/_runs/<TASK-ID>/phase-N/diff.patch (BASE <rev> → working tree)
+Size: docs/tasks_manager/_runs/<TASK-ID>/phase-N/size.md — each flagged file needs a reason in the checklist, a finding or the report; unexplained growth is a finding, and a file that grew in a phase meant to shrink it is critical. (quality and both only)
 Implementer report: docs/tasks_manager/_runs/<TASK-ID>/phase-N/report.md — treat its claims as unverified.
 Scope fence: read-only; do not edit files. Run tests only to check a specific doubt.
 Global constraints: <work mode, autonomy, anything the phase must not break>
@@ -66,6 +67,7 @@ one line each), then quality findings.
 Brief: docs/tasks_manager/_runs/<TASK-ID>/phase-N/brief.md — the checklist under "## This phase" is the
 spec; task-wide acceptance criteria are context, verified after the last phase.
 Diff: docs/tasks_manager/_runs/<TASK-ID>/phase-N/diff.patch (BASE <rev> → working tree)
+Size: docs/tasks_manager/_runs/<TASK-ID>/phase-N/size.md — each flagged file needs a reason in the checklist, a finding or the report; unexplained growth is a finding, and a file that grew in a phase meant to shrink it is critical.
 Scope fence: read-only; do not edit files. Run tests only to check a specific doubt.
 Model hint: strongest available.
 Your reply is the report (I save it to docs/tasks_manager/_runs/<TASK-ID>/phase-N/review.md):
@@ -93,12 +95,19 @@ Fix round <R> of 3 for phase N.
 Open findings: docs/tasks_manager/_runs/<TASK-ID>/phase-N/findings-<R>.md — address every numbered item, nothing else.
 Brief and scope fence are unchanged: docs/tasks_manager/_runs/<TASK-ID>/phase-N/brief.md.
 Report path: docs/tasks_manager/_runs/<TASK-ID>/phase-N/report.md (append a "## Fix round <R>" section).
+Prefer a fix that restructures or deletes over one that adds a flag, ref, effect, lock or retry; if you add one anyway, say in the report why the structure cannot absorb it.
 Do not commit. Do not widen the scope; report NEEDS_CONTEXT if a finding cannot be fixed inside it.
 Reply with at most 15 lines ending in the ## Status: block.
 ```
 
 Round-3 prefix: `A prior implementer attempted this phase twice; you own it now. Read the brief and
 the findings file fresh; do not trust the earlier report sections.`
+
+Structural prefix (replaces the round-3 prefix when rounds 1 and 2 each grew the same code file, per
+`size-fix-1.md` and `size-fix-2.md`; also prefixes the final fix wave when the simplicity review
+failed): `Two fix rounds each added code to <file>. Do not add another guard. Restructure so the
+findings in findings-<R>.md hold by construction (fewer effects, flags and refs), keep every test
+green, and report the before/after size line.`
 
 `findings-R.md` is the concatenated numbered `[C|I|M] path:line — one line` items from the reviewer
 replies, spec findings first, with the source review path after each item.
@@ -111,12 +120,16 @@ Same reviewer card and stage as the original review, read-only:
 Re-review round <R> for phase N. Stage: <spec | quality | security>.
 Findings under review: docs/tasks_manager/_runs/<TASK-ID>/phase-N/findings-<R>.md
 Fix diff: <git diff <sha or BASE> -- <scope fence>, written to phase-N/fix-<R>.patch>
+Fix size: docs/tasks_manager/_runs/<TASK-ID>/phase-N/size-fix-<R>.md — say whether the fix removed or added code, and flag a guard added where a structural change was available.
 Judge only whether each numbered finding is resolved without a new defect; do not reopen the whole diff.
 Your reply is the re-review (I save it to docs/tasks_manager/_runs/<TASK-ID>/phase-N/re-review-<R>-<stage>.md):
 per finding "<n>: resolved | open — one line", then the ## Status / ## Verdict / ## Findings block; at most 40 lines.
 ```
 
 ## Final review (step 7, `Stage: both`; two `reviewer`s in parallel in large mode, one in small mode)
+
+In small mode add the line `Also give the simplicity judgement:` followed by the scope sentence of
+§"Final simplicity review" below; large mode dispatches that review separately.
 
 ```text
 Stage: both
@@ -131,9 +144,24 @@ Acceptance criteria:
 - No blocking regressions, security issues, or maintainability problems remain.
 Context: <plan/task file>, docs/tasks_manager/_runs/<TASK-ID>/state.md (rulings are decisions, not defects),
 git diff <base_rev>..HEAD.
+Size: docs/tasks_manager/_runs/<TASK-ID>/size.md (whole run; Flagged: lines need a reason).
 Scope fence: read-only; do not edit files.
 Model hint: strongest available.
 Your reply is the review (I save it to docs/tasks_manager/_runs/<TASK-ID>/final-review-<1|2>.md):
+the ## Status / ## Verdict / ## Findings block first, then ## Evidence; at most 40 lines.
+```
+
+## Final simplicity review (step 7, `Stage: simplicity`, third `reviewer` in large mode, read-only)
+
+```text
+Stage: simplicity
+Task description: Review the completed execution of this approved plan for avoidable complexity.
+Judge only avoidable complexity: duplicated wiring, guards coordinating other guards, abstractions with one caller, files that grew in a phase meant to shrink them. Tag each finding delete | shrink | reuse | yagni. Verdict FAIL when a flagged file has no justification in the task file, the run ledger or the reports, or when the code net exceeds a Shape: line the plan states.
+Context: <plan/task file>, docs/tasks_manager/_runs/<TASK-ID>/state.md, git diff <base_rev>..HEAD.
+Size: docs/tasks_manager/_runs/<TASK-ID>/size.md
+Scope fence: read-only; do not edit files.
+Model hint: strongest available.
+Your reply is the review (I save it to docs/tasks_manager/_runs/<TASK-ID>/final-review-simplicity.md):
 the ## Status / ## Verdict / ## Findings block first, then ## Evidence; at most 40 lines.
 ```
 

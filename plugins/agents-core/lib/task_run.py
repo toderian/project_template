@@ -25,6 +25,8 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 
+import task_size  # lib/task_size.py, next to this file
+
 STATUS_RE = re.compile(r"^\s*(?:#+\s*)?Status:\s*(DONE_WITH_CONCERNS|DONE|NEEDS_CONTEXT|BLOCKED)\b", re.M)
 VERDICT_RE = re.compile(r"^\s*(?:#+\s*)?Verdict:\s*(PASS|FAIL)\b", re.M)
 FINDING_RE = re.compile(r"^\s*\d+\.\s*\[([CIM])\]\s*(.+?)\s*$", re.M)
@@ -201,14 +203,23 @@ class Harness:
 
 # ---- prompts ---------------------------------------------------------------------
 
-def implementer_prompt(runs_rel: str, n: int, project: str, round_no: int = 0, strong: bool = False) -> str:
+def implementer_prompt(runs_rel: str, n: int, project: str, round_no: int = 0, strong: bool = False,
+                       structural: str | None = None) -> str:
+    """`structural` names the file(s) two fix rounds each grew: round 3 then restructures instead of
+    adding one more guard (the execute-plan structural-round rule)."""
     base = f"{runs_rel}/phase-{n}"
     head = ""
     if round_no:
         head = (f"Fix round {round_no} of 3 for phase {n}.\n"
                 f"Open findings: {base}/findings-{round_no}.md — address every numbered item, nothing else.\n"
-                f"What was already done: {base}/report.md (append a '## Fix round {round_no}' section to it).\n")
-        if strong:
+                f"What was already done: {base}/report.md (append a '## Fix round {round_no}' section to it).\n"
+                "Prefer a fix that restructures or deletes over one that adds a flag, ref, effect, lock or retry; "
+                "if you add one anyway, say in the report why the structure cannot absorb it.\n")
+        if structural:
+            head = (f"Two fix rounds each added code to {structural}. Do not add another guard. Restructure so the "
+                    f"findings in {base}/findings-{round_no}.md hold by construction (fewer effects, flags and refs), "
+                    "keep every test green, and report the before/after size line.\n") + head
+        elif strong:
             head = ("A prior implementer attempted this phase twice; you own it now. Read the brief and the "
                     "findings file fresh; do not trust the earlier report sections.\n") + head
     return (f"{head}Project: {project}\n"
@@ -229,11 +240,18 @@ def reviewer_prompt(runs_rel: str, n: int, stage: str, base_rev: str, round_no: 
     if stage == "both":
         scope += ("You are the only reviewer of this phase: give a verdict per item of the phase checklist first "
                   "(met / not met, one line each), then the quality findings.\n")
+    size = ""
+    if stage in ("quality", "both"):
+        size = (f"Size: {base}/size.md — each flagged file needs a reason in the checklist, a finding or the report; "
+                "unexplained growth is a finding, and a file that grew in a phase meant to shrink it is critical.\n")
+        if round_no:
+            size += (f"Fix size: {base}/size-fix-{round_no}.md — say whether the fix removed or added code, and flag a "
+                     "guard added where a structural change was available.\n")
     return (f"Stage: {stage}\n{scope}"
             f"Brief: {base}/brief.md — judge this phase by its own checklist under '## This phase'; the task-wide "
             "acceptance criteria are context and are verified after the last phase, so an unmet task-wide criterion "
             "that belongs to a later phase is not a finding here.\n"
-            f"Diff: {base}/diff.patch (BASE {base_rev} → working tree)\n"
+            f"Diff: {base}/diff.patch (BASE {base_rev} → working tree)\n{size}"
             f"Implementer report: {base}/report.md — treat its claims as unverified.\n"
             "Scope fence: read-only; do not edit files. Run tests only to check a specific doubt.\n"
             f"Your reply is the report (it is saved to {report}): the ## Status / ## Verdict / ## Findings block first, "
@@ -249,10 +267,21 @@ def security_prompt(runs_rel: str, n: int, base_rev: str) -> str:
             "block first, each finding as a numbered line '[C|I|M] path:line — one line', then the detail; at most 40 lines.")
 
 
-def final_prompt(runs_rel: str, k: int, base_rev: str, task_rel: str) -> str:
-    return ("Stage: both\nTask description: Review the completed execution of this approved plan as a whole.\n"
+SIMPLICITY_SCOPE = ("Judge only avoidable complexity: duplicated wiring, guards coordinating other guards, abstractions "
+                    "with one caller, files that grew in a phase meant to shrink them. Tag each finding delete | shrink | "
+                    "reuse | yagni. Verdict FAIL when a flagged file has no justification in the task file, the run "
+                    "ledger or the reports, or when the code net exceeds a Shape: line the plan states.\n")
+
+
+def final_prompt(runs_rel: str, k: int | str, base_rev: str, task_rel: str, simplicity: bool = False) -> str:
+    """k = 1 | 2 (Stage: both) or 'simplicity' (the third reviewer in large mode); `simplicity=True` folds the
+    simplicity judgement into a Stage: both reviewer (small mode)."""
+    stage = "simplicity" if k == "simplicity" else "both"
+    extra = SIMPLICITY_SCOPE if k == "simplicity" else ("Also give the simplicity judgement: " + SIMPLICITY_SCOPE if simplicity else "")
+    return (f"Stage: {stage}\nTask description: Review the completed execution of this approved plan as a whole.\n{extra}"
             f"Context: {task_rel}, {runs_rel}/state.md (Ruling: lines are decisions, not defects), "
-            f"git diff {base_rev}..HEAD.\nScope fence: read-only; do not edit files.\n"
+            f"git diff {base_rev}..HEAD.\nSize: {runs_rel}/size.md (whole run; Flagged: lines need a reason).\n"
+            "Scope fence: read-only; do not edit files.\n"
             f"Your reply is the review (it is saved to {runs_rel}/final-review-{k}.md): the ## Status / ## Verdict / "
             "## Findings block first, then ## Evidence; at most 40 lines.")
 
@@ -433,6 +462,8 @@ class Runner:
 
         verdicts = self.review_round(state, n, pdir, base, round_no=0)
         round_no = 0
+        grew: list[set[str]] = []  # code files each fix round grew, in round order
+        structural = None
         while not verdicts_pass(verdicts) and round_no < self.args.max_rounds:
             round_no += 1
             items = [f"{i}. [{sev}] {text}  (from {stage})" for i, (sev, text, stage)
@@ -443,16 +474,29 @@ class Runner:
             state.note(f"Phase {n}: fix round {round_no}/{self.args.max_rounds} ({len(items)} open)")
             state.save()
             strong = round_no >= self.args.max_rounds
+            # Structural-round rule: two rounds that each grew the same code file get a restructuring
+            # round on the strong model instead of a third guard.
+            repeat = set.intersection(*grew[-2:]) if len(grew) >= 2 else set()
+            structural = ", ".join(sorted(Path(f).name for f in repeat)) if repeat else None
+            strong = strong or bool(structural)
             resume = session if (self.harness.name == "claude" and not strong) else None
-            self.say(f"phase {n}: fix round {round_no} ({'fresh, strong' if strong else 'resume' if resume else 'fresh'})")
+            self.say(f"phase {n}: fix round {round_no} ({'structural' if structural else 'fresh, strong' if strong else 'resume' if resume else 'fresh'})")
             reply, new_session = self.dispatch("implementer",
-                                               implementer_prompt(self.runs_rel, n, self.project, round_no, strong),
+                                               implementer_prompt(self.runs_rel, n, self.project, round_no, strong, structural),
                                                writable=True, strong=strong, session=resume, phase=n)
             session = new_session or session
             (pdir / f"implementer-reply-{round_no}.md").write_text(reply, encoding="utf-8")
             if parse_status(reply) in ("NEEDS_CONTEXT", "BLOCKED", "MISSING"):
                 break
             verdicts = self.review_round(state, n, pdir, base, round_no=round_no)
+            grew.append(set(self.last_size.code_growth()))
+            if structural and repeat & grew[-1]:
+                state.set(n, status="blocked", open=str(len(open_findings(verdicts))))
+                state.note(f"Phase {n}: structural round still grew {structural}; the shape is wrong for these findings — "
+                           f"decide a redesign or accept the size by hand, then set the row to pending and rerun")
+                state.save()
+                self.say(f"phase {n}: structural round still grew {structural}; row set to blocked")
+                return False
 
         if not verdicts_pass(verdicts):
             open_items = open_findings(verdicts)
@@ -474,10 +518,12 @@ class Runner:
                 return False
 
         summary = ", ".join(f"{k} {v['verdict']}" for k, v in verdicts.items())
+        size = self.size_line(self.phase_size)
         entry = (f"### {now_iso()} - Phase {n}: {self.tb.phase_title(self.task.phases[n - 1])} (at task run, {self.harness.name})\n\n"
                  f"**Actions taken:** implementer dispatch ×{state.row(n)[2]}; reviews: {summary}.\n"
                  f"**Decisions made:** see `Ruling:` lines in `{self.runs_rel}/state.md` (if any).\n"
                  f"**Test results:** {', '.join(self.args.check) or 'no --check command configured'}: pass.\n"
+                 f"**Size:** {size}.\n"
                  f"**Outcome:** see `{self.runs_rel}/phase-{n}/` for the brief, report and reviews.")
         tick_phase(self.task.path, n, entry)
 
@@ -496,7 +542,7 @@ class Runner:
         title = self.tb.phase_title(self.task.phases[n - 1])
         msg = (f"feat: {self.task.taskid} phase {n} — {title}\n\nWhat changed:\n- phase {n} of {self.task.title}\n\n"
                f"Why:\n- {self.task_rel}\n\nChecks:\n- {', '.join(self.args.check) or 'none configured'}: pass\n"
-               f"- reviews: {summary}\n")
+               f"- reviews: {summary}\n- size: {size}\n")
         proc = self.git("commit", "-q", "-m", msg)
         if proc.returncode != 0:
             raise RunError(f"commit failed: {proc.stderr.strip()[-400:]}")
@@ -525,6 +571,14 @@ class Runner:
             return False
         return True
 
+    @staticmethod
+    def size_line(report: task_size.Report, growth: bool = False) -> str:
+        if growth:
+            grown = ", ".join(f"{Path(p).name} {v:+d}" for p, v in report.code_growth().items()) or "none"
+            return f"code net {report.net('code'):+d} ({grown})"
+        flagged = ", ".join(report.flagged()) or "none"
+        return f"+{report.added}/−{report.deleted}, code net {report.net('code'):+d}, test net {report.net('test'):+d}; flagged: {flagged}"
+
     def review_round(self, state: State, n: int, pdir: Path, base: str, round_no: int) -> dict[str, dict]:
         self.git("add", "--intent-to-add", "-A", "--", ".", f":(exclude){self.runs_rel}")  # new files show in the diff
         diff = self.git("diff", base, "--", ".", f":(exclude){self.runs_rel}").stdout
@@ -539,6 +593,11 @@ class Runner:
                 f"# Below: the whole run's diff since {run_base}, for judging this phase's checklist.\n" + diff,
                 encoding="utf-8")
             state.note(f"Phase {n}: implementer changed nothing; reviewing against the run diff since {run_base}")
+        _, self.last_size = task_size.write_phase(self.repo, self.runs, self.task.path, self.task.taskid, n, base,
+                                                  fix_round=round_no or None)
+        self.phase_size = task_size.measure(self.repo, base) if round_no else self.last_size
+        if round_no:
+            state.note(f"Note: Phase {n} fix {round_no}: {self.size_line(self.last_size, growth=True)}")
         state.set(n, status="reviewing"); state.save()
         if self.mode == "small":
             jobs = {"both": ("reviewer", reviewer_prompt(self.runs_rel, n, "both", base, round_no))}
@@ -567,15 +626,21 @@ class Runner:
 
     def final_review(self, state: State) -> bool:
         base = state.front.get("base_rev", "")
-        ks = (1,) if self.mode == "small" else (1, 2)
-        self.say(f"final review ({len(ks)} reviewer(s), Stage: both)")
+        _, report = task_size.write_final(self.repo, self.runs, self.task.taskid, base)
+        state.note(f"Note: run size {self.size_line(report)}")
+        if report.net("code") >= 600 or len(report.files) >= 15:
+            state.note(f"Note: PR size {len(report.files)} files, code net {report.net('code'):+d}; split candidate — "
+                       "decide before opening a PR")
+        ks: tuple = (1,) if self.mode == "small" else (1, 2, "simplicity")
+        self.say(f"final review ({len(ks)} reviewer(s): Stage: both" + (" + simplicity" if self.mode == "small" else ", simplicity") + ")")
         with ThreadPoolExecutor(max_workers=len(ks)) as pool:
-            futures = [pool.submit(self.dispatch, "reviewer", final_prompt(self.runs_rel, k, base, self.task_rel),
+            futures = [pool.submit(self.dispatch, "reviewer",
+                                   final_prompt(self.runs_rel, k, base, self.task_rel, simplicity=self.mode == "small"),
                                    writable=False, strong=True, stage=f"final-{k}") for k in ks]
             replies = [f.result()[0] for f in futures]
         ok = True
         notes = []
-        for k, reply in enumerate(replies, 1):
+        for k, reply in zip(ks, replies):
             (self.runs / f"final-review-{k}.md").write_text(reply, encoding="utf-8")
             v = parse_verdict(reply)
             crit = [f for f in findings(reply) if f[0] == "C"]
@@ -586,9 +651,10 @@ class Runner:
         if ok:
             tick_acceptance(self.task.path, (
                 f"### {now_iso()} - Final review (at task run, {self.harness.name})\n\n"
-                f"**Actions taken:** {len(ks)} whole-task reviewer(s), Stage: both — {'; '.join(notes)}.\n"
+                f"**Actions taken:** {len(ks)} whole-task reviewer(s) — {'; '.join(notes)}.\n"
+                f"**Size:** {self.size_line(report)}.\n"
                 f"**Outcome:** acceptance criteria ticked; non-critical findings stay in "
-                f"`{self.runs_rel}/final-review-1.md` and `-2.md` for the completion summary."))
+                f"`{self.runs_rel}/final-review-*.md` for the completion summary."))
         return ok
 
     def run(self) -> int:

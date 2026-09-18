@@ -16,9 +16,10 @@ phase on.
 2. Implement the phase within the scope fence. Run the phase checks and related tests; read the
    output. Write `phase-N/report.md` in the implementer report shape (status block, files changed,
    checks with real output).
-3. Package `diff.patch` from `BASE`.
+3. Package `diff.patch` from `BASE` and `size.md` (`at task size <TASK-ID> --phase N`).
 4. Review your own diff **in a separate pass, after a context break**: close the source files, reopen
-   the brief and the diff, and go checklist item by checklist item, then quality. Write `review.md`
+   the brief, the diff and the size table, and go checklist item by checklist item, then quality
+   (every flagged file needs a reason you can name). Write `review.md`
    in the reviewer reply shape (`Stage: both`), and `review-security.md` when the phase touched a
    security surface. Head each file with `Independence: none — main-thread self-review`.
 5. Fix what you found, re-run the checks, and record the findings you left open as `Ruling:` lines.

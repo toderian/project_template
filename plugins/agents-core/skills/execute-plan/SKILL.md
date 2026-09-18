@@ -181,14 +181,20 @@ verdict blocks and the state file; open a report, diff or test log only to adjud
    on `NEEDS_CONTEXT` answer inside the brief's orchestrator notes and re-dispatch, on `BLOCKED`
    triage per `agents-core:subagent-protocol`. Never re-dispatch an identical prompt.
 5. **Package.** `git diff <BASE> -- <scope fence> > _runs/<TASK-ID>/phase-N/diff.patch`
-   (git-ignored, regenerable). Row → `reviewing`. An implementer that changed nothing is reviewed
-   against the run's diff since `base_rev`.
+   (git-ignored, regenerable), then `at task size <TASK-ID> --phase N` → `phase-N/size.md`: lines per
+   file before and after, code/test split, a `Flagged:` line for growth that needs a reason (hand-write
+   the same table without `agents-tasks`). Row → `reviewing`. An implementer that changed nothing is
+   reviewed against the run's diff since `base_rev`.
 6. **Review**, read-only; each reply *is* the report — save it verbatim to its file and keep only
    the verdict block in mind. The spec judgement is the **phase checklist**; task-wide acceptance
    criteria are verified once in steps 6–7, so a reviewer that fails a phase for a later phase's
    criterion is answered with that, not with a fix round.
    - Small mode: one `reviewer`, `Stage: both`, prompt from briefs.md §"Single reviewer" →
      `review.md`; its verdict fills both `Spec` and `Quality`.
+   - The quality judgement (and `Stage: both`) reads `size.md`: a flagged file whose growth no
+     checklist item, finding or report line explains is an important finding; a file that grew in a
+     phase meant to dedup or shrink it is critical. A `Shape:` line under the phase heading is
+     checked like a checklist item.
    - Large mode, in parallel: `reviewer` `Stage: spec` → `review-spec.md`; `reviewer`
      `Stage: quality` → `review-quality.md`; `security-auditor` → `review-security.md` only when the
      phase touches a security surface (list in step 0), else `n/a`.
@@ -196,16 +202,23 @@ verdict blocks and the state file; open a report, diff or test log only to adjud
 7. **Fix loop.** While any verdict is `FAIL` or a critical finding is open: the fix loop from
    `agents-core:subagent-protocol` (cap three rounds). Write the numbered open findings to
    `phase-N/findings-R.md`; small mode fixes them yourself, large mode hands the path to the
-   implementer with the round prompt; row → `fixing`; re-review only those findings against the fix
-   diff (`phase-N/re-review-R[-<stage>].md`). A spec `FAIL` is fixed before quality findings.
+   implementer with the round prompt; row → `fixing`; after the fix, `at task size <TASK-ID> --phase N
+   --fix R` → `phase-N/size-fix-R.md` and a `Note: Phase N fix R: code net +N (<files>)` line in
+   `state.md`; re-review only those findings against the fix diff and that size file
+   (`phase-N/re-review-R[-<stage>].md`). A spec `FAIL` is fixed before quality findings.
+   **Structural-round rule:** when rounds 1 and 2 each grew the same code file, round 3 is not a third
+   guard: it uses the structural prompt from briefs.md §"Fix round" on the strongest model. If that
+   round still grows the file, row → `blocked` with a note naming the shape problem, and ask the user;
+   do not adjudicate it away with a `Ruling:`.
 8. **Adjudicate at the cap.** Decide each still-open finding and record a `Ruling:` line in
    `state.md`; small defects you fix and rule. If every path forward is a guess, row → `blocked`,
    write what is needed, stop. In small mode a phase that hits the cap escalates the run to large
    instead (step 0).
 9. **Verify and record.** Run the phase checks and related tests yourself and read the output. Tick
    the phase checkboxes, update `Updated` and `Last executed`, append a ≤ 10-line execution-log entry
-   (what changed, verdicts, rulings, `see docs/tasks_manager/_runs/<TASK-ID>/phase-N/`). Add any
-   interface later phases depend on as an `Interface:` line. Run `at ledger sync`.
+   (what changed, verdicts, rulings, the `Total:`/`Flagged:` lines of `size.md`,
+   `see docs/tasks_manager/_runs/<TASK-ID>/phase-N/`). Add any interface later phases depend on as an
+   `Interface:` line. Run `at ledger sync`.
 10. **Commit** with explicit pathspecs — the scope fence, the task/plan file and
     `docs/tasks_manager/_runs/<TASK-ID>/` — never `git add -A`:
 
@@ -221,6 +234,7 @@ verdict blocks and the state file; open a report, diff or test log only to adjud
     Checks:
     - <command>: <result>
     - reviews: spec <PASS|FAIL>, quality <PASS|FAIL>, security <PASS|FAIL|n/a>; rulings: <n>
+    - size: +<A>/−<D>, code net <±N>, test net <±M>; flagged: <files or none>
     ```
 
     `<type>` is `feat`, `fix`, `chore`, `docs`, `test` or `refactor`. Failing commit hooks are fixed
@@ -232,7 +246,10 @@ verdict blocks and the state file; open a report, diff or test log only to adjud
 ### 6. Final validation
 
 Run the final required checks; e2e only here unless a phase required it earlier (record why when
-e2e is `N/A`; do not invent a harness the plan did not ask for). Optionally dispatch `spec-validator`
+e2e is `N/A`; do not invent a harness the plan did not ask for). Run `at task size <TASK-ID> --final`
+→ `_runs/<TASK-ID>/size.md` and copy its `Total:` and `Flagged:` lines into the execution log; at
+code net ≥ 600 or ≥ 15 files add `Note: PR size <…>; split candidate: <yes|no, why>` to `state.md`
+so the human sees the size before a PR exists. Optionally dispatch `spec-validator`
 over **all** acceptance criteria (`_runs/<TASK-ID>/validation.md`) when they are behavioral enough to
 test spec-blind. Fix failures until the checks pass or a real blocker is reached; commit any fixes
 or log-only updates not already in the last phase commit.
@@ -241,16 +258,21 @@ or log-only updates not already in the last phase commit.
 
 Per-phase reviews saw one diff each; this looks at the whole, with the brief from
 [references/briefs.md](references/briefs.md) §"Final review", on the strongest model, read-only.
-Small mode: one `reviewer` → `final-review-1.md`, and only when there were two phases (a single
-phase's review already covered the task). Large mode: two `reviewer`s in parallel → `final-review-1.md`,
-`-2.md`, unseen by each other.
+Small mode: one `reviewer` → `final-review-1.md`, with the simplicity judgement folded into its
+brief, and only when there were two phases (a single phase's review already covered the task). Large
+mode: two `reviewer`s (`Stage: both`) plus one `reviewer` with `Stage: simplicity` in parallel →
+`final-review-1.md`, `-2.md`, `final-review-simplicity.md`, unseen by each other; all three get
+`size.md`. The simplicity reviewer judges avoidable complexity only (duplicated wiring, guards
+coordinating guards, one-caller abstractions, files that grew where the plan said shrink) and fails
+on a flagged file with no justification or a code net over the plan's `Shape:`.
 
 - All `PASS` with no critical finding: tick the task-wide acceptance criteria, record the result,
   finish. Non-critical findings are recorded as non-blocking.
 - Any `FAIL`, critical finding or `BLOCKED`: **one** fix wave — merge the open findings into
   `_runs/<TASK-ID>/final-findings.md`, fix (small mode: yourself; large mode: one fresh implementer
-  on the strongest model with the round-3 prompt), commit as `fix: address execute-plan final review`,
-  then one scoped re-review. If it still fails, stop and report. No second wave.
+  on the strongest model with the round-3 prompt, prefixed with the structural prompt when the
+  simplicity review failed), commit as `fix: address execute-plan final review`, then one scoped
+  re-review. If it still fails, stop and report. No second wave.
 
 Inline: a main-thread self-review labelled "not independent", recorded and continued.
 
@@ -281,3 +303,5 @@ completion summary and removes it.
   checks are named with exact commands and run by you, not taken from a report.
 - Reviews are independent or labelled as not; every unfixed finding has a `Ruling:` line.
 - Unrelated work is neither staged nor committed; a squashed commit keeps the phase/review summary.
+- Size is measured at every review point (`size.md`, `size-fix-R.md`, the run's `size.md`), and
+  growth is either explained by a checklist item or finding, or is itself a finding.

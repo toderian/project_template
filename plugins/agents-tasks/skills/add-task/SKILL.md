@@ -58,7 +58,8 @@ under 50 characters). Then fill the reserved path with the core shape from `todo
 - metadata: Task ID, Type, Area, Created, Updated, Status `open`, Priority, `Source: add-task`
 - title and a 2–4 sentence brief: the user outcome and the constraints that matter
 - phases with checklists — **one phase is the default**; add a second only when it is separately
-  committable and reviewable
+  committable and reviewable; a phase whose goal is a size (dedup, extraction, slimming) carries a
+  `Shape:` line under its heading so execution can measure it
 - acceptance criteria: observable, testable, each one traceable to a phase item
 
 Optional rows and sections (`Source ref`, `Related tests`, `Follow-ups`, `Spec refs`, dates, …) go in
@@ -68,7 +69,9 @@ rest.
 
 Prefer fewer phases and fewer criteria. If the shape you are about to write has more than three
 phases or a criterion that no phase delivers, stop and cut before saving (the
-`agents-tasks:simplify-task` rules apply at creation too).
+`agents-tasks:simplify-task` rules apply at creation too). A second, independent report against an
+open task — a new root cause or a new surface — becomes a second task, not another phase: one task
+that absorbed three reports ships as one review-proof PR.
 
 ### 4b. Spec and design sections, when the criteria alone would lose intent
 

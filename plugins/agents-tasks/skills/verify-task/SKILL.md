@@ -77,7 +77,9 @@ Dispatch read-only, in parallel, per `agents-core:subagent-protocol`:
 - `spec-validator` over the acceptance criteria only (spec-blind). It may write throwaway tests
   under a scratch path outside the repo; nothing lands in the tree.
 - `reviewer` with `Stage: both` over `git diff <base>..<head>`, with the task file as the spec and
-  the instruction to report scope creep: files changed that no phase names.
+  the instruction to report scope creep: files changed that no phase names. Give it the size table
+  from `at task size <ID> --final --base <base>` (`_runs/<ID>/size.md`; run it against a throwaway
+  `state.md` when the run directory is gone).
 
 Without subagents, do both passes yourself in a separate context break and label them
 `not independent`.
@@ -93,6 +95,7 @@ Without subagents, do both passes yourself in a separate context break and label
 | 2 | … | changed-during-task (abc1234, no ruling) | … | … | — | — | NOT MET |
 
 Scope: <n> files changed; outside any phase: <list or none>.
+Size: <Total: line of size.md>; flagged: <files or none>.
 Spec-validator: PASS | FAIL (<k> criteria). Reviewer: PASS | FAIL, <n> findings (C/I/M).
 Removed during task: <criteria or none>.
 
