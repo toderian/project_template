@@ -1,6 +1,6 @@
 {
   "name": "agents-tasks",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Task ledger, knowledge base, workbooks, artifact registry and cross-repo workflows",
   "author": {
     "name": "Vitalii Toderian",
