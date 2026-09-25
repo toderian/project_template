@@ -6,6 +6,10 @@
       "Edit(./.creds/**)",
       "Bash(git push --force*)",
       "Bash(git push -f*)"
+    ],
+    "ask": [
+      "Bash(git *agents.allowProtectedPush*)",
+      "Bash(gh pr merge*)"
     ]
   }
 }

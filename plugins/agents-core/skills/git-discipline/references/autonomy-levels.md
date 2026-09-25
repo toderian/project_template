@@ -54,8 +54,9 @@ L1 may perform local implementation inside an approved workflow:
 - update local task, plan, or docs state
 - create local commits when the workflow authorizes commits
 
-L1 must stop before pushing, opening PRs, or writing to external project systems unless another rule
-explicitly authorizes that specific action. Existing downstream repos remain L1 unless they opt into a
+L1 must stop before pushing, opening PRs, or writing to external project systems unless the user asks
+for that action or another rule explicitly authorizes it. A push to a protected branch always needs the
+two confirmations in `agents-core:git-discipline`, at every level. Existing downstream repos remain L1 unless they opt into a
 higher level.
 
 ### L2: Branch Update and CI Repair

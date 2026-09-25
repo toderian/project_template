@@ -39,6 +39,12 @@ git_payload() {
   jq -n --arg cmd "$1" '{tool_input: {command: $cmd}}'
 }
 
+# git_payload_in <cwd> <command>
+# Same as git_payload, plus the cwd field the harness sends.
+git_payload_in() {
+  jq -n --arg cwd "$1" --arg cmd "$2" '{cwd: $cwd, tool_input: {command: $cmd}}'
+}
+
 # file_payload <file_path>
 file_payload() {
   jq -n --arg fp "$1" '{tool_input: {file_path: $fp}}'
@@ -94,8 +100,53 @@ run_case "git: clean -fd blocks" "${GIT_HOOK}" \
   "$(git_payload 'git clean -fd')" 2
 run_case "git: branch -D blocks" "${GIT_HOOK}" \
   "$(git_payload 'git branch -D feature-x')" 2
-run_case "git: chained cd && git push blocks" "${GIT_HOOK}" \
+run_case "git: chained cd && bare git push blocks (target unresolved)" "${GIT_HOOK}" \
   "$(git_payload 'cd /tmp && git push')" 2
+
+# Push guard: feature branches pass, protected branches need the confirm marker.
+PUSH_REPO="${WORKDIR}/push-repo"
+git init -q -b feat/x "${PUSH_REPO}"
+MAIN_REPO="${WORKDIR}/main-repo"
+git init -q -b main "${MAIN_REPO}"
+run_case "git: push feature branch allowed" "${GIT_HOOK}" \
+  "$(git_payload 'git push -u origin feat/x')" 0
+run_case "git: cd && push named feature branch allowed" "${GIT_HOOK}" \
+  "$(git_payload 'cd /tmp && git push origin feat/x')" 0
+run_case "git: bare push on feature branch allowed" "${GIT_HOOK}" \
+  "$(git_payload_in "${PUSH_REPO}" 'git push')" 0
+run_case "git: push HEAD on feature branch allowed" "${GIT_HOOK}" \
+  "$(git_payload_in "${PUSH_REPO}" 'git push -u origin HEAD')" 0
+run_case "git: push --tags allowed" "${GIT_HOOK}" \
+  "$(git_payload 'git push origin --tags')" 0
+run_case "git: push main blocks" "${GIT_HOOK}" \
+  "$(git_payload 'git push origin main')" 2
+run_case "git: push quoted main blocks" "${GIT_HOOK}" \
+  "$(git_payload 'git push origin "main"')" 2
+run_case "git: push HEAD:develop blocks" "${GIT_HOOK}" \
+  "$(git_payload 'git push origin HEAD:refs/heads/develop')" 2
+run_case "git: push delete master blocks" "${GIT_HOOK}" \
+  "$(git_payload 'git push origin --delete master')" 2
+run_case "git: bare push on main blocks" "${GIT_HOOK}" \
+  "$(git_payload_in "${MAIN_REPO}" 'git push')" 2
+run_case "git: push --all blocks" "${GIT_HOOK}" \
+  "$(git_payload 'git push --all origin')" 2
+run_case "git: push -uf blocks (force)" "${GIT_HOOK}" \
+  "$(git_payload 'git push -uf origin feat/x')" 2
+run_case "git: push +refspec blocks (force)" "${GIT_HOOK}" \
+  "$(git_payload 'git push origin +feat/x')" 2
+run_case "git: push --force-with-lease blocks" "${GIT_HOOK}" \
+  "$(git_payload 'git push --force-with-lease origin feat/x')" 2
+run_case "git: confirmed push main allowed" "${GIT_HOOK}" \
+  "$(git_payload 'git -c agents.allowProtectedPush=main push origin main')" 0
+run_case "git: marker for another branch does not confirm main" "${GIT_HOOK}" \
+  "$(git_payload 'git -c agents.allowProtectedPush=develop push origin main')" 2
+run_case "git: confirmed force push main still blocks" "${GIT_HOOK}" \
+  "$(git_payload 'git -c agents.allowProtectedPush=main push -f origin main')" 2
+git -C "${PUSH_REPO}" config agents.protectedBranches 'release/*'
+run_case "git: protectedBranches glob override blocks release/1" "${GIT_HOOK}" \
+  "$(git_payload_in "${PUSH_REPO}" 'git push origin release/1')" 2
+run_case "git: protectedBranches override frees main" "${GIT_HOOK}" \
+  "$(git_payload_in "${PUSH_REPO}" 'git push origin main')" 0
 run_case "git: add .creds/ path still blocks" "${GIT_HOOK}" \
   "$(git_payload 'git add .creds/token')" 2
 run_case "git: forced add still blocks" "${GIT_HOOK}" \

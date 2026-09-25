@@ -4,6 +4,8 @@ command -v jq >/dev/null || { echo "hook requires jq; install jq" >&2; exit 2; }
 
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command')
+CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
+CWD=${CWD:-$PWD}
 
 GIT_COMMAND_PREFIX='(^|[;&|[:space:]])["'"'"']?([^[:space:]"'"'"']*/)?git["'"'"']?([[:space:]]+(-C[[:space:]]+[^[:space:]]+|-c[[:space:]]+[^[:space:]]+|--git-dir(=|[[:space:]])[^[:space:]]+|--work-tree(=|[[:space:]])[^[:space:]]+|--[[:alnum:]-]+(=[^[:space:]]+)?))*[[:space:]]+'
 CREDS_PATH_PATTERN='(^|[[:space:]"'"'"'])([^[:space:]"'"'"']*/)?\.creds([/\\]|[[:space:]"'"'"']|$)'
@@ -36,7 +38,6 @@ fi
 # a commit message mentioning "git push") and dotfile arguments (e.g.
 # `git checkout .gitignore`) don't false-positive on these patterns.
 DANGEROUS_PATTERNS=(
-  "${GIT_COMMAND_PREFIX}push([[:space:]]|$)"
   "${GIT_COMMAND_PREFIX}reset[[:space:]]+[^;&|]*--hard([[:space:]]|$)"
   "${GIT_COMMAND_PREFIX}clean[[:space:]]+-[a-zA-Z]*f[a-zA-Z]*([[:space:]]|$)"
   "${GIT_COMMAND_PREFIX}branch[[:space:]]+[^;&|]*-D([[:space:]]|$)"
@@ -51,6 +52,117 @@ DANGEROUS_PATTERNS=(
 # guardrail; this hook is not a security boundary. Only this matching uses the
 # stripped text; the add/commit guards above/below inspect the full command.
 STRIPPED_COMMAND=$(printf '%s' "$COMMAND" | sed -e 's/"[^"]*"//g' -e "s/'[^']*'//g")
+
+# Push guard. A push to a feature branch is allowed. A force push is always
+# refused. A push that reaches a protected branch (default main, master,
+# develop; override with `git config agents.protectedBranches "main release/*"`)
+# or whose target cannot be resolved is refused unless the command carries
+# `-c agents.allowProtectedPush=<branch>`. The agent adds that marker only after
+# the user confirms in chat (ask 1); the seed settings.json `ask` rule on the
+# marker then forces a harness prompt, even in auto mode (ask 2).
+PROTECTED_BRANCHES=$(git -C "$CWD" config --get agents.protectedBranches 2>/dev/null || echo "main master develop")
+CONFIRM_KEY='agents.allowProtectedPush'
+
+deny_push() {
+  echo "BLOCKED: '$COMMAND': $1" >&2
+  exit 2
+}
+
+is_protected() {
+  local branch
+  for branch in $PROTECTED_BRANCHES; do
+    # shellcheck disable=SC2254 # unquoted on purpose: entries may be globs such as release/*
+    case "$1" in $branch) return 0 ;; esac
+  done
+  return 1
+}
+
+require_confirmed() {
+  local target="$1" confirmed="$2"
+  is_protected "$target" || return 0
+  [ "$confirmed" = "$target" ] && return 0
+  deny_push "push to protected branch '$target'. Ask the user in chat first. Only after an explicit yes, rerun as 'git -c ${CONFIRM_KEY}=${target} push <remote> ${target}'; the user then confirms a second time in the permission prompt."
+}
+
+check_push_segment() {
+  local -a tok
+  read -ra tok <<< "$1"
+  local n=${#tok[@]} i=0 dir="$CWD" confirmed="" tags_only="" arg dst
+  local -a positional=()
+
+  while [ "$i" -lt "$n" ]; do
+    case "${tok[i]}" in git|*/git) break ;; esac
+    i=$((i + 1))
+  done
+  i=$((i + 1))
+  while [ "$i" -lt "$n" ] && [ "${tok[i]}" != push ]; do
+    case "${tok[i]}" in
+      -C) i=$((i + 1)); case "${tok[i]}" in /*) dir="${tok[i]}" ;; *) dir="$dir/${tok[i]}" ;; esac ;;
+      -c) i=$((i + 1)); case "${tok[i]}" in "$CONFIRM_KEY"=*) confirmed="${tok[i]#*=}" ;; esac ;;
+      --git-dir|--work-tree|--namespace) i=$((i + 1)) ;;
+    esac
+    i=$((i + 1))
+  done
+  [ "$i" -lt "$n" ] || return 0
+  i=$((i + 1))
+
+  while [ "$i" -lt "$n" ]; do
+    arg="${tok[i]}"
+    case "$arg" in
+      --force*|+*) deny_push "force push is never allowed." ;;
+      --all|--mirror|--branches) deny_push "'$arg' may reach a protected branch; push one named branch at a time." ;;
+      --tags) tags_only=1 ;;
+      -o|--push-option|--repo|--receive-pack|--exec) i=$((i + 1)) ;;
+      --) ;;
+      --*) ;;
+      -*) case "$arg" in *f*) deny_push "force push is never allowed." ;; esac ;;
+      *) positional+=("$arg") ;;
+    esac
+    i=$((i + 1))
+  done
+
+  if [ "${#positional[@]}" -le 1 ]; then
+    [ -n "$tags_only" ] && return 0
+    # No refspec: git picks the target from HEAD, upstream and push config.
+    if echo "$COMMAND" | grep -qE '(^|[;&|[:space:]])(cd|pushd)[[:space:]]'; then
+      deny_push "cannot resolve the push target after 'cd'; name it: 'git push <remote> <branch>'."
+    fi
+    local current upstream push_default
+    current=$(git -C "$dir" symbolic-ref --quiet --short HEAD 2>/dev/null) \
+      || deny_push "cannot resolve the current branch; name it: 'git push <remote> <branch>'."
+    push_default=$(git -C "$dir" config --get push.default 2>/dev/null)
+    if [ "$push_default" = matching ] || git -C "$dir" config --get-regexp '^remote\..*\.push$' >/dev/null 2>&1; then
+      deny_push "push config may push several branches; name it: 'git push <remote> <branch>'."
+    fi
+    require_confirmed "$current" "$confirmed"
+    upstream=$(git -C "$dir" rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null) || upstream=""
+    [ -n "$upstream" ] && require_confirmed "${upstream#*/}" "$confirmed"
+    return 0
+  fi
+
+  for arg in "${positional[@]:1}"; do
+    dst="${arg##*:}"
+    [ -n "$dst" ] || deny_push "cannot resolve the destination of refspec '$arg'."
+    if [ "$dst" = HEAD ]; then
+      echo "$COMMAND" | grep -qE '(^|[;&|[:space:]])(cd|pushd)[[:space:]]' \
+        && deny_push "cannot resolve HEAD after 'cd'; name the branch."
+      dst=$(git -C "$dir" symbolic-ref --quiet --short HEAD 2>/dev/null) \
+        || deny_push "cannot resolve HEAD; name the branch."
+    fi
+    case "$dst" in refs/tags/*) continue ;; esac
+    dst="${dst#refs/heads/}"
+    require_confirmed "$dst" "$confirmed"
+  done
+}
+
+if echo "$STRIPPED_COMMAND" | grep -qE "${GIT_COMMAND_PREFIX}push([[:space:]]|$)"; then
+  # Quote characters are dropped, not quoted spans, so `git push origin "main"`
+  # still resolves to main.
+  while IFS= read -r segment; do
+    echo "$segment" | grep -qE "${GIT_COMMAND_PREFIX}push([[:space:]]|$)" || continue
+    check_push_segment "$segment"
+  done < <(printf '%s\n' "$COMMAND" | tr -d "\"'" | tr ';&|' '\n')
+fi
 
 for pattern in "${DANGEROUS_PATTERNS[@]}"; do
   if echo "$STRIPPED_COMMAND" | grep -qE "$pattern"; then

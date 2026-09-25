@@ -2,6 +2,24 @@
 
 Notable changes to agents-template. All four plugins share the version of the repository.
 
+## 1.7.0 — 2026-09-25
+
+Agents may push feature branches and open PRs. A push to a protected branch needs two confirmations
+from the user.
+
+### Changed
+
+- `block-dangerous-git` hook: `git push` is no longer refused in every form. It allows a push to a
+  feature branch. It refuses force pushes (`-f`, `--force*`, `+refspec`) and a push that reaches a
+  protected branch (`main`, `master`, `develop`, or `git config agents.protectedBranches`, globs
+  allowed) or whose target it cannot resolve. A protected push passes only with
+  `git -c agents.allowProtectedPush=<branch>`, which the agent adds after an explicit yes in chat.
+- Seed `settings.json` adds `ask` rules for that marker and for `gh pr merge`, so the harness prompts
+  the user a second time, even in auto mode. Codex has no equivalent rule; there the hook and the chat
+  confirmation are the gate. Existing repos copy the `permissions.ask` block into
+  `.claude/settings.json`.
+- `agents-core:git-discipline`, the autonomy ladder and the seed `AGENTS.md` describe the new rule.
+
 ## 1.6.0 — 2026-09-18
 
 Size is measured at every review point. A five-round fix loop on a downstream task had turned a

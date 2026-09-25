@@ -70,15 +70,29 @@ Task progress files are part of the work. When implementing a tracked task, upda
 
 ## Push discipline
 
-Pushing is a human action. The `block-dangerous-git` hook refuses `git push` in any form, `reset --hard`,
-`clean -f*`, `branch -D`, `checkout .` / `restore .`, forced `git add`, and staging `.creds/` or
-`.venv/` paths at every autonomy level, including L2 and L3. No autonomy level, task instruction, or
-user phrasing bypasses the hook; if a push is genuinely needed, the user runs it or explicitly confirms
-the exact command at the time of action.
+An agent may push a feature branch and open a PR (`gh pr create`) when the user asks or the effective
+autonomy level allows it. The `block-dangerous-git` hook enforces the rest at every autonomy level:
+
+- Force push (`-f`, `--force*`, `+refspec`) is always refused.
+- A push that reaches a protected branch is refused. Protected by default: `main`, `master`,
+  `develop`; a repo overrides the list with `git config agents.protectedBranches "main release/*"`.
+  A push whose target the hook cannot resolve (bare `git push` after `cd`, `--all`, `--mirror`,
+  `push.default=matching`) is refused the same way; name the remote and branch instead.
+- The hook also refuses `reset --hard`, `clean -f*`, `branch -D`, `checkout .` / `restore .`, forced
+  `git add`, and staging `.creds/` or `.venv/` paths.
+
+A push to a protected branch needs two confirmations from the user:
+
+1. Ask in chat, naming the branch and the commits. Continue only on an explicit yes for that push.
+2. Run `git -c agents.allowProtectedPush=<branch> push <remote> <branch>`. The hook accepts the
+   marker only for that branch, and the seed `settings.json` `ask` rule on the marker makes the harness
+   prompt the user again, even in auto mode.
+
+Never add the marker without step 1. `gh pr merge` also lands on a protected branch: ask in chat
+first; the seed `ask` rule prompts again. A refusal is a guardrail: ask, do not route around it.
 
 If asked to prepare a push-ready commit, make sure the local commit message already follows the format
-above. Autonomy L2/L3 governs when an agent may propose pushing or repair CI on an approved branch, not
-whether the hook allows the command to execute — the hook's refusal is not something to work around.
+above.
 
 ## Squashing
 
@@ -99,6 +113,6 @@ task, and user autonomy signals conflict.
 
 - Branch/work-mode decisions are recorded before edits, not assumed.
 - Commits are conventional, sliced, and carry a What changed / Why / Checks body.
-- No push, force-op, or history rewrite is attempted; the hook and this skill agree pushing is a human
-  action.
+- No force-op or history rewrite is attempted, and no push reaches a protected branch without both
+  user confirmations.
 - Squashes go through `agents-core:squash-workspace-commits`; ad hoc history rewrites do not.

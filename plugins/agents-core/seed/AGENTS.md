@@ -39,8 +39,11 @@ you can describe in one sentence skips Frame and Critique — never Test.
   destructive or remote operations without an explicit ask. Full ladder: `agents-core:git-discipline`.
 - Work on the current or default branch unless the task, this file, or `.config/repos.project.md` says
   otherwise. Do not open a branch merely because commits will happen.
-- Plugin hooks block `git push`, `git reset --hard`, `git clean -f`, `git branch -D`, forced staging,
-  writes into `.creds/` and other secret paths, and dangerous shell. A block is a guardrail: ask, do not
+- Push feature branches and open PRs when asked. A push to `main`, `master` or `develop` needs an
+  explicit yes in chat, then `git -c agents.allowProtectedPush=<branch> push …`, which prompts again.
+- Plugin hooks block force push, unconfirmed pushes to protected branches, `git reset --hard`,
+  `git clean -f`, `git branch -D`, forced staging, writes into `.creds/` and other secret paths, and
+  dangerous shell. A block is a guardrail: ask, do not
   route around it. Task-file conventions are reminders only; `at ledger check` is the gate. A role
   subagent that finishes without its `## Status:` block is sent back once to add it.
 - Commit after each coherent, reviewable slice — one task phase, one fix, one docs batch. Stage only
