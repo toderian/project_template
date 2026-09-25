@@ -87,7 +87,7 @@ rm -f dirty.txt
 DRY_OUT="$(env -u AT_REQUIRE_CODEX_LIVE bash scripts/release.sh "$NEW_VERSION" --dry-run 2>&1)"; DRY_RC=$?
 assert_eq "$DRY_RC" "0" "release --dry-run exits 0: $DRY_OUT"
 if grep -q "would: set version to $NEW_VERSION" <<<"$DRY_OUT"; then pass; else fail "dry run names the version bump"; fi
-if grep -q "AT_REQUIRE_CODEX_LIVE=1 AT_EXPECT_CODEX_VERSION=0.154.0 bash scripts/tests/run-all.sh" <<<"$DRY_OUT"; then
+if grep -q "AT_REQUIRE_CODEX_LIVE=1 AT_EXPECT_CODEX_VERSION=0.155.1 bash scripts/tests/run-all.sh" <<<"$DRY_OUT"; then
   pass
 else
   fail "release requires the pinned current Codex gate by default"

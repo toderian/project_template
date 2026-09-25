@@ -19,6 +19,7 @@ from the user.
   confirmation are the gate. Existing repos copy the `permissions.ask` block into
   `.claude/settings.json`.
 - `agents-core:git-discipline`, the autonomy ladder and the seed `AGENTS.md` describe the new rule.
+- CI and releases validate against current Codex `0.155.1` (minimum stays `0.147.0`).
 
 ## 1.6.0 — 2026-09-18
 
