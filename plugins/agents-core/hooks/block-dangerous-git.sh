@@ -14,20 +14,54 @@ FORCE_ADD_PATTERN='(^|[[:space:]])(--force|-[^[:space:]]*f[^[:space:]]*)([[:spac
 BROAD_ADD_PATTERN='(^|[[:space:]])(--[[:space:]]+)?(-A|--all|\.|\.\/|:\/)([[:space:]]|$)'
 LOCAL_ONLY_STAGED_PATTERN='(^|/)(\.creds|\.venv)(/|$)'
 
-if echo "$COMMAND" | grep -qE "${GIT_COMMAND_PREFIX}add([[:space:]]|$)"; then
-  if echo "$COMMAND" | grep -qE "$CREDS_PATH_PATTERN"; then
+# The add guards look only at the `git add` segments of the command, so a flag
+# or path that appears elsewhere (a later `git commit -m "drop the -f flag"`, a
+# heredoc commit message, a `grep` for the text) cannot trip them.
+#
+# Heredoc bodies are dropped first: they are data, most often a commit message.
+NO_HEREDOC=$(printf '%s\n' "$COMMAND" | awk '
+  tag != "" { line = $0; if (dash) sub(/^\t+/, "", line); if (line == tag) tag = ""; next }
+  {
+    print
+    line = $0
+    gsub(/<<</, "", line)
+    if (match(line, "<<-?[ \t]*[\"\047\\\\]?[A-Za-z_][A-Za-z0-9_]*")) {
+      word = substr(line, RSTART, RLENGTH)
+      dash = (word ~ /^<<-/)
+      sub("^<<-?[ \t]*[\"\047\\\\]?", "", word)
+      tag = word
+    }
+  }')
+
+# add_segments <text>: the `; & |`-separated pieces of <text> that run `git add`.
+add_segments() {
+  printf '%s\n' "$1" | tr ';&|' '\n' | grep -E "${GIT_COMMAND_PREFIX}add([[:space:]]|$)"
+}
+
+# Paths: quote characters are dropped, not quoted spans, so `git add ".creds/x"`
+# still blocks.
+ADD_PATH_SEGMENTS=$(add_segments "$(printf '%s' "$NO_HEREDOC" | tr -d "\"'")")
+# Flags: quoted spans are removed, across lines, so a multi-line `-m "..."`
+# message is not read as arguments. Newlines ride through sed as \001.
+ADD_FLAG_SEGMENTS=$(add_segments "$(printf '%s' "$NO_HEREDOC" | tr '\n' '\001' \
+  | sed -e 's/"[^"]*"//g' -e "s/'[^']*'//g" | tr '\001' '\n')")
+
+if [ -n "$ADD_PATH_SEGMENTS" ]; then
+  if echo "$ADD_PATH_SEGMENTS" | grep -qE "$CREDS_PATH_PATTERN"; then
     echo "BLOCKED: refused to stage .creds/ paths. Credentials must remain uncommitted." >&2
     exit 2
   fi
-  if echo "$COMMAND" | grep -qE "$VENV_PATH_PATTERN"; then
+  if echo "$ADD_PATH_SEGMENTS" | grep -qE "$VENV_PATH_PATTERN"; then
     echo "BLOCKED: refused to stage .venv/ paths. Virtual environments must remain uncommitted." >&2
     exit 2
   fi
-  if echo "$COMMAND" | grep -qE "$FORCE_ADD_PATTERN"; then
+fi
+if [ -n "$ADD_FLAG_SEGMENTS" ]; then
+  if echo "$ADD_FLAG_SEGMENTS" | grep -qE "$FORCE_ADD_PATTERN"; then
     echo "BLOCKED: refused to run forced git add. Forced staging can bypass .gitignore and commit local-only files." >&2
     exit 2
   fi
-  if echo "$COMMAND" | grep -qE "$BROAD_ADD_PATTERN" && git ls-files | grep -qE "$LOCAL_ONLY_STAGED_PATTERN"; then
+  if echo "$ADD_FLAG_SEGMENTS" | grep -qE "$BROAD_ADD_PATTERN" && git ls-files | grep -qE "$LOCAL_ONLY_STAGED_PATTERN"; then
     echo "BLOCKED: refused broad git add while local-only .creds/ or .venv/ paths are tracked. Remove tracked local-only paths first." >&2
     exit 2
   fi
@@ -49,9 +83,11 @@ DANGEROUS_PATTERNS=(
 # quotes (e.g. a commit message like "Reminder to git push before EOD") can't
 # false-positive. Tradeoff: a dangerous command hidden inside quotes (e.g.
 # passed to `bash -c "..."`) is not caught — acceptable for an accident
-# guardrail; this hook is not a security boundary. Only this matching uses the
-# stripped text; the add/commit guards above/below inspect the full command.
-STRIPPED_COMMAND=$(printf '%s' "$COMMAND" | sed -e 's/"[^"]*"//g' -e "s/'[^']*'//g")
+# guardrail; this hook is not a security boundary. Heredoc bodies are already
+# gone (NO_HEREDOC), for the same reason. The add guards above make the same
+# tradeoff per `git add` segment; the commit guard below inspects the index,
+# not the command text.
+STRIPPED_COMMAND=$(printf '%s' "$NO_HEREDOC" | sed -e 's/"[^"]*"//g' -e "s/'[^']*'//g")
 
 # Push guard. A push to a feature branch is allowed. A force push is always
 # refused. A push that reaches a protected branch (default main, master,
@@ -161,7 +197,7 @@ if echo "$STRIPPED_COMMAND" | grep -qE "${GIT_COMMAND_PREFIX}push([[:space:]]|$)
   while IFS= read -r segment; do
     echo "$segment" | grep -qE "${GIT_COMMAND_PREFIX}push([[:space:]]|$)" || continue
     check_push_segment "$segment"
-  done < <(printf '%s\n' "$COMMAND" | tr -d "\"'" | tr ';&|' '\n')
+  done < <(printf '%s\n' "$NO_HEREDOC" | tr -d "\"'" | tr ';&|' '\n')
 fi
 
 for pattern in "${DANGEROUS_PATTERNS[@]}"; do

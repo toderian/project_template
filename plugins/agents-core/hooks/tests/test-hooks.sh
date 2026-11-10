@@ -151,6 +151,37 @@ run_case "git: add .creds/ path still blocks" "${GIT_HOOK}" \
   "$(git_payload 'git add .creds/token')" 2
 run_case "git: forced add still blocks" "${GIT_HOOK}" \
   "$(git_payload 'git add --force .venv/lib')" 2
+run_case "git: add -f blocks" "${GIT_HOOK}" \
+  "$(git_payload 'git add -f build/out.bin')" 2
+run_case "git: combined short flags with f block" "${GIT_HOOK}" \
+  "$(git_payload 'git add -Af')" 2
+run_case "git: forced add in a later segment blocks" "${GIT_HOOK}" \
+  "$(git_payload 'git add a.md && git add -f b.md')" 2
+run_case "git: quoted .creds/ path still blocks" "${GIT_HOOK}" \
+  "$(git_payload 'git add ".creds/token"')" 2
+
+# The add guards read only the `git add` segments: a flag or path mentioned in
+# a commit message, a heredoc body or another command's arguments is not staged.
+run_case "git: -f in a later commit message allows" "${GIT_HOOK}" \
+  "$(git_payload 'git add ver.py && git commit -q -m "fix: drop the -f flag from deploy"')" 0
+run_case "git: -f in a multi-line commit message allows" "${GIT_HOOK}" \
+  "$(git_payload $'git add ver.py && git commit -q -m "fix: deploy\n\n- rm -f the stale lock\n- pass --force to rsync"')" 0
+run_case "git: rm -f in a heredoc commit message allows" "${GIT_HOOK}" \
+  "$(git_payload $'git add a.ts && git commit -q -F - <<\'EOF\'\nfeat: x\n\nWhat changed:\n- rm -f old file\nEOF')" 0
+run_case "git: heredoc message quoting a forced add allows" "${GIT_HOOK}" \
+  "$(git_payload $'git add a.md && git commit -q -F - <<\'EOF\'\ndocs: note that git add -f is blocked\nEOF')" 0
+run_case "git: heredoc message quoting a force push allows" "${GIT_HOOK}" \
+  "$(git_payload $'git add a.md && git commit -q -F - <<\'EOF\'\ndocs: note that git push --force is blocked\nEOF')" 0
+run_case "git: .creds/ in a later commit message allows" "${GIT_HOOK}" \
+  "$(git_payload 'git add a.md && git commit -m "docs: never stage .creds/ files"')" 0
+run_case "git: grep for the forced-add text allows" "${GIT_HOOK}" \
+  "$(git_payload 'grep -n "git add --force" notes.md')" 0
+run_case "git: echo of the forced-add text allows" "${GIT_HOOK}" \
+  "$(git_payload 'echo "never use git add -f"')" 0
+run_case "git: forced add after a heredoc still blocks" "${GIT_HOOK}" \
+  "$(git_payload $'cat > n.md <<EOF\nnote\nEOF\ngit add -f n.md')" 2
+run_case "git: force push after a heredoc still blocks" "${GIT_HOOK}" \
+  "$(git_payload $'cat > n.md <<EOF\nnote\nEOF\ngit push --force origin feat/x')" 2
 
 # Confirmed false positives: must now be allowed.
 run_case "git: checkout .gitignore no longer blocks" "${GIT_HOOK}" \
