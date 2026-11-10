@@ -499,6 +499,41 @@ def cmd_init(args: argparse.Namespace) -> int:
 # at doctor
 # --------------------------------------------------------------------------- #
 
+# A ledger warning repeated for at least this many tasks prints as one doctor line.
+LEDGER_GROUP_MIN = 4
+
+
+def _group_ledger_warnings(warnings: list[str]) -> list[str]:
+    """Collapse warnings that differ only in the task they name.
+
+    `at ledger check` prints one line per task; a repo with a hundred oversized
+    tasks would bury every other finding. Lines are keyed by their text with
+    quoted names, task ids and task-file paths masked; a key seen
+    LEDGER_GROUP_MIN times or more becomes one line with a count and three
+    examples, placed where its first member was. Everything else is unchanged.
+    """
+    def key_of(line: str) -> str:
+        key = re.sub(r"'[^']*'", "'…'", line)
+        key = re.sub(r"docs/tasks_manager/\S+", "<file>", key)
+        return re.sub(r"\b[A-Z][A-Z0-9]*-[0-9]{3,}\b", "<ID>", key)
+
+    groups: dict[str, list[str]] = {}
+    for line in warnings:
+        groups.setdefault(key_of(line), []).append(line)
+    out, done = [], set()
+    for line in warnings:
+        key = key_of(line)
+        members = groups[key]
+        if len(members) < LEDGER_GROUP_MIN:
+            out.append(line)
+        elif key not in done:
+            done.add(key)
+            names = [m.group(1) for m in (re.search(r"'([^']*)'", member) for member in members) if m]
+            examples = f" (e.g. {', '.join(names[:3])})" if names else ""
+            out.append(f"{len(members)} × {key}{examples}")
+    return out
+
+
 def _ledger_findings(repo: Path, findings: list) -> None:
     script = None
     found = find_tasks_root()
@@ -512,8 +547,8 @@ def _ledger_findings(repo: Path, findings: list) -> None:
                           capture_output=True, text=True, check=False)
     messages = [line for line in (proc.stderr + proc.stdout).splitlines() if line.strip()]
     warnings = [line for line in messages if line.startswith("WARNING:")]
-    for line in warnings:
-        findings.append(("WARN", f"ledger: {line[len('WARNING:'):].strip()}"))
+    for text in _group_ledger_warnings([line[len("WARNING:"):].strip() for line in warnings]):
+        findings.append(("WARN", f"ledger: {text}"))
     if proc.returncode != 0:
         problems = [line for line in messages if not line.startswith("WARNING:")]
         for line in problems:

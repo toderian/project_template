@@ -332,6 +332,27 @@ fi
 if printf '%s\n' "$DOCTOR_LEDGER" | grep -qE '^ERROR +ledger: '; then pass; else fail "ledger errors are ERROR"; fi
 rm docs/tasks_manager/_todos/TST-002-C_oversized-execution-log.md
 
+# doctor collapses a ledger warning repeated across many tasks into one line
+GROUPED="$(python3 - "$AT_PY" <<'GROUPING'
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("at", sys.argv[1])
+at = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(at)
+lines = [f"task 'AB-00{n}-F_x.md' exceeds 400 lines" for n in range(1, 6)]
+lines.insert(2, "archived task 'AB-009' in docs/tasks_manager/_todos_archived/AB-009-F_y.md is missing a Completion harvest section")
+lines += [f"task 'AB-01{n}-F_z.md' execution log exceeds 200 lines (run: at ledger rotate-log AB-01{n}, or --all)" for n in range(3)]
+print("\n".join(at._group_ledger_warnings(lines)))
+GROUPING
+)"
+assert_eq "$(printf '%s\n' "$GROUPED" | wc -l | tr -d ' ')" "5" "doctor groups five same-kind ledger warnings into one line: $GROUPED"
+assert_eq "$(printf '%s\n' "$GROUPED" | sed -n 1p)" \
+  "5 × task '…' exceeds 400 lines (e.g. AB-001-F_x.md, AB-002-F_x.md, AB-003-F_x.md)" \
+  "the grouped line carries the count and three examples"
+assert_stdout_contains "$GROUPED" "archived task 'AB-009' in docs/tasks_manager/_todos_archived/AB-009-F_y.md" \
+  "a one-off ledger warning prints unchanged"
+assert_stdout_contains "$GROUPED" "task 'AB-012-F_z.md' execution log exceeds 200 lines (run: at ledger rotate-log AB-012, or --all)" \
+  "a kind seen fewer than four times is not grouped"
+
 # --- task wrappers (brief + run-state) ---------------------------------------
 cp "$REPO/scripts/tests/fixtures/task-brief/docs/tasks_manager/_todos/TST-003-F_brief-source.md" docs/tasks_manager/_todos/
 at task brief TST-003 --phase 2 >/dev/null 2>&1
