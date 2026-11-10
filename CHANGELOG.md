@@ -62,6 +62,12 @@ read-only second opinion from the other agent CLI.
 - `block-dangerous-git` hook: a bare `git push` after `cd <literal path>` or `pushd <literal path>`
   is resolved against that checkout instead of refused; a directory change the hook cannot follow is
   still refused. The protected-branch list comes from the repository being pushed.
+- Seed `AGENTS.md`: Frame now has the agent state its assumptions, present competing readings of a
+  request and name a simpler way before building; the surgical-diff principle adds "match the
+  existing style" and "report unrelated problems, do not fix them unasked"; "Simplicity first" bars
+  unrequested features, options, abstractions and error handling. Ideas taken from
+  `multica-ai/andrej-karpathy-skills`; an existing repo adopts them through
+  `agents-core:setup-project`.
 
 ## 1.7.0 — 2026-09-25
 

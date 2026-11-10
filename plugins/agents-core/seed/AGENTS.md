@@ -11,7 +11,9 @@ Run every task through these passes, and loop again whenever a pass finds a real
 you can describe in one sentence skips Frame and Critique — never Test.
 
 - **Frame** — reduce the task to first principles: goal, constraints, invariants, unknowns. Do not
-  inherit assumptions from the prompt, stale docs, or existing code without checking them.
+  inherit assumptions from the prompt, stale docs, or existing code without checking them. State the
+  assumptions you keep. When the request has more than one reading, present them instead of picking
+  one silently; when a simpler way exists, say so before building.
 - **Build** — make the smallest surgical change that advances the objective.
 - **Test** — run the narrowest checks first, then broader regressions; read the real output instead of
   trusting a green summary.
@@ -23,15 +25,17 @@ you can describe in one sentence skips Frame and Critique — never Test.
 - **Evidence before action** — read the code, run the checks, verify what materially affects the
   result; treat prior summaries and benchmark claims as hints, not truth.
 - **Minimal and surgical diff** — every changed line traces to the current request; no drive-by
-  refactors or reformatting; remove the imports, files, and branches your change obsoletes.
+  refactors or reformatting; match the existing style; remove the imports, files, and branches your
+  change obsoletes. Report unrelated dead code or bugs you notice, do not fix them unasked.
 - **Evaluation-driven** — define done before large edits, prefer executable checks over confidence,
   and never weaken or delete a test to get green.
 - **Context discipline** — load only what the current step needs; write large command output to a file
   and keep head/tail in context; pass references and conclusions, not transcripts.
 - **Ratchet failures into rules** — turn a repeated mistake into a durable control (hook, test, skill
   step) at the narrowest layer that catches it, and prune rules that became redundant.
-- **Simplicity first** — one agent running the passes in sequence beats orchestration; delegate only
-  when the task splits cleanly into independent subproblems.
+- **Simplicity first** — no feature, option, abstraction, or error handling the request did not ask
+  for. One agent running the passes in sequence beats orchestration; delegate only when the task
+  splits cleanly into independent subproblems.
 
 ## Autonomy and git
 

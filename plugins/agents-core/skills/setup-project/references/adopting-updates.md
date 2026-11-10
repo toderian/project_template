@@ -109,6 +109,11 @@ Check each; fix only what is actually present.
   React + Tailwind repo with `components.json`. Both need Node's `npx`. Commit the `.mcp.json` and
   `.claude/settings.json` changes; `at doctor` then tells each Codex user to run the same command
   once for their checkout.
+- **Seed wording (1.8.0).** `AGENTS.md` is the repo's own file, so new seed lines never arrive by
+  themselves. Compare its "Operating loop" and "Principles" with the plugin seed and offer the three
+  additions: Frame states assumptions and presents competing readings; the surgical-diff principle
+  matches existing style and reports unrelated problems instead of fixing them; "Simplicity first"
+  bars unrequested features, options, abstractions and error handling.
 
 ## 4. The ledger is consistent
 
