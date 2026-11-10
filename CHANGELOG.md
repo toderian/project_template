@@ -73,7 +73,8 @@ read-only second opinion from the other agent CLI.
   `scripts/release.sh` moves from 0.155.1 to 0.167.0 (0.147.0 stays the minimum);
   `scripts/tests/run-all.sh` runs the two-minute half of the release test only when a release file
   differs from `HEAD`, and `release.sh` always runs it; `scripts/check-addon-pins.sh` compares the
-  add-on pins with npm and `release.sh` prints its result without blocking. The two executed plans
+  add-on pins with npm and `release.sh` prints its result without blocking. The `at migrate` code
+  moved from `lib/at.py` into `lib/migrate.py`, with no change in behaviour. The two executed plans
   under `docs/plans/` are removed; they stay in git history.
 
 ## 1.7.0 — 2026-09-25

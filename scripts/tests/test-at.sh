@@ -1114,9 +1114,9 @@ assert_stdout_contains "$BOOT_CMDS" "bootstrap-companions-ok" \
 # synthetic staged list — this legitimately drives its die-branch logic
 # (a genuinely leaked path) alongside the exclusion that stops it from
 # false-positiving on migrate's own managed paths (see IMPORTANT 3 below).
-LEAK_CHECK="$(python3 - "$AT_PY" <<'PY'
+LEAK_CHECK="$(python3 - "$(dirname "$AT_PY")/migrate.py" <<'PY'
 import importlib.util, sys
-spec = importlib.util.spec_from_file_location("at", sys.argv[1])
+spec = importlib.util.spec_from_file_location("migrate", sys.argv[1])
 at = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(at)
 
