@@ -7,6 +7,9 @@ Written as **desired state**, not as a per-release changelog: every item below i
 check and fix, so it is safe to run from any starting version and safe to re-run. Nothing here needs
 to know which version the repo adopted last.
 
+A session that starts in a repo behind the seed says so in one line (the `agents-core`
+session-start hook runs `at doctor --drift`); `at doctor` has the detail.
+
 Work through it in order. Anything ambiguous is a **stop**: ask the user rather than guessing, because
 these files are downstream-owned.
 

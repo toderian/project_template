@@ -12,6 +12,10 @@
       { "matcher": "Write|Edit|MultiEdit|apply_patch", "hooks": [
         { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/remind-archive-done-todo.sh" } ] }
     ],
+    "SessionStart": [
+      { "matcher": "startup", "hooks": [
+        { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/session-drift.sh" } ] }
+    ],
     "SubagentStop": [
       { "matcher": "implementer|reviewer|security-auditor|spec-validator|plan-critic|researcher", "hooks": [
         { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/require-subagent-status.sh" } ] }

@@ -827,7 +827,65 @@ def _print_doctor_findings(findings: list[tuple[str, str]]) -> int:
     return 1 if errors else 0
 
 
+def drift_items(repo: Path) -> list[str]:
+    """What a seeded repo lacks compared with the installed plugin seed, as short phrases.
+
+    The fast subset of `at doctor` behind `--drift`: no ledger check and no
+    runtime check, so a session-start hook can afford it. Empty for a repo that
+    is current, and for one that was never seeded (no routing table to compare).
+    """
+    agents_md = repo / "AGENTS.md"
+    if not agents_md.is_file():
+        return []
+    text = agents_md.read_text()
+    status, missing = seed_drift(text)
+    if status in ("none", "unknown"):
+        return []
+    items = []
+    if status == "behind":
+        items.append(f"{len(missing)} routing row(s)")
+    removed = [sid for sid in REMOVED_SKILL_IDS if f"`{sid}`" in text or f"/{sid}" in text or f"${sid}" in text]
+    if removed:
+        items.append(f"{len(removed)} removed skill id(s)")
+    legacy = [name + "/" for name in ("_base", "playbooks") if (repo / name).is_dir()]
+    if legacy:
+        items.append(f"legacy {', '.join(legacy)}")
+    try:
+        seed_settings = json.loads((core_root() / "seed" / "settings.json").read_text())
+        settings = json.loads((repo / ".claude" / "settings.json").read_text() or "{}")
+    except (OSError, ValueError):
+        return items
+    if not isinstance(settings, dict):
+        return items
+    enabled = settings.get("enabledPlugins") or {}
+    plugins = [key for key in sorted(seed_settings.get("enabledPlugins") or {}) if enabled.get(key) is not True]
+    if plugins:
+        items.append(f"{len(plugins)} seed plugin(s) not enabled")
+    rules = missing_permission_rules(settings, seed_settings)
+    if rules:
+        items.append(f"{len(rules)} permission rule(s)")
+    return items
+
+
+def cmd_doctor_drift() -> int:
+    """`at doctor --drift`: one line when the repo is behind the seed, nothing otherwise. Always 0."""
+    try:
+        out = subprocess.run(["git", "rev-parse", "--show-toplevel"],
+                             capture_output=True, text=True, check=False)
+        if out.returncode != 0 or not out.stdout.strip():
+            return 0
+        items = drift_items(Path(out.stdout.strip()).resolve())
+    except (OSError, ValueError):
+        return 0
+    if items:
+        print(f"agents-template: this repo is behind the plugin seed ({'; '.join(items)}). "
+              "Run `at doctor` for the detail and the agents-core:setup-project skill to adopt it.")
+    return 0
+
+
 def cmd_doctor(args: argparse.Namespace) -> int:
+    if getattr(args, "drift", False):
+        return cmd_doctor_drift()
     repo = repo_root()
     findings = _repo_doctor_findings(repo)
     strict_harnesses = []
@@ -2137,6 +2195,9 @@ def build_parser() -> argparse.ArgumentParser:
                                 help="also require Codex runtime readiness")
     doctor_harness.add_argument("--all", dest="all_harnesses", action="store_true",
                                 help="require both Claude and Codex runtime readiness")
+    p_doctor.add_argument("--drift", action="store_true",
+                          help="print one line if the repo is behind the plugin seed, else nothing; "
+                               "always exits 0 (used by the session-start hook)")
     p_doctor.set_defaults(func=cmd_doctor)
 
     p_boot = sub.add_parser("bootstrap", help="install the plugins for this machine")

@@ -39,6 +39,17 @@
         ]
       }
     ],
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${PLUGIN_ROOT}\"/hooks/session-drift.sh"
+          }
+        ]
+      }
+    ],
     "SubagentStop": [
       {
         "matcher": "implementer|reviewer|security-auditor|spec-validator|plan-critic|researcher",

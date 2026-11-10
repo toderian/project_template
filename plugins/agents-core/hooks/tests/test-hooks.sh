@@ -407,6 +407,57 @@ run_case "status: jq missing fails closed" "${STATUS_HOOK}" \
   "$(stop_payload implementer '## Status: DONE')" 2 "${NONEXISTENT_PATH}"
 
 # ---------------------------------------------------------------------------
+# session-drift.sh
+# ---------------------------------------------------------------------------
+DRIFT_HOOK="${HOOKS_DIR}/session-drift.sh"
+SEED_DIR="${HOOKS_DIR}/../seed"
+
+# drift_case <label> <cwd> <expected line count> [needle] [path_override]
+# The hook must exit 0 always; its stdout is what reaches the model.
+drift_case() {
+  local label="$1" cwd="$2" expected="$3" needle="${4:-}" path_override="${5:-}"
+  local payload output rc lines
+  payload=$(jq -n --arg cwd "${cwd}" '{hook_event_name: "SessionStart", source: "startup", cwd: $cwd}')
+  if [ -n "${path_override}" ]; then
+    output=$(printf '%s' "${payload}" | PATH="${path_override}" "${BASH_BIN}" "${DRIFT_HOOK}")
+  else
+    output=$(printf '%s' "${payload}" | "${BASH_BIN}" "${DRIFT_HOOK}")
+  fi
+  rc=$?
+  lines=$(printf '%s' "${output}" | grep -c .)
+  if [ "${rc}" -eq 0 ] && [ "${lines}" -eq "${expected}" ] && { [ -z "${needle}" ] || printf '%s' "${output}" | grep -qF -- "${needle}"; }; then
+    echo "PASS: ${label}"
+    PASS_COUNT=$((PASS_COUNT + 1))
+  else
+    echo "FAIL: ${label} (rc ${rc}, ${lines} line(s), wanted ${expected} with '${needle}'); output: ${output}"
+    FAIL_COUNT=$((FAIL_COUNT + 1))
+  fi
+}
+
+DRIFT_REPO="${WORKDIR}/drift-repo"
+mkdir -p "${DRIFT_REPO}/.claude"
+git -C "${DRIFT_REPO}" init -q
+cp "${SEED_DIR}/AGENTS.md" "${DRIFT_REPO}/AGENTS.md"
+cp "${SEED_DIR}/settings.json" "${DRIFT_REPO}/.claude/settings.json"
+drift_case "drift: a repo that matches the seed is silent" "${DRIFT_REPO}" 0
+
+grep -v "agents-core:handoff" "${SEED_DIR}/AGENTS.md" > "${DRIFT_REPO}/AGENTS.md"
+drift_case "drift: one missing routing row prints one line" "${DRIFT_REPO}" 1 "1 routing row(s)"
+
+jq 'del(.permissions.ask)' "${SEED_DIR}/settings.json" > "${DRIFT_REPO}/.claude/settings.json"
+drift_case "drift: missing ask rules join the same line" "${DRIFT_REPO}" 1 "2 permission rule(s)"
+drift_case "drift: an empty PATH (no jq, no python3) stays silent and exits 0" "${DRIFT_REPO}" 0 "" "${NONEXISTENT_PATH}"
+
+UNSEEDED_REPO="${WORKDIR}/unseeded-repo"
+mkdir -p "${UNSEEDED_REPO}"
+git -C "${UNSEEDED_REPO}" init -q
+printf '# AGENTS.md\n\nNo routing table here.\n' > "${UNSEEDED_REPO}/AGENTS.md"
+drift_case "drift: a repo that was never seeded is silent" "${UNSEEDED_REPO}" 0
+mkdir -p "${WORKDIR}/not-a-repo"
+drift_case "drift: outside a git repository is silent" "${WORKDIR}/not-a-repo" 0
+drift_case "drift: a cwd that does not exist is silent" "${WORKDIR}/missing-dir" 0
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo
