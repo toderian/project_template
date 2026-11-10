@@ -37,7 +37,8 @@ implementer and reviewer contracts), refresh them from the installed plugin —
 `caveman@caveman` companion) was added; Claude Code installs it at the next session start, and
 `at doctor` lists each plugin the seed enables so a repo that is still missing one shows a `WARN`.
 The same merge unions the seed's `permissions.deny` and `permissions.ask` rules into the repo's
-lists and keeps every rule the repo added; `at doctor` names any seed rule still missing.
+lists and keeps every rule the repo added; `at doctor` names any seed rule still missing. It also
+drops the retired rules: the no-op `Write(./.creds/**)` and, since 1.8.1, `Read(./.creds/**)`.
 A `created` row for `.caveman.json` is expected once: it is the local, git-ignored caveman switch,
 seeded with `defaultMode: null` (inherits the user-level caveman config, `full` by default). Set it
 to `"off"` or `"lite"` for work where output wording is the product, such as dataset generation;

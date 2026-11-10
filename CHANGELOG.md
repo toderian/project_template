@@ -2,6 +2,17 @@
 
 Notable changes to agents-template. All four plugins share the version of the repository.
 
+## 1.8.1 — unreleased
+
+### Changed
+
+- The seed `.claude/settings.json` no longer denies `Read(./.creds/**)`, and `at init` removes that
+  rule from a repo seeded earlier. A deny rule cannot be overridden, so it blocked every session
+  from reading a credential the task needs, which the seed `AGENTS.md` permits ("read one only when
+  the task needs it, never echo or commit a value"). `Edit(./.creds/**)` stays denied, and the hooks
+  still refuse to write, stage or commit anything under `.creds/`. A repo that wants reads blocked
+  puts the rule in `.claude/settings.local.json`, which `at init` never touches.
+
 ## 1.8.0 — 2026-11-10
 
 Seven fixes taken from how the downstream repos actually use the template: a survey of their

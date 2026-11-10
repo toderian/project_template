@@ -19,7 +19,6 @@
   },
   "permissions": {
     "deny": [
-      "Read(./.creds/**)",
       "Edit(./.creds/**)",
       "Bash(git push --force*)",
       "Bash(git push -f*)"

@@ -336,6 +336,10 @@ RETIRED_DENY_RULES = frozenset({
     # `Edit(./.creds/**)` already covers the intent; drop this if an
     # already-seeded repo still carries it.
     "Write(./.creds/**)",
+    # Seeded until 1.8.0. A deny rule cannot be overridden by an allow rule, so it stopped every
+    # session from reading a credential the task needs, which the seed AGENTS.md permits. Writes
+    # stay denied, and the hooks still refuse to stage or commit anything under `.creds/`.
+    "Read(./.creds/**)",
 })
 
 

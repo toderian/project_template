@@ -112,7 +112,8 @@ assert_eq "$SETTINGS_TASKS" "True" "settings.json enables agents-tasks with --wi
 SETTINGS_CAVEMAN="$(python3 -c 'import json;d=json.load(open(".claude/settings.json"));print(d["enabledPlugins"].get("caveman@caveman"), d["extraKnownMarketplaces"]["caveman"]["source"]["repo"])')"
 assert_eq "$SETTINGS_CAVEMAN" "True JuliusBrussee/caveman" "settings.json enables the caveman companion from its own marketplace"
 SETTINGS_DENY="$(python3 -c 'import json;print("\n".join(json.load(open(".claude/settings.json"))["permissions"]["deny"]))')"
-assert_stdout_contains "$SETTINGS_DENY" "Read(./.creds/**)" "settings.json denies reads of the local credential dir"
+assert_stdout_contains "$SETTINGS_DENY" "Edit(./.creds/**)" "settings.json denies writes into the local credential dir"
+assert_stdout_lacks "$SETTINGS_DENY" "Read(./.creds/**)" "settings.json leaves the local credential dir readable"
 SETTINGS_ASK="$(python3 -c 'import json;print("\n".join(json.load(open(".claude/settings.json"))["permissions"]["ask"]))')"
 assert_stdout_contains "$SETTINGS_ASK" "agents.allowProtectedPush" "settings.json asks before a confirmed protected push"
 assert_stdout_contains "$SETTINGS_ASK" "gh pr merge" "settings.json asks before a PR merge"
@@ -152,15 +153,15 @@ at init --all >/dev/null 2>&1
 STATUSLINE_CMD="$(python3 -c 'import json;print(json.load(open(".claude/settings.json"))["statusLine"]["command"])')"
 assert_eq "$STATUSLINE_CMD" "echo custom" "at init never replaces a custom statusLine"
 
-# a retired no-op deny rule from an already-seeded repo self-heals on re-init
+# retired deny rules from an already-seeded repo are dropped on re-init
 python3 -c 'import json,pathlib
 p = pathlib.Path(".claude/settings.json")
 d = json.loads(p.read_text())
-d["permissions"]["deny"].append("Write(./.creds/**)")
+d["permissions"]["deny"] += ["Write(./.creds/**)", "Read(./.creds/**)"]
 p.write_text(json.dumps(d, indent=2) + "\n")'
 at init --all >/dev/null 2>&1
-RETIRED_GONE="$(python3 -c 'import json;d=json.load(open(".claude/settings.json"));print("Write(./.creds/**)" in d["permissions"]["deny"])')"
-assert_eq "$RETIRED_GONE" "False" "at init drops the retired Write(./.creds/**) deny rule"
+RETIRED_GONE="$(python3 -c 'import json;d=json.load(open(".claude/settings.json"))["permissions"]["deny"];print("Write(./.creds/**)" in d, "Read(./.creds/**)" in d, "Edit(./.creds/**)" in d)')"
+assert_eq "$RETIRED_GONE" "False False True" "at init drops the retired Write and Read .creds deny rules and keeps Edit"
 
 # --- at doctor --------------------------------------------------------------
 DOCTOR_OUT="$(at doctor 2>&1)"
@@ -197,7 +198,7 @@ import json, pathlib
 p = pathlib.Path(".claude/settings.json")
 d = json.loads(p.read_text())
 d["permissions"].pop("ask")
-d["permissions"]["deny"].remove("Read(./.creds/**)")
+d["permissions"]["deny"].remove("Edit(./.creds/**)")
 p.write_text(json.dumps(d, indent=2) + "\n")
 PY
 DOCTOR_NOASK="$(at doctor 2>&1)"
@@ -207,7 +208,7 @@ else
   fail "doctor warns about missing seed permission rules: $DOCTOR_NOASK"
 fi
 assert_stdout_contains "$DOCTOR_NOASK" "ask: Bash(gh pr merge*)" "doctor names the missing ask rule"
-assert_stdout_contains "$DOCTOR_NOASK" "deny: Read(./.creds/**)" "doctor names the missing deny rule"
+assert_stdout_contains "$DOCTOR_NOASK" "deny: Edit(./.creds/**)" "doctor names the missing deny rule"
 python3 - <<'PY'
 import json, pathlib
 p = pathlib.Path(".claude/settings.json")
