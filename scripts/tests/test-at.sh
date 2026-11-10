@@ -113,6 +113,9 @@ SETTINGS_CAVEMAN="$(python3 -c 'import json;d=json.load(open(".claude/settings.j
 assert_eq "$SETTINGS_CAVEMAN" "True JuliusBrussee/caveman" "settings.json enables the caveman companion from its own marketplace"
 SETTINGS_DENY="$(python3 -c 'import json;print("\n".join(json.load(open(".claude/settings.json"))["permissions"]["deny"]))')"
 assert_stdout_contains "$SETTINGS_DENY" "Read(./.creds/**)" "settings.json denies reads of the local credential dir"
+SETTINGS_ASK="$(python3 -c 'import json;print("\n".join(json.load(open(".claude/settings.json"))["permissions"]["ask"]))')"
+assert_stdout_contains "$SETTINGS_ASK" "agents.allowProtectedPush" "settings.json asks before a confirmed protected push"
+assert_stdout_contains "$SETTINGS_ASK" "gh pr merge" "settings.json asks before a PR merge"
 
 # --- idempotence ------------------------------------------------------------
 INIT_OUT2="$(at init --all 2>&1)"
@@ -185,6 +188,39 @@ else
 fi
 INIT_CAVE="$(at init --with-tasks 2>&1)"
 assert_stdout_contains "$INIT_CAVE" " merged  .claude/settings.json" "re-running at init merges the companion back in"
+
+# a settings.json seeded before the `ask` rules existed is reported, then repaired by `at init`
+assert_stdout_contains "$DOCTOR_OUT" ".claude/settings.json carries the seed permission rules" \
+  "at doctor confirms the seed permission rules on a fresh seed"
+python3 - <<'PY'
+import json, pathlib
+p = pathlib.Path(".claude/settings.json")
+d = json.loads(p.read_text())
+d["permissions"].pop("ask")
+d["permissions"]["deny"].remove("Read(./.creds/**)")
+p.write_text(json.dumps(d, indent=2) + "\n")
+PY
+DOCTOR_NOASK="$(at doctor 2>&1)"
+if printf '%s\n' "$DOCTOR_NOASK" | grep -qE '^WARN +\.claude/settings\.json is missing 3 seed permission rule'; then
+  pass
+else
+  fail "doctor warns about missing seed permission rules: $DOCTOR_NOASK"
+fi
+assert_stdout_contains "$DOCTOR_NOASK" "ask: Bash(gh pr merge*)" "doctor names the missing ask rule"
+assert_stdout_contains "$DOCTOR_NOASK" "deny: Read(./.creds/**)" "doctor names the missing deny rule"
+python3 - <<'PY'
+import json, pathlib
+p = pathlib.Path(".claude/settings.json")
+d = json.loads(p.read_text())
+d["permissions"]["ask"] = ["Bash(terraform apply*)"]
+p.write_text(json.dumps(d, indent=2) + "\n")
+PY
+at init --with-tasks >/dev/null 2>&1
+ASK_MERGED="$(python3 -c 'import json;print(json.load(open(".claude/settings.json"))["permissions"]["ask"])')"
+assert_eq "$ASK_MERGED" "['Bash(terraform apply*)', 'Bash(git *agents.allowProtectedPush*)', 'Bash(gh pr merge*)']" \
+  "at init unions the seed ask rules after the repo's own"
+assert_stdout_contains "$(at doctor 2>&1)" ".claude/settings.json carries the seed permission rules" \
+  "doctor is clean once at init merged the rules"
 
 # the warning counts slot markers, not every mention of the token
 MARKERS="$(grep -c '<!-- TODO-FILL' AGENTS.md)"

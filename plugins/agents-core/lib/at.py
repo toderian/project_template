@@ -334,11 +334,30 @@ RETIRED_DENY_RULES = frozenset({
 })
 
 
+# `permissions` lists `at init` unions the seed's rules into, and `at doctor` checks.
+MANAGED_PERMISSION_LISTS = ("deny", "ask")
+
+
+def missing_permission_rules(settings: dict, seed_json: dict) -> list[str]:
+    """Seed `permissions.deny` / `.ask` rules the repo's settings do not carry, as `kind: rule`."""
+    have = settings.get("permissions")
+    have = have if isinstance(have, dict) else {}
+    missing = []
+    for kind in MANAGED_PERMISSION_LISTS:
+        current = have.get(kind)
+        current = current if isinstance(current, list) else []
+        for rule in (seed_json.get("permissions") or {}).get(kind) or []:
+            if rule not in current:
+                missing.append(f"{kind}: {rule}")
+    return missing
+
+
 def merge_settings_json(dst_path: Path, seed_json: dict) -> str:
     """Deep-merge only the keys this template manages; never drop user keys.
 
     Managed: `extraKnownMarketplaces` and `enabledPlugins` (missing keys added),
-    `permissions.deny` (union, existing order kept, retired rules dropped),
+    `permissions.deny` and `permissions.ask` (union, existing order kept; retired
+    deny rules dropped),
     `statusLine` (set only if the repo has none — never replaces a custom one).
     Returns 'created', 'merged' or 'kept'.
     """
@@ -365,15 +384,17 @@ def merge_settings_json(dst_path: Path, seed_json: dict) -> str:
         for name, value in wanted.items():
             bucket.setdefault(name, value)
 
-    deny = (seed_json.get("permissions") or {}).get("deny") or []
-    if deny:
+    for kind in MANAGED_PERMISSION_LISTS:
+        wanted_rules = (seed_json.get("permissions") or {}).get(kind) or []
+        if not wanted_rules:
+            continue
         permissions = data.setdefault("permissions", {})
         if not isinstance(permissions, dict):
             die(f"{dst_path}: fix by hand: `permissions` must be a JSON object")
-        current = permissions.setdefault("deny", [])
+        current = permissions.setdefault(kind, [])
         if not isinstance(current, list):
-            die(f"{dst_path}: fix by hand: `permissions.deny` must be a list")
-        for rule in deny:
+            die(f"{dst_path}: fix by hand: `permissions.{kind}` must be a list")
+        for rule in wanted_rules:
             if rule not in current:
                 current.append(rule)
 
@@ -623,6 +644,13 @@ def _repo_doctor_findings(repo: Path) -> list[tuple[str, str]]:
                 else:
                     findings.append(("WARN", f"{key} is not enabled in .claude/settings.json "
                                              "(run `at init`)"))
+            missing_rules = missing_permission_rules(settings, seed_settings)
+            if missing_rules:
+                findings.append(("WARN", f".claude/settings.json is missing {len(missing_rules)} seed "
+                                         f"permission rule(s): {'; '.join(missing_rules)} "
+                                         "(run `at init`)"))
+            elif seed_settings.get("permissions"):
+                findings.append(("OK", ".claude/settings.json carries the seed permission rules"))
 
     if (repo / "docs" / "tasks_manager").is_dir():
         _ledger_findings(repo, findings)
