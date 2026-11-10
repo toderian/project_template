@@ -2,11 +2,12 @@
 
 Notable changes to agents-template. All four plugins share the version of the repository.
 
-## 1.8.0 — unreleased
+## 1.8.0 — 2026-11-10
 
 Seven fixes taken from how the downstream repos actually use the template: a survey of their
-ledgers, their `at doctor` output and their session transcripts. Plus one new capability: a
-read-only second opinion from the other agent CLI.
+ledgers, their `at doctor` output and their session transcripts. Plus two new opt-in capabilities:
+a read-only second opinion from the other agent CLI, and UI add-ons a repository switches on for
+itself.
 
 ### Fixed
 
