@@ -30,12 +30,16 @@ in a new session, ignore the stored id and dispatch fresh; `state.md` is the sou
 
 ## Model hints
 
-| Dispatch | Model |
-|---|---|
-| implementer, rounds 1–2 | the card default (Sonnet-class) — the brief carries the decisions |
-| implementer, round 3 and final fix wave | strongest available |
-| reviewers, security-auditor, plan-critic | strongest available (`inherit` from your session is usually right) |
-| scoped re-review | the same class as the original review; a faster model is acceptable when the findings list is short |
+Set the model and the effort on the spawn itself; both outrank the card (`implementer` defaults to
+Sonnet-class, the other cards inherit your session's model).
+
+| Dispatch | Model | Effort |
+|---|---|---|
+| implementer, rounds 1–2 | the card default (Sonnet-class) — the brief carries the decisions | medium |
+| implementer, round 3 and final fix wave | strongest available | high |
+| phase reviewers | strongest available (`inherit` from your session is usually right) | high |
+| plan-critic, final reviewers, security-auditor | strongest available | highest available |
+| scoped re-review | the same class as the original review; a faster model is acceptable when the findings list is short | high |
 
 ## Isolation
 

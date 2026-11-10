@@ -77,7 +77,7 @@ When dispatching a subagent, the parent must construct a self-contained prompt w
 3. **Scope fence**: files and directories the subagent may touch, and those it must not
 4. **Personality**: which role card to follow (e.g. the `builder` personality (subagent-protocol skill, references/personalities/builder.md))
 5. **Context files**: explicit list of files to read — not "read everything"
-6. **Model hint**: suggested model class (see model selection below)
+6. **Model and effort hint**: suggested model class and reasoning effort (see model selection below)
 
 Do not assume the subagent inherits any context from the parent session. The briefing prompt is the sole data channel.
 
@@ -157,17 +157,22 @@ and an unavailable peer never blocks. Procedure, exit codes and setup:
 
 ## Model selection
 
-Guidance for choosing subagent model class. Availability varies by platform.
+Guidance for choosing a subagent's model class and reasoning effort. You, the dispatching session,
+set both on each dispatch; a value set on the dispatch outranks the role card's default.
+Availability varies by platform: where a level does not exist, take the nearest one.
 
-| Task type | Model class | Rationale |
-|-----------|-------------|-----------|
-| Exploration, search, file lookup | Fastest (Haiku-class) | Low complexity, high volume |
-| Mechanical implementation with detailed plan | Fast (Haiku/Sonnet-class) | Plan provides all decisions |
-| Multi-file integration | Default (Sonnet-class) | Needs cross-file reasoning |
-| Architecture, complex review | Strongest (Opus-class) | Judgment-heavy, high stakes |
-| Fix round 3 after two failed rounds | Strongest (Opus-class) | Fresh perspective on a slice that resisted two attempts |
+| Task type | Model class | Effort | Rationale |
+|-----------|-------------|--------|-----------|
+| Exploration, search, file lookup | Fastest (Haiku-class) | low | Low complexity, high volume |
+| Mechanical implementation with detailed plan | Fast (Haiku/Sonnet-class) | low to medium | Plan provides all decisions |
+| Multi-file integration | Default (Sonnet-class) | medium | Needs cross-file reasoning |
+| Review of one phase, scoped re-review | Strongest (Opus-class) | high | Judgment on a bounded diff |
+| Architecture, final review, security review | Strongest (Opus-class) | highest the model offers | Judgment-heavy, high stakes |
+| Fix round 3 after two failed rounds | Strongest (Opus-class) | high | Fresh perspective on a slice that resisted two attempts |
 
-When the plan is specific enough (exact file paths, code snippets, acceptance criteria), cheaper models can execute reliably.
+When the plan is specific enough (exact file paths, code snippets, acceptance criteria), cheaper models
+and lower effort execute reliably. Raise effort before raising the model class when a dispatch came
+back shallow rather than wrong.
 
 ## Recursive mitigation
 

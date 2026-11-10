@@ -42,6 +42,9 @@ read-only second opinion from the other agent CLI.
 - `at task run --effort <level>` and `--strong-effort <level>`: reasoning effort for implementers,
   and for reviewers plus the fix round after two failed ones, next to `--model` / `--strong-model`.
   The execution-log headings record the model and effort a run set.
+- Dispatch guidance names a reasoning effort next to the model class: the model-selection table in
+  `agents-core:subagent-protocol`, the `Model hint:` lines of the `agents-core:execute-plan` briefs,
+  and the Claude Code and Codex runtime references. The dispatching session sets both per spawn.
 
 ### Changed
 

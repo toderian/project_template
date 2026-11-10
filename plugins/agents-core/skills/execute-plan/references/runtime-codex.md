@@ -27,9 +27,20 @@ already done. Round 3 still switches to the strongest model.
 
 ## Model hints
 
-Set the model per spawn where the runtime allows it (implementer: the default subagent model;
-reviewers, round 3, final fix wave: the strongest available). Where it does not, run the whole
-session on the model you would want the reviewers to have.
+The spawn takes a model override and a reasoning-effort override; omitted, the child inherits the
+parent's. This section is the repository's standing instruction to set them, which is the explicit
+request the spawn tool asks for before an override:
+
+| Dispatch | Model | Effort |
+|---|---|---|
+| implementer, rounds 1–2 | the default subagent model | medium |
+| implementer, round 3 and final fix wave | strongest available | high |
+| phase reviewers, scoped re-review | strongest available | high |
+| plan-critic, final reviewers, security-auditor | strongest available | highest available |
+
+A model and effort the runtime does not support together are refused with the supported efforts
+listed: retry once with the nearest one. Where a session cannot override per spawn, run the whole
+session on the model and effort you would want the reviewers to have.
 
 ## Hooks
 

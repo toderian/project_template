@@ -17,7 +17,7 @@ Acceptance criteria:
 - Risks, migrations, rollout concerns, and compatibility constraints are identified.
 Scope fence: read-only; do not edit files.
 Context files: <plan/task file>, affected source files, relevant tests, component docs if present.
-Model hint: strongest available.
+Model hint: strongest available, highest effort.
 Your reply is the review (I save it to docs/tasks_manager/_runs/<TASK-ID>/architecture-review.md); at most 40 lines ending in:
 ## Status: DONE | DONE_WITH_CONCERNS | BLOCKED
 ## Architecture verdict: PROCEED | REVISE | BLOCKED
@@ -35,7 +35,7 @@ Scope fence: <files/dirs you may touch>. Nothing else. Do not commit or stage. D
 Do not read AGENTS.md, CLAUDE.md, or other skills.
 Interfaces and rulings from earlier phases are in the brief's orchestrator notes; honour them.
 Run the checks named in the brief and record real output in the report.
-Model hint: <default for the implementer card | strongest for round 3>.
+Model hint: <default for the implementer card, medium effort | strongest, high effort for round 3>.
 Reply with at most 15 lines ending in the ## Status: block (DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED).
 ```
 
@@ -53,7 +53,7 @@ Size: docs/tasks_manager/_runs/<TASK-ID>/phase-N/size.md — each flagged file n
 Implementer report: docs/tasks_manager/_runs/<TASK-ID>/phase-N/report.md — treat its claims as unverified.
 Scope fence: read-only; do not edit files. Run tests only to check a specific doubt.
 Global constraints: <work mode, autonomy, anything the phase must not break>
-Model hint: strongest available.
+Model hint: strongest available, high effort.
 Your reply is the report (I save it to docs/tasks_manager/_runs/<TASK-ID>/phase-N/review-<spec|quality>.md):
 the ## Status / ## Verdict / ## Findings block first, then ## Evidence; at most 40 lines.
 ```
@@ -69,7 +69,7 @@ spec; task-wide acceptance criteria are context, verified after the last phase.
 Diff: docs/tasks_manager/_runs/<TASK-ID>/phase-N/diff.patch (BASE <rev> → working tree)
 Size: docs/tasks_manager/_runs/<TASK-ID>/phase-N/size.md — each flagged file needs a reason in the checklist, a finding or the report; unexplained growth is a finding, and a file that grew in a phase meant to shrink it is critical.
 Scope fence: read-only; do not edit files. Run tests only to check a specific doubt.
-Model hint: strongest available.
+Model hint: strongest available, high effort.
 Your reply is the report (I save it to docs/tasks_manager/_runs/<TASK-ID>/phase-N/review.md):
 the ## Status / ## Verdict / ## Findings block first, then ## Evidence; at most 40 lines.
 ```
@@ -146,7 +146,7 @@ Context: <plan/task file>, docs/tasks_manager/_runs/<TASK-ID>/state.md (rulings 
 git diff <base_rev>..HEAD.
 Size: docs/tasks_manager/_runs/<TASK-ID>/size.md (whole run; Flagged: lines need a reason).
 Scope fence: read-only; do not edit files.
-Model hint: strongest available.
+Model hint: strongest available, highest effort.
 Your reply is the review (I save it to docs/tasks_manager/_runs/<TASK-ID>/final-review-<1|2>.md):
 the ## Status / ## Verdict / ## Findings block first, then ## Evidence; at most 40 lines.
 ```
@@ -160,7 +160,7 @@ Judge only avoidable complexity: duplicated wiring, guards coordinating other gu
 Context: <plan/task file>, docs/tasks_manager/_runs/<TASK-ID>/state.md, git diff <base_rev>..HEAD.
 Size: docs/tasks_manager/_runs/<TASK-ID>/size.md
 Scope fence: read-only; do not edit files.
-Model hint: strongest available.
+Model hint: strongest available, highest effort.
 Your reply is the review (I save it to docs/tasks_manager/_runs/<TASK-ID>/final-review-simplicity.md):
 the ## Status / ## Verdict / ## Findings block first, then ## Evidence; at most 40 lines.
 ```
