@@ -23,7 +23,7 @@ def claude_prompt(argv):
     # (tool lists are comma-joined, so a space-separated list here would be a driver bug);
     # the single positional left over is the prompt. A missing/duplicate positional is an error.
     valued = {"--output-format", "--append-system-prompt", "--model", "--permission-mode", "--allowedTools",
-              "--disallowedTools", "--max-budget-usd", "--resume"}
+              "--disallowedTools", "--max-budget-usd", "--resume", "--effort"}
     positionals, i = [], 0
     while i < len(argv):
         if argv[i] in valued:
@@ -43,8 +43,10 @@ with calls.open("a") as fh:
     mode = argv[argv.index("--permission-mode") + 1] if "--permission-mode" in argv else ("sandbox=" + argv[argv.index("-s") + 1] if "-s" in argv else "-")
     allowed = argv[argv.index("--allowedTools") + 1] if "--allowedTools" in argv else "-"
     budget = argv[argv.index("--max-budget-usd") + 1] if "--max-budget-usd" in argv else "-"
+    effort = argv[argv.index("--effort") + 1] if "--effort" in argv else next(
+        (a.split("=", 1)[1].strip('"') for a in argv if a.startswith("model_reasoning_effort=")), "")
     fh.write(f"{role}|{stage}|{phase}|{'codex' if codex else 'claude'}|resume={'--resume' in argv}|ro={'read-only' in argv or '--disallowedTools' in argv}|mode={mode}|allowed={allowed}|budget={budget}"
-             + ("|structural" if "Do not add another guard" in prompt else "") + ("|size" if "\nSize: " in prompt else "") + "\n")
+             + ("|structural" if "Do not add another guard" in prompt else "") + ("|size" if "\nSize: " in prompt else "") + (f"|effort={effort}" if effort else "") + "\n")
 if scenario == "hang":
     import time; time.sleep(5)
 seen = calls.read_text().count(f"reviewer|spec|{phase}|")

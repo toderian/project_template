@@ -53,6 +53,20 @@ class TaskRun(unittest.TestCase):
         tmp = repo(); p = run(tmp, "--phase", "1", scenario="fail-once", harness="codex"); self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
         calls = (tmp.parent / (tmp.name + ".calls")).read_text()
         self.assertIn("implementer||1|codex|resume=False", calls); self.assertNotIn("resume=True", calls); self.assertIn("reviewer|quality|1|codex|resume=False|ro=True", calls)
+    def test_effort_flags_reach_every_dispatch_and_the_execution_log(self):
+        for harness in ("claude", "codex"):
+            tmp = repo(); p = run(tmp, "--phase", "1", "--effort", "medium", "--strong-effort", "high", "--strong-model", "big", harness=harness)
+            self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+            calls = (tmp.parent / (tmp.name + ".calls")).read_text().splitlines()
+            implementers = [c for c in calls if c.startswith("implementer|")]; reviewers = [c for c in calls if c.startswith("reviewer|")]
+            self.assertTrue(implementers and reviewers, calls)
+            self.assertTrue(all(c.endswith("|effort=medium") for c in implementers), implementers)
+            self.assertTrue(all(c.endswith("|effort=high") for c in reviewers), reviewers)
+            task = next((tmp / "docs/tasks_manager/_todos").glob("TST-003-*.md")).read_text()
+            self.assertIn(f"(at task run, {harness}, model default/big, effort medium/high)", task)
+        tmp = repo(); p = run(tmp, "--phase", "1"); self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        self.assertNotIn("effort=", (tmp.parent / (tmp.name + ".calls")).read_text())
+        self.assertIn("(at task run, claude)", next((tmp / "docs/tasks_manager/_todos").glob("TST-003-*.md")).read_text())
     def test_missing_status_blocks_the_phase(self):
         tmp = repo(); p = run(tmp, scenario="no-status"); self.assertEqual(p.returncode, 1, p.stdout + p.stderr)
         s = (tmp / STATE).read_text(); self.assertIn("| 1 | blocked |", s); self.assertIn("returned MISSING", s)

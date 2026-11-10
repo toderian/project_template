@@ -39,6 +39,9 @@ read-only second opinion from the other agent CLI.
   enabled, next to the native reviewers; an unavailable peer (exit 3) never blocks. The peer's
   provider receives the code it reads, so nothing is enabled by default. `at doctor` reports the
   listed CLIs. From Codex the call needs network access outside the default sandbox.
+- `at task run --effort <level>` and `--strong-effort <level>`: reasoning effort for implementers,
+  and for reviewers plus the fix round after two failed ones, next to `--model` / `--strong-model`.
+  The execution-log headings record the model and effort a run set.
 
 ### Changed
 

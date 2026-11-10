@@ -117,9 +117,12 @@ class State:
 class Harness:
     def __init__(self, name: str, repo: Path, core_root: Path, model: str | None, strong: str | None,
                  driver_cmd: str | None, log: Path, timeout: int, budget_usd: float | None,
-                 checks: list[str] | None = None, effort: str | None = None) -> None:
+                 checks: list[str] | None = None, effort: str | None = None,
+                 strong_effort: str | None = None) -> None:
         self.name, self.repo, self.core_root = name, repo, core_root
-        self.effort = effort  # reasoning effort for every dispatch; None leaves the CLI's own default
+        # Reasoning effort, as the CLI names it; None leaves the CLI's own default. Like the model,
+        # the strong one applies to reviewers and the fix round that follows two failed rounds.
+        self.effort, self.strong_effort = effort, strong_effort or effort
         self.checks = list(checks or [])  # reviewers may run exactly these, nothing else
         self.model, self.strong = model, strong or model
         self.driver_cmd = driver_cmd
@@ -139,6 +142,7 @@ class Harness:
             session: str | None = None, env: dict[str, str] | None = None) -> tuple[str, str | None]:
         """Dispatch one subagent; return (final message, session id or None)."""
         model = self.strong if strong else self.model
+        effort = self.strong_effort if strong else self.effort
         system = card_body(self.core_root, role)
         run_env = dict(os.environ, AT_TASK_ROLE=role, **(env or {}))
         if self.name == "claude":
@@ -148,8 +152,8 @@ class Harness:
                    "--append-system-prompt", system]
             if model:
                 cmd += ["--model", model]
-            if self.effort:
-                cmd += ["--effort", self.effort]
+            if effort:
+                cmd += ["--effort", effort]
             if writable:
                 # acceptEdits covers file edits; Bash needs its own allow rule or every test run is
                 # denied in -p mode. The plugin's dangerous-git/bash hooks still gate each command.
@@ -185,8 +189,8 @@ class Harness:
                "-s", "workspace-write" if writable else "read-only", "-o", str(out_file)]
         if model:
             cmd += ["-m", model]
-        if self.effort:
-            cmd += ["-c", f'model_reasoning_effort="{self.effort}"']
+        if effort:
+            cmd += ["-c", f'model_reasoning_effort="{effort}"']
         cmd.append("-")
         proc = self._sh(role, cmd, input=system + "\n\n---\n\n" + prompt, env=run_env)
         self._log(role, cmd, proc)
@@ -197,6 +201,17 @@ class Harness:
             message = out_file.read_text(encoding="utf-8")
             out_file.unlink()
         return message, None
+
+    def label(self) -> str:
+        """`claude`, or `claude, model sonnet/opus, effort low/high` when the run set any (routine/strong)."""
+        def pair(routine: str | None, strong: str | None) -> str:
+            return routine or "default" if routine == strong else f"{routine or 'default'}/{strong or 'default'}"
+        parts = [self.name]
+        if self.model or self.strong:
+            parts.append(f"model {pair(self.model, self.strong)}")
+        if self.effort or self.strong_effort:
+            parts.append(f"effort {pair(self.effort, self.strong_effort)}")
+        return ", ".join(parts)
 
     def _log(self, role: str, cmd: list[str], proc: subprocess.CompletedProcess) -> None:
         with self.log.open("a", encoding="utf-8") as fh:
@@ -368,7 +383,7 @@ class Runner:
         self.runs.mkdir(parents=True, exist_ok=True)
         self.harness = Harness(args.harness, repo, core_root, args.model, args.strong_model,
                                args.driver_cmd, self.runs / "driver.log", args.timeout, args.budget_usd,
-                               args.check)
+                               args.check, effort=args.effort, strong_effort=args.strong_effort)
         self.project = args.project or f"{repo.name}; checks: {', '.join(args.check) or 'none configured'}"
         self.lock = self.runs / "lock"
         self.ledger_script = tasks_scripts / "sync_todo_ledgers.py"
@@ -524,7 +539,7 @@ class Runner:
 
         summary = ", ".join(f"{k} {v['verdict']}" for k, v in verdicts.items())
         size = self.size_line(self.phase_size)
-        entry = (f"### {now_iso()} - Phase {n}: {self.tb.phase_title(self.task.phases[n - 1])} (at task run, {self.harness.name})\n\n"
+        entry = (f"### {now_iso()} - Phase {n}: {self.tb.phase_title(self.task.phases[n - 1])} (at task run, {self.harness.label()})\n\n"
                  f"**Actions taken:** implementer dispatch ×{state.row(n)[2]}; reviews: {summary}.\n"
                  f"**Decisions made:** see `Ruling:` lines in `{self.runs_rel}/state.md` (if any).\n"
                  f"**Test results:** {', '.join(self.args.check) or 'no --check command configured'}: pass.\n"
@@ -655,7 +670,7 @@ class Runner:
         state.save()
         if ok:
             tick_acceptance(self.task.path, (
-                f"### {now_iso()} - Final review (at task run, {self.harness.name})\n\n"
+                f"### {now_iso()} - Final review (at task run, {self.harness.label()})\n\n"
                 f"**Actions taken:** {len(ks)} whole-task reviewer(s) — {'; '.join(notes)}.\n"
                 f"**Size:** {self.size_line(report)}.\n"
                 f"**Outcome:** acceptance criteria ticked; non-critical findings stay in "
@@ -731,7 +746,7 @@ class Runner:
                 state.note("Note: final review skipped — one phase, small mode; phase 1 review stands for the task")
                 state.save()
                 tick_acceptance(self.task.path, (
-                    f"### {now_iso()} - Final review (at task run, {self.harness.name})\n\n"
+                    f"### {now_iso()} - Final review (at task run, {self.harness.label()})\n\n"
                     "**Outcome:** one phase in small mode; the phase review is the whole-task review; "
                     "acceptance criteria ticked."))
             else:
@@ -767,6 +782,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--phase", type=int, help="run only this phase")
     p.add_argument("--model", help="model for implementers (harness default when omitted)")
     p.add_argument("--strong-model", help="model for reviewers and fix round 3 (defaults to --model)")
+    p.add_argument("--effort", help="reasoning effort for every dispatch, as the harness names it "
+                                    "(e.g. low, medium, high; harness default when omitted)")
+    p.add_argument("--strong-effort", help="reasoning effort for reviewers and fix round 3 (defaults to --effort)")
     p.add_argument("--check", action="append", default=[], metavar="CMD",
                    help="shell command run before and after each phase; repeatable")
     p.add_argument("--security", action="store_true", help="also run security-auditor on every phase")

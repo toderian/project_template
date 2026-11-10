@@ -118,7 +118,7 @@ with the run directory at `docs/_plans/_runs/<slug>/` and write the files by han
 ## Scripted driver
 
 `at task run <TASK-ID> [--harness claude|codex] [--mode small|large|auto] [--phase N] [--check CMD]... [--security]
-[--model M] [--strong-model M] [--max-rounds 3] [--timeout 1800] [--budget-usd 5] [--no-commit]
+[--model M] [--strong-model M] [--effort E] [--strong-effort E] [--max-rounds 3] [--timeout 1800] [--budget-usd 5] [--no-commit]
 [--no-final-review] [--retry-blocked] [--force-unlock] [--dry-run]` executes this loop without an orchestrating session: it writes the same files, one
 process per dispatch, and commits each phase (`feat: <ID> phase N — <title>`), leaving `state.md`
 dirty until the next phase's commit sweeps it in and committing the last one as
@@ -135,6 +135,10 @@ dirty until the next phase's commit sweeps it in and committing the last one as
 - At the fix-loop cap the row becomes `blocked` with the open findings noted; there is no
   adjudication. Add `Ruling:` lines (or fix by hand) and rerun — with `--retry-blocked` if you leave
   the row `blocked`, or plainly after setting it back to `pending`.
+- `--model` / `--effort` apply to implementers; `--strong-model` / `--strong-effort` to reviewers,
+  final reviews and the fix round after two failed ones (each defaults to its routine value, and
+  that to the harness default). Effort is passed as the harness names it. The execution-log
+  headings record what was set: `(at task run, claude, model sonnet/opus, effort medium/high)`.
 - `driver.log` in the run directory records every process, its stderr and (Claude) its cost.
 - Every dispatch is bounded: `--timeout` kills a silent process and marks the row `blocked`;
   `--budget-usd` is passed to `claude -p` as `--max-budget-usd` (Codex has no equivalent — the
