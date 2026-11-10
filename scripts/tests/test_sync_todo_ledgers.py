@@ -5,6 +5,25 @@ def run(fixture, *args):
     tmp = pathlib.Path(tempfile.mkdtemp()); shutil.copytree(FIX / fixture, tmp, dirs_exist_ok=True)
     p = subprocess.run(["python3", str(SCRIPT), "--root", str(tmp), *args], capture_output=True, text=True)
     return p, tmp
+def backlog(wip, updated, ideas, captured):
+    """A copy of ledger-minimal plus `wip` in_progress tasks and `ideas` new inbox ideas."""
+    tmp = pathlib.Path(tempfile.mkdtemp()); shutil.copytree(FIX / "ledger-minimal", tmp, dirs_exist_ok=True)
+    tm = tmp / "docs/tasks_manager"
+    (tm / "_todos/TST-002-C_oversized-execution-log.md").unlink()
+    source = (tm / "_todos/TST-001-F_minimal-metadata-task.md").read_text()
+    for n in range(wip):
+        text = source.replace("TST-001", f"TST-01{n}").replace("| open  ", "| in_progress")
+        text = text.replace("| Updated  | 2026-08-10T09:00:00", f"| Updated  | {updated}T09:00:00")
+        (tm / f"_todos/TST-01{n}-F_minimal-metadata-task.md").write_text(text)
+    (tm / "_inbox").mkdir(exist_ok=True)
+    for n in range(1, ideas + 1):
+        (tm / f"_inbox/I-{n:03d}_idea.md").write_text(
+            f"| Field | Value |\n|---|---|\n| Inbox ID | I-{n:03d} |\n| Captured | {captured}T09:00:00 |\n"
+            f"| Area | tst |\n| Status | new |\n\n## Idea {n}\n")
+    return tmp
+def sync(tmp, today, *args):
+    return subprocess.run(["python3", str(SCRIPT), "--root", str(tmp), *args], capture_output=True, text=True,
+                          env={**__import__("os").environ, "AT_TODAY": today})
 class Ledger(unittest.TestCase):
     def test_legacy_full_table_checks_clean(self):
         p, _ = run("ledger-legacy", "--check"); self.assertEqual(p.returncode, 0, p.stderr)
@@ -61,6 +80,29 @@ class Ledger(unittest.TestCase):
                             capture_output=True, text=True)
         self.assertEqual(p2.returncode, 2)
         self.assertFalse((tmp / "docs/tasks_manager/_logs").exists())
+    def test_backlog_health_is_quiet_on_a_small_fresh_backlog(self):
+        tmp = backlog(wip=2, updated="2026-08-10", ideas=3, captured="2026-08-05")
+        p = sync(tmp, "2026-08-20")
+        self.assertEqual(p.returncode, 0, p.stderr)
+        for needle in ("untriaged", "in_progress at once", "not updated for more than"):
+            self.assertNotIn(needle, p.stderr)
+    def test_backlog_health_warns_on_stale_inbox_wip_and_stalled_work(self):
+        tmp = backlog(wip=6, updated="2026-08-10", ideas=3, captured="2026-08-05")
+        p = sync(tmp, "2026-10-01")
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertIn("inbox holds 3 untriaged idea(s), oldest I-001 captured 57 days ago", p.stderr)
+        self.assertIn("agents-tasks:triage-inbox", p.stderr)
+        self.assertIn("6 tasks are in_progress at once, more than 5", p.stderr)
+        self.assertIn("6 in_progress task(s) not updated for more than 30 days, oldest first: TST-010, TST-011, TST-012",
+                      p.stderr)
+        check = sync(tmp, "2026-10-01", "--check")
+        self.assertEqual(check.returncode, 0, check.stderr)
+        self.assertIn("in_progress at once", check.stderr)
+    def test_backlog_health_counts_a_large_fresh_inbox(self):
+        tmp = backlog(wip=0, updated="2026-08-10", ideas=21, captured="2026-08-19")
+        p = sync(tmp, "2026-08-20")
+        self.assertIn("inbox holds 21 untriaged idea(s), oldest I-001 captured 1 days ago", p.stderr)
+        self.assertNotIn("in_progress", p.stderr)
     def test_missing_harvest_is_warning_not_error(self):
         # ledger-legacy has a second archived task without harvest section
         p, _ = run("ledger-legacy", "--check"); self.assertEqual(p.returncode, 0); self.assertIn("Completion harvest", p.stderr)

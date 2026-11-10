@@ -31,6 +31,7 @@ Generated outputs:
 
 from __future__ import annotations
 
+import datetime
 import os
 import re
 import subprocess
@@ -66,6 +67,31 @@ Commands:
 MAX_TASK_LINES = 400
 MAX_LOG_LINES = 200
 ROTATE_ALL = "--all"
+
+# Backlog health: `check` and `sync` warn (never fail) past these, naming the skill that clears it.
+INBOX_MAX_NEW = 20          # untriaged ideas
+INBOX_MAX_AGE_DAYS = 30     # oldest untriaged idea that no roadmap horizon holds
+WIP_MAX = 5                 # tasks in_progress at once
+STALE_WIP_DAYS = 30         # an in_progress task nobody has updated
+
+
+def today() -> datetime.date:
+    """Today, or the `AT_TODAY=YYYY-MM-DD` override that keeps tests deterministic."""
+    override = os.environ.get("AT_TODAY", "")
+    if override:
+        try:
+            return datetime.date.fromisoformat(override)
+        except ValueError:
+            pass
+    return datetime.date.today()
+
+
+def age_days(stamp: str, now: datetime.date) -> int | None:
+    """Whole days between an ISO date/datetime metadata value and `now`; None when unparseable."""
+    try:
+        return (now - datetime.date.fromisoformat(stamp[:10])).days
+    except ValueError:
+        return None
 
 AREA_STATUS_BEGIN = "<!-- BEGIN generated-area-status -->"
 AREA_STATUS_END = "<!-- END generated-area-status -->"
@@ -208,6 +234,7 @@ class Generator:
         self.inbox_count: dict[str, int] = {}
         self.inbox_dir: dict[str, str] = {}
         self.inbox_status: dict[str, str] = {}
+        self.inbox_captured: dict[str, str] = {}
         self.inbox_ids: list[str] = []
 
         # Roadmap state.
@@ -663,6 +690,7 @@ class Generator:
             return
 
         self.inbox_count[inboxid] = self.inbox_count.get(inboxid, 0) + 1
+        self.inbox_captured[inboxid] = captured
         if self.inbox_count[inboxid] == 1:
             self.inbox_ids.append(inboxid)
         else:
@@ -1089,6 +1117,38 @@ class Generator:
                 return matches[0]
         return None
 
+    def check_backlog_health(self) -> None:
+        """Warn when the backlog is decaying: untriaged inbox, too much in progress, stalled work.
+
+        Each is one aggregated line, so a large backlog cannot flood the output.
+        """
+        now = today()
+
+        new_ideas = [i for i in self.inbox_ids
+                     if self.inbox_dir.get(i) == "_inbox" and self.inbox_status.get(i) == "new"]
+        waiting = [(age, i) for i in new_ideas if i not in self.roadmap_inbox_count
+                   for age in [age_days(self.inbox_captured.get(i, ""), now)] if age is not None]
+        oldest = min(waiting, key=lambda item: (-item[0], item[1]), default=None)
+        if len(new_ideas) > INBOX_MAX_NEW or (oldest and oldest[0] > INBOX_MAX_AGE_DAYS):
+            detail = f", oldest {oldest[1]} captured {oldest[0]} days ago" if oldest else ""
+            self.warn(f"inbox holds {len(new_ideas)} untriaged idea(s){detail} "
+                      "(promote or drop them: agents-tasks:triage-inbox)")
+
+        wip = [t for t in self.task_ids
+               if self.task_dir.get(t) == "_todos" and self.task_status.get(t) == "in_progress"]
+        if len(wip) > WIP_MAX:
+            self.warn(f"{len(wip)} tasks are in_progress at once, more than {WIP_MAX} "
+                      "(finish or reopen some: agents-tasks:roadmap)")
+
+        stalled = sorted(((age, t) for t in wip
+                          for age in [age_days(self.task_updated.get(t, ""), now)]
+                          if age is not None and age > STALE_WIP_DAYS),
+                         key=lambda item: (-item[0], item[1]))
+        if stalled:
+            names = ", ".join(t for _, t in stalled[:3])
+            self.warn(f"{len(stalled)} in_progress task(s) not updated for more than {STALE_WIP_DAYS} days, "
+                      f"oldest first: {names} (close, reopen or cancel: agents-tasks:audit-todos)")
+
     def rotate_log(self, taskid: str) -> int:
         path = self.find_task_path(taskid)
         if path is None:
@@ -1181,6 +1241,7 @@ class Generator:
 
         self.parse_roadmap()
         self.assign_roadmap_horizons()
+        self.check_backlog_health()
 
         self.process_area_pages()
         self.process_overview()

@@ -76,7 +76,10 @@ split".
   exit) on duplicate/ambiguous IDs, malformed required metadata, status-directory mismatches,
   unregistered areas/prefixes, bad roadmap references, and stale generated files; it only warns on an
   archived task's missing completion harvest, on tasks that are growing large (see "Task size" below),
-  and on a `_runs/<TASK-ID>/` run directory whose task is archived or missing.
+  on a `_runs/<TASK-ID>/` run directory whose task is archived or missing, and on a decaying backlog:
+  more than 20 untriaged inbox ideas or one older than 30 days that no roadmap horizon holds, more
+  than 5 tasks `in_progress`, and `in_progress` tasks not updated for 30 days. Each of those names
+  the skill that clears it.
   `rotate-log` moves a task's `## Execution log` body into `docs/tasks_manager/_logs/<TASK-ID>.md`,
   leaving a short pointer in the task file; `--all` does it for every log over the limit, and `sync`
   runs that first.
