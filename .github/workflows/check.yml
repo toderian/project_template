@@ -33,6 +33,9 @@ jobs:
       - name: Scripted execute-plan driver tests (fake harness)
         run: python3 scripts/tests/test_task_run.py
 
+      - name: Task size gate tests
+        run: python3 scripts/tests/test_task_size.py
+
       - name: at CLI tests
         run: bash scripts/tests/test-at.sh
 
@@ -41,7 +44,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        codex-version: ["0.147.0", "0.155.1"]
+        codex-version: ["0.147.0", "0.167.0"]
     steps:
       - uses: actions/checkout@v4
 

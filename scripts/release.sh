@@ -48,6 +48,11 @@ if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
   exit 1
 fi
 
+# Add-on pins are edited by hand; say so when one fell behind. Never blocks a release.
+if [[ -z "${AT_RELEASE_TEST:-}" ]]; then
+  bash scripts/check-addon-pins.sh || echo "release: an add-on pin is behind; review it before or after this release" >&2
+fi
+
 CURRENT="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["version"])' "${MANIFESTS[0]}")"
 echo "release: $CURRENT -> $VERSION (${#MANIFESTS[@]} plugins)"
 
@@ -89,15 +94,18 @@ say "python3 scripts/build.py"
 if [[ "$DRY_RUN" == 0 ]]; then python3 scripts/build.py; fi
 
 REQUIRE_CODEX_LIVE=1
-EXPECT_CODEX_VERSION=0.155.1
+EXPECT_CODEX_VERSION=0.167.0
 if [[ -n "${AT_RELEASE_TEST:-}" ]]; then
   REQUIRE_CODEX_LIVE="${AT_REQUIRE_CODEX_LIVE:-0}"
   EXPECT_CODEX_VERSION="${AT_EXPECT_CODEX_VERSION:-}"
 fi
 say "AT_REQUIRE_CODEX_LIVE=$REQUIRE_CODEX_LIVE AT_EXPECT_CODEX_VERSION=${EXPECT_CODEX_VERSION:-none} bash scripts/tests/run-all.sh"
 if [[ "$DRY_RUN" == 0 ]]; then
+  # AT_RELEASE_TEST_FULL=1: a release always runs the full release test, which an
+  # ordinary commit skips while the release files are unchanged (see run-all.sh).
   AT_REQUIRE_CODEX_LIVE="$REQUIRE_CODEX_LIVE" \
     AT_EXPECT_CODEX_VERSION="$EXPECT_CODEX_VERSION" \
+    AT_RELEASE_TEST_FULL=1 \
     bash scripts/tests/run-all.sh
 fi
 
@@ -112,7 +120,7 @@ Codex manifests and both marketplace files.
 Why: cut the $TAG release so downstream repos can pin and update to it.
 Checks: python3 scripts/build.py; bash scripts/tests/run-all.sh.
 
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+Co-Authored-By: Claude Mythos 5.2 <noreply@anthropic.com>
 EOF
   ROLLBACK=0
 fi

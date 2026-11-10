@@ -58,7 +58,7 @@ copied into the repo.
 
 | Add-on | What it adds | Upstream |
 |---|---|---|
-| `browser` | The agent opens the running app in a local Chrome: screenshots, console, accessibility checks. Usage statistics are switched off | [ChromeDevTools/chrome-devtools-mcp](https://github.com/ChromeDevTools/chrome-devtools-mcp) |
+| `browser` | The agent opens the running app in a local headless Chrome: screenshots, console, accessibility checks. Usage statistics are switched off | [ChromeDevTools/chrome-devtools-mcp](https://github.com/ChromeDevTools/chrome-devtools-mcp) |
 | `shadcn` | Component search and install for React + Tailwind repos that have `components.json` | [shadcn-ui/ui](https://github.com/shadcn-ui/ui) |
 
 `enable` writes the server to `.mcp.json` and enables `agents-extras` (which holds
@@ -66,7 +66,11 @@ copied into the repo.
 Commit both, so everyone working in the repo gets the same tools; Claude Code asks each person once
 to approve the server. For Codex the server goes into the checkout's git-ignored
 `.codex/config.toml`, which Codex loads in a trusted project, so each Codex user runs the same
-`at addon enable` once. `at addon status` and `at doctor` say what is enabled and what is missing
+`at addon enable` once. Codex asks before each tool call of the server; a non-interactive
+`codex exec` run cannot answer, so there the tools fail unless the server sets
+`default_tools_approval_mode = "approve"`. To set it, replace the managed block in
+`.codex/config.toml` with your own `[mcp_servers.<name>]` table; `at` keeps a definition it did not
+write. `at addon status` and `at doctor` say what is enabled and what is missing
 (Node's `npx`, `components.json`, the Codex step); `at addon disable <name>` removes what `enable`
 wrote.
 
@@ -139,8 +143,9 @@ plugins/<name>/                   the plugins themselves
 scripts/build.py                  regenerates every derived file (--check verifies)
 scripts/release.sh                version bump + build + tests + tag
 scripts/install-pre-commit.sh     installs the pre-commit gate
+scripts/check-addon-pins.sh       compares the add-on pins with npm
 scripts/tests/run-all.sh          the whole test suite
-docs/specs/, docs/plans/, docs/meta/, docs/migration.md
+docs/specs/, docs/meta/, docs/migration.md
 ```
 
 ## Developing

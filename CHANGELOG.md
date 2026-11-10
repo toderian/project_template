@@ -41,9 +41,10 @@ read-only second opinion from the other agent CLI.
   listed CLIs. From Codex the call needs network access outside the default sandbox.
 - Optional add-ons: `at addon enable browser|shadcn` switches a tool on for one repository, and
   `at addon list|status|disable` manage it. `browser` is ChromeDevTools/chrome-devtools-mcp (the
-  agent sees the rendered page; usage statistics off), `shadcn` is the shadcn MCP server for React +
-  Tailwind repos. Each is an MCP server from its upstream, pinned and started with `npx`, never
-  copied in. `enable` commits the choice in `.mcp.json`, enables `agents-extras` in
+  agent sees the rendered page in a headless Chrome; usage statistics off), `shadcn` is the shadcn
+  MCP server for React + Tailwind repos. Each is an MCP server from its upstream, pinned and started
+  with `npx`, never copied in. A non-interactive `codex exec` run needs the server's tools
+  pre-approved by hand (see the README). `enable` commits the choice in `.mcp.json`, enables `agents-extras` in
   `.claude/settings.json`, and registers the server for Codex in the checkout's git-ignored
   `.codex/config.toml`. `at doctor` reports enabled add-ons; `agents-extras:frontend-design` and
   `agents-extras:ui-design-review` use the tools when a session has them, and the seed routing
@@ -68,6 +69,12 @@ read-only second opinion from the other agent CLI.
   unrequested features, options, abstractions and error handling. Ideas taken from
   `multica-ai/andrej-karpathy-skills`; an existing repo adopts them through
   `agents-core:setup-project`.
+- Repository tooling: CI runs the task size gate tests; the live Codex gate in CI and in
+  `scripts/release.sh` moves from 0.155.1 to 0.167.0 (0.147.0 stays the minimum);
+  `scripts/tests/run-all.sh` runs the two-minute half of the release test only when a release file
+  differs from `HEAD`, and `release.sh` always runs it; `scripts/check-addon-pins.sh` compares the
+  add-on pins with npm and `release.sh` prints its result without blocking. The two executed plans
+  under `docs/plans/` are removed; they stay in git history.
 
 ## 1.7.0 — 2026-09-25
 

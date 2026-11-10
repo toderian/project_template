@@ -814,7 +814,7 @@ assert_missing "$ADDON_REPO/.mcp.json" "a rejected add-on writes nothing"
 ADDON_OUT="$(addon enable browser)"; ADDON_RC=$?
 assert_eq "$ADDON_RC" "0" "at addon enable browser succeeds: $ADDON_OUT"
 case "$(mcp_args chrome-devtools)" in
-  "-y chrome-devtools-mcp@"*" --no-usage-statistics --no-performance-crux") pass ;;
+  "-y chrome-devtools-mcp@"*" --no-usage-statistics --no-performance-crux --headless") pass ;;
   *) fail "the browser server is pinned and has its statistics off (got '$(mcp_args chrome-devtools)')" ;;
 esac
 assert_contains "$ADDON_REPO/.claude/settings.json" '"agents-extras@agents-template": true' "enable switches on the UI skills plugin"

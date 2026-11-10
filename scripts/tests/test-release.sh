@@ -87,7 +87,7 @@ rm -f dirty.txt
 DRY_OUT="$(env -u AT_REQUIRE_CODEX_LIVE bash scripts/release.sh "$NEW_VERSION" --dry-run 2>&1)"; DRY_RC=$?
 assert_eq "$DRY_RC" "0" "release --dry-run exits 0: $DRY_OUT"
 if grep -q "would: set version to $NEW_VERSION" <<<"$DRY_OUT"; then pass; else fail "dry run names the version bump"; fi
-if grep -q "AT_REQUIRE_CODEX_LIVE=1 AT_EXPECT_CODEX_VERSION=0.155.1 bash scripts/tests/run-all.sh" <<<"$DRY_OUT"; then
+if grep -q "AT_REQUIRE_CODEX_LIVE=1 AT_EXPECT_CODEX_VERSION=0.167.0 bash scripts/tests/run-all.sh" <<<"$DRY_OUT"; then
   pass
 else
   fail "release requires the pinned current Codex gate by default"
@@ -149,7 +149,7 @@ if [[ "$FULL" != "0" ]]; then
   assert_eq "$(git diff --cached --name-only | wc -l | tr -d ' ')" "0" "a failed release leaves an empty index"
   assert_eq "$(git tag -l "v$FOLLOWUP2_VERSION")" "" "a failed release creates no tag"
 else
-  echo "SKIP: real release run (AT_RELEASE_TEST_FULL=0)"
+  echo "SKIP: real release run (AT_RELEASE_TEST_FULL=0; run-all.sh sets it while the release files match HEAD)"
 fi
 
 echo "test-release: $PASS_COUNT passed, $FAIL_COUNT failed"

@@ -16,6 +16,13 @@ bash scripts/tests/test-codex-live.sh
 if [[ -n "${AT_RELEASE_TEST:-}" ]]; then
   echo "SKIP: test-release (already inside the release test)"
 else
+  # The full release test cuts two releases of a copy of this tree, each with its own suite run:
+  # most of this script's time. It runs when a file it covers differs from HEAD, and at every real
+  # release (release.sh sets AT_RELEASE_TEST_FULL=1); otherwise only the dry-run half runs.
+  RELEASE_FILES=(scripts/release.sh scripts/build.py scripts/tests/test-release.sh scripts/tests/run-all.sh)
+  if [[ -z "${AT_RELEASE_TEST_FULL:-}" ]] && git diff --quiet HEAD -- "${RELEASE_FILES[@]}"; then
+    export AT_RELEASE_TEST_FULL=0
+  fi
   bash scripts/tests/test-release.sh
 fi
 echo "run-all: ok"

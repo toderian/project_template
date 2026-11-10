@@ -24,8 +24,9 @@ from typing import Callable
 ADDONS: dict[str, dict] = {
     "browser": {
         "server": "chrome-devtools", "package": "chrome-devtools-mcp", "version": "1.12.0",
-        "args": ["--no-usage-statistics", "--no-performance-crux"],
-        "about": "see the rendered page in a local Chrome: screenshots, console, accessibility "
+        # Headless: Codex passes no DISPLAY to an MCP server, so a windowed Chrome cannot start there.
+        "args": ["--no-usage-statistics", "--no-performance-crux", "--headless"],
+        "about": "see the rendered page in a local headless Chrome: screenshots, console, accessibility "
                  "(ChromeDevTools/chrome-devtools-mcp)",
         "requires": None,
     },

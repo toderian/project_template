@@ -25,7 +25,8 @@ bash scripts/tests/run-all.sh     # build --check, plugin validation, hook/ledge
 ```
 
 Install the gate once with `scripts/install-pre-commit.sh`; after that the pre-commit hook
-runs `run-all.sh` on every commit — never bypass it with `-n`, fix the cause. CI
+runs `run-all.sh` on every commit — never bypass it with `-n`, fix the cause. The slow half of
+`test-release.sh` runs only when a release file differs from `HEAD` and at every release. CI
 (`.github/workflows/check.yml`) runs every part of it that does not need the Claude Code CLI.
 
 Commit messages: `type: summary`, then `What changed:` / `Why:` / `Checks:` sections.
