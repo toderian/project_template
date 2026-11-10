@@ -68,6 +68,7 @@ available skills and pick from that instead of guessing another prefix.
 | Facts needed from docs, APIs, or the web | a `researcher` dispatch per `agents-core:subagent-protocol` |
 | Auth, input handling, crypto, or AI surfaces | `agents-core:security-review-owasp` |
 | Branch, commit, or push question | `agents-core:git-discipline` |
+| Second opinion from the other agent CLI | `agents-core:subagent-protocol` §"Peer check" (`at peer`, opt-in per checkout) |
 | Delegating work | `agents-core:subagent-protocol` (agents: `implementer`, `reviewer`, `researcher`, `plan-critic`, `security-auditor`, `spec-validator`) |
 | Pausing or handing off | `agents-core:handoff` |
 | Capture an idea, add a task, triage, plan horizons, close out | `agents-tasks:capture-idea`, `agents-tasks:add-task`, `agents-tasks:triage-inbox`, `agents-tasks:roadmap`, `agents-tasks:complete-task` |

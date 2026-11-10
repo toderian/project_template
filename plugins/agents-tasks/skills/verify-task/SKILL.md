@@ -81,6 +81,10 @@ Dispatch read-only, in parallel, per `agents-core:subagent-protocol`:
   from `at task size <ID> --final --base <base>` (`_runs/<ID>/size.md`; with `--base` it needs no
   `state.md`, so it works after the run directory is gone — delete the file it leaves afterwards).
 
+For a task that ran in large mode, also send the reviewer brief to `at peer run --role reviewer` →
+`_runs/<ID>/verify-peer.md` (a scratch path when the run directory is gone), per
+`agents-core:subagent-protocol` §"Peer check". An unavailable peer changes nothing.
+
 Without subagents, do both passes yourself in a separate context break and label them
 `not independent`.
 

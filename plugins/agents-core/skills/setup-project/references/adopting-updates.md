@@ -100,6 +100,10 @@ Check each; fix only what is actually present.
   managed `.gitignore` block carries the `_runs/**/diff.patch` and `_runs/*/lock` rules — re-run
   `at init` if the block predates them. Codex users open `/hooks` once after the update to trust the
   `SubagentStop` hook (`require-subagent-status.sh`); untrusted hooks stay silently off.
+- **Peer check (optional, ask first).** With both Claude Code and Codex installed, `at peer enable
+  codex` or `at peer enable claude` lets large-work reviews also ask the other CLI. It sends repo
+  content to that CLI's provider, so it is the user's decision per checkout, never a default. It is
+  local git config: nothing to commit.
 
 ## 4. The ledger is consistent
 

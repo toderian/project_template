@@ -56,6 +56,11 @@ and a worktree keeps that blast radius away from your main tree until you have s
 - Hooks shipped with the plugin block dangerous git and secret-path writes inside subagents too; a
   blocked subagent reports `BLOCKED` and you decide, you do not route around the hook.
 
+## Peer check
+
+`at peer run` needs no `--from` here: Claude Code marks its shell commands and is detected. Start it
+as a background command next to the native reviewers.
+
 ## Scripted alternative
 
 `at task run <TASK-ID>` drives the same loop from a shell with one `claude -p` process per dispatch

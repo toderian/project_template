@@ -147,6 +147,14 @@ The implementer's self-report may be incomplete or optimistic. Verify independen
 - look for untested edge cases and silent regressions
 - do not trust "all tests pass" without checking what the tests actually verify
 
+## Peer check
+
+When the checkout has enabled it (`at peer status` exits 0), a read-only second opinion comes from
+the other agent CLI through `at peer run`: at the large-work gates the workflow skills name, or when
+the user asks for a cross-check. It adds to the native review; its findings are evidence you verify,
+and an unavailable peer never blocks. Procedure, exit codes and setup:
+[references/peer-check.md](references/peer-check.md).
+
 ## Model selection
 
 Guidance for choosing subagent model class. Availability varies by platform.

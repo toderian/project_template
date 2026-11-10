@@ -60,6 +60,7 @@ at doctor --all               # check both runtimes when both CLIs are installed
 at task brief AUTH-001 --phase 2      # one phase of a task as a self-contained implementer brief
 at task run-state init AUTH-001       # open the resume map for agents-core:execute-plan
 at task run AUTH-001 --check "make test"   # drive the whole execute-plan loop from a shell
+at peer enable codex          # opt in, this checkout only: large reviews also ask the other agent CLI
 ```
 
 `at init` never overwrites a file you own; re-running it is safe. Flags: `--with-tasks`,

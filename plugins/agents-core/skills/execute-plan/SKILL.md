@@ -162,6 +162,9 @@ proceed. Inline: a documented main-thread review labelled not independent. This 
 task convention's plan-freshness review when it covers freshness and applicability. Small mode
 relies on the pre-implementation note in the task file and skips this step.
 
+Peer check: in parallel, the same brief goes to `at peer run --role plan-critic` →
+`architecture-review-peer.md`, per `agents-core:subagent-protocol` §"Peer check".
+
 ### 5. One phase at a time
 
 For each phase whose `state.md` row is not `committed`, in order. Keep your own context to paths,
@@ -264,7 +267,9 @@ mode: two `reviewer`s (`Stage: both`) plus one `reviewer` with `Stage: simplicit
 `final-review-1.md`, `-2.md`, `final-review-simplicity.md`, unseen by each other; all three get
 `size.md`. The simplicity reviewer judges avoidable complexity only (duplicated wiring, guards
 coordinating guards, one-caller abstractions, files that grew where the plan said shrink) and fails
-on a flagged file with no justification or a code net over the plan's `Shape:`.
+on a flagged file with no justification or a code net over the plan's `Shape:`. Large mode also
+sends the final-review brief to `at peer run --role reviewer` → `final-review-peer.md`, per
+`agents-core:subagent-protocol` §"Peer check"; its confirmed findings count like a reviewer's.
 
 - All `PASS` with no critical finding: tick the task-wide acceptance criteria, record the result,
   finish. Non-critical findings are recorded as non-blocking.

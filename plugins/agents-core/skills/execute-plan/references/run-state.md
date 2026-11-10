@@ -28,6 +28,9 @@ docs/tasks_manager/_runs/<TASK-ID>/
   size.md                  at task size <TASK-ID> --final: the whole run's size, the PR-size input
   final-review-1.md, -2.md the whole-task reviews (step 7; only -1 in small mode); final-findings.md if a fix wave ran
   final-review-simplicity.md the Stage: simplicity review (large mode)
+  architecture-review-peer.md, final-review-peer.md, verify-peer.md
+                           replies saved by `at peer run` (the other agent CLI), only where the
+                           checkout enabled peer checks; the outcome is a `Note: peer ...` line in state.md
 ```
 
 ## `state.md` format

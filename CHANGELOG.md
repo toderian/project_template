@@ -5,7 +5,8 @@ Notable changes to agents-template. All four plugins share the version of the re
 ## 1.8.0 — unreleased
 
 Seven fixes taken from how the downstream repos actually use the template: a survey of their
-ledgers, their `at doctor` output and their session transcripts.
+ledgers, their `at doctor` output and their session transcripts. Plus one new capability: a
+read-only second opinion from the other agent CLI.
 
 ### Fixed
 
@@ -28,6 +29,15 @@ ledgers, their `at doctor` output and their session transcripts.
 - `at ledger check` warns, without failing, when the backlog decays: more than 20 untriaged inbox
   ideas or one older than 30 days that no roadmap horizon holds; more than 5 tasks `in_progress`;
   `in_progress` tasks not updated for 30 days. Each warning names the skill that clears it.
+
+- Peer check: `at peer enable <claude|codex>[:<model>]` opts one checkout in (local git config
+  `agents.peers`, never committed), and `at peer run --role reviewer|plan-critic|security-auditor
+  --brief F --out F` asks the other agent CLI for a read-only review: Codex from a Claude Code
+  session, Claude from a Codex session. `agents-core:execute-plan` (architecture and final review of
+  a large run), `agents-tasks:verify-task` and `agents-core:planning-workflow` use it when it is
+  enabled, next to the native reviewers; an unavailable peer (exit 3) never blocks. The peer's
+  provider receives the code it reads, so nothing is enabled by default. `at doctor` reports the
+  listed CLIs. From Codex the call needs network access outside the default sandbox.
 
 ### Changed
 

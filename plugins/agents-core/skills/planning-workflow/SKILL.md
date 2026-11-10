@@ -69,6 +69,8 @@ Run the plan through the rubric in the `agents-core:planning-workflow` skill (re
 
 When dispatching to a subagent for critique, use `.claude/agents/plan-critic.md`. Otherwise apply the rubric on the main thread under the critic personality (the `critic` personality (subagent-protocol skill, references/personalities/critic.md)).
 
+For a plan of large or high-risk work, also send the critique brief to the other agent CLI when the checkout enabled it: `at peer run --role plan-critic`, per `agents-core:subagent-protocol` §"Peer check".
+
 ### 6. Decomposition
 
 If the plan covers multiple independent slices, break them into trackable units. Use `agents-tasks:prd-to-todos` (for `docs/tasks_manager/_todos/`) or `agents-extras:prd-to-issues` (for GitHub). Each slice should be independently shippable. Give each phase an expected shape — which files shrink, a rough ceiling on new code lines — as a `Shape:` line under its heading; `agents-core:execute-plan` measures every review point against it.
