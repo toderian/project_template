@@ -2,6 +2,41 @@
 
 Notable changes to agents-template. All four plugins share the version of the repository.
 
+## 1.8.0 — unreleased
+
+Seven fixes taken from how the downstream repos actually use the template: a survey of their
+ledgers, their `at doctor` output and their session transcripts.
+
+### Fixed
+
+- `block-dangerous-git` hook: the staging guards read only the `git add` segments of a command, and
+  heredoc bodies are skipped. A later `git commit -m "drop the -f flag"`, a heredoc commit message
+  containing `rm -f`, or a `grep` for the flag text is no longer refused as a forced add.
+- `at init` merges the seed `permissions.ask` rules like it merges `permissions.deny`. The 1.7.0
+  rules for the protected-push marker and `gh pr merge` never reached a repo seeded earlier, so its
+  protected push had no second confirmation. Run `at init` once in each such repo.
+
+### Added
+
+- `at doctor` names every seed `deny` / `ask` rule a repo's `.claude/settings.json` lacks.
+- `at ledger rotate-log --all` rotates every execution log over the 200-line limit, and
+  `at ledger sync` does that first. `at ledger check` never writes. The first sync in a repo with
+  many long logs moves them all into `docs/tasks_manager/_logs/` in one diff.
+- `at doctor --drift` and a `SessionStart` hook (`session-drift.sh`) that runs it: a session started
+  in a repo behind the plugin seed says so in one line. Silent when the repo is current or was never
+  seeded. Codex users review and trust the new hook under `/hooks`.
+- `at ledger check` warns, without failing, when the backlog decays: more than 20 untriaged inbox
+  ideas or one older than 30 days that no roadmap horizon holds; more than 5 tasks `in_progress`;
+  `in_progress` tasks not updated for 30 days. Each warning names the skill that clears it.
+
+### Changed
+
+- `at doctor` prints a ledger warning repeated across four or more tasks as one line with a count
+  and three examples.
+- `block-dangerous-git` hook: a bare `git push` after `cd <literal path>` or `pushd <literal path>`
+  is resolved against that checkout instead of refused; a directory change the hook cannot follow is
+  still refused. The protected-branch list comes from the repository being pushed.
+
 ## 1.7.0 — 2026-09-25
 
 Agents may push feature branches and open PRs. A push to a protected branch needs two confirmations
