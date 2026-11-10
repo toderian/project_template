@@ -123,7 +123,7 @@ require_confirmed() {
 check_push_segment() {
   local -a tok
   read -ra tok <<< "$1"
-  local n=${#tok[@]} i=0 dir="$CWD" confirmed="" tags_only="" arg dst
+  local n=${#tok[@]} i=0 dir="$PUSH_DIR" confirmed="" tags_only="" arg dst
   local -a positional=()
 
   while [ "$i" -lt "$n" ]; do
@@ -141,6 +141,8 @@ check_push_segment() {
   done
   [ "$i" -lt "$n" ] || return 0
   i=$((i + 1))
+  # The protected list is the target repository's, which `cd` or `-C` may have changed.
+  PROTECTED_BRANCHES=$(git -C "$dir" config --get agents.protectedBranches 2>/dev/null || echo "main master develop")
 
   while [ "$i" -lt "$n" ]; do
     arg="${tok[i]}"
@@ -160,9 +162,8 @@ check_push_segment() {
   if [ "${#positional[@]}" -le 1 ]; then
     [ -n "$tags_only" ] && return 0
     # No refspec: git picks the target from HEAD, upstream and push config.
-    if echo "$COMMAND" | grep -qE '(^|[;&|[:space:]])(cd|pushd)[[:space:]]'; then
-      deny_push "cannot resolve the push target after 'cd'; name it: 'git push <remote> <branch>'."
-    fi
+    [ -n "$PUSH_DIR_KNOWN" ] \
+      || deny_push "cannot resolve the push target after 'cd'; name it: 'git push <remote> <branch>'."
     local current upstream push_default
     current=$(git -C "$dir" symbolic-ref --quiet --short HEAD 2>/dev/null) \
       || deny_push "cannot resolve the current branch; name it: 'git push <remote> <branch>'."
@@ -180,8 +181,7 @@ check_push_segment() {
     dst="${arg##*:}"
     [ -n "$dst" ] || deny_push "cannot resolve the destination of refspec '$arg'."
     if [ "$dst" = HEAD ]; then
-      echo "$COMMAND" | grep -qE '(^|[;&|[:space:]])(cd|pushd)[[:space:]]' \
-        && deny_push "cannot resolve HEAD after 'cd'; name the branch."
+      [ -n "$PUSH_DIR_KNOWN" ] || deny_push "cannot resolve HEAD after 'cd'; name the branch."
       dst=$(git -C "$dir" symbolic-ref --quiet --short HEAD 2>/dev/null) \
         || deny_push "cannot resolve HEAD; name the branch."
     fi
@@ -191,10 +191,39 @@ check_push_segment() {
   done
 }
 
+# Directory the next segment runs in, followed across `cd <path>` / `pushd <path>`
+# segments so a push from a sibling checkout resolves against that checkout.
+# Only a plain literal path is followed. Anything else that changes directory
+# (a variable, `cd -`, `~user`, a glob, `popd`, a `cd` inside a subshell or
+# with extra words) clears PUSH_DIR_KNOWN, and a push without an explicit
+# branch is then refused as before.
+PUSH_DIR="$CWD"
+PUSH_DIR_KNOWN=1
+
+track_cd() {
+  echo "$1" | grep -qE '(^|[[:space:](){}])(cd|pushd|popd)([[:space:]]|$)' || return 0
+  local -a word
+  read -ra word <<< "$1"
+  local target=""
+  if [ "${#word[@]}" -eq 2 ]; then
+    target="${word[1]}"
+  elif [ "${#word[@]}" -eq 3 ] && [ "${word[1]}" = "--" ]; then
+    target="${word[2]}"
+  fi
+  case "${word[0]}" in cd|pushd) ;; *) target="" ;; esac
+  case "$target" in
+    ""|-*|*[!A-Za-z0-9_./@+~-]*|"~"|"~"[!/]*) PUSH_DIR_KNOWN=""; return 0 ;;
+    "~/"*) PUSH_DIR="${HOME}/${target#"~/"}" ;;
+    /*) PUSH_DIR="$target" ;;
+    *) PUSH_DIR="${PUSH_DIR}/${target}" ;;
+  esac
+}
+
 if echo "$STRIPPED_COMMAND" | grep -qE "${GIT_COMMAND_PREFIX}push([[:space:]]|$)"; then
   # Quote characters are dropped, not quoted spans, so `git push origin "main"`
   # still resolves to main.
   while IFS= read -r segment; do
+    track_cd "$segment"
     echo "$segment" | grep -qE "${GIT_COMMAND_PREFIX}push([[:space:]]|$)" || continue
     check_push_segment "$segment"
   done < <(printf '%s\n' "$NO_HEREDOC" | tr -d "\"'" | tr ';&|' '\n')

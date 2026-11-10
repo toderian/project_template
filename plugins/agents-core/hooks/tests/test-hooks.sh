@@ -116,6 +116,33 @@ run_case "git: bare push on feature branch allowed" "${GIT_HOOK}" \
   "$(git_payload_in "${PUSH_REPO}" 'git push')" 0
 run_case "git: push HEAD on feature branch allowed" "${GIT_HOOK}" \
   "$(git_payload_in "${PUSH_REPO}" 'git push -u origin HEAD')" 0
+# A literal `cd` is followed, so a bare push resolves against the checkout it runs in.
+run_case "git: cd <feature checkout> && bare push allowed" "${GIT_HOOK}" \
+  "$(git_payload_in "${MAIN_REPO}" "cd ${PUSH_REPO} && git push -q")" 0
+run_case "git: cd <feature checkout>; push HEAD allowed" "${GIT_HOOK}" \
+  "$(git_payload_in "${MAIN_REPO}" "cd ${PUSH_REPO}; git push -u origin HEAD 2>&1 | tail -2")" 0
+run_case "git: relative cd into a feature checkout allowed" "${GIT_HOOK}" \
+  "$(git_payload_in "${WORKDIR}" 'cd push-repo && git push')" 0
+run_case "git: pushd <feature checkout> && bare push allowed" "${GIT_HOOK}" \
+  "$(git_payload_in "${MAIN_REPO}" "pushd ${PUSH_REPO} && git push")" 0
+run_case "git: cd <main checkout> && bare push blocks as protected" "${GIT_HOOK}" \
+  "$(git_payload_in "${PUSH_REPO}" "cd ${MAIN_REPO} && git push")" 2
+run_case "git: cd <main checkout> && push HEAD blocks as protected" "${GIT_HOOK}" \
+  "$(git_payload_in "${PUSH_REPO}" "cd ${MAIN_REPO} && git push origin HEAD")" 2
+run_case "git: cd <main checkout> with the marker allowed" "${GIT_HOOK}" \
+  "$(git_payload_in "${PUSH_REPO}" "cd ${MAIN_REPO} && git -c agents.allowProtectedPush=main push")" 0
+run_case "git: cd through a variable && bare push blocks (unresolved)" "${GIT_HOOK}" \
+  "$(git_payload_in "${PUSH_REPO}" 'cd "$REPO_DIR" && git push')" 2
+run_case "git: cd - && bare push blocks (unresolved)" "${GIT_HOOK}" \
+  "$(git_payload_in "${PUSH_REPO}" 'cd - && git push')" 2
+run_case "git: cd in a subshell && bare push blocks (unresolved)" "${GIT_HOOK}" \
+  "$(git_payload_in "${PUSH_REPO}" "(cd ${MAIN_REPO} && true); git push")" 2
+run_case "git: popd && bare push blocks (unresolved)" "${GIT_HOOK}" \
+  "$(git_payload_in "${PUSH_REPO}" 'popd && git push')" 2
+run_case "git: cd with extra words && bare push blocks (unresolved)" "${GIT_HOOK}" \
+  "$(git_payload_in "${PUSH_REPO}" "cd ${MAIN_REPO} extra && git push")" 2
+run_case "git: cd after the push does not matter" "${GIT_HOOK}" \
+  "$(git_payload_in "${PUSH_REPO}" 'git push && cd "$ELSEWHERE"')" 0
 run_case "git: push --tags allowed" "${GIT_HOOK}" \
   "$(git_payload 'git push origin --tags')" 0
 run_case "git: push main blocks" "${GIT_HOOK}" \
