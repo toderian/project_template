@@ -7,6 +7,9 @@
 # Never blocks and never fails a session: prints nothing for a repo that is current or was never
 # seeded, and exits 0 whatever happens (missing jq or python3, not a git repo, unreadable files).
 
+# A peer check (`at peer run`) starts a nested session; the notice is noise there.
+[ -n "${AT_PEER_DEPTH:-}" ] && exit 0
+
 INPUT=$(cat 2>/dev/null)
 CWD=""
 if command -v jq >/dev/null 2>&1; then

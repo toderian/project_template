@@ -696,6 +696,83 @@ TICK_BLOCK="$(printf '%s\n' "$DRIFT" | sed -n '/T-900 ticked/,/^== /p' | grep -v
 assert_eq "$TICK_BLOCK" "" "a tick-only commit prints no drift"
 git rm -q "$DRIFT_TASK" && git -c user.name=t -c user.email=t@t commit -q -m "T-900 fixture removed"
 
+# --- at peer: read-only second opinion from the other CLI --------------------
+# Fake `claude` / `codex` binaries on a PATH that hides the real ones; CLAUDECODE is set per call,
+# so the result does not depend on whether this suite itself runs inside Claude Code.
+PEER_REPO="$WORKDIR/peer-repo"; PEER_BIN="$WORKDIR/peer-bin"; PEER_CALLS="$WORKDIR/peer-calls.txt"
+mkdir -p "$PEER_REPO" "$PEER_BIN"
+git -C "$PEER_REPO" init -q .
+for cli in claude codex; do
+  cp "$REPO/scripts/tests/fixtures/fake-peer.py" "$PEER_BIN/$cli"; chmod +x "$PEER_BIN/$cli"
+done
+printf 'Stage: both. Review HEAD.\n' > "$WORKDIR/peer-brief.md"
+PEER_PATH="$PEER_BIN:$REPO/plugins/agents-core/bin:/usr/bin:/bin"
+peer() { # peer <CLAUDECODE value or ""> <scenario> <at peer args...>
+  local marker="$1" scenario="$2"; shift 2
+  ( cd "$PEER_REPO" && env -u CLAUDECODE -u AT_PEER_DEPTH ${marker:+CLAUDECODE=$marker} PATH="$PEER_PATH" \
+      FAKE_PEER="$scenario" FAKE_PEER_CALLS="$PEER_CALLS" at peer "$@" 2>&1 )
+}
+PEER_OUT="$(peer 1 ok status)"; PEER_RC=$?
+assert_eq "$PEER_RC" "3" "at peer status exits 3 before the checkout opts in"
+assert_stdout_contains "$PEER_OUT" "not enabled for this checkout" "the reason says how to enable"
+PEER_OUT="$(peer 1 ok run --role reviewer --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/r.md")"; PEER_RC=$?
+assert_eq "$PEER_RC" "3" "at peer run exits 3 when not enabled"
+assert_missing "$PEER_CALLS" "no CLI is started when peer checks are off"
+peer 1 ok enable gemini >/dev/null; assert_eq "$?" "2" "at peer enable rejects an unknown CLI"
+PEER_OUT="$(peer 1 ok enable codex:gpt-test claude)"
+assert_stdout_contains "$PEER_OUT" "sends the brief and the files the peer reads" "enable warns that code leaves to the provider"
+assert_eq "$(git -C "$PEER_REPO" config --get agents.peers)" "codex:gpt-test claude" "enable writes local git config"
+assert_eq "$(peer 1 ok status)" "peer: codex (model gpt-test)" "from Claude Code the peer is codex"
+assert_eq "$(peer "" ok status --from codex)" "peer: claude" "from codex the peer is claude"
+peer "" ok run --role reviewer --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/r.md" >/dev/null
+assert_eq "$?" "2" "at peer run needs --from when the caller is unknown"
+
+PEER_OUT="$(peer 1 ok run --role reviewer --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/r.md")"; PEER_RC=$?
+assert_eq "$PEER_RC" "0" "a peer review that FAILs the code still exits 0: $PEER_OUT"
+assert_stdout_contains "$PEER_OUT" "peer codex (reviewer): FAIL, 2 finding(s), 1 critical -> $WORKDIR/peer-out/r.md" \
+  "the summary line counts each finding once"
+assert_contains "$WORKDIR/peer-out/r.md" "Peer: codex (model gpt-test), role reviewer" "the saved reply names the peer and model"
+assert_contains "$WORKDIR/peer-out/r.md" "## Verdict: FAIL" "the saved reply holds the peer's text"
+assert_contains "$PEER_CALLS" "codex|depth=1|exec -C $PEER_REPO -s read-only" "codex runs in its read-only sandbox, marked as a peer"
+assert_contains "$PEER_CALLS" "-m gpt-test" "the model from agents.peers is passed on"
+
+: > "$PEER_CALLS"
+PEER_OUT="$(peer "" critic run --from codex --role plan-critic --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/c.md")"
+assert_stdout_contains "$PEER_OUT" "peer claude (plan-critic): REVISE, 1 finding(s), 0 critical" "a plan verdict is reported as given"
+assert_contains "$PEER_CALLS" "--disallowedTools Edit,Write,MultiEdit,NotebookEdit" "a claude peer has no edit tools"
+assert_contains "$PEER_CALLS" "--allowedTools Bash(git show:*),Bash(git diff:*),Bash(git log:*),Bash(git status:*)" \
+  "a claude peer may run read-only git only"
+
+: > "$PEER_CALLS"
+PEER_OUT="$(peer 1 no-status run --role reviewer --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/n.md")"
+assert_eq "$(wc -l < "$PEER_CALLS" | tr -d ' ')" "2" "a reply without a status line is asked for once more"
+assert_stdout_contains "$PEER_OUT" "FAIL, 2 finding(s)" "the reminded reply is the one reported"
+
+PEER_OUT="$(peer 1 error run --role reviewer --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/e.md")"; PEER_RC=$?
+assert_eq "$PEER_RC" "3" "a CLI that exits non-zero is 'unavailable', not a failed review"
+assert_stdout_contains "$PEER_OUT" "peer: unavailable (reviewer: codex exited 1: error: not logged in run the login command first)" \
+  "the reason is one line and carries the CLI's own error"
+assert_missing "$WORKDIR/peer-out/e.md" "no reply file is written for an unavailable peer"
+peer 1 empty run --role reviewer --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/e.md" >/dev/null
+assert_eq "$?" "3" "an empty reply is 'unavailable'"
+PEER_OUT="$(peer 1 hang run --timeout 1 --role reviewer --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/e.md")"; PEER_RC=$?
+assert_eq "$PEER_RC" "3" "a peer that does not answer in time is 'unavailable'"
+assert_stdout_contains "$PEER_OUT" "no reply within 1s" "the timeout is named"
+
+: > "$PEER_CALLS"
+PEER_OUT="$(cd "$PEER_REPO" && AT_PEER_DEPTH=1 CLAUDECODE=1 PATH="$PEER_PATH" FAKE_PEER_CALLS="$PEER_CALLS" \
+  at peer run --role reviewer --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/d.md" 2>&1)"; PEER_RC=$?
+assert_eq "$PEER_RC" "3" "a peer session cannot start a peer of its own"
+assert_eq "$(wc -l < "$PEER_CALLS" | tr -d ' ')" "0" "and starts no CLI"
+
+rm "$PEER_BIN/codex"
+PEER_OUT="$(peer 1 ok status)"; PEER_RC=$?
+assert_eq "$PEER_RC" "3" "a listed CLI that is not installed is 'unavailable'"
+assert_stdout_contains "$PEER_OUT" "codex is not on PATH" "the reason names the missing CLI"
+peer 1 ok disable >/dev/null
+assert_eq "$(git -C "$PEER_REPO" config --get agents.peers)" "" "disable removes the setting"
+assert_eq "$(git -C "$PEER_REPO" status --porcelain | wc -l | tr -d ' ')" "0" "peer commands leave the working tree untouched"
+
 # --- at version -------------------------------------------------------------
 EXPECTED_VERSION="$(python3 -c "import json;print(json.load(open('$REPO/plugins/agents-core/.claude-plugin/plugin.json'))['version'])")"
 assert_eq "$(at version 2>&1)" "$EXPECTED_VERSION" "at version prints the plugin version"

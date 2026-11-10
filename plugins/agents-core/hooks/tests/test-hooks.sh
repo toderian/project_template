@@ -473,6 +473,7 @@ drift_case "drift: one missing routing row prints one line" "${DRIFT_REPO}" 1 "1
 
 jq 'del(.permissions.ask)' "${SEED_DIR}/settings.json" > "${DRIFT_REPO}/.claude/settings.json"
 drift_case "drift: missing ask rules join the same line" "${DRIFT_REPO}" 1 "2 permission rule(s)"
+AT_PEER_DEPTH=1 drift_case "drift: a peer-check session (at peer run) is silent" "${DRIFT_REPO}" 0
 drift_case "drift: an empty PATH (no jq, no python3) stays silent and exits 0" "${DRIFT_REPO}" 0 "" "${NONEXISTENT_PATH}"
 
 UNSEEDED_REPO="${WORKDIR}/unseeded-repo"

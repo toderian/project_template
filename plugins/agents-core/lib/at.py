@@ -2152,6 +2152,11 @@ def cmd_task(args: argparse.Namespace) -> int:
     return _run_tasks_script("task_brief.py", list(args.rest))
 
 
+def cmd_peer(args: argparse.Namespace) -> int:
+    import peer  # lib/peer.py, next to this file
+    return peer.main(list(args.rest), repo_root(), core_root())
+
+
 def cmd_repos_check(args: argparse.Namespace) -> int:
     return _run_tasks_script("check_repos_config.sh", list(args.rest))
 
@@ -2250,6 +2255,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_task = sub.add_parser("task", help="brief <TASK_ID> --phase N | run-state init|check <TASK_ID> | run <TASK_ID> | size <TASK_ID> --phase N|--final")
     p_task.add_argument("rest", nargs=argparse.REMAINDER)
     p_task.set_defaults(func=cmd_task)
+
+    p_peer = sub.add_parser("peer", help="enable <cli>[:<model>]... | disable | status | run --role R --brief F --out F: "
+                                         "read-only second opinion from the other agent CLI")
+    p_peer.add_argument("rest", nargs=argparse.REMAINDER)
+    p_peer.set_defaults(func=cmd_peer)
 
     p_repos = sub.add_parser("repos-check", help="validate .config/repos.project.md")
     p_repos.add_argument("rest", nargs=argparse.REMAINDER)

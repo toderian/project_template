@@ -160,7 +160,7 @@ class Harness:
                 cmd += ["--max-budget-usd", str(self.budget_usd)]
             if session:
                 cmd += ["--resume", session]
-            proc = self._sh(role, cmd, env=run_env)
+            proc = self._sh(role, cmd, env=run_env, stdin=subprocess.DEVNULL)  # -p waits 3 s on an open stdin
             self._log(role, cmd, proc)
             if proc.returncode != 0:
                 raise RunError(f"{role}: claude exited {proc.returncode}: {proc.stderr.strip()[-400:]}")
