@@ -44,7 +44,9 @@ Read the relevant component, page, and style files. Check for:
 ### 3. Capture Visual Evidence
 
 Run the app when possible and capture screenshots before making review claims. Use the available
-browser tool first; if none is available, use Playwright or the repo's existing e2e/screenshot flow.
+browser tool first: the `chrome-devtools` MCP tools when the session has them (a repo gets them with
+`at addon enable browser`). If none is available, use Playwright or the repo's existing
+e2e/screenshot flow.
 
 Temporary artifacts go under `.local/artifacts/<review-slug>/` by default:
 

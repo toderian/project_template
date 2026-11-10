@@ -96,6 +96,7 @@ Every meaningful frontend change should satisfy these gates before final handoff
 - **Responsive behavior**: components reorganize intentionally rather than merely shrinking. Check text wrapping, line length, clipping, horizontal overflow, z-index, fixed/sticky elements, and safe-area issues.
 - **Interaction states**: cover default, hover, focus, active, disabled, loading, empty, success, and error states where relevant.
 - **Implementation discipline**: use existing components/tokens, keep repeated styles shared, avoid one-off hex values unless the project has no token system, and do not add large dependencies for small visual needs.
+- **Component source**: in a repo with `components.json`, search and add components through the `shadcn` MCP tools when the session has them (`at addon enable shadcn`) before writing one by hand.
 
 ## Rendered Verification
 
@@ -104,6 +105,8 @@ not enough for visual work.
 
 1. Start the repo's normal dev server or static preview.
 2. Capture screenshots for the important surface at desktop, mobile, and any state the task changed.
+   Use the `chrome-devtools` MCP tools when the session has them (a repo gets them with
+   `at addon enable browser`), else the repo's own browser or screenshot flow.
 3. Inspect screenshots visually for hierarchy, spacing, typography, color, clipping, overlap,
    responsive behavior, and interaction states.
 4. Exercise at least one core interaction and verify the resulting UI state.

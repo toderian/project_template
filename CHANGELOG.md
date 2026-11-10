@@ -39,6 +39,15 @@ read-only second opinion from the other agent CLI.
   enabled, next to the native reviewers; an unavailable peer (exit 3) never blocks. The peer's
   provider receives the code it reads, so nothing is enabled by default. `at doctor` reports the
   listed CLIs. From Codex the call needs network access outside the default sandbox.
+- Optional add-ons: `at addon enable browser|shadcn` switches a tool on for one repository, and
+  `at addon list|status|disable` manage it. `browser` is ChromeDevTools/chrome-devtools-mcp (the
+  agent sees the rendered page; usage statistics off), `shadcn` is the shadcn MCP server for React +
+  Tailwind repos. Each is an MCP server from its upstream, pinned and started with `npx`, never
+  copied in. `enable` commits the choice in `.mcp.json`, enables `agents-extras` in
+  `.claude/settings.json`, and registers the server for Codex in the checkout's git-ignored
+  `.codex/config.toml`. `at doctor` reports enabled add-ons; `agents-extras:frontend-design` and
+  `agents-extras:ui-design-review` use the tools when a session has them, and the seed routing
+  table gains a UI row.
 - `at task run --effort <level>` and `--strong-effort <level>`: reasoning effort for implementers,
   and for reviewers plus the fix round after two failed ones, next to `--model` / `--strong-model`.
   The execution-log headings record the model and effort a run set.

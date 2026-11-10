@@ -50,6 +50,26 @@ with no risk of committing the change. `CAVEMAN_DEFAULT_MODE=off` in the shell o
 tracks caveman's default branch and is refreshed by `at update`; it is optional, so a missing `npx`
 or a failed install is reported but never fails `at bootstrap` or `at update`.
 
+### Optional add-ons
+
+Tools only some repos need are off until a repo switches them on with `at addon enable <name>`.
+Each is an MCP server from its own upstream, pinned to a version and started with `npx`; nothing is
+copied into the repo.
+
+| Add-on | What it adds | Upstream |
+|---|---|---|
+| `browser` | The agent opens the running app in a local Chrome: screenshots, console, accessibility checks. Usage statistics are switched off | [ChromeDevTools/chrome-devtools-mcp](https://github.com/ChromeDevTools/chrome-devtools-mcp) |
+| `shadcn` | Component search and install for React + Tailwind repos that have `components.json` | [shadcn-ui/ui](https://github.com/shadcn-ui/ui) |
+
+`enable` writes the server to `.mcp.json` and enables `agents-extras` (which holds
+`agents-extras:frontend-design` and `agents-extras:ui-design-review`) in `.claude/settings.json`.
+Commit both, so everyone working in the repo gets the same tools; Claude Code asks each person once
+to approve the server. For Codex the server goes into the checkout's git-ignored
+`.codex/config.toml`, which Codex loads in a trusted project, so each Codex user runs the same
+`at addon enable` once. `at addon status` and `at doctor` say what is enabled and what is missing
+(Node's `npx`, `components.json`, the Codex step); `at addon disable <name>` removes what `enable`
+wrote.
+
 ## Use it in a repo
 
 ```bash
@@ -61,6 +81,7 @@ at task brief AUTH-001 --phase 2      # one phase of a task as a self-contained 
 at task run-state init AUTH-001       # open the resume map for agents-core:execute-plan
 at task run AUTH-001 --check "make test"   # drive the whole execute-plan loop from a shell
 at peer enable codex          # opt in, this checkout only: large reviews also ask the other agent CLI
+at addon enable browser       # opt in, this repo: UI skills plus a browser the agent can look through
 ```
 
 `at init` never overwrites a file you own; re-running it is safe. Flags: `--with-tasks`,

@@ -84,6 +84,7 @@ available skills and pick from that instead of guessing another prefix.
 | "Is this over-engineered?" | `agents-core:simplicity-review` |
 | Terse replies, fewer output tokens | `caveman:caveman` (`/caveman:caveman` in Claude, `$caveman` in Codex; on by default in Claude, off locally via `.caveman.json`, see conventions) |
 | Module shape, interfaces, seams, testability | `agents-core:codebase-design` |
+| Building or reviewing UI | `agents-extras:frontend-design`, `agents-extras:ui-design-review` (`at addon enable browser` adds a browser to check the rendered page; opt-in per repo) |
 | Setting up this repo, or adopting a template update | `agents-core:setup-project` (after `at update` + restart) |
 
 The skills carry the detail; this file only routes. When a skill covers the task, follow it instead of

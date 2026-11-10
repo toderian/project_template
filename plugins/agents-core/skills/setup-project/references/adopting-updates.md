@@ -104,6 +104,11 @@ Check each; fix only what is actually present.
   codex` or `at peer enable claude` lets large-work reviews also ask the other CLI. It sends repo
   content to that CLI's provider, so it is the user's decision per checkout, never a default. It is
   local git config: nothing to commit.
+- **UI add-ons (optional, ask first).** Only in a repo that builds UI: `at addon enable browser`
+  lets the agent see the rendered page, and `at addon enable shadcn` adds component search in a
+  React + Tailwind repo with `components.json`. Both need Node's `npx`. Commit the `.mcp.json` and
+  `.claude/settings.json` changes; `at doctor` then tells each Codex user to run the same command
+  once for their checkout.
 
 ## 4. The ledger is consistent
 
