@@ -42,10 +42,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import mdtables  # noqa: E402
 
 
-USAGE = """Usage: sync_todo_ledgers.py [--check] [--root DIR] [rotate-log TASK_ID]
+USAGE = """Usage: sync_todo_ledgers.py [--check] [--root DIR] [rotate-log TASK_ID|--all]
 
 Regenerate task ledgers and generated area status blocks. Normally invoked via
-`at ledger sync`, `at ledger check`, or `at ledger rotate-log <TASK_ID>`.
+`at ledger sync`, `at ledger check`, or `at ledger rotate-log <TASK_ID>|--all`.
+A sync (not a check) first rotates every execution log that is over the limit.
 
 Options:
   --check        Validate strictly without writing files.
@@ -57,7 +58,14 @@ Commands:
   rotate-log TASK_ID   Move TASK_ID's `## Execution log` body into
                         docs/tasks_manager/_logs/<TASK_ID>.md, leaving a short
                         pointer in the task file.
+  rotate-log --all     Do that for every task whose execution log is over the
+                        limit.
 """
+
+# Size limits `check` warns about. A sync rotates logs past MAX_LOG_LINES itself.
+MAX_TASK_LINES = 400
+MAX_LOG_LINES = 200
+ROTATE_ALL = "--all"
 
 AREA_STATUS_BEGIN = "<!-- BEGIN generated-area-status -->"
 AREA_STATUS_END = "<!-- END generated-area-status -->"
@@ -520,13 +528,14 @@ class Generator:
     def check_task_size(self, path: Path, base: str, taskid: str) -> None:
         text = path.read_text(encoding="utf-8")
         total_lines = len(text.splitlines())
-        if total_lines > 400:
-            self.warn(f"task '{base}' exceeds 400 lines")
+        if total_lines > MAX_TASK_LINES:
+            self.warn(f"task '{base}' exceeds {MAX_TASK_LINES} lines")
 
         log_lines = self.execution_log_line_count(text)
-        if log_lines > 200:
+        if log_lines > MAX_LOG_LINES:
             self.warn(
-                f"task '{base}' execution log exceeds 200 lines (run: at ledger rotate-log {taskid})"
+                f"task '{base}' execution log exceeds {MAX_LOG_LINES} lines "
+                f"(run: at ledger rotate-log {taskid}, or --all)"
             )
 
     # ---- record a task ---------------------------------------------------
@@ -1085,7 +1094,23 @@ class Generator:
         if path is None:
             print(f"ERROR: no task file found for '{taskid}'", file=sys.stderr)
             return 1
+        return self.rotate_log_file(path, taskid)
 
+    def rotate_oversized_logs(self) -> int:
+        """Rotate every task whose execution log is past MAX_LOG_LINES. Returns how many moved."""
+        rotated = 0
+        for directory in (self.todos, self.archived):
+            for path in sorted(directory.glob("*.md")) if directory.is_dir() else []:
+                match = re.match(r"([A-Z][A-Z0-9]*-[0-9]{3,})-", path.name)
+                if match is None:
+                    continue
+                if self.execution_log_line_count(path.read_text(encoding="utf-8")) <= MAX_LOG_LINES:
+                    continue
+                if self.rotate_log_file(path, match.group(1)) == 0:
+                    rotated += 1
+        return rotated
+
+    def rotate_log_file(self, path: Path, taskid: str) -> int:
         lines = path.read_text(encoding="utf-8").split("\n")
         start: int | None = None
         end = len(lines)
@@ -1136,6 +1161,7 @@ class Generator:
         else:
             for directory in (self.todos, self.archived, self.inbox, self.inbox_archived, self.areas_dir):
                 directory.mkdir(parents=True, exist_ok=True)
+            self.rotate_oversized_logs()
 
         self.read_areas()
 
@@ -1181,7 +1207,7 @@ class _UsageError(Exception):
 
 
 def _parse_args(argv: list[str]) -> tuple[bool, str | None, str | None]:
-    """Parse [--check] [--root DIR] [rotate-log TASK_ID] in any order.
+    """Parse [--check] [--root DIR] [rotate-log TASK_ID|--all] in any order.
 
     Returns (check_mode, root_override, rotate_taskid). Raises _UsageError on a
     malformed invocation, or prints USAGE and returns via SystemExit(0) on --help.
@@ -1206,7 +1232,7 @@ def _parse_args(argv: list[str]) -> tuple[bool, str | None, str | None]:
         elif arg == "rotate-log":
             i += 1
             if i >= len(argv):
-                raise _UsageError("rotate-log requires a TASK_ID argument")
+                raise _UsageError("rotate-log requires a TASK_ID argument, or --all")
             rotate_taskid = argv[i]
         else:
             raise _UsageError(f"unknown option: {arg}")
@@ -1254,6 +1280,13 @@ def main(argv: list[str]) -> int:
         return 0
 
     generator = Generator(repo_root, check_mode)
+    if rotate_taskid == ROTATE_ALL:
+        if check_mode:
+            print("error: rotate-log writes files; it cannot run with --check", file=sys.stderr)
+            return 2
+        count = generator.rotate_oversized_logs()
+        print(f"rotated {count} execution log(s) over {MAX_LOG_LINES} lines")
+        return 0
     if rotate_taskid is not None:
         return generator.rotate_log(rotate_taskid)
     return generator.run()

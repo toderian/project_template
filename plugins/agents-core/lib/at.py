@@ -6,7 +6,7 @@ Subcommands:
   doctor       check that this repo still matches the contract
   bootstrap    install the plugins into this machine's harnesses, write ~/.local/bin/at
   migrate      convert a legacy `_base/`/`playbooks/` downstream to the plugin layout
-  ledger       wrapper: `sync` | `check` | `rotate-log <TASK_ID>`
+  ledger       wrapper: `sync` | `check` | `rotate-log <TASK_ID>|--all`
   task         `brief <TASK_ID> --phase N` | `run-state init|check <TASK_ID>` | `run <TASK_ID>` (scripted execute-plan) | `size <TASK_ID> --phase N|--final`
   reserve      wrapper: reserve an inbox idea or task filename
   repos-check  wrapper: validate `.config/repos.project.md`
@@ -2027,14 +2027,16 @@ def _run_tasks_script(name: str, extra: list[str]) -> int:
 
 
 def cmd_ledger(args: argparse.Namespace) -> int:
+    if args.action != "rotate-log" and args.all:
+        die("usage: `--all` belongs to `at ledger rotate-log`", code=2)
     if args.action == "sync":
         extra: list[str] = []
     elif args.action == "check":
         extra = ["--check"]
     else:  # rotate-log
-        if not args.task_id:
-            die("usage: at ledger rotate-log <TASK_ID>", code=2)
-        extra = ["rotate-log", args.task_id]
+        if bool(args.task_id) == bool(args.all):
+            die("usage: at ledger rotate-log <TASK_ID> | at ledger rotate-log --all", code=2)
+        extra = ["rotate-log", args.task_id or "--all"]
     return _run_tasks_script("sync_todo_ledgers.py", extra)
 
 
@@ -2138,9 +2140,11 @@ def build_parser() -> argparse.ArgumentParser:
                                 "created or merged")
     p_migrate.set_defaults(func=cmd_migrate)
 
-    p_ledger = sub.add_parser("ledger", help="sync | check | rotate-log <TASK_ID>")
+    p_ledger = sub.add_parser("ledger", help="sync | check | rotate-log <TASK_ID>|--all")
     p_ledger.add_argument("action", choices=("sync", "check", "rotate-log"))
     p_ledger.add_argument("task_id", nargs="?")
+    p_ledger.add_argument("--all", action="store_true",
+                          help="rotate-log: every task whose execution log is over the limit")
     p_ledger.set_defaults(func=cmd_ledger)
 
     p_reserve = sub.add_parser("reserve", help="reserve an inbox idea or task filename")

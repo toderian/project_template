@@ -248,7 +248,7 @@ Appended by the first execution, append-only after that, under `## Execution log
 
 Each entry records actions, decisions, test results with real output, commit SHAs when work is
 committed, and outcome. Keep entries short; `at ledger check` warns past 200 lines and
-`at ledger rotate-log` moves old entries to `_logs/`.
+`at ledger sync` (or `at ledger rotate-log <TASK-ID>|--all`) moves old entries to `_logs/`.
 
 ### Completion harvest and summary
 

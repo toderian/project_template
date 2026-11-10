@@ -70,7 +70,7 @@ split".
 
 ## Tooling
 
-- `at ledger sync` / `at ledger check` / `at ledger rotate-log <TASK-ID>` — wraps
+- `at ledger sync` / `at ledger check` / `at ledger rotate-log <TASK-ID>|--all` — wraps
   `scripts/sync_todo_ledgers.py`. `sync` regenerates `_active.md`, `_done.md`, `docs/areas/_overview.md`,
   and the generated blocks in each `docs/areas/<slug>.md`. `check` is read-only and fails (non-zero
   exit) on duplicate/ambiguous IDs, malformed required metadata, status-directory mismatches,
@@ -78,7 +78,8 @@ split".
   archived task's missing completion harvest, on tasks that are growing large (see "Task size" below),
   and on a `_runs/<TASK-ID>/` run directory whose task is archived or missing.
   `rotate-log` moves a task's `## Execution log` body into `docs/tasks_manager/_logs/<TASK-ID>.md`,
-  leaving a short pointer in the task file.
+  leaving a short pointer in the task file; `--all` does it for every log over the limit, and `sync`
+  runs that first.
 - `at task brief <TASK-ID> --phase N` / `at task run-state init|check <TASK-ID>` — wraps
   `scripts/task_brief.py`. `brief` writes phase N of a task (plus the task brief, acceptance criteria,
   related tests, specification, design, and spec-ref paths — never the execution log or other phases)
@@ -101,9 +102,10 @@ split".
 Large tasks and unbounded execution logs are hard to review and to keep in context. `at ledger check`
 warns (does not fail) when a task file exceeds 400 lines, and separately when a task's `## Execution
 log` section exceeds 200 lines — the second warning names the exact command to fix it:
-`at ledger rotate-log <TASK-ID>`. Run that command to move the log body into
-`docs/tasks_manager/_logs/<TASK-ID>.md` and keep only a pointer in the task file; new entries then go to
-the rotated log file.
+`at ledger rotate-log <TASK-ID>`. That command moves the log body into
+`docs/tasks_manager/_logs/<TASK-ID>.md` and keeps only a pointer in the task file; new entries then go to
+the rotated log file. `at ledger sync` rotates every log over the limit before it regenerates the
+ledgers, so the warning only survives in a repo that runs `check` without ever syncing.
 
 ## After any edit
 
@@ -120,4 +122,5 @@ commit or another agent picks up stale state. Follow it with `at repos-check` wh
   considered synced.
 - Task IDs and inbox IDs are reserved with `at reserve`, never hand-picked, so concurrent agents cannot
   collide.
-- Oversized tasks are rotated with `at ledger rotate-log` rather than left to grow unbounded.
+- Oversized execution logs are rotated by `at ledger sync` (or `at ledger rotate-log`) rather than
+  left to grow unbounded.

@@ -34,6 +34,33 @@ class Ledger(unittest.TestCase):
         self.assertEqual(log_path.read_text().count("# Execution log — TST-002"), 1)
         task = next((tmp / "docs/tasks_manager/_todos").glob("TST-002-*.md")).read_text()
         self.assertEqual(task.count("See [_logs/TST-002.md]"), 1)
+    def test_rotate_all_moves_only_oversized_logs(self):
+        p, tmp = run("ledger-minimal", "rotate-log", "--all")
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertIn("rotated 1 execution log(s)", p.stdout)
+        logs = sorted(x.name for x in (tmp / "docs/tasks_manager/_logs").glob("*.md"))
+        self.assertEqual(logs, ["TST-002.md"])
+        p2 = subprocess.run(["python3", str(SCRIPT), "--root", str(tmp), "rotate-log", "--all"],
+                            capture_output=True, text=True)
+        self.assertEqual(p2.returncode, 0, p2.stderr)
+        self.assertIn("rotated 0 execution log(s)", p2.stdout)
+    def test_sync_rotates_oversized_logs(self):
+        p, tmp = run("ledger-minimal")
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertTrue((tmp / "docs/tasks_manager/_logs/TST-002.md").exists())
+        self.assertNotIn("execution log exceeds", p.stderr)
+        p2 = subprocess.run(["python3", str(SCRIPT), "--root", str(tmp), "--check"],
+                            capture_output=True, text=True)
+        self.assertEqual(p2.returncode, 0, p2.stderr)
+        self.assertNotIn("execution log exceeds", p2.stderr)
+    def test_check_never_rotates(self):
+        p, tmp = run("ledger-minimal", "--check")
+        self.assertIn("at ledger rotate-log TST-002, or --all", p.stderr)
+        self.assertFalse((tmp / "docs/tasks_manager/_logs").exists())
+        p2 = subprocess.run(["python3", str(SCRIPT), "--root", str(tmp), "--check", "rotate-log", "--all"],
+                            capture_output=True, text=True)
+        self.assertEqual(p2.returncode, 2)
+        self.assertFalse((tmp / "docs/tasks_manager/_logs").exists())
     def test_missing_harvest_is_warning_not_error(self):
         # ledger-legacy has a second archived task without harvest section
         p, _ = run("ledger-legacy", "--check"); self.assertEqual(p.returncode, 0); self.assertIn("Completion harvest", p.stderr)
