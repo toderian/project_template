@@ -117,8 +117,9 @@ class State:
 class Harness:
     def __init__(self, name: str, repo: Path, core_root: Path, model: str | None, strong: str | None,
                  driver_cmd: str | None, log: Path, timeout: int, budget_usd: float | None,
-                 checks: list[str] | None = None) -> None:
+                 checks: list[str] | None = None, effort: str | None = None) -> None:
         self.name, self.repo, self.core_root = name, repo, core_root
+        self.effort = effort  # reasoning effort for every dispatch; None leaves the CLI's own default
         self.checks = list(checks or [])  # reviewers may run exactly these, nothing else
         self.model, self.strong = model, strong or model
         self.driver_cmd = driver_cmd
@@ -147,6 +148,8 @@ class Harness:
                    "--append-system-prompt", system]
             if model:
                 cmd += ["--model", model]
+            if self.effort:
+                cmd += ["--effort", self.effort]
             if writable:
                 # acceptEdits covers file edits; Bash needs its own allow rule or every test run is
                 # denied in -p mode. The plugin's dangerous-git/bash hooks still gate each command.
@@ -182,6 +185,8 @@ class Harness:
                "-s", "workspace-write" if writable else "read-only", "-o", str(out_file)]
         if model:
             cmd += ["-m", model]
+        if self.effort:
+            cmd += ["-c", f'model_reasoning_effort="{self.effort}"']
         cmd.append("-")
         proc = self._sh(role, cmd, input=system + "\n\n---\n\n" + prompt, env=run_env)
         self._log(role, cmd, proc)

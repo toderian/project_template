@@ -23,10 +23,14 @@ per gate; re-review after fixes stays native.
 
    ```bash
    at peer run --from <claude|codex> --role <reviewer|plan-critic|security-auditor> \
-     --brief <brief file> --out <reply file>
+     --brief <brief file> --out <reply file> [--model <model>] [--effort <level>]
    ```
 
    `--from` is the CLI you run in. Claude Code is detected without it; Codex is not.
+   `--model` and `--effort` are yours to choose per call, by the same rule as any dispatch
+   (strongest model and high effort for architecture and final review, less for a narrow
+   question). Both use the peer CLI's own names; without them the checkout's defaults apply, then
+   the CLI's own.
 3. When it returns, read the one summary line, then the saved reply:
    `peer codex (reviewer): FAIL, 3 finding(s), 1 critical -> <reply file>`.
 
@@ -59,8 +63,10 @@ Record the outcome where the gate records its own, one line:
 - **Opt in per checkout:** `at peer enable codex` (or `claude`, or both). The setting is local git
   config (`agents.peers`), never committed. The peer's provider receives the brief and every file the
   peer reads, so enable it only where that is acceptable; `at peer disable` turns it off.
-- **Model:** `at peer enable codex:<model>` pins the peer's model; `--model` overrides it for one
-  call. Pin one when the CLI's configured default model is refused in non-interactive runs.
+- **Model and effort defaults:** `at peer enable codex:<model>:<effort>` stores them for that peer
+  (`codex::high` sets an effort and no model); `--model` / `--effort` override them for one call.
+  Pin a model when the CLI's configured default is refused in non-interactive runs. `at peer status`
+  shows what a call would use, and the saved reply's `Peer:` line records what was used.
 - **Calling from Codex:** the peer needs the network. A sandboxed shell command has none by default,
   so approve `at peer run` to run outside the sandbox, or set `network_access = true` under
   `[sandbox_workspace_write]` in the Codex config. Without it the call exits 3 with an API error.
