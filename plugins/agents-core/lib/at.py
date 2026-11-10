@@ -8,6 +8,7 @@ Subcommands:
   migrate      convert a legacy `_base/`/`playbooks/` downstream to the plugin layout
   ledger       wrapper: `sync` | `check` | `rotate-log <TASK_ID>|--all`
   task         `brief <TASK_ID> --phase N` | `run-state init|check <TASK_ID>` | `run <TASK_ID>` (scripted execute-plan) | `size <TASK_ID> --phase N|--final`
+  addon        `list` | `status` | `enable <name>...` | `disable <name>...`: optional tools per repo
   reserve      wrapper: reserve an inbox idea or task filename
   repos-check  wrapper: validate `.config/repos.project.md`
   seed-path    print the active agents-core seed AGENTS.md path
@@ -28,7 +29,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-# Sibling modules (task_run, task_size, peer) are imported lazily by name. Running this file puts
+# Sibling modules (task_run, task_size, peer, addons) are imported lazily by name. Running this file puts
 # lib/ on sys.path already; loading it another way (the tests use importlib) does not.
 if str(Path(__file__).resolve().parent) not in sys.path:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -694,6 +695,8 @@ def _repo_doctor_findings(repo: Path) -> list[tuple[str, str]]:
 
     import peer  # lib/peer.py, next to this file
     findings.extend(peer.doctor_findings(repo))  # nothing unless this checkout enabled peer checks
+    import addons  # lib/addons.py, next to this file
+    findings.extend(addons.doctor_findings(repo))  # nothing unless the repo enabled an add-on
 
     if (repo / "docs" / "tasks_manager").is_dir():
         _ledger_findings(repo, findings)
@@ -2165,6 +2168,20 @@ def cmd_peer(args: argparse.Namespace) -> int:
     return peer.main(list(args.rest), repo_root(), core_root())
 
 
+def _enable_extras(repo: Path) -> str:
+    """Enable the agents-extras plugin in the repo's settings; 'created', 'merged' or 'kept'."""
+    seed = json.loads((core_root() / "seed" / "settings.json").read_text())
+    return merge_settings_json(repo / ".claude" / "settings.json", {
+        "extraKnownMarketplaces": {MARKETPLACE: seed["extraKnownMarketplaces"][MARKETPLACE]},
+        "enabledPlugins": {f"agents-extras@{MARKETPLACE}": True},
+    })
+
+
+def cmd_addon(args: argparse.Namespace) -> int:
+    import addons  # lib/addons.py, next to this file
+    return addons.main(list(args.rest), repo_root(), _enable_extras)
+
+
 def cmd_repos_check(args: argparse.Namespace) -> int:
     return _run_tasks_script("check_repos_config.sh", list(args.rest))
 
@@ -2268,6 +2285,11 @@ def build_parser() -> argparse.ArgumentParser:
                                          "read-only second opinion from the other agent CLI")
     p_peer.add_argument("rest", nargs=argparse.REMAINDER)
     p_peer.set_defaults(func=cmd_peer)
+
+    p_addon = sub.add_parser("addon", help="list | status | enable <name>... | disable <name>...: optional "
+                                           "tools (browser, shadcn) a repository switches on for itself")
+    p_addon.add_argument("rest", nargs=argparse.REMAINDER)
+    p_addon.set_defaults(func=cmd_addon)
 
     p_repos = sub.add_parser("repos-check", help="validate .config/repos.project.md")
     p_repos.add_argument("rest", nargs=argparse.REMAINDER)

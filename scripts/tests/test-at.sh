@@ -795,6 +795,92 @@ assert_eq "$(git -C "$PEER_REPO" config --get agents.peers)" "" "disable removes
 assert_stdout_lacks "$(peer_doctor)" "peer check" "at doctor says nothing about peers when the feature is off"
 assert_eq "$(git -C "$PEER_REPO" status --porcelain | wc -l | tr -d ' ')" "0" "peer commands leave the working tree untouched"
 
+# --- at addon: optional tools a repo switches on for itself -------------------
+# Only files are written; `npx` and `codex` are empty stand-ins on a PATH that hides the real ones.
+ADDON_REPO="$WORKDIR/addon-repo"; ADDON_BIN="$WORKDIR/addon-bin"
+mkdir -p "$ADDON_REPO" "$ADDON_BIN"
+git -C "$ADDON_REPO" init -q .
+printf '#!/bin/sh\nexit 0\n' > "$ADDON_BIN/npx"; chmod +x "$ADDON_BIN/npx"
+ADDON_PATH="$ADDON_BIN:$REPO/plugins/agents-core/bin:/usr/bin:/bin"
+addon() { ( cd "$ADDON_REPO" && PATH="$ADDON_PATH" at addon "$@" 2>&1 ); }
+addon_doctor() { ( cd "$ADDON_REPO" && PATH="$ADDON_PATH" at doctor 2>&1 ); }
+mcp_args() { python3 -c "import json,sys;print(' '.join(json.load(open('$ADDON_REPO/.mcp.json'))['mcpServers'][sys.argv[1]]['args']))" "$1"; }
+
+assert_stdout_contains "$(addon status)" "no add-on is enabled" "at addon status says so when nothing is enabled"
+assert_stdout_lacks "$(addon_doctor)" "addon " "at doctor says nothing about add-ons when none is enabled"
+addon enable figma >/dev/null; assert_eq "$?" "2" "at addon enable rejects an unknown add-on"
+assert_missing "$ADDON_REPO/.mcp.json" "a rejected add-on writes nothing"
+
+ADDON_OUT="$(addon enable browser)"; ADDON_RC=$?
+assert_eq "$ADDON_RC" "0" "at addon enable browser succeeds: $ADDON_OUT"
+case "$(mcp_args chrome-devtools)" in
+  "-y chrome-devtools-mcp@"*" --no-usage-statistics --no-performance-crux") pass ;;
+  *) fail "the browser server is pinned and has its statistics off (got '$(mcp_args chrome-devtools)')" ;;
+esac
+assert_contains "$ADDON_REPO/.claude/settings.json" '"agents-extras@agents-template": true' "enable switches on the UI skills plugin"
+assert_stdout_contains "$ADDON_OUT" "codex is not on PATH; Codex registration skipped" "without codex the Codex step is skipped and said"
+assert_missing "$ADDON_REPO/.codex/config.toml" "and no Codex config is written"
+assert_stdout_contains "$(addon_doctor)" "addon browser: enabled" "at doctor reports an enabled add-on"
+assert_stdout_contains "$(addon list)" "browser  enabled " "at addon list marks it enabled"
+assert_stdout_contains "$(addon list)" "shadcn   disabled" "and the other one disabled"
+ADDON_BEFORE="$(cat "$ADDON_REPO/.mcp.json" "$ADDON_REPO/.claude/settings.json")"
+assert_stdout_contains "$(addon enable browser)" "browser: .mcp.json kept" "a second enable changes nothing"
+assert_eq "$(cat "$ADDON_REPO/.mcp.json" "$ADDON_REPO/.claude/settings.json")" "$ADDON_BEFORE" "and leaves both files byte-identical"
+
+# With Codex installed the same server goes into the checkout's git-ignored Codex config.
+printf '#!/bin/sh\nexit 0\n' > "$ADDON_BIN/codex"; chmod +x "$ADDON_BIN/codex"
+ADDON_DOCTOR="$(addon_doctor)"  # captured first: `grep -q` on a pipe trips pipefail
+if printf '%s\n' "$ADDON_DOCTOR" | grep -qE '^WARN +addon browser: enabled, but not registered for Codex in this checkout; run: at addon enable browser'; then pass
+else fail "at doctor tells a Codex user to register an add-on the repo enabled: $ADDON_DOCTOR"; fi
+printf '[features]\nfoo = true\n' > "$ADDON_REPO/.codex-own"; mkdir -p "$ADDON_REPO/.codex"; mv "$ADDON_REPO/.codex-own" "$ADDON_REPO/.codex/config.toml"
+assert_stdout_contains "$(addon enable browser)" ".codex/config.toml is not git-ignored here" "an unignored Codex config is flagged"
+assert_contains "$ADDON_REPO/.codex/config.toml" "[mcp_servers.chrome-devtools]" "enable registers the server for Codex"
+printf '.codex/*\n' > "$ADDON_REPO/.gitignore"
+assert_stdout_lacks "$(addon enable browser)" "not git-ignored" "and not flagged once the repo ignores it"
+assert_contains "$ADDON_REPO/.codex/config.toml" "foo = true" "and keeps what the Codex config already held"
+assert_eq "$(python3 -c "import tomllib;d=tomllib.load(open('$ADDON_REPO/.codex/config.toml','rb'));print(d['mcp_servers']['chrome-devtools']['command'], d['features']['foo'])")" \
+  "npx True" "the Codex config is still valid TOML"
+addon enable browser >/dev/null
+assert_eq "$(grep -c 'mcp_servers.chrome-devtools' "$ADDON_REPO/.codex/config.toml")" "1" "a repeated enable does not duplicate the Codex block"
+ADDON_DOCTOR="$(addon_doctor)"
+if printf '%s\n' "$ADDON_DOCTOR" | grep -qE '^OK +addon browser: enabled$'; then pass
+else fail "at doctor is satisfied once Codex is registered: $ADDON_DOCTOR"; fi
+
+ADDON_OUT="$(addon enable shadcn)"
+assert_stdout_contains "$ADDON_OUT" "shadcn needs components.json" "shadcn warns when the repo has no components.json"
+assert_stdout_contains "$(addon status)" "addon shadcn: enabled, but the repo has no components.json" "and status keeps saying so"
+: > "$ADDON_REPO/components.json"
+assert_stdout_contains "$(addon status)" "OK   addon shadcn: enabled" "with components.json shadcn is fine"
+
+# An older pin of ours is moved to the current one; a server someone else defined is never touched.
+python3 - "$ADDON_REPO/.mcp.json" <<'PY'
+import json, sys
+data = json.load(open(sys.argv[1]))
+data["mcpServers"]["shadcn"]["args"][1] = "shadcn@0.0.1"
+data["mcpServers"]["other"] = {"command": "other-server"}
+json.dump(data, open(sys.argv[1], "w"))
+PY
+assert_stdout_contains "$(addon enable shadcn)" "shadcn: .mcp.json updated to shadcn@" "an older pin is updated"
+addon disable shadcn browser >/dev/null
+assert_eq "$(python3 -c "import json;print(sorted(json.load(open('$ADDON_REPO/.mcp.json'))['mcpServers']))")" "['other']" \
+  "disable removes our servers and keeps a foreign one"
+assert_contains "$ADDON_REPO/.codex/config.toml" "foo = true" "disable keeps the rest of the Codex config"
+assert_eq "$(grep -c 'mcp_servers' "$ADDON_REPO/.codex/config.toml")" "0" "and removes our Codex blocks"
+python3 -c "import json;json.dump({'mcpServers': {'chrome-devtools': {'command': 'mine'}}}, open('$ADDON_REPO/.mcp.json','w'))"
+ADDON_OUT="$(addon enable browser)"
+assert_stdout_contains "$ADDON_OUT" "already defines a different \`chrome-devtools\` server" "a foreign server of the same name is reported"
+assert_eq "$(python3 -c "import json;print(json.load(open('$ADDON_REPO/.mcp.json'))['mcpServers']['chrome-devtools']['command'])")" "mine" "and kept"
+assert_stdout_contains "$(addon disable browser)" "was not written by at; kept" "disable does not remove it either"
+rm "$ADDON_REPO/.mcp.json" "$ADDON_REPO/.codex/config.toml"
+addon enable browser >/dev/null; addon disable browser >/dev/null
+assert_missing "$ADDON_REPO/.mcp.json" "disabling the last add-on removes the .mcp.json at created"
+assert_missing "$ADDON_REPO/.codex" "and the Codex config it created"
+printf '{broken' > "$ADDON_REPO/.mcp.json"
+ADDON_OUT="$(addon enable browser)"; ADDON_RC=$?
+assert_eq "$ADDON_RC" "1" "an invalid .mcp.json stops enable"
+assert_stdout_contains "$ADDON_OUT" "invalid JSON" "with a fix-by-hand message"
+assert_eq "$(cat "$ADDON_REPO/.mcp.json")" "{broken" "and is left as it was"
+
 # --- at version -------------------------------------------------------------
 EXPECTED_VERSION="$(python3 -c "import json;print(json.load(open('$REPO/plugins/agents-core/.claude-plugin/plugin.json'))['version'])")"
 assert_eq "$(at version 2>&1)" "$EXPECTED_VERSION" "at version prints the plugin version"
