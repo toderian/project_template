@@ -765,12 +765,19 @@ PEER_OUT="$(cd "$PEER_REPO" && AT_PEER_DEPTH=1 CLAUDECODE=1 PATH="$PEER_PATH" FA
 assert_eq "$PEER_RC" "3" "a peer session cannot start a peer of its own"
 assert_eq "$(wc -l < "$PEER_CALLS" | tr -d ' ')" "0" "and starts no CLI"
 
+peer_doctor() { ( cd "$PEER_REPO" && PATH="$PEER_PATH" at doctor 2>&1 ); }
+assert_stdout_contains "$(peer_doctor)" "peer check: codex is on PATH" "at doctor confirms a listed peer CLI"
 rm "$PEER_BIN/codex"
+PEER_DOCTOR="$(peer_doctor)"
+if printf '%s\n' "$PEER_DOCTOR" | grep -qE '^WARN +peer check: agents\.peers lists codex, which is not on PATH'; then pass
+else fail "at doctor warns about a listed peer CLI that is not installed: $PEER_DOCTOR"; fi
+assert_stdout_contains "$(peer_doctor)" "peer check: claude is on PATH" "the other listed CLI is still reported ok"
 PEER_OUT="$(peer 1 ok status)"; PEER_RC=$?
 assert_eq "$PEER_RC" "3" "a listed CLI that is not installed is 'unavailable'"
 assert_stdout_contains "$PEER_OUT" "codex is not on PATH" "the reason names the missing CLI"
 peer 1 ok disable >/dev/null
 assert_eq "$(git -C "$PEER_REPO" config --get agents.peers)" "" "disable removes the setting"
+assert_stdout_lacks "$(peer_doctor)" "peer check" "at doctor says nothing about peers when the feature is off"
 assert_eq "$(git -C "$PEER_REPO" status --porcelain | wc -l | tr -d ' ')" "0" "peer commands leave the working tree untouched"
 
 # --- at version -------------------------------------------------------------

@@ -28,6 +28,11 @@ import subprocess
 import sys
 from pathlib import Path
 
+# Sibling modules (task_run, task_size, peer) are imported lazily by name. Running this file puts
+# lib/ on sys.path already; loading it another way (the tests use importlib) does not.
+if str(Path(__file__).resolve().parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+
 MARKETPLACE = "agents-template"
 DEFAULT_SOURCE = "toderian/project_template"
 # Companion plugin: installed next to the marketplace on every bootstrap/update and enabled by
@@ -686,6 +691,9 @@ def _repo_doctor_findings(repo: Path) -> list[tuple[str, str]]:
                                          "(run `at init`)"))
             elif seed_settings.get("permissions"):
                 findings.append(("OK", ".claude/settings.json carries the seed permission rules"))
+
+    import peer  # lib/peer.py, next to this file
+    findings.extend(peer.doctor_findings(repo))  # nothing unless this checkout enabled peer checks
 
     if (repo / "docs" / "tasks_manager").is_dir():
         _ledger_findings(repo, findings)
