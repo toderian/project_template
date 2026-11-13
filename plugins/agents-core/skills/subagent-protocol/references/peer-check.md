@@ -34,8 +34,8 @@ per gate; re-review after fixes stays native.
 3. When it returns, read the one summary line, then the saved reply:
    `peer codex (reviewer): FAIL, 3 finding(s), 1 critical -> <reply file>`.
 
-The peer cannot edit: Codex runs in its read-only sandbox, Claude without edit tools and with
-read-only `git` commands only. It cannot start a peer of its own.
+The peer must not edit. Claude runs without edit tools and with read-only `git` commands only.
+Codex runs with `--yolo` (no sandbox, no approvals), so only its brief keeps it read-only. It cannot start a peer of its own.
 
 ## Exit codes
 

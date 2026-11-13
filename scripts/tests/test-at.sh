@@ -734,8 +734,9 @@ assert_stdout_contains "$PEER_OUT" "peer codex (reviewer): FAIL, 2 finding(s), 1
   "the summary line counts each finding once"
 assert_contains "$WORKDIR/peer-out/r.md" "Peer: codex (model gpt-test, effort default), role reviewer" "the saved reply names the peer and model"
 assert_contains "$WORKDIR/peer-out/r.md" "## Verdict: FAIL" "the saved reply holds the peer's text"
-assert_contains "$PEER_CALLS" "codex|depth=1|exec -C $PEER_REPO -s read-only" "codex runs in its read-only sandbox, marked as a peer"
+assert_contains "$PEER_CALLS" "codex|depth=1|exec -C $PEER_REPO --yolo" "codex runs with --yolo, marked as a peer"
 assert_contains "$PEER_CALLS" "-m gpt-test" "the model from agents.peers is passed on"
+assert_contains "$PEER_CALLS" "|fenced" "the brief carries the read-only fence"
 
 : > "$PEER_CALLS"
 PEER_OUT="$(peer "" critic run --from codex --role plan-critic --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/c.md")"

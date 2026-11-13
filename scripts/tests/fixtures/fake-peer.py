@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Stand-in for `claude` / `codex` in the `at peer` tests (test-at.sh copies it under both names).
 
-Recognises the two read-only argv shapes `at peer run` produces (codex: `exec ... -s read-only
+Recognises the two read-only argv shapes `at peer run` produces (codex: `exec ... --yolo
 -o FILE -`, brief on stdin; claude: `-p <brief> --output-format json ...`). Each call appends
-`<cli>|depth=<AT_PEER_DEPTH>|<argv>` to FAKE_PEER_CALLS. FAKE_PEER picks the behaviour:
+`<cli>|depth=<AT_PEER_DEPTH>|<argv>[|fenced]` to FAKE_PEER_CALLS. FAKE_PEER picks the behaviour:
   ok         a review with a FAIL verdict, one critical finding listed twice and one minor
   critic     a plan-critic reply (`## Plan verdict: REVISE`)
   no-status  no status block until the reminder arrives (second call)
@@ -16,7 +16,7 @@ argv = sys.argv[1:]
 codex = argv[:1] == ["exec"]
 prompt = sys.stdin.read() if codex else argv[argv.index("-p") + 1]
 with pathlib.Path(os.environ["FAKE_PEER_CALLS"]).open("a") as fh:
-    fh.write(f"{'codex' if codex else 'claude'}|depth={os.environ.get('AT_PEER_DEPTH', '')}|{' '.join(a.splitlines()[0] if a else a for a in argv)}\n")
+    fh.write(f"{'codex' if codex else 'claude'}|depth={os.environ.get('AT_PEER_DEPTH', '')}|{' '.join(a.splitlines()[0] if a else a for a in argv)}{'|fenced' if 'Scope fence: read-only' in prompt else ''}\n")
 scenario = os.environ.get("FAKE_PEER", "ok")
 if scenario == "hang":
     time.sleep(5)

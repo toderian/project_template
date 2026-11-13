@@ -40,12 +40,12 @@ if not codex and not prompt.startswith(("Project:", "Fix round", "A prior implem
     sys.stderr.write(f"fake claude: prompt does not look like a driver prompt: {prompt[:60]!r}\n"); sys.exit(3)
 calls = pathlib.Path(os.environ["FAKE_CALLS"]); calls.parent.mkdir(parents=True, exist_ok=True)
 with calls.open("a") as fh:
-    mode = argv[argv.index("--permission-mode") + 1] if "--permission-mode" in argv else ("sandbox=" + argv[argv.index("-s") + 1] if "-s" in argv else "-")
+    mode = argv[argv.index("--permission-mode") + 1] if "--permission-mode" in argv else ("yolo" if "--yolo" in argv else "-")
     allowed = argv[argv.index("--allowedTools") + 1] if "--allowedTools" in argv else "-"
     budget = argv[argv.index("--max-budget-usd") + 1] if "--max-budget-usd" in argv else "-"
     effort = argv[argv.index("--effort") + 1] if "--effort" in argv else next(
         (a.split("=", 1)[1].strip('"') for a in argv if a.startswith("model_reasoning_effort=")), "")
-    fh.write(f"{role}|{stage}|{phase}|{'codex' if codex else 'claude'}|resume={'--resume' in argv}|ro={'read-only' in argv or '--disallowedTools' in argv}|mode={mode}|allowed={allowed}|budget={budget}"
+    fh.write(f"{role}|{stage}|{phase}|{'codex' if codex else 'claude'}|resume={'--resume' in argv}|ro={'--disallowedTools' in argv or (codex and 'Scope fence: read-only' in prompt)}|mode={mode}|allowed={allowed}|budget={budget}"
              + ("|structural" if "Do not add another guard" in prompt else "") + ("|size" if "\nSize: " in prompt else "") + (f"|effort={effort}" if effort else "") + "\n")
 if scenario == "hang":
     import time; time.sleep(5)

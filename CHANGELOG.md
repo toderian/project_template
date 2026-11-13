@@ -6,6 +6,11 @@ Notable changes to agents-template. All four plugins share the version of the re
 
 ### Changed
 
+- Every Codex process the template starts (`at task run --harness codex` implementers and reviewers,
+  `at peer run`) now runs with `--yolo`, which turns off Codex's sandbox and approval prompts.
+  A headless run cannot answer an approval prompt, so the sandbox kept blocking real work. Reviewers
+  and peers are now read-only by prompt alone: the reviewer prompts already carry a scope fence, and
+  `at peer run` puts one at the top of every brief.
 - The seed `.claude/settings.json` no longer denies `Read(./.creds/**)`, and `at init` removes that
   rule from a repo seeded earlier. A deny rule cannot be overridden, so it blocked every session
   from reading a credential the task needs, which the seed `AGENTS.md` permits ("read one only when

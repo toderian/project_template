@@ -3,8 +3,8 @@
 A session running in Claude Code can ask Codex to review, and the reverse, when this checkout has
 opted in: `git config agents.peers "<cli>[:<model>[:<effort>]] ..."` (local git config, so per repo and never
 committed — the peer's provider receives the brief and every file the peer reads). The peer never
-edits: Codex runs in its read-only sandbox, Claude without the edit tools and with read-only git
-commands only. The dispatch itself is `task_run.Harness`, the same code `at task run` uses.
+edits: Codex runs with `--yolo` (no sandbox) and is told not to edit, Claude runs without the edit
+tools and with read-only git commands only. The dispatch itself is `task_run.Harness`, the same code `at task run` uses.
 
 Exit codes of `at peer run` / `at peer status`: 0 a reply was saved (whatever its verdict) or a peer
 is available; 3 no peer available, with one reason line; 2 usage error. A caller treats 3 as "go on
@@ -30,8 +30,9 @@ ROLES = ("reviewer", "plan-critic", "security-auditor")
 CONFIG_KEY = "agents.peers"
 DEPTH_ENV = "AT_PEER_DEPTH"  # set on the peer process; a peer never starts a peer of its own
 UNAVAILABLE = 3
-# The only shell commands a Claude peer may run; Codex is fenced by its read-only sandbox instead.
+# The only shell commands a Claude peer may run; Codex runs with --yolo and only its brief keeps it read-only.
 READ_ONLY_GIT = ["git show:*", "git diff:*", "git log:*", "git status:*"]
+SCOPE_FENCE = "Scope fence: read-only; do not edit files, commit, or start agents.\n\n"
 # `## Verdict: PASS`, `## Plan verdict: REVISE`, `## Architecture verdict: PROCEED` ...
 ANY_VERDICT_RE = re.compile(r"^\s*(?:#+\s*)?(?:\w+ )?[Vv]erdict:\s*([A-Z_]+)\b", re.M)
 
@@ -138,7 +139,7 @@ def cmd_run(args: argparse.Namespace, repo: Path, core_root: Path) -> int:
         print("at peer run: cannot tell which CLI is calling; pass --from claude|codex", file=sys.stderr)
         return 2
     try:
-        brief = Path(args.brief).read_text(encoding="utf-8")
+        brief = SCOPE_FENCE + Path(args.brief).read_text(encoding="utf-8")
     except OSError as exc:
         print(f"at peer run: cannot read --brief: {exc}", file=sys.stderr)
         return 2

@@ -185,8 +185,8 @@ class Harness:
             return str(data.get("result", "")), data.get("session_id")
         # codex
         out_file = self.log.parent / f"last-message-{role}-{uuid.uuid4().hex[:8]}.txt"  # parallel reviewers share a role
-        cmd = [self.driver_cmd or "codex", "exec", "-C", str(self.repo),
-               "-s", "workspace-write" if writable else "read-only", "-o", str(out_file)]
+        # --yolo: no sandbox, no approvals; a read-only role is held by its prompt alone
+        cmd = [self.driver_cmd or "codex", "exec", "-C", str(self.repo), "--yolo", "-o", str(out_file)]
         if model:
             cmd += ["-m", model]
         if effort:

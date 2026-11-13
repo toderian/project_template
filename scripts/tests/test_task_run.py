@@ -112,9 +112,9 @@ class TaskRun(unittest.TestCase):
         self.assertTrue((tmp / "docs/tasks_manager/_runs/TST-003/phase-2/review.md").exists())
         s = (tmp / STATE).read_text(); self.assertIn("mode: small", s); self.assertEqual(s.count("| committed |"), 3)
         self.assertIn("mode: large", (lambda t: (run(t, "--dry-run"), (t / STATE).read_text())[1])(repo()))  # auto: 3 phases
-    def test_codex_reviewers_are_sandboxed_read_only(self):
+    def test_codex_runs_with_yolo_and_fences_reviewers_by_prompt(self):
         tmp = repo(); p = run(tmp, "--phase", "1", harness="codex"); self.assertEqual(p.returncode, 0, p.stderr)
         calls = (tmp.parent / (tmp.name + ".calls")).read_text()
-        self.assertIn("implementer||1|codex|resume=False|ro=False|mode=sandbox=workspace-write", calls)
-        self.assertIn("reviewer|spec|1|codex|resume=False|ro=True|mode=sandbox=read-only", calls)
+        self.assertIn("implementer||1|codex|resume=False|ro=False|mode=yolo", calls)
+        self.assertIn("reviewer|spec|1|codex|resume=False|ro=True|mode=yolo", calls)
 if __name__ == "__main__": unittest.main()

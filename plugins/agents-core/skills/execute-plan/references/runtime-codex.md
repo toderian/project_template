@@ -59,7 +59,7 @@ run the command outside the sandbox when asked for approval, or enable `network_
 
 - **Scripted driver**: `at task run <TASK-ID> --harness codex` runs the same loop with no
   orchestrator session at all — one `codex exec` process per implementer or reviewer dispatch
-  (`-s workspace-write` / `-s read-only`, the role card prepended to the prompt, `-o` for the final
+  (`--yolo`: no sandbox and no approvals, so reviewers stay read-only by prompt alone; the role card prepended to the prompt, `-o` for the final
   message), the identical `_runs/` files, and a commit per phase. It does not adjudicate: at the
   fix-loop cap it marks the row `blocked` and exits 1 for you to add `Ruling:` lines and rerun. See
   `references/run-state.md` §"Scripted driver".
