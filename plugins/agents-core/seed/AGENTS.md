@@ -75,6 +75,7 @@ available skills and pick from that instead of guessing another prefix.
 | Second opinion from the other agent CLI | `agents-core:subagent-protocol` §"Peer check" (`at peer`, opt-in per checkout) |
 | Delegating work | `agents-core:subagent-protocol` (agents: `implementer`, `reviewer`, `researcher`, `plan-critic`, `security-auditor`, `spec-validator`) |
 | Pausing or handing off | `agents-core:handoff` |
+| Sync saved repository memories between agents | `agents-extras:sync` (explicit invocation; local shared memory) |
 | Capture an idea, add a task, triage, plan horizons, close out | `agents-tasks:capture-idea`, `agents-tasks:add-task`, `agents-tasks:triage-inbox`, `agents-tasks:roadmap`, `agents-tasks:complete-task` |
 | A task plan too big or fuzzy | `agents-tasks:simplify-task` |
 | Did a finished task do what its file says | `agents-tasks:verify-task` |
