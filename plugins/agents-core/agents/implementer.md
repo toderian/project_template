@@ -7,6 +7,7 @@ tools:
   - Edit
   - Write
   - Bash
+  - TaskStop
   - Glob
   - Grep
 ---
