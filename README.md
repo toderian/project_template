@@ -95,6 +95,10 @@ hook definitions; changed hooks are skipped until their new hash is trusted.
 
 ## Keep it up to date
 
+Agents close verified tasks through `agents-tasks:complete-task` as part of authorized execution,
+then continue an already-authorized task chain. A separate closure request is unnecessary; failed
+checks, missing evidence, and explicit human acceptance gates still block completion.
+
 Plugins install per machine, so one update covers every repo that uses them:
 
 ```bash

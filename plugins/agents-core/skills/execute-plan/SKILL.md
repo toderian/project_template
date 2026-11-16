@@ -272,7 +272,7 @@ sends the final-review brief to `at peer run --role reviewer` → `final-review-
 `agents-core:subagent-protocol` §"Peer check"; its confirmed findings count like a reviewer's.
 
 - All `PASS` with no critical finding: tick the task-wide acceptance criteria, record the result,
-  finish. Non-critical findings are recorded as non-blocking.
+  proceed to closeout. Non-critical findings are recorded as non-blocking.
 - Any `FAIL`, critical finding or `BLOCKED`: **one** fix wave — merge the open findings into
   `_runs/<TASK-ID>/final-findings.md`, fix (small mode: yourself; large mode: one fresh implementer
   on the strongest model with the round-3 prompt, prefixed with the structural prompt when the
@@ -281,13 +281,17 @@ sends the final-review brief to `at peer run --role reviewer` → `final-review-
 
 Inline: a main-thread self-review labelled "not independent", recorded and continued.
 
-### 8. Optional squash
+### 8. Close out the task
 
-After the final review passes, downstream repos may squash the task's own commits into one via the
-`agents-core:squash-workspace-commits` skill (per repo for multi-repo tasks; never read-only or
-out-of-scope repos). Phase commits are the review and recovery boundary during execution, so never
-squash early. The run directory stays until `agents-tasks:complete-task` copies its rulings into the
-completion summary and removes it.
+After the final review passes, hand a tracked task to `agents-tasks:complete-task` as part of the
+authorized work, without waiting for a separate closure request. Only close when the whole task
+scope is complete, including other repositories when applicable. Continue an already-authorized
+task chain after closeout succeeds; otherwise report its blocker and keep dependent tasks waiting.
+
+For a standalone plan without a task ledger, record its completed acceptance evidence and commit
+the final plan update. Downstream repos may then use `agents-core:squash-workspace-commits` for
+optional history cleanup. Phase commits remain the review and recovery boundary during execution;
+never squash early or remove run evidence before closeout consumes it.
 
 ## Limits
 

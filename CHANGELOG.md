@@ -2,6 +2,29 @@
 
 Notable changes to agents-template. All four plugins share the version of the repository.
 
+## 1.9.0 — 2026-11-16
+
+### Added
+
+- `agents-extras:sync`: explicitly reconcile Claude and Codex memories for the current repository
+  into shared local context, with preview, source provenance, conflict resolution, and project
+  startup pointers. Native memory stores remain intact; global preferences are excluded.
+
+### Changed
+
+- Agents may invoke `agents-tasks:complete-task` automatically after authorized implementation and
+  verification. `agents-core:execute-plan` now hands off to closeout before advancing an authorized
+  task chain. Closure still requires acceptance evidence, required checks, ledger validation, and
+  a closeout commit; explicit human acceptance gates remain in effect.
+- The seed operating contract includes automatic verified closeout. Existing repositories can
+  adopt it through `agents-core:setup-project` after updating plugins and restarting.
+
+## 1.8.2 — 2026-11-15
+
+### Fixed
+
+- The implementer subagent allows `TaskStop`, so it can stop background commands started with Bash.
+
 ## 1.8.1 — 2026-11-14
 
 ### Changed

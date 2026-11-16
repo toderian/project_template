@@ -53,7 +53,6 @@ class SkillContractTests(unittest.TestCase):
             "agents-extras:sync",
             "agents-extras:to-questionnaire",
             "agents-personal:google-docs-refine",
-            "agents-tasks:complete-task",
             "agents-tasks:simplify-task",
             "agents-tasks:tidy-repo",
             "agents-tasks:wayfinder",
@@ -65,7 +64,7 @@ class SkillContractTests(unittest.TestCase):
             path: content for path, content in targets.items()
             if path.name == "openai.yaml" and path.parent.name == "agents"
         }
-        self.assertEqual(len(policies), 10)
+        self.assertEqual(len(policies), 9)
         for skill_path, metadata in self.metadata.items():
             policy_path = skill_path.parent / "agents" / "openai.yaml"
             with self.subTest(skill=skill_path):

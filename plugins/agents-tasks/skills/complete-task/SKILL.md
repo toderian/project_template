@@ -1,7 +1,6 @@
 ---
 name: complete-task
-description: "Complete or cancel an active task: reconcile progress, fill completion harvest/summary, optionally squash task commits, archive it, and sync ledgers. Use when the user says \"complete task\", \"finish task\", \"close task\", \"cancel task\", or asks to archive a done task."
-disable-model-invocation: true
+description: "Complete or cancel an active task: reconcile progress, fill completion harvest/summary, optionally squash task commits, archive it, and sync ledgers. Use when an authorized task finishes implementation and verification, before advancing an authorized task chain, or when the user asks to complete, close, cancel, or archive a task."
 metadata:
   source: playbooks/skills/productivity/complete-task.md
   pack: task-management
@@ -18,6 +17,12 @@ completion harvest, generated ledgers, and strict validation all agree.
 Use this workflow when work was completed but the task was never moved to `done`. Do not leave
 implemented work sitting in `_todos/` just because the closeout step was missed; verify it, update the
 task file, harvest the outcome, and archive it.
+
+Completing an authorized task includes its local closeout. Invoke this workflow without waiting for
+a separate user request once implementation and verification are complete. In an authorized chain,
+close and commit the current task before starting the next one. This does not authorize selecting
+unrequested tasks, cancelling work, publishing, or bypassing an explicit human acceptance gate.
+The orchestrator owns closeout; implementation subagents report their results to it.
 
 Follow the `agents-tasks:task-ledger` skill (references/todo-convention.md) for the task format and lifecycle.
 
@@ -51,6 +56,10 @@ For `done`:
   evidence from code, docs, tests, commits, or execution logs.
 - Run the related tests listed in the task, unless the task says `N/A - <reason>`.
 - If a listed test cannot be run, record the exact command attempted and the reason.
+- Keep the task active if any required criterion or check is failing or unverifiable, a required
+  review is unresolved, or explicit human sign-off is outstanding. A verification verdict of `GAPS`
+  or `HUMAN_NEEDED` blocks `done`; report the specific blocker instead of requesting routine closure
+  approval. Check the entire task scope, including all participating repositories, before closing.
 - If the work appears complete in the repo but progress markers were stale, record that this is a
   closeout reconciliation in the execution log instead of pretending the progress was updated earlier.
 
@@ -112,6 +121,11 @@ at ledger check
 
 If `--check` reports completion-harvest, status-directory, roadmap, or stale-ledger errors, fix them
 before reporting success.
+
+Commit the task's closeout and generated ledger changes with explicit pathspecs under the repo's
+commit rules. If committing is prohibited or fails, report closeout as uncommitted and do not advance
+the task chain as though it finished. Continue to the next already-authorized task after validation
+and the closeout commit succeed; no separate "close this task" prompt is needed.
 
 ### 9. Optional downstream commit squash
 

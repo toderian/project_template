@@ -53,6 +53,9 @@ you can describe in one sentence skips Frame and Critique — never Test.
 - Commit after each coherent, reviewable slice — one task phase, one fix, one docs batch. Stage only
   the files that belong to that slice; never sweep in unrelated dirty changes.
 - Commit message: a `type: summary` line, then a body with `What changed:` / `Why:` / `Checks:`.
+- Finish authorized tasks through verified local closeout before advancing an authorized chain;
+  do not wait for a separate closure request. Use `agents-tasks:complete-task` when a task ledger
+  exists. Failed or unverifiable checks and explicit human acceptance gates still block closure.
 
 ## Routing table
 
