@@ -31,6 +31,9 @@ jobs:
         run: python3 scripts/tests/test_task_brief.py
 
       - name: Scripted execute-plan driver tests (fake harness)
+        env:
+          GIT_CONFIG_GLOBAL: /dev/null
+          GIT_CONFIG_NOSYSTEM: "1"
         run: python3 scripts/tests/test_task_run.py
 
       - name: Task size gate tests

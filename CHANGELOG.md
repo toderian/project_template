@@ -2,6 +2,13 @@
 
 Notable changes to agents-template. All four plugins share the version of the repository.
 
+## 1.9.1 — 2026-11-16
+
+### Fixed
+
+- Task-run test repositories now configure their own Git author identity, including commits made
+  by driver subprocesses. CI verifies the suite without global or system Git configuration.
+
 ## 1.9.0 — 2026-11-16
 
 ### Added

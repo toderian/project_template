@@ -7,8 +7,11 @@ STATE = "docs/tasks_manager/_runs/TST-003/state.md"
 def repo():
     tmp = pathlib.Path(tempfile.mkdtemp()); shutil.copytree(FIX, tmp, dirs_exist_ok=True)
     (tmp / ".gitignore").write_text("docs/tasks_manager/_runs/**/diff.patch\n")
-    g = lambda *a: subprocess.run(["git", "-C", str(tmp), "-c", "user.name=t", "-c", "user.email=t@t", *a], capture_output=True, text=True, check=True)
-    g("init", "-q"); g("add", "-A"); g("commit", "-q", "-m", "base"); return tmp
+    g = lambda *a: subprocess.run(["git", "-C", str(tmp), *a], capture_output=True, text=True, check=True)
+    g("init", "-q")
+    # The driver commits in a separate process, so identity must persist in the fixture.
+    g("config", "user.name", "Task runner test"); g("config", "user.email", "task-runner@example.invalid")
+    g("add", "-A"); g("commit", "-q", "-m", "base"); return tmp
 def run(tmp, *args, scenario="pass", harness="claude"):
     env = dict(os.environ, AT_TASKS_ROOT=str(ROOT / "plugins/agents-tasks"), FAKE_SCENARIO=scenario, FAKE_CALLS=str(tmp.parent / (tmp.name + ".calls")))
     return subprocess.run([str(AT), "task", "run", "TST-003", "--harness", harness, "--driver-cmd", str(FAKE), *args],
