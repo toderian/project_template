@@ -2,6 +2,13 @@
 
 Notable changes to agents-template. All four plugins share the version of the repository.
 
+## 1.9.2 — 2026-11-16
+
+### Fixed
+
+- Empty plugin-inventory tests use a controlled CLI stub, so they exercise the same behavior on
+  development machines and CI runners where Claude Code is not installed.
+
 ## 1.9.1 — 2026-11-16
 
 ### Fixed

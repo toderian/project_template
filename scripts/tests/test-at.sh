@@ -375,7 +375,16 @@ at ledger sync >/dev/null 2>&1
 # --- at update --------------------------------------------------------------
 FAKEHOME="$WORKDIR/fakehome"
 mkdir -p "$FAKEHOME"
-UPDATE_EMPTY="$(HOME="$FAKEHOME" at update --check 2>&1)"; UPDATE_EMPTY_RC=$?
+# These cases require a successful empty inventory, independent of installed CLIs.
+EMPTY_INVENTORY_BIN="$WORKDIR/empty-inventory-bin"
+mkdir -p "$EMPTY_INVENTORY_BIN"
+cat > "$EMPTY_INVENTORY_BIN/claude" <<'EMPTYCLI'
+#!/bin/sh
+[ "$*" = 'plugin list --json' ] || exit 1
+printf '[]\n'
+EMPTYCLI
+chmod +x "$EMPTY_INVENTORY_BIN/claude"
+UPDATE_EMPTY="$(HOME="$FAKEHOME" PATH="$EMPTY_INVENTORY_BIN:$PATH" at update --check 2>&1)"; UPDATE_EMPTY_RC=$?
 assert_eq "$UPDATE_EMPTY_RC" "1" "at update --check exits 1 when nothing is installed"
 assert_stdout_contains "$UPDATE_EMPTY" "at bootstrap" \
   "the no-plugins message points at at bootstrap"
@@ -383,7 +392,7 @@ assert_stdout_contains "$UPDATE_EMPTY" "at bootstrap" \
 mkdir -p "$FAKEHOME/.claude/plugins/cache/agents-template/agents-core/1.0.1"
 mkdir -p "$FAKEHOME/.claude/plugins/cache/agents-template/agents-core/1.1.0"
 mkdir -p "$FAKEHOME/.claude/plugins/cache/agents-template/agents-tasks/1.1.0"
-UPDATE_CHECK="$(HOME="$FAKEHOME" at update --check 2>&1)"; UPDATE_CHECK_RC=$?
+UPDATE_CHECK="$(HOME="$FAKEHOME" PATH="$EMPTY_INVENTORY_BIN:$PATH" at update --check 2>&1)"; UPDATE_CHECK_RC=$?
 assert_eq "$UPDATE_CHECK_RC" "1" "a valid empty live inventory overrides stale cache entries"
 assert_stdout_contains "$UPDATE_CHECK" "no agents-template plugins" \
   "stale caches are not reported as configured plugins"
