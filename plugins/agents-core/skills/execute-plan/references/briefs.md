@@ -127,7 +127,7 @@ Your reply is the re-review (I save it to docs/tasks_manager/_runs/<TASK-ID>/pha
 per finding "<n>: resolved | open — one line", then the ## Status / ## Verdict / ## Findings block; at most 40 lines.
 ```
 
-## Final review (step 7, `Stage: both`; two `reviewer`s in parallel in large mode, one in small mode)
+## Final review (step 7, `Stage: both`; reviewer 1 in large mode, the only one in small mode)
 
 In small mode add the line `Also give the simplicity judgement:` followed by the scope sentence of
 §"Final simplicity review" below; large mode dispatches that review separately.
@@ -157,6 +157,30 @@ A consequence that breaks an invariant or loses data or evidence is critical.
 Scope fence: read-only; do not edit files.
 Model hint: strongest available, highest effort.
 Your reply is the review (I save it to docs/tasks_manager/_runs/<TASK-ID>/final-review-<1|2>.md):
+the ## Status / ## Verdict / ## Findings block first, then ## Evidence; at most 40 lines.
+```
+
+## Final review 2, unanchored (step 7, large mode, `Stage: both`, second `reviewer`)
+
+Reviewer 2 gets no plan, design, `Ruling:` lines or state file, so it cannot check conformance to
+decisions that may themselves be wrong: it looks for what breaks. Fill the goal sentence and the base revision yourself;
+do not add context.
+
+```text
+Stage: both
+Task description: <one sentence: the goal of the whole task>. Find what breaks.
+Diff: git diff <base_rev>..HEAD
+Consequence checklist: each item is answered in `## Evidence` as one line, or `n/a: <why>`:
+1. every caller of a function whose signature, return values or errors changed;
+2. the full behaviour of helpers the change starts relying on (fallthrough and default branches);
+3. every newly reachable path: what it writes, publishes, logs;
+4. other paths in the same flow that can break the same invariant;
+5. failure paths: what is logged or persisted, before or after redaction;
+6. each new check or test: name the input that makes it fail for the bug class.
+A consequence that breaks an invariant or loses data or evidence is critical.
+Scope fence: read-only; do not edit files.
+Model hint: strongest available, highest effort.
+Your reply is the review (I save it to docs/tasks_manager/_runs/<TASK-ID>/final-review-2.md):
 the ## Status / ## Verdict / ## Findings block first, then ## Evidence; at most 40 lines.
 ```
 

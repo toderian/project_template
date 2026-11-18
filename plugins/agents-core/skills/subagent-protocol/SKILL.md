@@ -122,6 +122,11 @@ next reader can audit:
 Ruling: <finding> — <decision: fixed by parent | accepted as-is | parked> — cost if wrong: <one clause>
 ```
 
+A design line or `Ruling:` that accepts losing data or evidence (a dropped record, an overwritten
+field, a skipped node), or that calls something on the changed path a "known gap", is not the
+parent's to accept: it needs the owner's ruling in chat, quoted in the line. Without it the finding
+stays open.
+
 Stop with `BLOCKED` only when every path forward is a guess; a defect the parent can fix in a few
 lines is fixed by the parent and recorded as a ruling.
 

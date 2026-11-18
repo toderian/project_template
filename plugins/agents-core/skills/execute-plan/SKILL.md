@@ -218,7 +218,8 @@ verdict blocks and the state file; open a report, diff or test log only to adjud
    round still grows the file, row → `blocked` with a note naming the shape problem, and ask the user;
    do not adjudicate it away with a `Ruling:`.
 8. **Adjudicate at the cap.** Decide each still-open finding and record a `Ruling:` line in
-   `state.md`; small defects you fix and rule. If every path forward is a guess, row → `blocked`,
+   `state.md`; small defects you fix and rule. A finding whose acceptance loses data or evidence
+   needs the owner's ruling in chat (`agents-core:subagent-protocol` §"Fix loop"), not yours. If every path forward is a guess, row → `blocked`,
    write what is needed, stop. In small mode a phase that hits the cap escalates the run to large
    instead (step 0).
 9. **Verify and record.** Run the phase checks and related tests yourself and read the output. Tick
@@ -268,8 +269,10 @@ Per-phase reviews saw one diff each; this looks at the whole, with the brief fro
 Small mode: one `reviewer` → `final-review-1.md`, with the simplicity judgement folded into its
 brief, and only when there were two phases (a single phase's review already covered the task). Large
 mode: two `reviewer`s (`Stage: both`) plus one `reviewer` with `Stage: simplicity` in parallel →
-`final-review-1.md`, `-2.md`, `final-review-simplicity.md`, unseen by each other; all three get
-`size.md`. The simplicity reviewer judges avoidable complexity only (duplicated wiring, guards
+`final-review-1.md`, `-2.md`, `final-review-simplicity.md`, unseen by each other. Reviewer 1 and the
+simplicity reviewer get `size.md`; reviewer 2 is **unanchored**: the brief from briefs.md §"Final
+review 2" holds only the goal sentence, the diff range and the consequence checklist, no plan,
+design, `Ruling:` lines or state, so it cannot conform to a decision that was wrong. The simplicity reviewer judges avoidable complexity only (duplicated wiring, guards
 coordinating guards, one-caller abstractions, files that grew where the plan said shrink) and fails
 on a flagged file with no justification or a code net over the plan's `Shape:`. Large mode also
 sends the final-review brief to `at peer run --role reviewer` → `final-review-peer.md`, per

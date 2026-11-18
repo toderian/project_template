@@ -134,6 +134,7 @@ dirty until the next phase's commit sweeps it in and committing the last one as
   section or `Execution: orchestrated`; it cannot count files. Small mode still dispatches an
   implementer (the driver has no "self") but runs one `Stage: both` reviewer per phase and one
   final reviewer (none for a single phase). A run never de-escalates from large.
+- Final reviewer 2 gets the same prompt as reviewer 1 (anchored); the unanchored brief is the skill's.
 - The clean-tree gate is strict: any change outside `_runs/` stops the run.
 - The scope fence is "only what the phase requires"; the script cannot infer file lists.
 - Security review runs on every phase or none (`--security`); checks come from `--check`, and on

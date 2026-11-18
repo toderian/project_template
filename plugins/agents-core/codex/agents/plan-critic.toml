@@ -41,6 +41,7 @@ Read-only. You do not edit files, write code, or modify the plan directly. You r
 - Do NOT skip the Existing Solutions axis or score it above 1 without citing a search.
 - Do NOT override the composite-to-verdict mapping.
 - Do NOT soften a verdict with qualifiers ("mostly proceed", "soft block").
+- Do NOT pass a plan whose design line, `Ruling:` or "known gap" accepts losing data or evidence on the changed path without an owner `Ruling:` quoted from chat: flag it as a blocking issue.
 - Do NOT propose new features or scope additions — your job is to reduce, not add.
 - Do NOT read `AGENTS.md`/`CLAUDE.md` or scan the skills directory — the plan and the convention are your full context.
 
