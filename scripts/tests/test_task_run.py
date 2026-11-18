@@ -36,7 +36,7 @@ class TaskRun(unittest.TestCase):
         self.assertFalse(any("|size" in c for c in calls.splitlines() if c.startswith("reviewer|spec")), calls)
         size = (tmp / "docs/tasks_manager/_runs/TST-003/phase-1/size.md").read_text(); self.assertIn("| src/phase1.py | 0 | 1 | +1 (new) | code |", size)
         self.assertIn("TST-003 whole run", (tmp / "docs/tasks_manager/_runs/TST-003/size.md").read_text())
-        self.assertIn("- size: +1/−0, code net +1, test net +0; flagged: none", subprocess.run(["git", "-C", str(tmp), "log", "-1", "--format=%B", "HEAD~1"], capture_output=True, text=True).stdout)
+        self.assertIn("- size: +1/−0, code net +1, test net +0, fixture net +0; flagged: none", subprocess.run(["git", "-C", str(tmp), "log", "-1", "--format=%B", "HEAD~1"], capture_output=True, text=True).stdout)
         self.assertIn("**Size:** +1/−0", task); self.assertIn("Note: run size +", s); self.assertIn("Note: final review simplicity: PASS", s)
         self.assertEqual(subprocess.run(["git", "-C", str(tmp), "status", "--porcelain"], capture_output=True, text=True).stdout.strip(), "")
     def test_fix_round_resumes_implementer_then_passes(self):
@@ -120,4 +120,16 @@ class TaskRun(unittest.TestCase):
         calls = (tmp.parent / (tmp.name + ".calls")).read_text()
         self.assertIn("implementer||1|codex|resume=False|ro=False|mode=yolo", calls)
         self.assertIn("reviewer|spec|1|codex|resume=False|ro=True|mode=yolo", calls)
+    def test_run_prompts_carry_the_same_test_rules_as_the_briefs(self):
+        import sys; sys.path.insert(0, str(ROOT / "plugins/agents-core/lib")); import task_run
+        briefs = (ROOT / "plugins/agents-core/skills/execute-plan/references/briefs.md").read_text()
+        for text in (task_run.reviewer_prompt("r", 1, "quality", "abc"), task_run.reviewer_prompt("r", 1, "both", "abc"),
+                     task_run.final_prompt("r", 1, "abc", "t.md"), task_run.final_prompt("r", "simplicity", "abc", "t.md")):
+            self.assertTrue("test-ratio" in text or "test ratio" in text, text)
+        for text in (task_run.reviewer_prompt("r", 1, "quality", "abc"), task_run.final_prompt("r", 1, "abc", "t.md")):
+            self.assertIn(task_run.SIZE_SEVERITY, text); self.assertIn(task_run.SIZE_SEVERITY, briefs)
+        self.assertIn(task_run.TEST_REDUNDANCY, task_run.reviewer_prompt("r", 1, "both", "abc")); self.assertIn(task_run.TEST_REDUNDANCY, briefs)
+        self.assertIn("Test plan", task_run.implementer_prompt("r", 1, "p"))
+        self.assertIn("duplicated between phases", task_run.final_prompt("r", 1, "abc", "t.md")); self.assertIn("duplicated between phases", briefs)
+        self.assertIn("one behaviour tested at several layers", task_run.SIMPLICITY_SCOPE)
 if __name__ == "__main__": unittest.main()

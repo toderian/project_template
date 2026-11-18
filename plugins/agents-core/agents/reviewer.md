@@ -26,6 +26,7 @@ Does the implementation satisfy every acceptance criterion from the task brief?
 
 - Check each criterion individually against the actual code changes
 - Do not trust the implementer's self-report — verify independently
+- Traceability: every new or changed test maps to a row of the report's Test plan; a test proving no listed behaviour, or the same behaviour at the same layer as another, is a finding (`delete`)
 - Read the actual diff, not just the summary
 - If any criterion is not met, report DONE_WITH_CONCERNS and list the gaps
 
@@ -37,13 +38,13 @@ Only proceed to this stage if spec compliance passes.
 - Clarity: are tradeoffs named, is reasoning defensible?
 - Regressions: does the change break existing behavior?
 - Security: are there injection, XSS, or data exposure risks?
-- Size: when the brief names a size table, every flagged file needs a reason in the checklist, a finding or the report — otherwise `[I]`; a file that grew in a phase meant to dedup or shrink it is `[C]`
+- Size: when the brief names a size table, every flagged file, flagged fixture or test+fixture-ratio flag needs a reason in the checklist, a finding or the report — otherwise `[I]`; an unjustified fixture or test-ratio flag is `[C]` (FAIL), stricter than a code flag since bulk data growth has no logic to review; a file that grew in a phase meant to dedup or shrink it is `[C]`
 - State: list the flags, refs, effects, locks or retries the diff adds; each must answer a named finding or checklist item
 - Simplicity: is there a simpler design with equal outcomes?
 
 ## Stage 3: Simplicity
 
-Avoidable complexity only, over the whole diff and its size table: duplicated wiring, guards that coordinate other guards, abstractions with one caller, files that grew in a phase meant to shrink them. Tag each finding `delete`, `shrink`, `reuse` or `yagni` (the `agents-core:simplicity-review` vocabulary). Verdict `FAIL` when a flagged file has no justification in the task file, the run ledger or the reports, or when the code net exceeds a `Shape:` line the plan states. The size table is evidence, not a verdict: code that must exist may be long.
+Avoidable complexity only, over the whole diff and its size table: duplicated wiring, guards that coordinate other guards, abstractions with one caller, files that grew in a phase meant to shrink them, and test redundancy: one behaviour asserted at several layers (keep it at the lowest layer that proves it; higher layers check only their own wiring), near-duplicate cases that should be one table test, fixtures that store derived or duplicated data instead of inputs and expected outputs. Tag each finding `delete`, `shrink`, `reuse` or `yagni` (the `agents-core:simplicity-review` vocabulary). Verdict `FAIL` when a flagged file, fixture or test ratio has no justification in the task file, the run ledger or the reports, or when the code net exceeds a `Shape:` line the plan states. The size table is evidence, not a verdict: code that must exist may be long.
 
 ## Working style
 

@@ -18,7 +18,7 @@ class Brief(unittest.TestCase):
         self.assertNotIn("Phase 1: Current-state review", b); self.assertNotIn("Phase 3: Hardening", b)
         self.assertNotIn("SECRET-LOG-MARKER", b); self.assertNotIn("Completion", b)
         for h in ("## Acceptance criteria", "## Related tests", "## Specification", "## Design", "## Spec refs",
-                  "## Orchestrator notes", "## Report contract", "| Repos | demo-service |", "| Spec refs |"):
+                  "## Orchestrator notes", "## Report contract", "`## Test plan` first", "| Repos | demo-service |", "| Spec refs |"):
             self.assertIn(h, b)
         self.assertIn("Report path: `docs/tasks_manager/_runs/TST-003/phase-2/report.md`", b)
         self.assertIn("- `docs/resources/demo/contracts/widget.md`", b)

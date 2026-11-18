@@ -24,6 +24,8 @@ For the shared vocabulary of test layers (acceptance, contract, property-based, 
 
 **Bad tests** are coupled to implementation. They mock internal collaborators, test private methods, or verify through external means (like querying a database directly instead of using the interface). The warning sign: your test breaks when you refactor, but behavior hasn't changed. If you rename an internal function and tests fail, those tests were testing implementation, not behavior.
 
+**Lean**: test each behavior once, at the lowest layer that proves it; higher layers check only their own wiring. Fixtures hold minimal inputs and expected outputs, not captured copies.
+
 See `agents-core:tdd` skill references/tests.md for examples and `agents-core:tdd` skill references/mocking.md for mocking guidelines.
 
 ## Anti-Pattern: Tautological Tests
@@ -81,6 +83,8 @@ Ask: "What should the public interface look like? Which behaviors are most impor
 **You can't test everything.** Confirm with the user exactly which behaviors matter most. Focus testing effort on critical paths and complex logic, not every possible edge case.
 
 ### 2. Tracer Bullet
+
+Start from the behavior list: one test per behavior unless you write down why it needs more.
 
 Write ONE test that confirms ONE thing about the system:
 

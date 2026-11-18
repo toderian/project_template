@@ -36,7 +36,7 @@ Do not commit or stage: the orchestrator that dispatched you owns commits. Do no
 
 ## Report format
 
-When your brief names a report path, write the full report there (this block, every check you ran with its result, and anything the reviewer needs to verify your work) and keep your chat reply to at most 15 lines ending with this block. Without a report path, reply with the block alone:
+When your brief names a report path, write the full report there, starting with `## Test plan` before any code (one row per behaviour in the phase checklist, the single lowest layer that proves it, the test names; a test outside the plan needs a one-line reason; fixtures listed with expected size, 500 lines or more needs a reason), then this block, every check you ran with its result, and anything the reviewer needs to verify your work, and keep your chat reply to at most 15 lines ending with this block. Without a report path, reply with the block alone:
 
 ```
 ## Status: DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED

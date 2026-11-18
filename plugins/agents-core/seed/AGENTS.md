@@ -29,6 +29,8 @@ you can describe in one sentence skips Frame and Critique — never Test.
   change obsoletes. Report unrelated dead code or bugs you notice, do not fix them unasked.
 - **Evaluation-driven** — define done before large edits, prefer executable checks over confidence,
   and never weaken or delete a test to get green.
+- **Lean tests** — test each behaviour once, at the lowest layer that proves it; fixtures hold inputs and
+  expected outputs. Deleting a test that only repeats another is not weakening.
 - **Context discipline** — load only what the current step needs; write large command output to a file
   and keep head/tail in context; pass references and conclusions, not transcripts.
 - **Ratchet failures into rules** — turn a repeated mistake into a durable control (hook, test, skill

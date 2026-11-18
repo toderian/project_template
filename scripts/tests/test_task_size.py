@@ -46,7 +46,7 @@ class TaskSize(unittest.TestCase):
         self.assertIn("| src/new.py | 0 | 130 | +130 (new) | code |", out)
         self.assertIn("| tests/test_a.py | 1 | 300 | +299 | test |", out)
         self.assertIn("| runs.bin | – | – | binary | binary |", out)
-        self.assertIn("Code net +141 (5 files). Test net +299 (1 files). Docs net +200 (1 files).", out)
+        self.assertIn("Code net +141 (5 files). Test net +299 (1 files). Docs net +200 (1 files). Fixture net +0 (0 files).", out)
         self.assertIn("Flagged: b2.py (new, 150), new.py (new, 130), a.py (+60 %, +60)", out)
         self.assertNotIn("small.py", out.split("Flagged:")[1]); self.assertNotIn("test_a", out.split("Flagged:")[1])
         self.assertIn("-> docs/tasks_manager/_runs/TST-009/phase-1/size.md", p.stdout)
@@ -94,5 +94,44 @@ class TaskSize(unittest.TestCase):
         (tmp / RUNS / "state.md").write_text(STATE.format(base=base).replace(f"Phase 1: BASE {base}", "Phase 1: attempt 1"))
         p = at(tmp, "--phase", "1"); self.assertEqual(p.returncode, 2); self.assertIn("no `Phase 1: BASE <rev>` line", p.stdout)
         self.assertEqual(task_size.phase_shape(tmp / "docs/tasks_manager/_todos/TST-009-F_x.md", 2), [])
+    def test_fixture_kind_flag_ratio_and_parse_round_trip(self):
+        tmp, base = repo()
+        (tmp / "tests/fixtures").mkdir()
+        (tmp / "tests/fixtures/big.json").write_text("\n".join(f"{i}" for i in range(2429)) + "\n")
+        (tmp / "tests/fixtures/small.json").write_text("\n".join(f"{i}" for i in range(499)) + "\n")
+        (tmp / "tests/data.yaml").write_text("a: 1\n")                 # data extension under tests/
+        (tmp / "tests/test_b.py").write_text("t\n" * 5)                # code-like test stays "test"
+        (tmp / "src/c.py").write_text("c\n" * 10)
+        r = task_size.measure(tmp, base)
+        kinds = {f.path: f.kind for f in r.files}
+        self.assertEqual(kinds["tests/fixtures/big.json"], "fixture"); self.assertEqual(kinds["tests/data.yaml"], "fixture")
+        self.assertEqual(kinds["tests/test_b.py"], "test"); self.assertEqual(kinds["src/c.py"], "code")
+        flagged = r.flagged()
+        self.assertIn("big.json (fixture, 2,429 lines)", flagged); self.assertFalse(any("small.json" in f for f in flagged))
+        self.assertIn("test+fixture net +2934 > 2x code net +10", flagged)
+        p = at(tmp, "--phase", "1"); self.assertEqual(p.returncode, 0, p.stderr)
+        size = tmp / RUNS / "phase-1/size.md"; out = size.read_text()
+        self.assertIn("| tests/fixtures/big.json | 0 | 2429 | +2429 (new) | fixture |", out)
+        self.assertIn("Fixture net +2929 (3 files).", out)
+        self.assertEqual(task_size.parse_after(size)["tests/fixtures/big.json"], 2429)
+    def test_ratio_flag_does_not_fire_under_floor_or_ratio(self):
+        tmp, base = repo()
+        (tmp / "tests/test_a.py").write_text("t\n" * 299)   # +298 < 300 floor
+        self.assertEqual(task_size.measure(tmp, base).flagged(), [])
+        (tmp / "tests/test_a.py").write_text("t\n" * 400)   # +399 ≥ 300 but code net +200 → 2x = 400
+        (tmp / "src/d.py").write_text("d\n" * 119)           # new, 119 < 120: not file-flagged
+        (tmp / "src/e.py").write_text("e\n" * 81)
+        self.assertEqual(task_size.measure(tmp, base).flagged(), [])
+        (tmp / "src/e.py").write_text("e\n" * 80)           # code net +199 → 2x = 398 < 399: fires
+        self.assertEqual(task_size.measure(tmp, base).flagged(), ["test+fixture net +399 > 2x code net +199"])
+    def test_colocated_tests_mocks_and_snapshots_are_classified(self):
+        k = lambda path: task_size.FileSize(path, 0, 10, 10, 0).kind
+        for path in ("src/foo.test.ts", "src/foo.spec.tsx", "pkg/test_x.py", "pkg/x_test.go", "src/__snapshots__/a.snap",
+                     "src/a.snap", "src/__mocks__/api.ts", "pkg/tests/fixtures/loader.py"):
+            self.assertEqual(k(path), "test" if path.endswith((".ts", ".tsx", ".py", ".go")) else "fixture", path)
+        for path in ("src/testdata/r.json", "src/mocks/r.json", "e2e/data/r.json", "src/__snapshots__/a.snap"):
+            self.assertEqual(k(path), "fixture", path)
+        for path in ("src/contest.ts", "src/latest.py", "src/testing.py", "src/app.json"):
+            self.assertNotEqual(k(path), "test", path); self.assertNotEqual(k(path), "fixture", path)
 if __name__ == "__main__":
     unittest.main()

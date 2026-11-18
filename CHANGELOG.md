@@ -2,6 +2,21 @@
 
 Notable changes to agents-template. All four plugins share the version of the repository.
 
+## Unreleased
+
+### Changed
+
+- `at task size` measures fixtures as their own kind (data files, and non-code files under `fixtures/`, `testdata/`,
+  `mocks/`, `__mocks__/` or `__snapshots__/`, wherever they sit). Co-located tests (`foo.test.ts`, `foo.spec.tsx`,
+  `x_test.go`) now count as test. It flags a fixture of 500 lines or more, and a phase whose test+fixture net is at
+  least 300 and over 2x its code net. The Total line gains `Fixture net`.
+- Reviewer, execute-plan briefs and the `Shape:` convention review those flags and
+  judge test redundancy: one behaviour asserted at several layers, near-duplicate cases, fixtures that
+  copy derived data.
+- Implementers write a `## Test plan` first (behaviour -> lowest layer -> test names; fixtures with size, one of 500 lines or more needs a reason): `at task brief` Report contract, the implementer prompt and briefs. Reviewers check every test maps to a row, and an unjustified fixture or test-ratio flag is critical (fails the review), stricter than a code flag since bulk data growth has no logic to review. `at task run` prompts, `execute-plan` and the implementer report shape carry the same rules. The final review adds one cross-phase pass for duplicated tests and fixtures. `agents-core:tdd` starts the red step from the behaviour list.
+- Seed `AGENTS.md` gains a "Lean tests" principle; `agents-core:tdd` points at it. `at init` never
+  overwrites `AGENTS.md`: downstream repos adopt the bullet through `agents-core:setup-project`.
+
 ## 1.9.2 — 2026-11-16
 
 ### Fixed

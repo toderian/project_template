@@ -179,13 +179,13 @@ verdict blocks and the state file; open a report, diff or test log only to adjud
    phase; if the brief would need a later phase's work, update the plan first.
 3. **Mark.** Row → `implementing`, `Attempt` +1, `Phase N: BASE <rev>` line.
 4. **Implement.** Small mode: implement the phase yourself inside the scope fence, run its checks,
-   write `phase-N/report.md` in the implementer report shape. Large mode: dispatch a fresh
+   write `phase-N/report.md` in the implementer report shape, `## Test plan` first. Large mode: dispatch a fresh
    `implementer` with the prompt from [references/briefs.md](references/briefs.md) §"Implementer";
    on `NEEDS_CONTEXT` answer inside the brief's orchestrator notes and re-dispatch, on `BLOCKED`
    triage per `agents-core:subagent-protocol`. Never re-dispatch an identical prompt.
 5. **Package.** `git diff <BASE> -- <scope fence> > _runs/<TASK-ID>/phase-N/diff.patch`
    (git-ignored, regenerable), then `at task size <TASK-ID> --phase N` → `phase-N/size.md`: lines per
-   file before and after, code/test split, a `Flagged:` line for growth that needs a reason (hand-write
+   file before and after, code/test/fixture split, a `Flagged:` line for growth that needs a reason (hand-write
    the same table without `agents-tasks`). Row → `reviewing`. An implementer that changed nothing is
    reviewed against the run's diff since `base_rev`.
 6. **Review**, read-only; each reply *is* the report — save it verbatim to its file and keep only
@@ -195,7 +195,8 @@ verdict blocks and the state file; open a report, diff or test log only to adjud
    - Small mode: one `reviewer`, `Stage: both`, prompt from briefs.md §"Single reviewer" →
      `review.md`; its verdict fills both `Spec` and `Quality`.
    - The quality judgement (and `Stage: both`) reads `size.md`: a flagged file whose growth no
-     checklist item, finding or report line explains is an important finding; a file that grew in a
+     checklist item, finding or report line explains is an important finding; an unjustified fixture or test-ratio flag is critical (stricter than a
+     code flag: bulk data growth has no logic to review); a file that grew in a
      phase meant to dedup or shrink it is critical. A `Shape:` line under the phase heading is
      checked like a checklist item.
    - Large mode, in parallel: `reviewer` `Stage: spec` → `review-spec.md`; `reviewer`

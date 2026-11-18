@@ -247,8 +247,14 @@ def implementer_prompt(runs_rel: str, n: int, project: str, round_no: int = 0, s
             f"Report path: {base}/report.md\n"
             "Scope fence: only what the brief's phase requires. Do not commit or stage. Do not spawn subagents. "
             "Do not read AGENTS.md, CLAUDE.md, or other skills. Honour the Interface:/Ruling: lines in the brief.\n"
+            "Start the report with a ## Test plan before writing code (see the brief's Report contract).\n"
             "Run the checks named in the brief and record real output in the report.\n"
             "Reply with at most 15 lines ending in the ## Status: block (DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED).")
+
+
+SIZE_SEVERITY = "An unjustified fixture or test-ratio flag is critical (FAIL), stricter than a code flag: bulk data growth has no logic to review."
+TEST_REDUNDANCY = ("Also flag tests asserting one behaviour at several layers, and fixtures holding derived or copied data; "
+                   "every new or changed test must map to a Test plan row.")
 
 
 def reviewer_prompt(runs_rel: str, n: int, stage: str, base_rev: str, round_no: int = 0) -> str:
@@ -262,8 +268,9 @@ def reviewer_prompt(runs_rel: str, n: int, stage: str, base_rev: str, round_no: 
                   "(met / not met, one line each), then the quality findings.\n")
     size = ""
     if stage in ("quality", "both"):
-        size = (f"Size: {base}/size.md — each flagged file needs a reason in the checklist, a finding or the report; "
-                "unexplained growth is a finding, and a file that grew in a phase meant to shrink it is critical.\n")
+        size = (f"Size: {base}/size.md — each flagged file, fixture or test-ratio flag needs a reason in the checklist, a "
+                "finding or the report; unexplained growth is a finding, and a file that grew in a phase meant to shrink "
+                f"it is critical. {SIZE_SEVERITY} {TEST_REDUNDANCY}\n")
         if round_no:
             size += (f"Fix size: {base}/size-fix-{round_no}.md — say whether the fix removed or added code, and flag a "
                      "guard added where a structural change was available.\n")
@@ -288,9 +295,10 @@ def security_prompt(runs_rel: str, n: int, base_rev: str) -> str:
 
 
 SIMPLICITY_SCOPE = ("Judge only avoidable complexity: duplicated wiring, guards coordinating other guards, abstractions "
-                    "with one caller, files that grew in a phase meant to shrink them. Tag each finding delete | shrink | "
-                    "reuse | yagni. Verdict FAIL when a flagged file has no justification in the task file, the run "
-                    "ledger or the reports, or when the code net exceeds a Shape: line the plan states.\n")
+                    "with one caller, files that grew in a phase meant to shrink them, one behaviour tested at several "
+                    "layers, near-duplicate cases, fixtures that copy derived data. Tag each finding delete | shrink | "
+                    "reuse | yagni. Verdict FAIL when a flagged file, fixture or test ratio has no justification in the "
+                    "task file, the run ledger or the reports, or when the code net exceeds a Shape: line the plan states.\n")
 
 
 def final_prompt(runs_rel: str, k: int | str, base_rev: str, task_rel: str, simplicity: bool = False) -> str:
@@ -300,7 +308,9 @@ def final_prompt(runs_rel: str, k: int | str, base_rev: str, task_rel: str, simp
     extra = SIMPLICITY_SCOPE if k == "simplicity" else ("Also give the simplicity judgement: " + SIMPLICITY_SCOPE if simplicity else "")
     return (f"Stage: {stage}\nTask description: Review the completed execution of this approved plan as a whole.\n{extra}"
             f"Context: {task_rel}, {runs_rel}/state.md (Ruling: lines are decisions, not defects), "
-            f"git diff {base_rev}..HEAD.\nSize: {runs_rel}/size.md (whole run; Flagged: lines need a reason).\n"
+            f"git diff {base_rev}..HEAD.\nSize: {runs_rel}/size.md (whole run; Flagged: lines need a reason, including fixture and "
+            f"test-ratio flags. {SIZE_SEVERITY} Redundant tests across layers are findings). Make one pass across all "
+            "phases for tests duplicated between phases and fixtures duplicating each other; findings go into the one fix wave.\n"
             "Scope fence: read-only; do not edit files.\n"
             f"Your reply is the review (it is saved to {runs_rel}/final-review-{k}.md): the ## Status / ## Verdict / "
             "## Findings block first, then ## Evidence; at most 40 lines.")
@@ -597,7 +607,7 @@ class Runner:
             grown = ", ".join(f"{Path(p).name} {v:+d}" for p, v in report.code_growth().items()) or "none"
             return f"code net {report.net('code'):+d} ({grown})"
         flagged = ", ".join(report.flagged()) or "none"
-        return f"+{report.added}/−{report.deleted}, code net {report.net('code'):+d}, test net {report.net('test'):+d}; flagged: {flagged}"
+        return f"+{report.added}/−{report.deleted}, code net {report.net('code'):+d}, test net {report.net('test'):+d}, fixture net {report.net('fixture'):+d}; flagged: {flagged}"
 
     def review_round(self, state: State, n: int, pdir: Path, base: str, round_no: int) -> dict[str, dict]:
         self.git("add", "--intent-to-add", "-A", "--", ".", f":(exclude){self.runs_rel}")  # new files show in the diff

@@ -189,9 +189,10 @@ reviewable; a phase that only reads code ("current-state review") is not a phase
 pre-implementation note below.
 
 A phase may carry one optional `Shape:` line directly under its heading, before the checklist —
-`Shape: ExposedPortRow.tsx net shrinks; ≤ ~150 new code lines.` It states the size the phase is
+`Shape: ExposedPortRow.tsx net shrinks; ≤ ~150 new code lines; tests ≤ ~300 lines, no fixture of 500 lines or more.` It states the size the phase is
 expected to have; `at task size` prints it above the phase's size table and the spec reviewer checks
-it like a checklist item.
+it like a checklist item. It may budget tests and fixtures too. Without one, expect test+fixture growth within
+~2x code growth and no fixture of 500 lines or more without a stated reason; `at task size` flags both.
 
 ### Optional metadata rows
 

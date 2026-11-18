@@ -34,6 +34,7 @@ Report path: docs/tasks_manager/_runs/<TASK-ID>/phase-N/report.md
 Scope fence: <files/dirs you may touch>. Nothing else. Do not commit or stage. Do not spawn subagents.
 Do not read AGENTS.md, CLAUDE.md, or other skills.
 Interfaces and rulings from earlier phases are in the brief's orchestrator notes; honour them.
+Start the report with a ## Test plan before writing code: one row per behaviour in the phase checklist -> the single lowest layer that proves it -> test name(s); a test outside the plan needs a one-line reason; fixtures listed with expected size, one of 500 lines or more needs a reason.
 Run the checks named in the brief and record real output in the report.
 Model hint: <default for the implementer card, medium effort | strongest, high effort for round 3>.
 Reply with at most 15 lines ending in the ## Status: block (DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED).
@@ -49,7 +50,7 @@ Brief: docs/tasks_manager/_runs/<TASK-ID>/phase-N/brief.md — judge this phase 
 "## This phase"; the task-wide acceptance criteria are context, verified after the last phase, so an
 unmet criterion that belongs to a later phase is not a finding here.
 Diff: docs/tasks_manager/_runs/<TASK-ID>/phase-N/diff.patch (BASE <rev> → working tree)
-Size: docs/tasks_manager/_runs/<TASK-ID>/phase-N/size.md — each flagged file needs a reason in the checklist, a finding or the report; unexplained growth is a finding, and a file that grew in a phase meant to shrink it is critical. (quality and both only)
+Size: docs/tasks_manager/_runs/<TASK-ID>/phase-N/size.md — each flagged file, fixture or test-ratio flag needs a reason in the checklist, a finding or the report; unexplained growth is a finding, and a file that grew in a phase meant to shrink it is critical. An unjustified fixture or test-ratio flag is critical (FAIL), stricter than a code flag: bulk data growth has no logic to review. Also flag tests asserting one behaviour at several layers, and fixtures holding derived or copied data; every new or changed test must map to a Test plan row. (quality and both only)
 Implementer report: docs/tasks_manager/_runs/<TASK-ID>/phase-N/report.md — treat its claims as unverified.
 Scope fence: read-only; do not edit files. Run tests only to check a specific doubt.
 Global constraints: <work mode, autonomy, anything the phase must not break>
@@ -67,7 +68,7 @@ one line each), then quality findings.
 Brief: docs/tasks_manager/_runs/<TASK-ID>/phase-N/brief.md — the checklist under "## This phase" is the
 spec; task-wide acceptance criteria are context, verified after the last phase.
 Diff: docs/tasks_manager/_runs/<TASK-ID>/phase-N/diff.patch (BASE <rev> → working tree)
-Size: docs/tasks_manager/_runs/<TASK-ID>/phase-N/size.md — each flagged file needs a reason in the checklist, a finding or the report; unexplained growth is a finding, and a file that grew in a phase meant to shrink it is critical.
+Size: docs/tasks_manager/_runs/<TASK-ID>/phase-N/size.md — each flagged file, fixture or test-ratio flag needs a reason in the checklist, a finding or the report; unexplained growth is a finding, and a file that grew in a phase meant to shrink it is critical. An unjustified fixture or test-ratio flag is critical (FAIL), stricter than a code flag: bulk data growth has no logic to review. Also flag tests asserting one behaviour at several layers, and fixtures holding derived or copied data; every new or changed test must map to a Test plan row.
 Scope fence: read-only; do not edit files. Run tests only to check a specific doubt.
 Model hint: strongest available, high effort.
 Your reply is the report (I save it to docs/tasks_manager/_runs/<TASK-ID>/phase-N/review.md):
@@ -144,7 +145,7 @@ Acceptance criteria:
 - No blocking regressions, security issues, or maintainability problems remain.
 Context: <plan/task file>, docs/tasks_manager/_runs/<TASK-ID>/state.md (rulings are decisions, not defects),
 git diff <base_rev>..HEAD.
-Size: docs/tasks_manager/_runs/<TASK-ID>/size.md (whole run; Flagged: lines need a reason).
+Size: docs/tasks_manager/_runs/<TASK-ID>/size.md (whole run; Flagged: lines need a reason, including fixture and test-ratio flags. An unjustified fixture or test-ratio flag is critical (FAIL), stricter than a code flag: bulk data growth has no logic to review. Redundant tests across layers are findings). One pass across all phases for tests duplicated between phases and fixtures duplicating each other; findings go into the one fix wave.
 Scope fence: read-only; do not edit files.
 Model hint: strongest available, highest effort.
 Your reply is the review (I save it to docs/tasks_manager/_runs/<TASK-ID>/final-review-<1|2>.md):
@@ -156,7 +157,7 @@ the ## Status / ## Verdict / ## Findings block first, then ## Evidence; at most 
 ```text
 Stage: simplicity
 Task description: Review the completed execution of this approved plan for avoidable complexity.
-Judge only avoidable complexity: duplicated wiring, guards coordinating other guards, abstractions with one caller, files that grew in a phase meant to shrink them. Tag each finding delete | shrink | reuse | yagni. Verdict FAIL when a flagged file has no justification in the task file, the run ledger or the reports, or when the code net exceeds a Shape: line the plan states.
+Judge only avoidable complexity: duplicated wiring, guards coordinating other guards, abstractions with one caller, files that grew in a phase meant to shrink them, one behaviour tested at several layers, near-duplicate cases, fixtures that copy derived data. Tag each finding delete | shrink | reuse | yagni. Verdict FAIL when a flagged file, fixture or test ratio has no justification in the task file, the run ledger or the reports, or when the code net exceeds a Shape: line the plan states.
 Context: <plan/task file>, docs/tasks_manager/_runs/<TASK-ID>/state.md, git diff <base_rev>..HEAD.
 Size: docs/tasks_manager/_runs/<TASK-ID>/size.md
 Scope fence: read-only; do not edit files.

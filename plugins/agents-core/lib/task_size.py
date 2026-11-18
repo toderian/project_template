@@ -8,8 +8,10 @@ Writes a size table next to the diff it describes so every review point in the
                      (or --base REV → working tree when the pre-fix state was committed)
   --final            base_rev (state.md frontmatter) → working tree   → size.md
 
-Lines per file before and after, code / test / docs split (only code is flagged), and a `Flagged:`
-line for growth a reviewer must see a reason for. The table is never truncated: the next fix round's
+Lines per file before and after, code / test / fixture / docs split, and a `Flagged:` line for growth a
+reviewer must see a reason for: grown or large code files, fixtures of FIXTURE_MAX lines or more, and a
+phase whose test+fixture net outweighs its code net (TEST_RATIO). Test code files are not flagged alone. A fixture is a data file or a non-code file under a
+fixtures/, testdata/, mocks/, __mocks__/ or __snapshots__/ directory; code there (a loader.py) counts as test. The table is never truncated: the next fix round's
 delta is read back from it. Flags are prompts for judgement, not failures: the command exits 0 whenever
 it could measure, 2 on a usage or base error. Python 3 stdlib only. Imported by lib/at.py.
 """
@@ -22,9 +24,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 RUNS_DIR = "docs/tasks_manager/_runs"
-TEST_RE = re.compile(r"(^|/)(tests?|spec|specs|__tests__|fixtures?)(/|$)|(^|/)(test[-_.]|[-_.]test\.|.*\.spec\.)")
+TEST_RE = re.compile(r"(^|/)(tests?|spec|specs|__tests__|__snapshots__|__mocks__|mocks|testdata|e2e|fixtures?)(/|$)"
+                     r"|(^|/)(test[-_.][^/]*|[^/]*[-_.]test\.[^/]*|[^/]*\.spec\.[^/]*|[^/]*\.snap)$")
 DOCS_RE = re.compile(r"\.(md|mdx|rst|txt|adoc|json|ya?ml|toml|ini|cfg|csv|lock)$|(^|/)(docs|CHANGELOG)(/|$)", re.I)
+FIXTURE_RE = re.compile(r"(^|/)(fixtures?|__snapshots__|testdata|__mocks__|mocks)/|\.(json|ya?ml|csv|xml|txt|snap|html|ndjson)$", re.I)
+CODE_EXT_RE = re.compile(r"\.(py|[cm]?[jt]sx?|go|rs|java|rb|sh|php|cs|kt|swift|c|cc|cpp|h|hpp)$", re.I)
 GROW_MIN_LINES, GROW_MIN_PCT, NEW_FILE_MAX, PHASE_NET_MAX = 40, 25, 120, 300
+FIXTURE_MAX, TEST_NET_MIN, TEST_RATIO = 500, 300, 2
 
 
 @dataclass
@@ -40,7 +46,7 @@ class FileSize:
         if self.before is None or self.after is None:
             return "binary"
         if TEST_RE.search(self.path):
-            return "test"
+            return "fixture" if FIXTURE_RE.search(self.path) and not CODE_EXT_RE.search(self.path) else "test"
         return "docs" if DOCS_RE.search(self.path) else "code"
 
     @property
@@ -53,6 +59,8 @@ class FileSize:
 
     @property
     def flag(self) -> str | None:
+        if self.kind == "fixture":
+            return f"fixture, {self.after:,} lines" if (self.after or 0) >= FIXTURE_MAX and self.net > 0 else None
         if self.kind != "code":
             return None
         if self.is_new:
@@ -89,6 +97,9 @@ class Report:
         out = [f"{Path(f.path).name} ({f.flag})" for f in self.files if f.flag]
         if self.net("code") >= PHASE_NET_MAX:
             out.append(f"code net +{self.net('code')} ≥ {PHASE_NET_MAX}")
+        tests = self.net("test") + self.net("fixture")
+        if tests >= TEST_NET_MIN and tests > TEST_RATIO * max(self.net("code"), 0):
+            out.append(f"test+fixture net +{tests} > {TEST_RATIO}x code net {self.net('code'):+d}")
         return out
 
 
@@ -160,9 +171,11 @@ def render(report: Report, title: str, shape: list[str] | None = None, fix_round
         net = f"{f.net:+d}" + (" (new)" if f.is_new else " (deleted)" if f.after == 0 else "")
         out.append(f"| {f.path} | {f.before} | {f.after} | {net} | {f.kind} |")
     code, test, docs = report.by_kind("code"), report.by_kind("test"), report.by_kind("docs")
+    fixture = report.by_kind("fixture")
     out += ["", f"Total: +{report.added} / −{report.deleted}, {len(report.files)} files. "
                 f"Code net {report.net('code'):+d} ({len(code)} files). Test net {report.net('test'):+d} ({len(test)} files). "
-                f"Docs net {report.net('docs'):+d} ({len(docs)} files)."]
+                f"Docs net {report.net('docs'):+d} ({len(docs)} files). "
+                f"Fixture net {report.net('fixture'):+d} ({len(fixture)} files)."]
     flagged = report.flagged()
     out.append("Flagged: " + (", ".join(flagged) if flagged else "none"))
     if fix_round is not None:
