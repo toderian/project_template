@@ -305,6 +305,18 @@ SIMPLICITY_SCOPE = ("Judge only avoidable complexity: duplicated wiring, guards 
                     "task file, the run ledger or the reports, or when the code net exceeds a Shape: line the plan states.\n")
 
 
+CONSEQUENCES = (
+    'Consequence checklist: each item is answered in `## Evidence` as one line, or `n/a: <why>`:\n'
+    '1. every caller of a function whose signature, return values or errors changed;\n'
+    '2. the full behaviour of helpers the change starts relying on (fallthrough and default branches);\n'
+    '3. every newly reachable path: what it writes, publishes, logs;\n'
+    '4. other paths in the same flow that can break the same invariant;\n'
+    '5. failure paths: what is logged or persisted, before or after redaction;\n'
+    '6. each new check or test: name the input that makes it fail for the bug class.\n'
+    'A consequence that breaks an invariant or loses data or evidence is critical.\n'
+)
+
+
 def final_prompt(runs_rel: str, k: int | str, base_rev: str, task_rel: str, simplicity: bool = False) -> str:
     """k = 1 | 2 (Stage: both) or 'simplicity' (the third reviewer in large mode); `simplicity=True` folds the
     simplicity judgement into a Stage: both reviewer (small mode)."""
@@ -315,6 +327,7 @@ def final_prompt(runs_rel: str, k: int | str, base_rev: str, task_rel: str, simp
             f"git diff {base_rev}..HEAD.\nSize: {runs_rel}/size.md (whole run; Flagged: lines need a reason, including fixture and "
             f"test-ratio flags. {SIZE_SEVERITY} Redundant tests across layers are findings). Make one pass across all "
             "phases for tests duplicated between phases and fixtures duplicating each other; findings go into the one fix wave.\n"
+            f"{'' if k == 'simplicity' else CONSEQUENCES}"
             "Scope fence: read-only; do not edit files.\n"
             f"Your reply is the review (it is saved to {runs_rel}/final-review-{k}.md): the ## Status / ## Verdict / "
             "## Findings block first, then ## Evidence; at most 40 lines.")

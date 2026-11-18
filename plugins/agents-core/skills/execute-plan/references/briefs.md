@@ -146,6 +146,14 @@ Acceptance criteria:
 Context: <plan/task file>, docs/tasks_manager/_runs/<TASK-ID>/state.md (rulings are decisions, not defects),
 git diff <base_rev>..HEAD.
 Size: docs/tasks_manager/_runs/<TASK-ID>/size.md (whole run; Flagged: lines need a reason, including fixture and test-ratio flags. An unjustified fixture or test-ratio flag is critical (FAIL), stricter than a code flag: bulk data growth has no logic to review. Redundant tests across layers are findings). One pass across all phases for tests duplicated between phases and fixtures duplicating each other; findings go into the one fix wave.
+Consequence checklist: each item is answered in `## Evidence` as one line, or `n/a: <why>`:
+1. every caller of a function whose signature, return values or errors changed;
+2. the full behaviour of helpers the change starts relying on (fallthrough and default branches);
+3. every newly reachable path: what it writes, publishes, logs;
+4. other paths in the same flow that can break the same invariant;
+5. failure paths: what is logged or persisted, before or after redaction;
+6. each new check or test: name the input that makes it fail for the bug class.
+A consequence that breaks an invariant or loses data or evidence is critical.
 Scope fence: read-only; do not edit files.
 Model hint: strongest available, highest effort.
 Your reply is the review (I save it to docs/tasks_manager/_runs/<TASK-ID>/final-review-<1|2>.md):
