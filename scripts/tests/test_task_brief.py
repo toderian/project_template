@@ -57,4 +57,18 @@ class RunState(unittest.TestCase):
         self.assertEqual(c.returncode, 0, c.stderr); self.assertIn("not verified", c.stderr)
     def test_check_without_state_fails(self):
         tmp = fresh(); c = run(tmp, "run-state", "check", "TST-003"); self.assertEqual(c.returncode, 1); self.assertIn("run-state init", c.stderr)
+    def test_final_check_needs_peer_review_when_code_checkout_requires_it(self):
+        tmp = fresh(git=True); code = fresh(git=True)
+        run(tmp, "run-state", "init", "TST-003", "--code-repo", str(code))
+        self.assertIn(f"code_repo: {code}", (tmp / STATE).read_text())
+        sha = subprocess.run(["git", "-C", str(tmp), "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip()
+        s = (tmp / STATE).read_text().replace("| 1 | pending | 0 | — | — | — | 0 | — | — |", f"| 1 | committed | 1 | PASS | PASS | n/a | 0 | {sha} | — |")
+        (tmp / STATE).write_text(s)
+        self.assertEqual(run(tmp, "run-state", "check", "TST-003", "--final").returncode, 0)  # peer not required there
+        subprocess.run(["git", "-C", str(code), "config", "agents.peerRequired", "true"], check=True)
+        self.assertEqual(run(tmp, "run-state", "check", "TST-003").returncode, 0)  # mid-run check never demands it
+        c = run(tmp, "run-state", "check", "TST-003", "--final")
+        self.assertEqual(c.returncode, 1); self.assertIn("final-review-peer.md is missing", c.stderr)
+        (tmp / "docs/tasks_manager/_runs/TST-003/final-review-peer.md").write_text("Peer: codex\n")
+        self.assertEqual(run(tmp, "run-state", "check", "TST-003", "--final").returncode, 0)
 if __name__ == "__main__": unittest.main()

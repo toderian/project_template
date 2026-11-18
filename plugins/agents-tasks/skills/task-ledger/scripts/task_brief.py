@@ -191,6 +191,7 @@ def render_state(task: Task, root: Path, args: argparse.Namespace) -> str:
         f"branch: {args.branch}",
         f"work_mode: {args.work_mode}",
         f"autonomy: {args.autonomy}",
+        *([f"code_repo: {args.code_repo}"] if getattr(args, "code_repo", "") else []),
         "current_phase: 1",
         f"updated: {now_iso()}",
         "---",
@@ -213,7 +214,15 @@ def git_has_commit(root: Path, sha: str) -> bool | None:
     return rc == 0
 
 
-def check_state(path: Path, task: Task, root: Path) -> tuple[list[str], list[str]]:
+def peer_required(repo: Path) -> bool:
+    """True when `at peer enable ... --required` set agents.peerRequired in this checkout."""
+    rc = subprocess.run(["git", "-C", str(repo), "config", "--type=bool", "--get", "agents.peerRequired"],
+                        capture_output=True, text=True, check=False)
+    return rc.returncode == 0 and rc.stdout.strip() == "true"
+
+
+def check_state(path: Path, task: Task, root: Path, final: bool = False) -> tuple[list[str], list[str]]:
+    """`final=True` (the run is at its end) also demands final-review-peer.md when the code checkout requires a peer."""
     errors: list[str] = []
     warnings: list[str] = []
     lines = read_lines(path)
@@ -276,6 +285,15 @@ def check_state(path: Path, task: Task, root: Path) -> tuple[list[str], list[str
                 errors.append(f"{rel}: phase {n} commit {commit} does not exist in this repository")
         if status == "committed" and commit in ("—", "-", ""):
             errors.append(f"{rel}: phase {n} is committed but has no commit SHA")
+    if final and any(c[1] == "committed" for c in rows if len(c) >= 9):
+        code = Path(front.get("code_repo") or ".")
+        code = code if code.is_absolute() else root / code
+        if not code.is_dir():
+            warnings.append(f"{rel}: code_repo {front.get('code_repo')!r} is not a directory; peer requirement not checked")
+        elif peer_required(code) and not (path.parent / "final-review-peer.md").is_file():
+            errors.append(f"{rel}: phases are committed but {path.parent.relative_to(root).as_posix()}/final-review-peer.md "
+                          f"is missing and the peer is required in {code} (run `at peer run --role reviewer` from there "
+                          "with the final-review brief)")
     for line in ledger:
         if not line.startswith(LEDGER_PREFIXES) or (line.startswith("Phase ") and not re.match(r"^Phase \d+:", line)):
             errors.append(f"{rel}: ledger line must start with `Phase N:`, `Ruling:`, `Interface:` or `Note:`: {line!r}")
@@ -327,7 +345,7 @@ def cmd_run_state(args: argparse.Namespace, root: Path) -> int:
         return write_out(state, render_state(task, root, args), args.force, "run state")
     if not state.is_file():
         return err(f"no run state at {state.relative_to(root).as_posix()} (run: at task run-state init {task.taskid})")
-    errors, warnings = check_state(state, task, root)
+    errors, warnings = check_state(state, task, root, final=args.final)
     for w in warnings:
         print(f"WARNING: {w}", file=sys.stderr)
     for e in errors:
@@ -358,6 +376,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_state.add_argument("--branch", default="unknown", help="branch name (init)")
     p_state.add_argument("--work-mode", default="default-branch", help="resolved work mode (init)")
     p_state.add_argument("--autonomy", default="L1", help="resolved autonomy level (init)")
+    p_state.add_argument("--code-repo", default="", help="checkout holding the code diff when it is not this one: "
+                         "path or absolute path (init; default: this checkout)")
+    p_state.add_argument("--final", action="store_true", help="the run is at its end: also require "
+                         "final-review-peer.md when the code checkout requires a peer (check)")
     p_state.add_argument("--runtime", choices=RUNTIMES, default="inline", help="dispatch runtime (init)")
     p_state.add_argument("--force", action="store_true", help="overwrite an existing state.md (init)")
     p_state.set_defaults(func=cmd_run_state)

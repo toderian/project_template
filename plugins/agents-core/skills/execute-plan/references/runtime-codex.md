@@ -53,7 +53,8 @@ block, so a missing block after that means re-dispatch fresh.
 
 Pass `--from codex` to `at peer run` and `at peer status`. The peer (`claude -p`) needs the network:
 run the command outside the sandbox when asked for approval, or enable `network_access` under
-`[sandbox_workspace_write]`; otherwise it exits 3 and the gate goes on without the peer.
+`[sandbox_workspace_write]`; otherwise it exits 3: the gate goes on without the peer, or is BLOCKED when
+the code checkout is `required`. Run it with cwd = the checkout that holds the code diff.
 
 ## Two more fallbacks
 

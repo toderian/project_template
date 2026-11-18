@@ -30,7 +30,8 @@ docs/tasks_manager/_runs/<TASK-ID>/
   final-review-simplicity.md the Stage: simplicity review (large mode)
   architecture-review-peer.md, final-review-peer.md, verify-peer.md
                            replies saved by `at peer run` (the other agent CLI), only where the
-                           checkout enabled peer checks; the outcome is a `Note: peer ...` line in state.md
+                           checkout enabled peer checks; the outcome is a `Note: peer ...` line in state.md.
+                           `final-review-peer.md` is mandatory when the code checkout is `required`
 ```
 
 ## `state.md` format
@@ -48,6 +49,7 @@ base_rev: a1b2c3d
 branch: master
 work_mode: default-branch | same-branch | task-branch | read-only | ask
 autonomy: L0 | L1 | L2 | L3
+code_repo: ../edge_node         # optional: checkout holding the code diff; default: this checkout
 current_phase: 2
 updated: 2026-09-15T14:02:00
 ---
@@ -70,6 +72,10 @@ Rules the validator enforces:
 - Frontmatter keys: `task`, `task_file`, `runtime`, `base_rev`, `branch`, `work_mode`, `autonomy`,
   `current_phase`, `updated`. `runtime` is `claude`, `codex` or `inline`. `mode` (`small` | `large`)
   and `mode_reason` are written by the orchestrator; a file without them is a large run.
+- `code_repo` (optional, path relative to this checkout or absolute) names the checkout that holds the
+  code diff when it is not the one holding `_runs/`. `at task run-state check <TASK-ID> --final` (run at
+  the end, before closeout) fails when a row is `committed`, `final-review-peer.md` is missing and
+  `git config agents.peerRequired` is true in that checkout. Without `--final` the check never asks for it.
 - One table row per `#### Phase` heading in the task file, numbered like the ledger's `n/m`.
 - `Status` is one of `pending | implementing | reviewing | fixing | committed | blocked | parked`.
 - `Spec`, `Quality`, `Security` cells are `—` (not run yet), `n/a`, `PASS` or `FAIL`. In small mode the

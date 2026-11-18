@@ -63,7 +63,7 @@ and a worktree keeps that blast radius away from your main tree until you have s
 ## Peer check
 
 `at peer run` needs no `--from` here: Claude Code marks its shell commands and is detected. Start it
-as a background command next to the native reviewers.
+as a background command next to the native reviewers, with cwd = the checkout that holds the code diff.
 
 ## Scripted alternative
 

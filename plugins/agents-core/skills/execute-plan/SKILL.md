@@ -148,7 +148,9 @@ permits it.
    at task run-state init <TASK-ID> --base <rev> --branch <branch> --work-mode <mode> --autonomy <L?> --runtime <claude|codex|inline>
    ```
 
-   then add `mode:` and `mode_reason:` to its frontmatter. Without `agents-tasks`, write `state.md`
+   then add `mode:` and `mode_reason:` to its frontmatter. When the code diff lives in another checkout
+   than the one holding `_runs/` (the task's `Repos` row, paths in `.local/repos.map`), add
+   `--code-repo <path>` to `init` (or `code_repo:` to the frontmatter): step 7 and the peer gate use it. Without `agents-tasks`, write `state.md`
    by hand from [references/run-state.md](references/run-state.md).
 
 Never use destructive cleanup to get a clean tree.
@@ -271,6 +273,13 @@ coordinating guards, one-caller abstractions, files that grew where the plan sai
 on a flagged file with no justification or a code net over the plan's `Shape:`. Large mode also
 sends the final-review brief to `at peer run --role reviewer` → `final-review-peer.md`, per
 `agents-core:subagent-protocol` §"Peer check"; its confirmed findings count like a reviewer's.
+
+**Peer at the final review of every rung that ends with code commits** (small mode too), not only
+large mode. Run it with cwd = the checkout that holds the code diff, because `at peer` is enabled and
+`--required` is set per checkout: a peer enabled only where `_runs/` lives never reviews the code. If it
+exits 3 and that checkout is `required`, the review is BLOCKED: fix the setup, do not skip it. Before
+closeout run `at task run-state check <TASK-ID> --final`: it fails when phases are committed,
+`final-review-peer.md` is missing and the `code_repo` checkout requires the peer.
 
 - All `PASS` with no critical finding: tick the task-wide acceptance criteria, record the result,
   proceed to closeout. Non-critical findings are recorded as non-blocking.
