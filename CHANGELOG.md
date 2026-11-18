@@ -2,6 +2,38 @@
 
 Notable changes to agents-template. All four plugins share the version of the repository.
 
+## Unreleased
+
+### Added
+
+- `at peer enable <cli> --required` stores `agents.peerRequired`; `at peer disable` clears it and `at peer status`
+  prints `required`. With it, exit 3 (peer unavailable) also prints a `BLOCKED` line and a gate must stop: "an
+  unavailable peer never blocks" holds only when the checkout did not opt in.
+- Pre-push stamp: `at peer run --role reviewer` records the reviewed `HEAD` under
+  `<git-common-dir>/agents/peer-reviewed/<sha>` on exit 0. `block-dangerous-git.sh` denies a feature-branch push whose
+  commit has no stamp when `agents.peerRequired` is true, naming the command to run. Tag pushes, branch deletes,
+  protected-branch and force-push rules are unchanged.
+- Run state takes an optional `code_repo` (`at task run-state init --code-repo`) and
+  `at task run-state check <ID> --final` fails a run with a committed phase and no `final-review-peer.md` when the
+  peer is required in that checkout. `execute-plan` runs the final peer review with cwd = the code checkout at every
+  rung that ends with code commits, not only large mode.
+- Consequence checklist (callers of changed contracts, reused-helper behaviour, newly reachable paths, sibling paths
+  of the invariant, failure-path logging and persistence, the input that fails each new test) in the reviewer's
+  Stage 2, the final-review brief and the `at task run` final prompt, answered in `## Evidence`.
+- Large-mode final reviewer 2 is unanchored: goal sentence, diff range and checklist only, no plan, design or rulings.
+- Review-escapes log convention in `agents-tasks:knowledge-base` and an escape-ratchet rule in
+  `agents-core:subagent-protocol`.
+
+### Changed
+
+- `at peer run` counts `[P1]`/`[P2]`/`[P3]` findings (bold or plain) as critical/important/minor next to
+  `[C]/[I]/[M]`, shared with `at task run`. A `## Findings: N (...)` header that disagrees with the parsed lines is
+  reported as the header count plus `, count mismatch`, not 0.
+- `execute-plan` step 0 security surface adds error handling and logging of user or target data, persistence of
+  reports or evidence, and redaction; `security-auditor` checks failure-path data exposure.
+- A design line or `Ruling:` that accepts losing data or evidence, or a "known gap" on the changed path, needs the
+  owner's ruling in chat; `plan-critic` flags it as blocking.
+
 ## 1.10.0 — 2026-11-18
 
 ### Changed
