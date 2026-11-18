@@ -16,6 +16,7 @@ Notable changes to agents-template. All four plugins share the version of the re
 - Implementers write a `## Test plan` first (behaviour -> lowest layer -> test names; fixtures with size, one of 500 lines or more needs a reason): `at task brief` Report contract, the implementer prompt and briefs. Reviewers check every test maps to a row, and an unjustified fixture or test-ratio flag is critical (fails the review), stricter than a code flag since bulk data growth has no logic to review. `at task run` prompts, `execute-plan` and the implementer report shape carry the same rules. The final review adds one cross-phase pass for duplicated tests and fixtures. `agents-core:tdd` starts the red step from the behaviour list.
 - Seed `AGENTS.md` gains a "Lean tests" principle; `agents-core:tdd` points at it. `at init` never
   overwrites `AGENTS.md`: downstream repos adopt the bullet through `agents-core:setup-project`.
+- Release checks expect Codex CLI 0.169.0 (was 0.167.0); CI tests 0.147.0 and 0.169.0.
 
 ## 1.9.2 — 2026-11-16
 
