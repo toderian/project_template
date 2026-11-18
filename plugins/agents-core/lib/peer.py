@@ -68,6 +68,20 @@ def required(repo: Path) -> bool:
     return proc.returncode == 0 and proc.stdout.strip() == "true"
 
 
+def stamp_reviewed(repo: Path) -> str | None:
+    """Record the reviewed HEAD under <git-common-dir>/agents/peer-reviewed/<sha>; the push hook reads it."""
+    def git(*a: str) -> str | None:
+        p = subprocess.run(["git", "-C", str(repo), *a], capture_output=True, text=True, check=False)
+        return p.stdout.strip() if p.returncode == 0 and p.stdout.strip() else None
+    sha, common = git("rev-parse", "HEAD"), git("rev-parse", "--git-common-dir")
+    if not sha or not common:
+        return None
+    stamp = (repo / common) / "agents" / "peer-reviewed" / sha  # an absolute `common` wins over `repo`
+    stamp.parent.mkdir(parents=True, exist_ok=True)
+    stamp.write_text(f"{task_run.now_iso()}\n", encoding="utf-8")
+    return sha
+
+
 def caller(from_arg: str | None) -> str | None:
     """Which CLI is asking: the flag, else Claude Code's own marker in the environment."""
     return from_arg or ("claude" if os.environ.get("CLAUDECODE") else None)
@@ -184,6 +198,8 @@ def cmd_run(args: argparse.Namespace, repo: Path, core_root: Path) -> int:
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(f"Peer: {cli} ({describe(model, effort)}), role {args.role}, {task_run.now_iso()}\n\n"
                    f"{message.rstrip()}\n", encoding="utf-8")
+    if args.role == "reviewer":
+        stamp_reviewed(repo)
     verdicts = ANY_VERDICT_RE.findall(message)
     found = list(dict.fromkeys(task_run.findings(message)))  # a reply may list a finding twice
     critical = sum(1 for severity, _ in found if severity == "C")

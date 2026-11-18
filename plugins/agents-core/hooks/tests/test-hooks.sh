@@ -143,6 +143,33 @@ run_case "git: cd with extra words && bare push blocks (unresolved)" "${GIT_HOOK
   "$(git_payload_in "${PUSH_REPO}" "cd ${MAIN_REPO} extra && git push")" 2
 run_case "git: cd after the push does not matter" "${GIT_HOOK}" \
   "$(git_payload_in "${PUSH_REPO}" 'git push && cd "$ELSEWHERE"')" 0
+# Required peer review: a feature-branch push needs a stamp for the pushed commit.
+REVIEW_REPO="${WORKDIR}/review-repo"
+git init -q -b feat/r "${REVIEW_REPO}"
+git -C "${REVIEW_REPO}" -c user.name=t -c user.email=t@t commit -q --allow-empty -m one
+run_case "git: push without peerRequired needs no stamp" "${GIT_HOOK}" \
+  "$(git_payload_in "${REVIEW_REPO}" 'git push origin feat/r')" 0
+git -C "${REVIEW_REPO}" config agents.peerRequired true
+run_case "git: required peer, push feature branch without stamp blocks" "${GIT_HOOK}" \
+  "$(git_payload_in "${REVIEW_REPO}" 'git push origin feat/r')" 2
+run_case "git: required peer, bare push without stamp blocks" "${GIT_HOOK}" \
+  "$(git_payload_in "${REVIEW_REPO}" 'git push')" 2
+run_case "git: required peer, tags-only push needs no stamp" "${GIT_HOOK}" \
+  "$(git_payload_in "${REVIEW_REPO}" 'git push origin --tags')" 0
+run_case "git: required peer, branch delete needs no stamp" "${GIT_HOOK}" \
+  "$(git_payload_in "${REVIEW_REPO}" 'git push origin --delete feat/old')" 0
+run_case "git: required peer, force push still blocks" "${GIT_HOOK}" \
+  "$(git_payload_in "${REVIEW_REPO}" 'git push --force origin feat/r')" 2
+mkdir -p "${REVIEW_REPO}/.git/agents/peer-reviewed"
+touch "${REVIEW_REPO}/.git/agents/peer-reviewed/$(git -C "${REVIEW_REPO}" rev-parse HEAD)"
+run_case "git: required peer, push with a stamp for HEAD allowed" "${GIT_HOOK}" \
+  "$(git_payload_in "${REVIEW_REPO}" 'git push origin feat/r')" 0
+git -C "${REVIEW_REPO}" -c user.name=t -c user.email=t@t commit -q --allow-empty -m two
+run_case "git: required peer, a new commit needs a new stamp" "${GIT_HOOK}" \
+  "$(git_payload_in "${REVIEW_REPO}" 'git push origin feat/r')" 2
+git -C "${REVIEW_REPO}" branch -q main
+run_case "git: required peer, protected branch still blocks without the marker" "${GIT_HOOK}" \
+  "$(git_payload_in "${REVIEW_REPO}" 'git push origin main')" 2
 run_case "git: push --tags allowed" "${GIT_HOOK}" \
   "$(git_payload 'git push origin --tags')" 0
 run_case "git: push main blocks" "${GIT_HOOK}" \

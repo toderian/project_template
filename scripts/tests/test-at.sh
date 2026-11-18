@@ -712,6 +712,7 @@ git rm -q "$DRIFT_TASK" && git -c user.name=t -c user.email=t@t commit -q -m "T-
 PEER_REPO="$WORKDIR/peer-repo"; PEER_BIN="$WORKDIR/peer-bin"; PEER_CALLS="$WORKDIR/peer-calls.txt"
 mkdir -p "$PEER_REPO" "$PEER_BIN"
 git -C "$PEER_REPO" init -q .
+git -C "$PEER_REPO" -c user.name=t -c user.email=t@t commit -q --allow-empty -m base
 for cli in claude codex; do
   cp "$REPO/scripts/tests/fixtures/fake-peer.py" "$PEER_BIN/$cli"; chmod +x "$PEER_BIN/$cli"
 done
@@ -796,6 +797,15 @@ PEER_OUT="$(peer 1 ptags run --role reviewer --brief "$WORKDIR/peer-brief.md" --
 assert_stdout_contains "$PEER_OUT" "peer codex (reviewer): FAIL, 2 finding(s), 1 critical -> " "P1/P2 tags are counted (P1 = critical)"
 PEER_OUT="$(peer 1 mismatch run --role reviewer --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/p.md")"
 assert_stdout_contains "$PEER_OUT" "FAIL, 3 finding(s), 2 critical, count mismatch" "a header count that disagrees with the parse is reported, not 0"
+
+# B3: a reviewer run that exits 0 stamps the reviewed HEAD; other roles and failed runs do not.
+PEER_HEAD="$(git -C "$PEER_REPO" rev-parse HEAD)"
+assert_exists "$PEER_REPO/.git/agents/peer-reviewed/$PEER_HEAD" "a reviewer peer run stamps the reviewed HEAD"
+rm -rf "$PEER_REPO/.git/agents"
+peer "" critic run --from codex --role plan-critic --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/c.md" >/dev/null
+assert_missing "$PEER_REPO/.git/agents/peer-reviewed/$PEER_HEAD" "a plan-critic run does not stamp"
+peer 1 error run --role reviewer --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/e.md" >/dev/null
+assert_missing "$PEER_REPO/.git/agents/peer-reviewed/$PEER_HEAD" "an unavailable peer does not stamp"
 
 # B1: --required stores agents.peerRequired; unavailable then prints BLOCKED (exit code unchanged).
 assert_stdout_contains "$(peer 1 ok status)" "peer: codex (model gpt-test, effort default)" "status without --required"

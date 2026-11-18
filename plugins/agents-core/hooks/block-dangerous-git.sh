@@ -113,9 +113,25 @@ is_protected() {
   return 1
 }
 
+# Required peer review: with `git config agents.peerRequired true` (`at peer enable <cli> --required`)
+# a push of a feature branch needs a stamp for the commit it pushes, written by `at peer run --role
+# reviewer` on exit 0 under <git-common-dir>/agents/peer-reviewed/<sha>. $1 is the ref being pushed
+# (HEAD when none is named); `dir` is the caller's checkout directory.
+require_review() {
+  local ref="${1:-HEAD}" sha common
+  [ -z "$PUSH_DELETE" ] || return 0  # deleting a remote branch pushes no commit
+  [ "$(git -C "$dir" config --type=bool --get agents.peerRequired 2>/dev/null)" = true ] || return 0
+  sha=$(git -C "$dir" rev-parse --verify --quiet "${ref}^{commit}" 2>/dev/null) \
+    || sha=$(git -C "$dir" rev-parse --verify --quiet "HEAD^{commit}" 2>/dev/null) || return 0
+  common=$(git -C "$dir" rev-parse --git-common-dir 2>/dev/null) || return 0
+  case "$common" in /*) ;; *) common="$dir/$common" ;; esac
+  [ -e "$common/agents/peer-reviewed/$sha" ] && return 0
+  deny_push "peer review is required in this checkout (agents.peerRequired) and ${sha:0:9} has none. Run from this checkout: at peer run --role reviewer --brief <file> --out <file> (brief names the diff range); fix confirmed findings, review again if you commit, then push."
+}
+
 require_confirmed() {
   local target="$1" confirmed="$2"
-  is_protected "$target" || return 0
+  is_protected "$target" || { require_review "$PUSH_SRC"; return 0; }
   [ "$confirmed" = "$target" ] && return 0
   deny_push "push to protected branch '$target'. Ask the user in chat first. Only after an explicit yes, rerun as 'git -c ${CONFIRM_KEY}=${target} push <remote> ${target}'; the user then confirms a second time in the permission prompt."
 }
@@ -124,6 +140,7 @@ check_push_segment() {
   local -a tok
   read -ra tok <<< "$1"
   local n=${#tok[@]} i=0 dir="$PUSH_DIR" confirmed="" tags_only="" arg dst
+  PUSH_SRC=HEAD; PUSH_DELETE=""
   local -a positional=()
 
   while [ "$i" -lt "$n" ]; do
@@ -150,6 +167,7 @@ check_push_segment() {
       --force*|+*) deny_push "force push is never allowed." ;;
       --all|--mirror|--branches) deny_push "'$arg' may reach a protected branch; push one named branch at a time." ;;
       --tags) tags_only=1 ;;
+      --delete|-d) PUSH_DELETE=1 ;;
       -o|--push-option|--repo|--receive-pack|--exec) i=$((i + 1)) ;;
       --) ;;
       --*) ;;
@@ -179,6 +197,7 @@ check_push_segment() {
 
   for arg in "${positional[@]:1}"; do
     dst="${arg##*:}"
+    PUSH_SRC="${arg%%:*}"; [ -n "$PUSH_SRC" ] || PUSH_SRC=HEAD
     [ -n "$dst" ] || deny_push "cannot resolve the destination of refspec '$arg'."
     if [ "$dst" = HEAD ]; then
       [ -n "$PUSH_DIR_KNOWN" ] || deny_push "cannot resolve HEAD after 'cd'; name the branch."
