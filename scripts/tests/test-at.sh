@@ -791,6 +791,25 @@ PEER_OUT="$(cd "$PEER_REPO" && AT_PEER_DEPTH=1 CLAUDECODE=1 PATH="$PEER_PATH" FA
 assert_eq "$PEER_RC" "3" "a peer session cannot start a peer of its own"
 assert_eq "$(wc -l < "$PEER_CALLS" | tr -d ' ')" "0" "and starts no CLI"
 
+# B1b: P-tag findings and the `## Findings: N (...)` header.
+PEER_OUT="$(peer 1 ptags run --role reviewer --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/p.md")"
+assert_stdout_contains "$PEER_OUT" "peer codex (reviewer): FAIL, 2 finding(s), 1 critical -> " "P1/P2 tags are counted (P1 = critical)"
+PEER_OUT="$(peer 1 mismatch run --role reviewer --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/p.md")"
+assert_stdout_contains "$PEER_OUT" "FAIL, 3 finding(s), 2 critical, count mismatch" "a header count that disagrees with the parse is reported, not 0"
+
+# B1: --required stores agents.peerRequired; unavailable then prints BLOCKED (exit code unchanged).
+assert_stdout_contains "$(peer 1 ok status)" "peer: codex (model gpt-test, effort default)" "status without --required"
+case "$(peer 1 ok status)" in *required*) fail "status prints required before --required is set";; *) pass;; esac
+peer 1 ok enable codex:gpt-test claude --required >/dev/null
+assert_eq "$(git -C "$PEER_REPO" config --get agents.peerRequired)" "true" "enable --required stores agents.peerRequired"
+assert_stdout_contains "$(peer 1 ok status)" ", required" "status prints required"
+PEER_OUT="$(peer 1 error run --role reviewer --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/e.md")"; PEER_RC=$?
+assert_eq "$PEER_RC" "3" "required mode keeps exit 3"
+assert_stdout_contains "$PEER_OUT" "BLOCKED: peer review is required" "required mode prints BLOCKED on unavailability"
+peer 1 ok disable >/dev/null
+assert_eq "$(git -C "$PEER_REPO" config --get agents.peerRequired || echo unset)" "unset" "disable clears agents.peerRequired"
+peer 1 ok enable codex:gpt-test claude >/dev/null
+
 peer_doctor() { ( cd "$PEER_REPO" && PATH="$PEER_PATH" at doctor 2>&1 ); }
 assert_stdout_contains "$(peer_doctor)" "peer check: codex is on PATH" "at doctor confirms a listed peer CLI"
 rm "$PEER_BIN/codex"

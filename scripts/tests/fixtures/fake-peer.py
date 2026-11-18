@@ -5,6 +5,8 @@ Recognises the two read-only argv shapes `at peer run` produces (codex: `exec ..
 -o FILE -`, brief on stdin; claude: `-p <brief> --output-format json ...`). Each call appends
 `<cli>|depth=<AT_PEER_DEPTH>|<argv>[|fenced]` to FAKE_PEER_CALLS. FAKE_PEER picks the behaviour:
   ok         a review with a FAIL verdict, one critical finding listed twice and one minor
+  ptags      P1/P2 tagged findings (bold) under a `## Findings: 2 (C:1 I:1)` header
+  mismatch   header says 3 (C:2 I:1), the list holds one parsable line
   critic     a plan-critic reply (`## Plan verdict: REVISE`)
   no-status  no status block until the reminder arrives (second call)
   empty      an empty reply
@@ -27,6 +29,12 @@ if scenario == "empty":
     reply = ""
 elif scenario == "no-status" and "missing the report block" not in prompt:
     reply = "Looks wrong to me."
+elif scenario == "ptags":
+    reply = ("## Status: DONE_WITH_CONCERNS\n## Verdict: FAIL\n## Findings: 2 (C:1 I:1)\n"
+             "1. **[P1]** [file:590](a.py#L590) — unchecked input\n2. **[P2]** [file:9](a.py#L9) — missing guard")
+elif scenario == "mismatch":
+    reply = ("## Status: DONE_WITH_CONCERNS\n## Verdict: FAIL\n## Findings: 3 (C:2 I:1)\n"
+             "1. [C] a.py:1 — one\nthe other two are in prose")
 elif scenario == "critic":
     reply = "## Status: DONE_WITH_CONCERNS\n## Plan verdict: REVISE\n## Findings\n1. [I] plan.md:9 — phase 2 has no check"
 else:

@@ -33,6 +33,9 @@ per gate; re-review after fixes stays native.
    the CLI's own.
 3. When it returns, read the one summary line, then the saved reply:
    `peer codex (reviewer): FAIL, 3 finding(s), 1 critical -> <reply file>`.
+   Findings count as `[C]`/`[I]`/`[M]` or `[P1]`/`[P2]`/`[P3]` (critical/important/minor) numbered lines.
+   When the reply's `## Findings: N (...)` header disagrees with the lines parsed, the line shows the
+   header count and `, count mismatch`: read the saved reply, do not trust the parse.
 
 The peer must not edit. Claude runs without edit tools and with read-only `git` commands only.
 Codex runs with `--yolo` (no sandbox, no approvals), so only its brief keeps it read-only. It cannot start a peer of its own.
@@ -42,8 +45,12 @@ Codex runs with `--yolo` (no sandbox, no approvals), so only its brief keeps it 
 | Code | Meaning | What you do |
 |---|---|---|
 | 0 | A reply was saved, whatever its verdict | Weigh it, below |
-| 3 | No peer available; one reason line on stdout | Record `Note: peer check unavailable: <reason>` and go on. Never wait, retry in a loop, or block the gate |
+| 3 | No peer available; one reason line on stdout | Not required: record `Note: peer check unavailable: <reason>` and go on. Never wait or retry in a loop |
+| 3, checkout is `required` (a `BLOCKED:` line follows) | Same, but the gate is BLOCKED | Stop at the gate. Fix the peer setup (CLI on PATH, login, `at peer enable` in the checkout that holds the code) and rerun; only the owner skips it, with `at peer disable` or a `Ruling:` in chat |
 | 2 | Usage error | Fix the command |
+
+"Never blocks" holds only when the checkout did not opt into `--required`. A peer enabled in one
+checkout says nothing about another: the peer runs with cwd = the checkout that holds the code.
 
 ## Weighing the reply
 
@@ -60,6 +67,10 @@ Record the outcome where the gate records its own, one line:
 
 ## Setup and limits
 
+- **Required mode:** `at peer enable codex --required` also sets `agents.peerRequired=true` (local git
+  config); `at peer status` then prints `required`, and a pre-push hook denies a feature-branch push whose
+  `HEAD` has no saved peer review (`at peer run --role reviewer` stamps the reviewed `HEAD` on exit 0).
+  `at peer disable` clears both. Use it in every checkout that holds code a gate reviews.
 - **Opt in per checkout:** `at peer enable codex` (or `claude`, or both). The setting is local git
   config (`agents.peers`), never committed. The peer's provider receives the brief and every file the
   peer reads, so enable it only where that is acceptable; `at peer disable` turns it off.

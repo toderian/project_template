@@ -152,7 +152,8 @@ The implementer's self-report may be incomplete or optimistic. Verify independen
 When the checkout has enabled it (`at peer status` exits 0), a read-only second opinion comes from
 the other agent CLI through `at peer run`: at the large-work gates the workflow skills name, or when
 the user asks for a cross-check. It adds to the native review; its findings are evidence you verify,
-and an unavailable peer never blocks. Procedure, exit codes and setup:
+and an unavailable peer never blocks, unless the checkout set `at peer enable <cli> --required`: then
+exit 3 at a gate is BLOCKED (fix the setup; only the owner skips it). Procedure, exit codes and setup:
 [references/peer-check.md](references/peer-check.md).
 
 ## Model selection

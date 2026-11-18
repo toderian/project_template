@@ -29,7 +29,11 @@ import task_size  # lib/task_size.py, next to this file
 
 STATUS_RE = re.compile(r"^\s*(?:#+\s*)?Status:\s*(DONE_WITH_CONCERNS|DONE|NEEDS_CONTEXT|BLOCKED)\b", re.M)
 VERDICT_RE = re.compile(r"^\s*(?:#+\s*)?Verdict:\s*(PASS|FAIL)\b", re.M)
-FINDING_RE = re.compile(r"^\s*\d+\.\s*\[([CIM])\]\s*(.+?)\s*$", re.M)
+# `1. [C] text`, and the P-tag form some reviewers use: `1. **[P1]** text` (P1 critical, P2 important, P3 minor)
+FINDING_RE = re.compile(r"^\s*\d+\.\s*(?:\*\*)?\[(C|I|M|P[123])\](?:\*\*)?\s*(.+?)\s*$", re.M)
+P_SEVERITY = {"P1": "C", "P2": "I", "P3": "M"}
+# `## Findings: 5 (C:3 I:2 M:0)`
+FINDINGS_HEADER_RE = re.compile(r"^\s*#+\s*Findings:\s*(\d+)(?:\s*\(([^)]*)\))?", re.M)
 CARD_ROLES = ("implementer", "reviewer", "security-auditor")
 STATUS_REMINDER = ("Your previous reply was missing the report block. Finish with, last and exactly:\n"
                    "## Status: DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED\n## Summary: <one line>\n\n")
@@ -329,7 +333,17 @@ def parse_verdict(message: str) -> str:
 
 
 def findings(message: str) -> list[tuple[str, str]]:
-    return FINDING_RE.findall(message)
+    """(C|I|M, text) per numbered finding line; `[P1]`..`[P3]` map to C, I, M."""
+    return [(P_SEVERITY.get(tag, tag), text) for tag, text in FINDING_RE.findall(message)]
+
+
+def findings_header(message: str) -> tuple[int, dict[str, int]] | None:
+    """(count, {"C": n, ...}) from the last `## Findings: N (C:x I:y M:z)` line, or None when absent."""
+    m = FINDINGS_HEADER_RE.findall(message)
+    if not m:
+        return None
+    count, detail = m[-1]
+    return int(count), {k: int(v) for k, v in re.findall(r"([CIM]):(\d+)", detail)}
 
 
 # ---- task file updates -----------------------------------------------------------

@@ -132,4 +132,10 @@ class TaskRun(unittest.TestCase):
         self.assertIn("Test plan", task_run.implementer_prompt("r", 1, "p"))
         self.assertIn("duplicated between phases", task_run.final_prompt("r", 1, "abc", "t.md")); self.assertIn("duplicated between phases", briefs)
         self.assertIn("one behaviour tested at several layers", task_run.SIMPLICITY_SCOPE)
+    def test_findings_accept_p_tags_and_header(self):
+        import sys; sys.path.insert(0, str(ROOT / "plugins/agents-core/lib")); import task_run
+        msg = "## Findings: 3 (C:1 I:1 M:1)\n1. **[P1]** [f:5](a.py) — x\n2. **[P2]** y\n3. [M] z\n4. [P3] w"
+        self.assertEqual([s for s, _ in task_run.findings(msg)], ["C", "I", "M", "M"])
+        self.assertEqual(task_run.findings_header(msg), (3, {"C": 1, "I": 1, "M": 1}))
+        self.assertIsNone(task_run.findings_header("## Findings\n1. [C] a"))
 if __name__ == "__main__": unittest.main()
