@@ -78,7 +78,7 @@ the ## Status / ## Verdict / ## Findings block first, then ## Evidence; at most 
 ## Security auditor (step 5.6, `security-auditor`, only on a security surface)
 
 ```text
-Surface: <why this phase is a security surface: auth | input parsing | subprocess | network | secrets | permissions | queries | crypto | CI/hooks | new dependency>
+Surface: <why this phase is a security surface: auth | input parsing | subprocess | network | secrets | permissions | queries | crypto | CI/hooks | new dependency | error handling or logging of user/target data | persistence of reports or evidence | redaction>
 Brief: docs/tasks_manager/_runs/<TASK-ID>/phase-N/brief.md
 Diff: docs/tasks_manager/_runs/<TASK-ID>/phase-N/diff.patch
 Scope fence: read-only; do not edit files.

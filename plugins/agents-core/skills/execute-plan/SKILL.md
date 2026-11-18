@@ -62,7 +62,8 @@ fix wave, stop and report the remaining issues instead of looping.
 - ≥ 3 phases, or a phase whose scope fence exceeds ~10 files;
 - a security surface (auth or sessions, input parsing or deserialization, subprocess/shell/file-path
   handling, network or HTTP, secrets/config/env, permissions or ACLs, SQL or query building, crypto,
-  CI or hook configuration, new dependencies), a data migration, a public interface or contract, or
+  CI or hook configuration, new dependencies, error handling and logging of user or target data,
+  persistence of reports or evidence, redaction), a data migration, a public interface or contract, or
   more than one repo (`Repos` row);
 - a `### Design` section or `Spec refs` other than `self`;
 - `Execution: orchestrated` in the task metadata, or the user asks for full review;
