@@ -130,6 +130,13 @@ stays open.
 Stop with `BLOCKED` only when every path forward is a guess; a defect the parent can fix in a few
 lines is fixed by the parent and recorded as a ruling.
 
+## Escape ratchet
+
+An external review finding that traces to no control (no checklist item, hook or test that should have
+caught it) becomes one: add the checklist item, hook or test in the same change that fixes the finding,
+and log the row where the repo keeps its review-escapes log (`agents-tasks:knowledge-base`
+§"Review escapes log").
+
 ## Two-stage review
 
 Review implementation in two stages, in order:

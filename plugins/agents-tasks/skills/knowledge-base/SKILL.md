@@ -334,6 +334,19 @@ Use `references/adr-convention.md` (in this skill) for the three-part offer test
 surprising without context, the result of a real trade-off), the location/numbering rule
 (`docs/adr/NNNN-slug.md`), and the format. Use `assets/adr.template.md` for a copyable starter.
 
+## Review escapes log
+
+A defect an external reviewer (a PR bot, a human reviewer, CI) found after our own review passed is a
+review escape. Log each in `docs/resources/<area>/review-escapes.md`, one table row per finding:
+
+| PR | Finding | Control that should have caught it | Action |
+|---|---|---|---|
+| org/repo#601 | unredacted report written to a log on the failure path | security review trigger (error handling and logging) | trigger list widened; checklist item 5 |
+
+"Control" is a reviewer checklist item, a hook, a test or a skill step. `none` means the gap is new:
+the action is then a new control, per `agents-core:subagent-protocol` §"Escape ratchet". Append the row
+when you fix the finding; a PR with several findings gets one row each.
+
 ## Generated artifacts
 
 Use `references/generated-artifacts.md` (in this skill) to decide whether a file is a stable artifact
