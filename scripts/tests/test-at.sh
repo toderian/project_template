@@ -807,6 +807,23 @@ assert_missing "$PEER_REPO/.git/agents/peer-reviewed/$PEER_HEAD" "a plan-critic 
 peer 1 error run --role reviewer --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/e.md" >/dev/null
 assert_missing "$PEER_REPO/.git/agents/peer-reviewed/$PEER_HEAD" "an unavailable peer does not stamp"
 
+# Stamp guards: no stamp for a reply without status/verdict, a count mismatch, or a HEAD that moved.
+STAMPS="$PEER_REPO/.git/agents/peer-reviewed"
+rm -rf "$PEER_REPO/.git/agents"
+PEER_OUT="$(peer 1 bare run --role reviewer --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/b.md")"; PEER_RC=$?
+assert_eq "$PEER_RC" "0" "a bare reply still exits 0"
+assert_missing "$STAMPS/$PEER_HEAD" "a reply without status line and verdict is not stamped"
+PEER_OUT="$(peer 1 mismatch run --role reviewer --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/b.md")"; PEER_RC=$?
+assert_eq "$PEER_RC" "4" "a findings count mismatch exits 4"
+assert_stdout_contains "$PEER_OUT" "count mismatch, no review stamp" "the mismatch is printed"
+assert_missing "$STAMPS/$PEER_HEAD" "a count mismatch is not stamped"
+PEER_OUT="$(peer 1 movehead run --role reviewer --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/b.md")"; PEER_RC=$?
+assert_eq "$PEER_RC" "0" "a review during which HEAD moved still exits 0"
+assert_stdout_contains "$PEER_OUT" "HEAD changed during the review, no review stamp" "the moved HEAD is printed"
+assert_missing "$STAMPS/$PEER_HEAD" "the reviewed sha is not stamped after HEAD moved"
+assert_missing "$STAMPS/$(git -C "$PEER_REPO" rev-parse HEAD)" "the new HEAD is not stamped either"
+PEER_HEAD="$(git -C "$PEER_REPO" rev-parse HEAD)"
+
 # B1: --required stores agents.peerRequired; unavailable then prints BLOCKED (exit code unchanged).
 assert_stdout_contains "$(peer 1 ok status)" "peer: codex (model gpt-test, effort default)" "status without --required"
 case "$(peer 1 ok status)" in *required*) fail "status prints required before --required is set";; *) pass;; esac

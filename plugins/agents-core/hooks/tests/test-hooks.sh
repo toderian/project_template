@@ -158,6 +158,8 @@ run_case "git: required peer, tags-only push needs no stamp" "${GIT_HOOK}" \
   "$(git_payload_in "${REVIEW_REPO}" 'git push origin --tags')" 0
 run_case "git: required peer, branch delete needs no stamp" "${GIT_HOOK}" \
   "$(git_payload_in "${REVIEW_REPO}" 'git push origin --delete feat/old')" 0
+run_case "git: required peer, empty-source refspec deletes and needs no stamp" "${GIT_HOOK}" \
+  "$(git_payload_in "${REVIEW_REPO}" 'git push origin :feat/old')" 0
 run_case "git: required peer, force push still blocks" "${GIT_HOOK}" \
   "$(git_payload_in "${REVIEW_REPO}" 'git push --force origin feat/r')" 2
 mkdir -p "${REVIEW_REPO}/.git/agents/peer-reviewed"

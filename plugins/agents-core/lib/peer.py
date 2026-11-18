@@ -32,6 +32,7 @@ CONFIG_KEY = "agents.peers"
 REQUIRED_KEY = "agents.peerRequired"  # "true": a gate needs the peer; unavailable means BLOCKED
 DEPTH_ENV = "AT_PEER_DEPTH"  # set on the peer process; a peer never starts a peer of its own
 UNAVAILABLE = 3
+MISMATCH = 4  # reply saved, but its findings header and the parsed lines disagree: no stamp
 # The only shell commands a Claude peer may run; Codex runs with --yolo and only its brief keeps it read-only.
 READ_ONLY_GIT = ["git show:*", "git diff:*", "git log:*", "git status:*"]
 SCOPE_FENCE = "Scope fence: read-only; do not edit files, commit, or start agents.\n\n"
@@ -68,12 +69,18 @@ def required(repo: Path) -> bool:
     return proc.returncode == 0 and proc.stdout.strip() == "true"
 
 
-def stamp_reviewed(repo: Path) -> str | None:
-    """Record the reviewed HEAD under <git-common-dir>/agents/peer-reviewed/<sha>; the push hook reads it."""
-    def git(*a: str) -> str | None:
-        p = subprocess.run(["git", "-C", str(repo), *a], capture_output=True, text=True, check=False)
-        return p.stdout.strip() if p.returncode == 0 and p.stdout.strip() else None
-    sha, common = git("rev-parse", "HEAD"), git("rev-parse", "--git-common-dir")
+def _git_out(repo: Path, *a: str) -> str | None:
+    p = subprocess.run(["git", "-C", str(repo), *a], capture_output=True, text=True, check=False)
+    return p.stdout.strip() if p.returncode == 0 and p.stdout.strip() else None
+
+
+def head_sha(repo: Path) -> str | None:
+    return _git_out(repo, "rev-parse", "HEAD")
+
+
+def stamp_reviewed(repo: Path, sha: str | None) -> str | None:
+    """Record the reviewed commit under <git-common-dir>/agents/peer-reviewed/<sha>; the push hook reads it."""
+    common = _git_out(repo, "rev-parse", "--git-common-dir")
     if not sha or not common:
         return None
     stamp = (repo / common) / "agents" / "peer-reviewed" / sha  # an absolute `common` wins over `repo`
@@ -180,6 +187,7 @@ def cmd_run(args: argparse.Namespace, repo: Path, core_root: Path) -> int:
         return _unavailable(reason, repo)
     cli, model, effort = peer[0], args.model or peer[1], args.effort or peer[2]
     env = {DEPTH_ENV: "1"}
+    reviewed = head_sha(repo)  # the commit under review; HEAD may move while the peer runs
     with tempfile.TemporaryDirectory() as tmp:
         harness = task_run.Harness(cli, repo, core_root, model, None, None, Path(tmp) / "peer.log",
                                    args.timeout, None, checks=READ_ONLY_GIT, effort=effort)
@@ -198,8 +206,6 @@ def cmd_run(args: argparse.Namespace, repo: Path, core_root: Path) -> int:
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(f"Peer: {cli} ({describe(model, effort)}), role {args.role}, {task_run.now_iso()}\n\n"
                    f"{message.rstrip()}\n", encoding="utf-8")
-    if args.role == "reviewer":
-        stamp_reviewed(repo)
     verdicts = ANY_VERDICT_RE.findall(message)
     found = list(dict.fromkeys(task_run.findings(message)))  # a reply may list a finding twice
     critical = sum(1 for severity, _ in found if severity == "C")
@@ -211,6 +217,16 @@ def cmd_run(args: argparse.Namespace, repo: Path, core_root: Path) -> int:
     status = "" if task_run.parse_status(message) != "MISSING" else ", no status line"
     print(f"peer {cli} ({args.role}): {verdicts[-1] if verdicts else 'no verdict'}, {count} finding(s), "
           f"{critical} critical{mismatch}{status} -> {out}")
+    if args.role == "reviewer":
+        if mismatch:
+            print("peer: findings count mismatch, no review stamp; read the saved reply and rerun if needed")
+            return MISMATCH
+        if status or not verdicts:
+            print("peer: reply has no status line or no verdict, no review stamp")
+        elif head_sha(repo) != reviewed:
+            print("peer: HEAD changed during the review, no review stamp; review the new HEAD")
+        else:
+            stamp_reviewed(repo, reviewed)
     return 0
 
 

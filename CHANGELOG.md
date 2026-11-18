@@ -24,6 +24,13 @@ Notable changes to agents-template. All four plugins share the version of the re
 - Review-escapes log convention in `agents-tasks:knowledge-base` and an escape-ratchet rule in
   `agents-core:subagent-protocol`.
 
+### Known limits
+
+- The scripted `at task run` driver does not dispatch the peer, run `--final`, or give final reviewer 2 the
+  unanchored brief.
+- After a `cd` to a path the push hook cannot resolve, the required-review check reads the original checkout's
+  config.
+
 ### Changed
 
 - `at peer run` counts `[P1]`/`[P2]`/`[P3]` findings (bold or plain) as critical/important/minor next to

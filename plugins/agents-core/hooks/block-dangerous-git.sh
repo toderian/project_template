@@ -197,6 +197,7 @@ check_push_segment() {
 
   for arg in "${positional[@]:1}"; do
     dst="${arg##*:}"
+    case "$arg" in :*) PUSH_DELETE=1 ;; esac  # `:branch` deletes the remote branch
     PUSH_SRC="${arg%%:*}"; [ -n "$PUSH_SRC" ] || PUSH_SRC=HEAD
     [ -n "$dst" ] || deny_push "cannot resolve the destination of refspec '$arg'."
     if [ "$dst" = HEAD ]; then

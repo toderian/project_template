@@ -59,9 +59,10 @@ class RunState(unittest.TestCase):
         tmp = fresh(); c = run(tmp, "run-state", "check", "TST-003"); self.assertEqual(c.returncode, 1); self.assertIn("run-state init", c.stderr)
     def test_final_check_needs_peer_review_when_code_checkout_requires_it(self):
         tmp = fresh(git=True); code = fresh(git=True)
+        subprocess.run(["git", "-C", str(code), "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "code only"], check=True)
         run(tmp, "run-state", "init", "TST-003", "--code-repo", str(code))
         self.assertIn(f"code_repo: {code}", (tmp / STATE).read_text())
-        sha = subprocess.run(["git", "-C", str(tmp), "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip()
+        sha = subprocess.run(["git", "-C", str(code), "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip()
         s = (tmp / STATE).read_text().replace("| 1 | pending | 0 | — | — | — | 0 | — | — |", f"| 1 | committed | 1 | PASS | PASS | n/a | 0 | {sha} | — |")
         (tmp / STATE).write_text(s)
         self.assertEqual(run(tmp, "run-state", "check", "TST-003", "--final").returncode, 0)  # peer not required there
@@ -71,4 +72,23 @@ class RunState(unittest.TestCase):
         self.assertEqual(c.returncode, 1); self.assertIn("final-review-peer.md is missing", c.stderr)
         (tmp / "docs/tasks_manager/_runs/TST-003/final-review-peer.md").write_text("Peer: codex\n")
         self.assertEqual(run(tmp, "run-state", "check", "TST-003", "--final").returncode, 0)
+    def test_phase_commits_are_checked_in_the_code_checkout(self):
+        tmp = fresh(git=True); code = fresh(git=True)
+        subprocess.run(["git", "-C", str(code), "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "code only"], check=True)
+        sha = subprocess.run(["git", "-C", str(code), "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip()
+        self.assertNotEqual(subprocess.run(["git", "-C", str(tmp), "cat-file", "-e", sha + "^{commit}"]).returncode, 0)
+        run(tmp, "run-state", "init", "TST-003", "--code-repo", str(code))
+        s = (tmp / STATE).read_text().replace("| 1 | pending | 0 | — | — | — | 0 | — | — |", f"| 1 | committed | 1 | PASS | PASS | n/a | 0 | {sha} | — |")
+        (tmp / STATE).write_text(s)
+        self.assertEqual(run(tmp, "run-state", "check", "TST-003").returncode, 0)  # exists only in the code repo
+        (tmp / STATE).write_text(s.replace(f"code_repo: {code}\n", ""))
+        c = run(tmp, "run-state", "check", "TST-003"); self.assertEqual(c.returncode, 1); self.assertIn("does not exist", c.stderr)
+    def test_final_check_fails_closed_on_a_bad_code_repo(self):
+        tmp = fresh(git=True); run(tmp, "run-state", "init", "TST-003", "--code-repo", str(tmp / "no-such-dir"))
+        sha = subprocess.run(["git", "-C", str(tmp), "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip()
+        s = (tmp / STATE).read_text().replace("| 1 | pending | 0 | — | — | — | 0 | — | — |", f"| 1 | committed | 1 | PASS | PASS | n/a | 0 | {sha} | — |")
+        (tmp / STATE).write_text(s)
+        self.assertEqual(run(tmp, "run-state", "check", "TST-003").returncode, 0)  # mid-run: warning only
+        c = run(tmp, "run-state", "check", "TST-003", "--final")
+        self.assertEqual(c.returncode, 1); self.assertIn("not a git checkout", c.stderr)
 if __name__ == "__main__": unittest.main()

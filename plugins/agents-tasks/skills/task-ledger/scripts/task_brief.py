@@ -266,6 +266,13 @@ def check_state(path: Path, task: Task, root: Path, final: bool = False) -> tupl
             ledger.append(line)
     if len(rows) != len(task.phases):
         errors.append(f"{rel}: {len(rows)} phase row(s) but the task has {len(task.phases)} phase(s)")
+    code_repo = front.get("code_repo") or ""
+    code = Path(code_repo or ".")
+    code = code if code.is_absolute() else root / code
+    code_ok = code.is_dir() and (code / ".git").exists()
+    if code_repo and not code_ok and not final:
+        warnings.append(f"{rel}: code_repo {code_repo!r} is not a git checkout; phase commits not verified")
+    commit_root = code if code_repo and code_ok else root  # phase commits live in the code checkout
     for cells in rows:
         n = cells[0]
         if len(cells) < 9:
@@ -278,18 +285,16 @@ def check_state(path: Path, task: Task, root: Path, final: bool = False) -> tupl
             if cell not in VERDICTS:
                 errors.append(f"{rel}: phase {n} {label} cell {cell!r} must be one of {', '.join(VERDICTS)}")
         if commit not in ("—", "-", ""):
-            found = git_has_commit(root, commit)
+            found = git_has_commit(commit_root, commit)
             if found is None:
-                warnings.append(f"{rel}: phase {n} commit {commit} not verified ({root} is not a git repository)")
+                warnings.append(f"{rel}: phase {n} commit {commit} not verified ({commit_root} is not a git repository)")
             elif not found:
-                errors.append(f"{rel}: phase {n} commit {commit} does not exist in this repository")
+                errors.append(f"{rel}: phase {n} commit {commit} does not exist in {'the code checkout ' + str(commit_root) if commit_root != root else 'this repository'}")
         if status == "committed" and commit in ("—", "-", ""):
             errors.append(f"{rel}: phase {n} is committed but has no commit SHA")
     if final and any(c[1] == "committed" for c in rows if len(c) >= 9):
-        code = Path(front.get("code_repo") or ".")
-        code = code if code.is_absolute() else root / code
-        if not code.is_dir():
-            warnings.append(f"{rel}: code_repo {front.get('code_repo')!r} is not a directory; peer requirement not checked")
+        if not code_ok:  # fail closed: an unreadable code checkout must not skip the peer requirement
+            errors.append(f"{rel}: code_repo {code_repo!r} is not a git checkout, so the peer requirement cannot be checked")
         elif peer_required(code) and not (path.parent / "final-review-peer.md").is_file():
             errors.append(f"{rel}: phases are committed but {path.parent.relative_to(root).as_posix()}/final-review-peer.md "
                           f"is missing and the peer is required in {code} (run `at peer run --role reviewer` from there "

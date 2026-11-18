@@ -44,10 +44,14 @@ Codex runs with `--yolo` (no sandbox, no approvals), so only its brief keeps it 
 
 | Code | Meaning | What you do |
 |---|---|---|
-| 0 | A reply was saved, whatever its verdict | Weigh it, below |
+| 0 | A reply was saved, whatever its verdict (the stamp rules are below the table) | Weigh it, below |
 | 3 | No peer available; one reason line on stdout | Not required: record `Note: peer check unavailable: <reason>` and go on. Never wait or retry in a loop |
 | 3, checkout is `required` (a `BLOCKED:` line follows) | Same, but the gate is BLOCKED | Stop at the gate. Fix the peer setup (CLI on PATH, login, `at peer enable` in the checkout that holds the code) and rerun; only the owner skips it, with `at peer disable` or a `Ruling:` in chat |
+| 4 | A reply was saved, but its `## Findings: N` header and the parsed finding lines disagree (`, count mismatch`) | Read the saved reply yourself; no review stamp is written, so a required checkout cannot push until a clean run |
 | 2 | Usage error | Fix the command |
+
+A `reviewer` run writes the push stamp only when it exits 0, the reply has a status line and a verdict, and
+`HEAD` is the commit that was reviewed when the run began; otherwise a line says why and no stamp exists.
 
 "Never blocks" holds only when the checkout did not opt into `--required`. A peer enabled in one
 checkout says nothing about another: the peer runs with cwd = the checkout that holds the code.
