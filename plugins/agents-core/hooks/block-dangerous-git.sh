@@ -131,7 +131,7 @@ require_review() {
   for i in 1 2 3 4 5 6 7 8 9 10; do
     base=$(git -C "$dir" rev-parse --verify --quiet "${base}^1" 2>/dev/null) || break
     [ -e "$common/agents/peer-reviewed/$base" ] || continue
-    files=$(git -C "$dir" diff --name-only "$base" "$sha" 2>/dev/null) || break
+    files=$(git -C "$dir" diff --no-renames --no-relative --name-only "$base" "$sha" 2>/dev/null) || break
     [ -n "$files" ] && ! grep -qv '^docs/tasks_manager/' <<< "$files" && return 0
     break
   done

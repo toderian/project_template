@@ -76,8 +76,8 @@ single final-review fix wave, decide what gets fixed. When the two disagree, the
   only `docs/tasks_manager/` on top of a stamped commit.
 - **Stop and report to the owner** when the cap is reached and `HEAD` still has no stamp, or a
   confirmed `[C]` finding or unmet acceptance criterion is still open. Never push an older stamped
-  commit that lacks a confirmed fix. Only the owner unblocks it, with `at peer disable` or a
-  `Ruling:` in chat.
+  commit that lacks a confirmed fix. Only the owner unblocks it, with a `Ruling:` in chat and
+  `at peer disable` for that push (a ruling writes no stamp).
 
 "Never blocks" holds only when the checkout did not opt into `--required`. A peer enabled in one
 checkout says nothing about another: the peer runs with cwd = the checkout that holds the code.
