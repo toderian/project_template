@@ -155,8 +155,10 @@ a spec `FAIL` still sends the slice back before quality findings are acted on.
 
 ### Review round
 
-Every review round has **at least two independent reviewers** with different focus (for example
-spec and correctness, and tests plus failure paths), dispatched in parallel and unseen by each other.
+Every review round has **at least two independent reviewers** with different focus, dispatched in
+parallel and unseen by each other: one checks the spec and acceptance criteria, one hunts for what
+breaks (tests that still pass with the fix reverted, failure paths, callers). Do not make every
+reviewer an attacker: without the spec it misses requirements the code never implements.
 A final review or a task-end review also sends its brief to the peer (§"Peer check"). When the peer
 is unavailable there, tell the owner in the report; never skip it silently. Without subagents, do
 the passes yourself in separate context breaks and label them `not independent`. More reviewers do

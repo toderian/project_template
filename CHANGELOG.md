@@ -2,7 +2,7 @@
 
 Notable changes to agents-template. All four plugins share the version of the repository.
 
-## Unreleased
+## 1.11.0 — 2026-11-19
 
 ### Added
 
@@ -18,6 +18,9 @@ Notable changes to agents-template. All four plugins share the version of the re
   Measured on a scratch project: 4 fix commits and 5 peer runs before, 1 and 2 after.
 - The pre-push stamp check accepts commits that change only `docs/tasks_manager/` on top of a
   stamped commit, so run state and rulings committed after the review do not block the push.
+- Review round shape: one reviewer checks the spec and acceptance criteria, one hunts for what
+  breaks. An A/B run (6 seeded cases, 72 reviews) showed two attackers find 56% of spec-only bugs,
+  a spec reviewer plus an attacker 100%.
 
 - `at peer enable <cli> --required` stores `agents.peerRequired`; `at peer disable` clears it and `at peer status`
   prints `required`. With it, exit 3 (peer unavailable) also prints a `BLOCKED` line and a gate must stop: "an
