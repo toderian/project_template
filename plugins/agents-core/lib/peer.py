@@ -8,7 +8,8 @@ tools and with read-only git commands only. The dispatch itself is `task_run.Har
 
 Exit codes of `at peer run` / `at peer status`: 0 a reply was saved (whatever its verdict) or a peer
 is available; 3 no peer available, with one reason line; 2 usage error. A caller treats 3 as "go on
-without the peer", never as a failed review.
+without the peer", never as a failed review, unless this checkout set `agents.peerRequired`
+(`at peer enable <cli> --required`): then 3 is also followed by a `BLOCKED` line and a gate must stop.
 
 Python 3 stdlib only. Imported by lib/at.py; do not run directly.
 """
@@ -28,8 +29,10 @@ import task_run  # lib/task_run.py, next to this file
 CLIS = ("claude", "codex")
 ROLES = ("reviewer", "plan-critic", "security-auditor")
 CONFIG_KEY = "agents.peers"
+REQUIRED_KEY = "agents.peerRequired"  # "true": a gate needs the peer; unavailable means BLOCKED
 DEPTH_ENV = "AT_PEER_DEPTH"  # set on the peer process; a peer never starts a peer of its own
 UNAVAILABLE = 3
+MISMATCH = 4  # reply saved, but its findings header and the parsed lines disagree: no stamp
 # The only shell commands a Claude peer may run; Codex runs with --yolo and only its brief keeps it read-only.
 READ_ONLY_GIT = ["git show:*", "git diff:*", "git log:*", "git status:*"]
 SCOPE_FENCE = "Scope fence: read-only; do not edit files, commit, or start agents.\n\n"
@@ -59,6 +62,31 @@ def parse_entries(value: str) -> tuple[list[tuple[str, str | None, str | None]],
 def configured(repo: Path) -> list[tuple[str, str | None, str | None]]:
     proc = _git_config(repo, "--get", CONFIG_KEY)
     return parse_entries(proc.stdout)[0] if proc.returncode == 0 else []
+
+
+def required(repo: Path) -> bool:
+    proc = _git_config(repo, "--type=bool", "--get", REQUIRED_KEY)
+    return proc.returncode == 0 and proc.stdout.strip() == "true"
+
+
+def _git_out(repo: Path, *a: str) -> str | None:
+    p = subprocess.run(["git", "-C", str(repo), *a], capture_output=True, text=True, check=False)
+    return p.stdout.strip() if p.returncode == 0 and p.stdout.strip() else None
+
+
+def head_sha(repo: Path) -> str | None:
+    return _git_out(repo, "rev-parse", "HEAD")
+
+
+def stamp_reviewed(repo: Path, sha: str | None) -> str | None:
+    """Record the reviewed commit under <git-common-dir>/agents/peer-reviewed/<sha>; the push hook reads it."""
+    common = _git_out(repo, "rev-parse", "--git-common-dir")
+    if not sha or not common:
+        return None
+    stamp = (repo / common) / "agents" / "peer-reviewed" / sha  # an absolute `common` wins over `repo`
+    stamp.parent.mkdir(parents=True, exist_ok=True)
+    stamp.write_text(f"{task_run.now_iso()}\n", encoding="utf-8")
+    return sha
 
 
 def caller(from_arg: str | None) -> str | None:
@@ -94,8 +122,11 @@ def doctor_findings(repo: Path) -> list[tuple[str, str]]:
             for cli, _, _ in configured(repo)]
 
 
-def _unavailable(reason: str) -> int:
+def _unavailable(reason: str, repo: Path) -> int:
     print(f"peer: unavailable ({' '.join(reason.split())})")
+    if required(repo):
+        print(f"BLOCKED: peer review is required in this checkout ({REQUIRED_KEY}); fix the peer setup, "
+              "or turn it off on purpose with `at peer disable`. Do not skip the gate.")
     return UNAVAILABLE
 
 
@@ -115,13 +146,21 @@ def cmd_enable(args: argparse.Namespace, repo: Path) -> int:
         print(f"at peer enable: git config failed: {proc.stderr.strip()}", file=sys.stderr)
         return 1
     names = ", ".join(cli for cli, _, _ in entries)
-    print(f"peer checks enabled for this checkout only: {value}")
+    if args.required:
+        proc = _git_config(repo, REQUIRED_KEY, "true")
+    else:
+        proc = _git_config(repo, "--unset-all", REQUIRED_KEY)
+    if args.required and proc.returncode != 0:
+        print(f"at peer enable: git config failed: {proc.stderr.strip()}", file=sys.stderr)
+        return 1
+    print(f"peer checks enabled for this checkout only: {value}" + (" (required)" if args.required else ""))
     print(f"note: a peer check sends the brief and the files the peer reads to the provider of {names}")
     return 0
 
 
 def cmd_disable(args: argparse.Namespace, repo: Path) -> int:
     _git_config(repo, "--unset-all", CONFIG_KEY)
+    _git_config(repo, "--unset-all", REQUIRED_KEY)
     print("peer checks disabled for this checkout")
     return 0
 
@@ -129,8 +168,8 @@ def cmd_disable(args: argparse.Namespace, repo: Path) -> int:
 def cmd_status(args: argparse.Namespace, repo: Path) -> int:
     peer, reason = pick(repo, args.from_cli)
     if not peer:
-        return _unavailable(reason)
-    print(f"peer: {peer[0]} ({describe(peer[1], peer[2])})")
+        return _unavailable(reason, repo)
+    print(f"peer: {peer[0]} ({describe(peer[1], peer[2])})" + (", required" if required(repo) else ""))
     return 0
 
 
@@ -145,9 +184,10 @@ def cmd_run(args: argparse.Namespace, repo: Path, core_root: Path) -> int:
         return 2
     peer, reason = pick(repo, args.from_cli)
     if not peer:
-        return _unavailable(reason)
+        return _unavailable(reason, repo)
     cli, model, effort = peer[0], args.model or peer[1], args.effort or peer[2]
     env = {DEPTH_ENV: "1"}
+    reviewed = head_sha(repo)  # the commit under review; HEAD may move while the peer runs
     with tempfile.TemporaryDirectory() as tmp:
         harness = task_run.Harness(cli, repo, core_root, model, None, None, Path(tmp) / "peer.log",
                                    args.timeout, None, checks=READ_ONLY_GIT, effort=effort)
@@ -159,9 +199,9 @@ def cmd_run(args: argparse.Namespace, repo: Path, core_root: Path) -> int:
                 if task_run.parse_status(again) != "MISSING":
                     message = again
         except task_run.RunError as exc:
-            return _unavailable(str(exc))
+            return _unavailable(str(exc), repo)
     if not message.strip():
-        return _unavailable(f"{cli} returned an empty reply")
+        return _unavailable(f"{cli} returned an empty reply", repo)
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(f"Peer: {cli} ({describe(model, effort)}), role {args.role}, {task_run.now_iso()}\n\n"
@@ -169,9 +209,24 @@ def cmd_run(args: argparse.Namespace, repo: Path, core_root: Path) -> int:
     verdicts = ANY_VERDICT_RE.findall(message)
     found = list(dict.fromkeys(task_run.findings(message)))  # a reply may list a finding twice
     critical = sum(1 for severity, _ in found if severity == "C")
+    count, mismatch = len(found), ""
+    header = task_run.findings_header(message)
+    if header and header[0] != count:  # trust the reviewer's own count over a parse that missed lines
+        count, mismatch = header[0], ", count mismatch"
+        critical = header[1].get("C", critical)
     status = "" if task_run.parse_status(message) != "MISSING" else ", no status line"
-    print(f"peer {cli} ({args.role}): {verdicts[-1] if verdicts else 'no verdict'}, {len(found)} finding(s), "
-          f"{critical} critical{status} -> {out}")
+    print(f"peer {cli} ({args.role}): {verdicts[-1] if verdicts else 'no verdict'}, {count} finding(s), "
+          f"{critical} critical{mismatch}{status} -> {out}")
+    if args.role == "reviewer":
+        if mismatch:
+            print("peer: findings count mismatch, no review stamp; read the saved reply and rerun if needed")
+            return MISMATCH
+        if status or not verdicts:
+            print("peer: reply has no status line or no verdict, no review stamp")
+        elif head_sha(repo) != reviewed:
+            print("peer: HEAD changed during the review, no review stamp; review the new HEAD")
+        else:
+            stamp_reviewed(repo, reviewed)
     return 0
 
 
@@ -180,7 +235,9 @@ def build_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="action", required=True)
     enable = sub.add_parser("enable", help="allow these CLIs as peers in this checkout")
     enable.add_argument("cli", nargs="+", metavar="<cli>[:<model>[:<effort>]]")
-    sub.add_parser("disable", help="turn peer checks off in this checkout")
+    enable.add_argument("--required", action="store_true",
+                        help="gates need the peer: exit 3 prints BLOCKED (stores agents.peerRequired=true)")
+    sub.add_parser("disable", help="turn peer checks off in this checkout (also clears --required)")
     for name, text in (("status", "say which peer a call would use"), ("run", "run one peer check")):
         cmd = sub.add_parser(name, help=text)
         cmd.add_argument("--from", dest="from_cli", choices=CLIS,

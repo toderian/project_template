@@ -143,6 +143,63 @@ run_case "git: cd with extra words && bare push blocks (unresolved)" "${GIT_HOOK
   "$(git_payload_in "${PUSH_REPO}" "cd ${MAIN_REPO} extra && git push")" 2
 run_case "git: cd after the push does not matter" "${GIT_HOOK}" \
   "$(git_payload_in "${PUSH_REPO}" 'git push && cd "$ELSEWHERE"')" 0
+# Required peer review: a feature-branch push needs a stamp for the pushed commit.
+REVIEW_REPO="${WORKDIR}/review-repo"
+git init -q -b feat/r "${REVIEW_REPO}"
+git -C "${REVIEW_REPO}" -c user.name=t -c user.email=t@t commit -q --allow-empty -m one
+run_case "git: push without peerRequired needs no stamp" "${GIT_HOOK}" \
+  "$(git_payload_in "${REVIEW_REPO}" 'git push origin feat/r')" 0
+git -C "${REVIEW_REPO}" config agents.peerRequired true
+run_case "git: required peer, push feature branch without stamp blocks" "${GIT_HOOK}" \
+  "$(git_payload_in "${REVIEW_REPO}" 'git push origin feat/r')" 2
+run_case "git: required peer, bare push without stamp blocks" "${GIT_HOOK}" \
+  "$(git_payload_in "${REVIEW_REPO}" 'git push')" 2
+run_case "git: required peer, tags-only push needs no stamp" "${GIT_HOOK}" \
+  "$(git_payload_in "${REVIEW_REPO}" 'git push origin --tags')" 0
+run_case "git: required peer, branch delete needs no stamp" "${GIT_HOOK}" \
+  "$(git_payload_in "${REVIEW_REPO}" 'git push origin --delete feat/old')" 0
+run_case "git: required peer, empty-source refspec deletes and needs no stamp" "${GIT_HOOK}" \
+  "$(git_payload_in "${REVIEW_REPO}" 'git push origin :feat/old')" 0
+run_case "git: required peer, force push still blocks" "${GIT_HOOK}" \
+  "$(git_payload_in "${REVIEW_REPO}" 'git push --force origin feat/r')" 2
+mkdir -p "${REVIEW_REPO}/.git/agents/peer-reviewed"
+touch "${REVIEW_REPO}/.git/agents/peer-reviewed/$(git -C "${REVIEW_REPO}" rev-parse HEAD)"
+run_case "git: required peer, push with a stamp for HEAD allowed" "${GIT_HOOK}" \
+  "$(git_payload_in "${REVIEW_REPO}" 'git push origin feat/r')" 0
+git -C "${REVIEW_REPO}" -c user.name=t -c user.email=t@t commit -q --allow-empty -m two
+run_case "git: required peer, a new commit needs a new stamp" "${GIT_HOOK}" \
+  "$(git_payload_in "${REVIEW_REPO}" 'git push origin feat/r')" 2
+REVIEW_STAMPED=$(git -C "${REVIEW_REPO}" rev-parse HEAD~1)
+mkdir -p "${REVIEW_REPO}/docs/tasks_manager/_runs" "${REVIEW_REPO}/src"
+git -C "${REVIEW_REPO}" reset -q --soft "${REVIEW_STAMPED}"
+echo "unreviewed" > "${REVIEW_REPO}/src/b.py"
+git -C "${REVIEW_REPO}" add src && git -C "${REVIEW_REPO}" -c user.name=t -c user.email=t@t commit -q -m unreviewed-code
+echo "Ruling: x" > "${REVIEW_REPO}/docs/tasks_manager/_runs/state.md"
+git -C "${REVIEW_REPO}" add docs && git -C "${REVIEW_REPO}" -c user.name=t -c user.email=t@t commit -q -m runstate
+run_case "git: required peer, run-state commit on an unstamped commit still blocks" "${GIT_HOOK}" \
+  "$(git_payload_in "${REVIEW_REPO}" 'git push origin feat/r')" 2
+git -C "${REVIEW_REPO}" reset -q --soft "${REVIEW_STAMPED}"
+git -C "${REVIEW_REPO}" rm -q --cached src/b.py && rm "${REVIEW_REPO}/src/b.py"
+git -C "${REVIEW_REPO}" -c user.name=t -c user.email=t@t commit -q -m runstate-only
+run_case "git: required peer, docs/tasks_manager-only commits after a stamp allowed" "${GIT_HOOK}" \
+  "$(git_payload_in "${REVIEW_REPO}" 'git push origin feat/r')" 0
+echo "code" > "${REVIEW_REPO}/src/a.py"
+git -C "${REVIEW_REPO}" add src && git -C "${REVIEW_REPO}" -c user.name=t -c user.email=t@t commit -q -m code
+run_case "git: required peer, a code commit after run-state commits needs a new stamp" "${GIT_HOOK}" \
+  "$(git_payload_in "${REVIEW_REPO}" 'git push origin feat/r')" 2
+git -C "${REVIEW_REPO}" reset -q --soft "${REVIEW_STAMPED}"
+git -C "${REVIEW_REPO}" rm -q --cached src/a.py && rm "${REVIEW_REPO}/src/a.py"
+git -C "${REVIEW_REPO}" -c user.name=t -c user.email=t@t commit -q -m runstate-again
+echo "code" > "${REVIEW_REPO}/src/a.py"
+git -C "${REVIEW_REPO}" add src && git -C "${REVIEW_REPO}" -c user.name=t -c user.email=t@t commit -q -m code
+touch "${REVIEW_REPO}/.git/agents/peer-reviewed/$(git -C "${REVIEW_REPO}" rev-parse HEAD)"
+git -C "${REVIEW_REPO}" mv src/a.py docs/tasks_manager/a.py
+git -C "${REVIEW_REPO}" -c user.name=t -c user.email=t@t commit -q -m move-code
+run_case "git: required peer, moving code into docs/tasks_manager needs a new stamp" "${GIT_HOOK}" \
+  "$(git_payload_in "${REVIEW_REPO}" 'git push origin feat/r')" 2
+git -C "${REVIEW_REPO}" branch -q main
+run_case "git: required peer, protected branch still blocks without the marker" "${GIT_HOOK}" \
+  "$(git_payload_in "${REVIEW_REPO}" 'git push origin main')" 2
 run_case "git: push --tags allowed" "${GIT_HOOK}" \
   "$(git_payload 'git push origin --tags')" 0
 run_case "git: push main blocks" "${GIT_HOOK}" \

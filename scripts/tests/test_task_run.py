@@ -132,4 +132,23 @@ class TaskRun(unittest.TestCase):
         self.assertIn("Test plan", task_run.implementer_prompt("r", 1, "p"))
         self.assertIn("duplicated between phases", task_run.final_prompt("r", 1, "abc", "t.md")); self.assertIn("duplicated between phases", briefs)
         self.assertIn("one behaviour tested at several layers", task_run.SIMPLICITY_SCOPE)
+    def test_final_review_carries_the_consequence_checklist_like_the_brief_and_reviewer(self):
+        import sys; sys.path.insert(0, str(ROOT / "plugins/agents-core/lib")); import task_run
+        briefs = (ROOT / "plugins/agents-core/skills/execute-plan/references/briefs.md").read_text()
+        reviewer = (ROOT / "plugins/agents-core/agents/reviewer.md").read_text()
+        self.assertIn(task_run.CONSEQUENCES, task_run.final_prompt("r", 1, "abc", "t.md")); self.assertIn(task_run.CONSEQUENCES, briefs)
+        self.assertNotIn("Consequence checklist", task_run.final_prompt("r", "simplicity", "abc", "t.md"))
+        for line in task_run.CONSEQUENCES.splitlines()[1:7]: self.assertIn(line[3:], reviewer)
+    def test_unanchored_final_brief_carries_no_plan_design_or_rulings(self):
+        briefs = (ROOT / "plugins/agents-core/skills/execute-plan/references/briefs.md").read_text()
+        brief = briefs.split("## Final review 2, unanchored")[1].split("\n## ")[0].split("```text")[1].split("```")[0]
+        for leaked in ("state.md", "Ruling", "Context:", "plan/task file", "size.md", "Design"): self.assertNotIn(leaked, brief)
+        self.assertIn("Find what breaks", brief); import sys; sys.path.insert(0, str(ROOT / "plugins/agents-core/lib")); import task_run
+        self.assertIn(task_run.CONSEQUENCES, brief)
+    def test_findings_accept_p_tags_and_header(self):
+        import sys; sys.path.insert(0, str(ROOT / "plugins/agents-core/lib")); import task_run
+        msg = "## Findings: 3 (C:1 I:1 M:1)\n1. **[P1]** [f:5](a.py) — x\n2. **[P2]** y\n3. [M] z\n4. [P3] w"
+        self.assertEqual([s for s, _ in task_run.findings(msg)], ["C", "I", "M", "M"])
+        self.assertEqual(task_run.findings_header(msg), (3, {"C": 1, "I": 1, "M": 1}))
+        self.assertIsNone(task_run.findings_header("## Findings\n1. [C] a"))
 if __name__ == "__main__": unittest.main()

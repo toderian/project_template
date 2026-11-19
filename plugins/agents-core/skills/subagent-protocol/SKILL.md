@@ -108,7 +108,10 @@ Never ignore an escalation or force the same approach without changes.
 When a review returns `FAIL` or blocking findings, the parent runs at most **three** fix rounds per
 slice, then adjudicates. Each round hands the implementer the numbered open-findings list verbatim
 (never a paraphrase, never the whole review) and is followed by a re-review scoped to those findings
-and the fix diff only.
+and the fix diff only. A new finding a re-review raises outside those findings joins the loop only
+when it is a `[C]` finding on a realistic input or an unmet acceptance criterion; any other gets
+`Ruling: … — parked`. Peer re-runs for a push stamp add no fix rounds (`references/peer-check.md`
+§"Push stamp in a required checkout").
 
 | Round | Who | Prompt |
 |---|---|---|
@@ -122,8 +125,20 @@ next reader can audit:
 Ruling: <finding> — <decision: fixed by parent | accepted as-is | parked> — cost if wrong: <one clause>
 ```
 
+A design line or `Ruling:` that accepts losing data or evidence (a dropped record, an overwritten
+field, a skipped node), or that calls something on the changed path a "known gap", is not the
+parent's to accept: it needs the owner's ruling in chat, quoted in the line. Without it the finding
+stays open.
+
 Stop with `BLOCKED` only when every path forward is a guess; a defect the parent can fix in a few
 lines is fixed by the parent and recorded as a ruling.
+
+## Escape ratchet
+
+An external review finding that traces to no control (no checklist item, hook or test that should have
+caught it) becomes one: add the checklist item, hook or test in the same change that fixes the finding,
+and log the row where the repo keeps its review-escapes log (`agents-tasks:knowledge-base`
+§"Review escapes log").
 
 ## Two-stage review
 
@@ -137,6 +152,17 @@ There is no point reviewing code quality if the implementation does not match th
 The brief's `Stage: spec | quality | both` line selects what a `reviewer` runs. When the parent owns
 the merge of verdicts, the two stages may run as two parallel read-only reviewers on the same diff;
 a spec `FAIL` still sends the slice back before quality findings are acted on.
+
+### Review round
+
+Every review round has **at least two independent reviewers** with different focus, dispatched in
+parallel and unseen by each other: one checks the spec and acceptance criteria, one hunts for what
+breaks (tests that still pass with the fix reverted, failure paths, callers). Do not make every
+reviewer an attacker: without the spec it misses requirements the code never implements.
+A final review or a task-end review also sends its brief to the peer (§"Peer check"). When the peer
+is unavailable there, tell the owner in the report; never skip it silently. Without subagents, do
+the passes yourself in separate context breaks and label them `not independent`. More reviewers do
+not mean more fix rounds: verify each finding, then fix it or write a `Ruling:`.
 
 ### Skepticism directive for reviewers
 
@@ -152,7 +178,8 @@ The implementer's self-report may be incomplete or optimistic. Verify independen
 When the checkout has enabled it (`at peer status` exits 0), a read-only second opinion comes from
 the other agent CLI through `at peer run`: at the large-work gates the workflow skills name, or when
 the user asks for a cross-check. It adds to the native review; its findings are evidence you verify,
-and an unavailable peer never blocks. Procedure, exit codes and setup:
+and an unavailable peer never blocks, unless the checkout set `at peer enable <cli> --required`: then
+exit 3 at a gate is BLOCKED (fix the setup; only the owner skips it). Procedure, exit codes and setup:
 [references/peer-check.md](references/peer-check.md).
 
 ## Model selection

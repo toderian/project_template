@@ -1448,7 +1448,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_task.add_argument("rest", nargs=argparse.REMAINDER)
     p_task.set_defaults(func=cmd_task)
 
-    p_peer = sub.add_parser("peer", help="enable <cli>[:<model>]... | disable | status | run --role R --brief F --out F: "
+    p_peer = sub.add_parser("peer", help="enable <cli>[:<model>]... [--required] | disable | status | run --role R --brief F --out F: "
                                          "read-only second opinion from the other agent CLI")
     p_peer.add_argument("rest", nargs=argparse.REMAINDER)
     p_peer.set_defaults(func=cmd_peer)

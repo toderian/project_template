@@ -17,7 +17,7 @@ scale that still gives an independent verdict.
 
 Everything larger than a verdict lives in `docs/tasks_manager/_runs/<TASK-ID>/` and travels as a
 file path, so a fresh session can pick the run up from disk. In **small** mode you implement each
-phase yourself and one reviewer checks it. In **large** mode you are a thin orchestrator: you
+phase yourself and two independent reviewers check it. In **large** mode you are a thin orchestrator: you
 dispatch one fresh implementer per phase and separate reviewers, and you own every commit.
 
 Use this skill when the user points to `docs/tasks_manager/_todos/<TASK>.md`, `docs/_plans/<slug>.md`,
@@ -37,7 +37,8 @@ The dispatch rules, status vocabulary, fix-loop cap and `Ruling:` format come fr
 - Every phase acceptance criterion is met and the required checks pass.
 - Each completed phase has its own commit, made by you, and a `committed` row with its SHA in
   `_runs/<TASK-ID>/state.md`.
-- Each phase passed an independent review (one `Stage: both` reviewer in small mode; separate spec
+- Each phase passed an independent review (two reviewers in small mode, `Stage: both` and the second
+  reviewer brief; separate spec
   and quality reviewers, plus security when the phase touched a security surface, in large mode),
   or every open finding carries a `Ruling:` line.
 - The final whole-task review reports no blocking or acceptance-failing findings.
@@ -53,7 +54,7 @@ fix wave, stop and report the remaining issues instead of looping.
 | Rung | When | What runs |
 |---|---|---|
 | trivial | a one-sentence diff, not a tracked task | not this skill: edit, test, commit (`agents-core:tdd`) |
-| **small** | ≤ 2 phases, scope fence ≤ ~10 files, no large trigger | you implement each phase; one `reviewer` with `Stage: both` per phase; one final reviewer when there were 2 phases |
+| **small** | ≤ 2 phases, scope fence ≤ ~10 files, no large trigger | you implement each phase; two `reviewer`s per phase (`Stage: both` + second reviewer); two final reviewers plus the peer |
 | **large** | any large trigger | thin orchestrator: `plan-critic` architecture review, fresh `implementer` per phase, parallel spec + quality reviewers, conditional `security-auditor`, two final reviewers |
 | program | too big for one task, way ahead unclear | `agents-tasks:wayfinder`; each resulting task runs its own rung |
 
@@ -62,7 +63,8 @@ fix wave, stop and report the remaining issues instead of looping.
 - ≥ 3 phases, or a phase whose scope fence exceeds ~10 files;
 - a security surface (auth or sessions, input parsing or deserialization, subprocess/shell/file-path
   handling, network or HTTP, secrets/config/env, permissions or ACLs, SQL or query building, crypto,
-  CI or hook configuration, new dependencies), a data migration, a public interface or contract, or
+  CI or hook configuration, new dependencies, error handling and logging of user or target data,
+  persistence of reports or evidence, redaction), a data migration, a public interface or contract, or
   more than one repo (`Repos` row);
 - a `### Design` section or `Spec refs` other than `self`;
 - `Execution: orchestrated` in the task metadata, or the user asks for full review;
@@ -148,7 +150,9 @@ permits it.
    at task run-state init <TASK-ID> --base <rev> --branch <branch> --work-mode <mode> --autonomy <L?> --runtime <claude|codex|inline>
    ```
 
-   then add `mode:` and `mode_reason:` to its frontmatter. Without `agents-tasks`, write `state.md`
+   then add `mode:` and `mode_reason:` to its frontmatter. When the code diff lives in another checkout
+   than the one holding `_runs/` (the task's `Repos` row, paths in `.local/repos.map`), add
+   `--code-repo <path>` to `init` (or `code_repo:` to the frontmatter): step 7 and the peer gate use it. Without `agents-tasks`, write `state.md`
    by hand from [references/run-state.md](references/run-state.md).
 
 Never use destructive cleanup to get a clean tree.
@@ -192,8 +196,10 @@ verdict blocks and the state file; open a report, diff or test log only to adjud
    the verdict block in mind. The spec judgement is the **phase checklist**; task-wide acceptance
    criteria are verified once in steps 6–7, so a reviewer that fails a phase for a later phase's
    criterion is answered with that, not with a fix round.
-   - Small mode: one `reviewer`, `Stage: both`, prompt from briefs.md §"Single reviewer" →
-     `review.md`; its verdict fills both `Spec` and `Quality`.
+   - Small mode, in parallel: `reviewer` `Stage: both`, prompt from briefs.md §"Single reviewer" →
+     `review.md`, and `reviewer` with briefs.md §"Second reviewer" (tests and failure paths) →
+     `review-2.md`. Both must pass; together they fill `Spec` and `Quality`. Every review round has at
+     least two independent reviewers, per `agents-core:subagent-protocol` §"Review round".
    - The quality judgement (and `Stage: both`) reads `size.md`: a flagged file whose growth no
      checklist item, finding or report line explains is an important finding; an unjustified fixture or test-ratio flag is critical (stricter than a
      code flag: bulk data growth has no logic to review); a file that grew in a
@@ -215,7 +221,8 @@ verdict blocks and the state file; open a report, diff or test log only to adjud
    round still grows the file, row → `blocked` with a note naming the shape problem, and ask the user;
    do not adjudicate it away with a `Ruling:`.
 8. **Adjudicate at the cap.** Decide each still-open finding and record a `Ruling:` line in
-   `state.md`; small defects you fix and rule. If every path forward is a guess, row → `blocked`,
+   `state.md`; small defects you fix and rule. A finding whose acceptance loses data or evidence
+   needs the owner's ruling in chat (`agents-core:subagent-protocol` §"Fix loop"), not yours. If every path forward is a guess, row → `blocked`,
    write what is needed, stop. In small mode a phase that hits the cap escalates the run to large
    instead (step 0).
 9. **Verify and record.** Run the phase checks and related tests yourself and read the output. Tick
@@ -262,15 +269,25 @@ or log-only updates not already in the last phase commit.
 
 Per-phase reviews saw one diff each; this looks at the whole, with the brief from
 [references/briefs.md](references/briefs.md) §"Final review", on the strongest model, read-only.
-Small mode: one `reviewer` → `final-review-1.md`, with the simplicity judgement folded into its
-brief, and only when there were two phases (a single phase's review already covered the task). Large
+Small mode: two `reviewer`s in parallel, unseen by each other: reviewer 1 → `final-review-1.md`, with
+the simplicity judgement folded into its brief, and the unanchored reviewer 2 (briefs.md §"Final
+review 2") → `final-review-2.md`, plus the peer (below). Large
 mode: two `reviewer`s (`Stage: both`) plus one `reviewer` with `Stage: simplicity` in parallel →
-`final-review-1.md`, `-2.md`, `final-review-simplicity.md`, unseen by each other; all three get
-`size.md`. The simplicity reviewer judges avoidable complexity only (duplicated wiring, guards
+`final-review-1.md`, `-2.md`, `final-review-simplicity.md`, unseen by each other. Reviewer 1 and the
+simplicity reviewer get `size.md`; reviewer 2 is **unanchored**: the brief from briefs.md §"Final
+review 2" holds only the goal sentence, the diff range and the consequence checklist, no plan,
+design, `Ruling:` lines or state, so it cannot conform to a decision that was wrong. The simplicity reviewer judges avoidable complexity only (duplicated wiring, guards
 coordinating guards, one-caller abstractions, files that grew where the plan said shrink) and fails
 on a flagged file with no justification or a code net over the plan's `Shape:`. Large mode also
 sends the final-review brief to `at peer run --role reviewer` → `final-review-peer.md`, per
 `agents-core:subagent-protocol` §"Peer check"; its confirmed findings count like a reviewer's.
+
+**Peer at the final review of every rung that ends with code commits** (small mode too), not only
+large mode. Run it with cwd = the checkout that holds the code diff, because `at peer` is enabled and
+`--required` is set per checkout: a peer enabled only where `_runs/` lives never reviews the code. If it
+exits 3 and that checkout is `required`, the review is BLOCKED: fix the setup, do not skip it. Before
+closeout run `at task run-state check <TASK-ID> --final`: it fails when phases are committed,
+`final-review-peer.md` is missing and the `code_repo` checkout requires the peer.
 
 - All `PASS` with no critical finding: tick the task-wide acceptance criteria, record the result,
   proceed to closeout. Non-critical findings are recorded as non-blocking.

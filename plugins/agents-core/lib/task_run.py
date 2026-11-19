@@ -29,7 +29,11 @@ import task_size  # lib/task_size.py, next to this file
 
 STATUS_RE = re.compile(r"^\s*(?:#+\s*)?Status:\s*(DONE_WITH_CONCERNS|DONE|NEEDS_CONTEXT|BLOCKED)\b", re.M)
 VERDICT_RE = re.compile(r"^\s*(?:#+\s*)?Verdict:\s*(PASS|FAIL)\b", re.M)
-FINDING_RE = re.compile(r"^\s*\d+\.\s*\[([CIM])\]\s*(.+?)\s*$", re.M)
+# `1. [C] text`, and the P-tag form some reviewers use: `1. **[P1]** text` (P1 critical, P2 important, P3 minor)
+FINDING_RE = re.compile(r"^\s*\d+\.\s*(?:\*\*)?\[(C|I|M|P[123])\](?:\*\*)?\s*(.+?)\s*$", re.M)
+P_SEVERITY = {"P1": "C", "P2": "I", "P3": "M"}
+# `## Findings: 5 (C:3 I:2 M:0)`
+FINDINGS_HEADER_RE = re.compile(r"^\s*#+\s*Findings:\s*(\d+)(?:\s*\(([^)]*)\))?", re.M)
 CARD_ROLES = ("implementer", "reviewer", "security-auditor")
 STATUS_REMINDER = ("Your previous reply was missing the report block. Finish with, last and exactly:\n"
                    "## Status: DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED\n## Summary: <one line>\n\n")
@@ -301,6 +305,18 @@ SIMPLICITY_SCOPE = ("Judge only avoidable complexity: duplicated wiring, guards 
                     "task file, the run ledger or the reports, or when the code net exceeds a Shape: line the plan states.\n")
 
 
+CONSEQUENCES = (
+    'Consequence checklist: each item is answered in `## Evidence` as one line, or `n/a: <why>`:\n'
+    '1. every caller of a function whose signature, return values or errors changed;\n'
+    '2. the full behaviour of helpers the change starts relying on (fallthrough and default branches);\n'
+    '3. every newly reachable path: what it writes, publishes, logs;\n'
+    '4. other paths in the same flow that can break the same invariant;\n'
+    '5. failure paths: what is logged or persisted, before or after redaction;\n'
+    '6. each new check or test: name the input that makes it fail for the bug class.\n'
+    'A consequence that breaks an invariant or loses data or evidence is critical.\n'
+)
+
+
 def final_prompt(runs_rel: str, k: int | str, base_rev: str, task_rel: str, simplicity: bool = False) -> str:
     """k = 1 | 2 (Stage: both) or 'simplicity' (the third reviewer in large mode); `simplicity=True` folds the
     simplicity judgement into a Stage: both reviewer (small mode)."""
@@ -311,6 +327,7 @@ def final_prompt(runs_rel: str, k: int | str, base_rev: str, task_rel: str, simp
             f"git diff {base_rev}..HEAD.\nSize: {runs_rel}/size.md (whole run; Flagged: lines need a reason, including fixture and "
             f"test-ratio flags. {SIZE_SEVERITY} Redundant tests across layers are findings). Make one pass across all "
             "phases for tests duplicated between phases and fixtures duplicating each other; findings go into the one fix wave.\n"
+            f"{'' if k == 'simplicity' else CONSEQUENCES}"
             "Scope fence: read-only; do not edit files.\n"
             f"Your reply is the review (it is saved to {runs_rel}/final-review-{k}.md): the ## Status / ## Verdict / "
             "## Findings block first, then ## Evidence; at most 40 lines.")
@@ -329,7 +346,17 @@ def parse_verdict(message: str) -> str:
 
 
 def findings(message: str) -> list[tuple[str, str]]:
-    return FINDING_RE.findall(message)
+    """(C|I|M, text) per numbered finding line; `[P1]`..`[P3]` map to C, I, M."""
+    return [(P_SEVERITY.get(tag, tag), text) for tag, text in FINDING_RE.findall(message)]
+
+
+def findings_header(message: str) -> tuple[int, dict[str, int]] | None:
+    """(count, {"C": n, ...}) from the last `## Findings: N (C:x I:y M:z)` line, or None when absent."""
+    m = FINDINGS_HEADER_RE.findall(message)
+    if not m:
+        return None
+    count, detail = m[-1]
+    return int(count), {k: int(v) for k, v in re.findall(r"([CIM]):(\d+)", detail)}
 
 
 # ---- task file updates -----------------------------------------------------------

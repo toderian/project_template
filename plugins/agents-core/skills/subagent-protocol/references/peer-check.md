@@ -8,12 +8,14 @@ blind spots; the peer does not. It adds to the native review, it never replaces 
 
 Only when `at peer status` exits 0 (the checkout opted in and the other CLI is installed), and only:
 
-- at the gates the workflow skills name: architecture review and final review of a large run, task
-  verification of a large task, critique of a large or high-risk plan;
+- at the gates the workflow skills name: the final review of every run that ends with code commits,
+  task verification (`agents-tasks:verify-task`) of every task, the architecture review of a large
+  run, critique of a large or high-risk plan;
 - or when the user asks for a second opinion, a cross-check or "ask the other model".
 
-Never per phase and never on small work: a peer check is a whole second agent run. One peer check
-per gate; re-review after fixes stays native.
+Never per phase: a peer check is a whole second agent run. One peer check
+per gate; re-review after fixes stays native. Only exception: in a `required` checkout a fix commit
+needs a stamp before it can be pushed (§"Push stamp in a required checkout").
 
 ## How
 
@@ -33,6 +35,9 @@ per gate; re-review after fixes stays native.
    the CLI's own.
 3. When it returns, read the one summary line, then the saved reply:
    `peer codex (reviewer): FAIL, 3 finding(s), 1 critical -> <reply file>`.
+   Findings count as `[C]`/`[I]`/`[M]` or `[P1]`/`[P2]`/`[P3]` (critical/important/minor) numbered lines.
+   When the reply's `## Findings: N (...)` header disagrees with the lines parsed, the line shows the
+   header count and `, count mismatch`: read the saved reply, do not trust the parse.
 
 The peer must not edit. Claude runs without edit tools and with read-only `git` commands only.
 Codex runs with `--yolo` (no sandbox, no approvals), so only its brief keeps it read-only. It cannot start a peer of its own.
@@ -41,9 +46,41 @@ Codex runs with `--yolo` (no sandbox, no approvals), so only its brief keeps it 
 
 | Code | Meaning | What you do |
 |---|---|---|
-| 0 | A reply was saved, whatever its verdict | Weigh it, below |
-| 3 | No peer available; one reason line on stdout | Record `Note: peer check unavailable: <reason>` and go on. Never wait, retry in a loop, or block the gate |
+| 0 | A reply was saved, whatever its verdict (the stamp rules are below the table) | Weigh it, below |
+| 3 | No peer available; one reason line on stdout | Not required: record `Note: peer check unavailable: <reason>`, name it in the report to the owner at a final or task-end review, and go on. Never wait or retry in a loop |
+| 3, checkout is `required` (a `BLOCKED:` line follows) | Same, but the gate is BLOCKED | Stop at the gate. Fix the peer setup (CLI on PATH, login, `at peer enable` in the checkout that holds the code) and rerun; only the owner skips it, with `at peer disable` or a `Ruling:` in chat |
+| 4 | A reply was saved, but its `## Findings: N` header and the parsed finding lines disagree (`, count mismatch`) | Read the saved reply yourself; no review stamp is written, so a required checkout cannot push until a clean run |
 | 2 | Usage error | Fix the command |
+
+A `reviewer` run writes the push stamp only when it exits 0, the reply has a status line and a verdict, and
+`HEAD` is the commit that was reviewed when the run began; otherwise a line says why and no stamp exists.
+
+### Push stamp in a required checkout
+
+The stamp records that a review ran on that commit, not that it passed. Stamp re-runs never add fix
+rounds: the fix loop (`SKILL.md` §"Fix loop") and the calling skill's limits, such as `execute-plan`'s
+single final-review fix wave, decide what gets fixed. When the two disagree, the stricter one wins.
+
+- **Push gate:** from the first peer review of commits that are not on the remote yet until that
+  push succeeds. A new push gate starts only with new work, never with a new attempt to push.
+- **No commits while a peer run is in progress** in a required checkout: a moved `HEAD` gets no stamp.
+- **Re-run brief:** the fix diff only (`<sha the last reply reviewed>..HEAD`), the numbered findings
+  it fixes, and every `Ruling:` so far under "Settled, do not re-raise". New work, not a fix, gets a
+  full-range brief and opens a new push gate.
+- **New finding from a re-run:** a `[C]` finding on a realistic input, or an unmet acceptance
+  criterion, goes back to the fix loop only if that loop has a round left; otherwise stop and report
+  it. Every other new finding gets `Ruling: <finding> — parked — cost if wrong: …`.
+- **Cap:** at most two peer runs after the gate's first review, per push gate. Every run counts,
+  including exit 4 and replies with no verdict.
+- **Run state and rulings** may be committed after the stamp. The hook accepts commits that change
+  only `docs/tasks_manager/` on top of a stamped commit.
+- **Stop and report to the owner** when the cap is reached and `HEAD` still has no stamp, or a
+  confirmed `[C]` finding or unmet acceptance criterion is still open. Never push an older stamped
+  commit that lacks a confirmed fix. Only the owner unblocks it, with a `Ruling:` in chat and
+  `at peer disable` for that push (a ruling writes no stamp).
+
+"Never blocks" holds only when the checkout did not opt into `--required`. A peer enabled in one
+checkout says nothing about another: the peer runs with cwd = the checkout that holds the code.
 
 ## Weighing the reply
 
@@ -60,6 +97,10 @@ Record the outcome where the gate records its own, one line:
 
 ## Setup and limits
 
+- **Required mode:** `at peer enable codex --required` also sets `agents.peerRequired=true` (local git
+  config); `at peer status` then prints `required`, and a pre-push hook denies a feature-branch push whose
+  `HEAD` has no saved peer review (`at peer run --role reviewer` stamps the reviewed `HEAD` on exit 0).
+  `at peer disable` clears both. Use it in every checkout that holds code a gate reviews.
 - **Opt in per checkout:** `at peer enable codex` (or `claude`, or both). The setting is local git
   config (`agents.peers`), never committed. The peer's provider receives the brief and every file the
   peer reads, so enable it only where that is acceptable; `at peer disable` turns it off.

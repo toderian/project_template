@@ -2,6 +2,63 @@
 
 Notable changes to agents-template. All four plugins share the version of the repository.
 
+## 1.11.0 — 2026-11-19
+
+### Added
+
+- Review rounds have at least two independent reviewers with different focus
+  (`agents-core:subagent-protocol` §"Review round"). Small-mode `execute-plan` gets a second
+  per-phase reviewer (tests and failure paths) and a two-reviewer final review; the peer joins every
+  final review and every `verify-task` run, and an unavailable peer is named to the owner.
+- Re-reviews are bounded. A new finding outside the fixed ones joins the fix loop only when it is a
+  `[C]` finding on a realistic input or an unmet acceptance criterion. In a `required` checkout, peer
+  re-runs for the push stamp review the fix diff only, add no fix rounds, and count every run (at
+  most two after the first per push). At the cap with an unstamped `HEAD` or an open `[C]` finding,
+  the agent stops and reports to the owner (`peer-check.md` §"Push stamp in a required checkout").
+  Measured on a scratch project: 4 fix commits and 5 peer runs before, 1 and 2 after.
+- The pre-push stamp check accepts commits that change only `docs/tasks_manager/` on top of a
+  stamped commit, so run state and rulings committed after the review do not block the push.
+- Review round shape: one reviewer checks the spec and acceptance criteria, one hunts for what
+  breaks. An A/B run (6 seeded cases, 72 reviews) showed two attackers find 56% of spec-only bugs,
+  a spec reviewer plus an attacker 100%.
+
+- `at peer enable <cli> --required` stores `agents.peerRequired`; `at peer disable` clears it and `at peer status`
+  prints `required`. With it, exit 3 (peer unavailable) also prints a `BLOCKED` line and a gate must stop: "an
+  unavailable peer never blocks" holds only when the checkout did not opt in.
+- Pre-push stamp: `at peer run --role reviewer` records the reviewed `HEAD` under
+  `<git-common-dir>/agents/peer-reviewed/<sha>` on exit 0. `block-dangerous-git.sh` denies a feature-branch push whose
+  commit has no stamp when `agents.peerRequired` is true, naming the command to run. Tag pushes, branch deletes,
+  protected-branch and force-push rules are unchanged.
+- Run state takes an optional `code_repo` (`at task run-state init --code-repo`) and
+  `at task run-state check <ID> --final` fails a run with a committed phase and no `final-review-peer.md` when the
+  peer is required in that checkout. `execute-plan` runs the final peer review with cwd = the code checkout at every
+  rung that ends with code commits, not only large mode.
+- Consequence checklist (callers of changed contracts, reused-helper behaviour, newly reachable paths, sibling paths
+  of the invariant, failure-path logging and persistence, the input that fails each new test) in the reviewer's
+  Stage 2, the final-review brief and the `at task run` final prompt, answered in `## Evidence`.
+- Large-mode final reviewer 2 is unanchored: goal sentence, diff range and checklist only, no plan, design or rulings.
+- Review-escapes log convention in `agents-tasks:knowledge-base` and an escape-ratchet rule in
+  `agents-core:subagent-protocol`.
+
+### Known limits
+
+- The `at task run` driver still runs one reviewer per small-mode phase and no small-mode final
+  review 2; the skill's two-reviewer rule applies to the manual path.
+- The scripted `at task run` driver does not dispatch the peer, run `--final`, or give final reviewer 2 the
+  unanchored brief.
+- After a `cd` to a path the push hook cannot resolve, the required-review check reads the original checkout's
+  config.
+
+### Changed
+
+- `at peer run` counts `[P1]`/`[P2]`/`[P3]` findings (bold or plain) as critical/important/minor next to
+  `[C]/[I]/[M]`, shared with `at task run`. A `## Findings: N (...)` header that disagrees with the parsed lines is
+  reported as the header count plus `, count mismatch`, not 0.
+- `execute-plan` step 0 security surface adds error handling and logging of user or target data, persistence of
+  reports or evidence, and redaction; `security-auditor` checks failure-path data exposure.
+- A design line or `Ruling:` that accepts losing data or evidence, or a "known gap" on the changed path, needs the
+  owner's ruling in chat; `plan-critic` flags it as blocking.
+
 ## 1.10.0 — 2026-11-18
 
 ### Changed

@@ -75,10 +75,29 @@ Your reply is the report (I save it to docs/tasks_manager/_runs/<TASK-ID>/phase-
 the ## Status / ## Verdict / ## Findings block first, then ## Evidence; at most 40 lines.
 ```
 
+## Second reviewer (small mode, step 5.6, `reviewer`, read-only)
+
+```text
+Stage: quality
+You are one of two independent reviewers of this phase; the other checks the phase checklist. Your
+focus is what breaks: find it, do not confirm the design.
+Diff: docs/tasks_manager/_runs/<TASK-ID>/phase-N/diff.patch (BASE <rev> → working tree)
+Focus:
+- each new or changed test or check: name the input that makes it fail for its bug class; flag a
+  test that still passes with the fix reverted;
+- failure paths: what is logged, persisted or published on error, before or after redaction; when
+  one instance of a bad pattern is found, sweep the tree for the same pattern;
+- every caller of a changed function and every path the change makes newly reachable.
+Scope fence: read-only; do not edit files. Run tests only to check a specific doubt.
+Model hint: strongest available, high effort.
+Your reply is the report (I save it to docs/tasks_manager/_runs/<TASK-ID>/phase-N/review-2.md):
+the ## Status / ## Verdict / ## Findings block first, then ## Evidence; at most 40 lines.
+```
+
 ## Security auditor (step 5.6, `security-auditor`, only on a security surface)
 
 ```text
-Surface: <why this phase is a security surface: auth | input parsing | subprocess | network | secrets | permissions | queries | crypto | CI/hooks | new dependency>
+Surface: <why this phase is a security surface: auth | input parsing | subprocess | network | secrets | permissions | queries | crypto | CI/hooks | new dependency | error handling or logging of user/target data | persistence of reports or evidence | redaction>
 Brief: docs/tasks_manager/_runs/<TASK-ID>/phase-N/brief.md
 Diff: docs/tasks_manager/_runs/<TASK-ID>/phase-N/diff.patch
 Scope fence: read-only; do not edit files.
@@ -127,7 +146,7 @@ Your reply is the re-review (I save it to docs/tasks_manager/_runs/<TASK-ID>/pha
 per finding "<n>: resolved | open — one line", then the ## Status / ## Verdict / ## Findings block; at most 40 lines.
 ```
 
-## Final review (step 7, `Stage: both`; two `reviewer`s in parallel in large mode, one in small mode)
+## Final review (step 7, `Stage: both`; reviewer 1 in large mode, the only one in small mode)
 
 In small mode add the line `Also give the simplicity judgement:` followed by the scope sentence of
 §"Final simplicity review" below; large mode dispatches that review separately.
@@ -146,9 +165,41 @@ Acceptance criteria:
 Context: <plan/task file>, docs/tasks_manager/_runs/<TASK-ID>/state.md (rulings are decisions, not defects),
 git diff <base_rev>..HEAD.
 Size: docs/tasks_manager/_runs/<TASK-ID>/size.md (whole run; Flagged: lines need a reason, including fixture and test-ratio flags. An unjustified fixture or test-ratio flag is critical (FAIL), stricter than a code flag: bulk data growth has no logic to review. Redundant tests across layers are findings). One pass across all phases for tests duplicated between phases and fixtures duplicating each other; findings go into the one fix wave.
+Consequence checklist: each item is answered in `## Evidence` as one line, or `n/a: <why>`:
+1. every caller of a function whose signature, return values or errors changed;
+2. the full behaviour of helpers the change starts relying on (fallthrough and default branches);
+3. every newly reachable path: what it writes, publishes, logs;
+4. other paths in the same flow that can break the same invariant;
+5. failure paths: what is logged or persisted, before or after redaction;
+6. each new check or test: name the input that makes it fail for the bug class.
+A consequence that breaks an invariant or loses data or evidence is critical.
 Scope fence: read-only; do not edit files.
 Model hint: strongest available, highest effort.
 Your reply is the review (I save it to docs/tasks_manager/_runs/<TASK-ID>/final-review-<1|2>.md):
+the ## Status / ## Verdict / ## Findings block first, then ## Evidence; at most 40 lines.
+```
+
+## Final review 2, unanchored (step 7, large mode, `Stage: both`, second `reviewer`)
+
+Reviewer 2 gets no plan, design, `Ruling:` lines or state file, so it cannot check conformance to
+decisions that may themselves be wrong: it looks for what breaks. Fill the goal sentence and the base revision yourself;
+do not add context.
+
+```text
+Stage: both
+Task description: <one sentence: the goal of the whole task>. Find what breaks.
+Diff: git diff <base_rev>..HEAD
+Consequence checklist: each item is answered in `## Evidence` as one line, or `n/a: <why>`:
+1. every caller of a function whose signature, return values or errors changed;
+2. the full behaviour of helpers the change starts relying on (fallthrough and default branches);
+3. every newly reachable path: what it writes, publishes, logs;
+4. other paths in the same flow that can break the same invariant;
+5. failure paths: what is logged or persisted, before or after redaction;
+6. each new check or test: name the input that makes it fail for the bug class.
+A consequence that breaks an invariant or loses data or evidence is critical.
+Scope fence: read-only; do not edit files.
+Model hint: strongest available, highest effort.
+Your reply is the review (I save it to docs/tasks_manager/_runs/<TASK-ID>/final-review-2.md):
 the ## Status / ## Verdict / ## Findings block first, then ## Evidence; at most 40 lines.
 ```
 

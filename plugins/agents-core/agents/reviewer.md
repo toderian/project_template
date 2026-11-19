@@ -41,6 +41,14 @@ Only proceed to this stage if spec compliance passes.
 - Size: when the brief names a size table, every flagged file, flagged fixture or test+fixture-ratio flag needs a reason in the checklist, a finding or the report — otherwise `[I]`; an unjustified fixture or test-ratio flag is `[C]` (FAIL), stricter than a code flag since bulk data growth has no logic to review; a file that grew in a phase meant to dedup or shrink it is `[C]`
 - State: list the flags, refs, effects, locks or retries the diff adds; each must answer a named finding or checklist item
 - Simplicity: is there a simpler design with equal outcomes?
+- Consequences: the diff is not the unit of review; read the code the change touches or relies on, outside the changed lines. Answer each item in `## Evidence` as one line, or `n/a: <why>`:
+  1. every caller of a function whose signature, return values or errors changed;
+  2. the full behaviour of helpers the change starts relying on (fallthrough and default branches);
+  3. every newly reachable path: what it writes, publishes, logs;
+  4. other paths in the same flow that can break the same invariant;
+  5. failure paths: what is logged or persisted, before or after redaction;
+  6. each new check or test: name the input that makes it fail for the bug class.
+  A consequence that breaks an invariant or loses data or evidence is `[C]`.
 
 ## Stage 3: Simplicity
 
@@ -86,6 +94,7 @@ You are read-only, so your reply **is** the report: the orchestrator saves it to
 2. [I] path:line — one line
 ## Evidence
 - <criterion or finding>: what you checked, where (path:line), why it matters
+- Consequences 1-6: one line each, or `n/a: <why>` (Stage 2 and `Stage: both` only)
 ```
 
 Verdict `FAIL` for any unmet acceptance criterion in a spec stage, any critical finding in a quality stage, or an unjustified flagged file in a simplicity stage. Use `## Status: DONE` when the verdict is PASS, `## Status: DONE_WITH_CONCERNS` when it is FAIL, and `## Status: BLOCKED` only when the review cannot be completed as specified (missing diff, unreadable brief).

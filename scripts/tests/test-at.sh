@@ -712,6 +712,7 @@ git rm -q "$DRIFT_TASK" && git -c user.name=t -c user.email=t@t commit -q -m "T-
 PEER_REPO="$WORKDIR/peer-repo"; PEER_BIN="$WORKDIR/peer-bin"; PEER_CALLS="$WORKDIR/peer-calls.txt"
 mkdir -p "$PEER_REPO" "$PEER_BIN"
 git -C "$PEER_REPO" init -q .
+git -C "$PEER_REPO" -c user.name=t -c user.email=t@t commit -q --allow-empty -m base
 for cli in claude codex; do
   cp "$REPO/scripts/tests/fixtures/fake-peer.py" "$PEER_BIN/$cli"; chmod +x "$PEER_BIN/$cli"
 done
@@ -790,6 +791,51 @@ PEER_OUT="$(cd "$PEER_REPO" && AT_PEER_DEPTH=1 CLAUDECODE=1 PATH="$PEER_PATH" FA
   at peer run --role reviewer --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/d.md" 2>&1)"; PEER_RC=$?
 assert_eq "$PEER_RC" "3" "a peer session cannot start a peer of its own"
 assert_eq "$(wc -l < "$PEER_CALLS" | tr -d ' ')" "0" "and starts no CLI"
+
+# B1b: P-tag findings and the `## Findings: N (...)` header.
+PEER_OUT="$(peer 1 ptags run --role reviewer --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/p.md")"
+assert_stdout_contains "$PEER_OUT" "peer codex (reviewer): FAIL, 2 finding(s), 1 critical -> " "P1/P2 tags are counted (P1 = critical)"
+PEER_OUT="$(peer 1 mismatch run --role reviewer --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/p.md")"
+assert_stdout_contains "$PEER_OUT" "FAIL, 3 finding(s), 2 critical, count mismatch" "a header count that disagrees with the parse is reported, not 0"
+
+# B3: a reviewer run that exits 0 stamps the reviewed HEAD; other roles and failed runs do not.
+PEER_HEAD="$(git -C "$PEER_REPO" rev-parse HEAD)"
+assert_exists "$PEER_REPO/.git/agents/peer-reviewed/$PEER_HEAD" "a reviewer peer run stamps the reviewed HEAD"
+rm -rf "$PEER_REPO/.git/agents"
+peer "" critic run --from codex --role plan-critic --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/c.md" >/dev/null
+assert_missing "$PEER_REPO/.git/agents/peer-reviewed/$PEER_HEAD" "a plan-critic run does not stamp"
+peer 1 error run --role reviewer --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/e.md" >/dev/null
+assert_missing "$PEER_REPO/.git/agents/peer-reviewed/$PEER_HEAD" "an unavailable peer does not stamp"
+
+# Stamp guards: no stamp for a reply without status/verdict, a count mismatch, or a HEAD that moved.
+STAMPS="$PEER_REPO/.git/agents/peer-reviewed"
+rm -rf "$PEER_REPO/.git/agents"
+PEER_OUT="$(peer 1 bare run --role reviewer --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/b.md")"; PEER_RC=$?
+assert_eq "$PEER_RC" "0" "a bare reply still exits 0"
+assert_missing "$STAMPS/$PEER_HEAD" "a reply without status line and verdict is not stamped"
+PEER_OUT="$(peer 1 mismatch run --role reviewer --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/b.md")"; PEER_RC=$?
+assert_eq "$PEER_RC" "4" "a findings count mismatch exits 4"
+assert_stdout_contains "$PEER_OUT" "count mismatch, no review stamp" "the mismatch is printed"
+assert_missing "$STAMPS/$PEER_HEAD" "a count mismatch is not stamped"
+PEER_OUT="$(peer 1 movehead run --role reviewer --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/b.md")"; PEER_RC=$?
+assert_eq "$PEER_RC" "0" "a review during which HEAD moved still exits 0"
+assert_stdout_contains "$PEER_OUT" "HEAD changed during the review, no review stamp" "the moved HEAD is printed"
+assert_missing "$STAMPS/$PEER_HEAD" "the reviewed sha is not stamped after HEAD moved"
+assert_missing "$STAMPS/$(git -C "$PEER_REPO" rev-parse HEAD)" "the new HEAD is not stamped either"
+PEER_HEAD="$(git -C "$PEER_REPO" rev-parse HEAD)"
+
+# B1: --required stores agents.peerRequired; unavailable then prints BLOCKED (exit code unchanged).
+assert_stdout_contains "$(peer 1 ok status)" "peer: codex (model gpt-test, effort default)" "status without --required"
+case "$(peer 1 ok status)" in *required*) fail "status prints required before --required is set";; *) pass;; esac
+peer 1 ok enable codex:gpt-test claude --required >/dev/null
+assert_eq "$(git -C "$PEER_REPO" config --get agents.peerRequired)" "true" "enable --required stores agents.peerRequired"
+assert_stdout_contains "$(peer 1 ok status)" ", required" "status prints required"
+PEER_OUT="$(peer 1 error run --role reviewer --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/e.md")"; PEER_RC=$?
+assert_eq "$PEER_RC" "3" "required mode keeps exit 3"
+assert_stdout_contains "$PEER_OUT" "BLOCKED: peer review is required" "required mode prints BLOCKED on unavailability"
+peer 1 ok disable >/dev/null
+assert_eq "$(git -C "$PEER_REPO" config --get agents.peerRequired || echo unset)" "unset" "disable clears agents.peerRequired"
+peer 1 ok enable codex:gpt-test claude >/dev/null
 
 peer_doctor() { ( cd "$PEER_REPO" && PATH="$PEER_PATH" at doctor 2>&1 ); }
 assert_stdout_contains "$(peer_doctor)" "peer check: codex is on PATH" "at doctor confirms a listed peer CLI"

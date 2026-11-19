@@ -191,6 +191,7 @@ def render_state(task: Task, root: Path, args: argparse.Namespace) -> str:
         f"branch: {args.branch}",
         f"work_mode: {args.work_mode}",
         f"autonomy: {args.autonomy}",
+        *([f"code_repo: {args.code_repo}"] if getattr(args, "code_repo", "") else []),
         "current_phase: 1",
         f"updated: {now_iso()}",
         "---",
@@ -213,7 +214,15 @@ def git_has_commit(root: Path, sha: str) -> bool | None:
     return rc == 0
 
 
-def check_state(path: Path, task: Task, root: Path) -> tuple[list[str], list[str]]:
+def peer_required(repo: Path) -> bool:
+    """True when `at peer enable ... --required` set agents.peerRequired in this checkout."""
+    rc = subprocess.run(["git", "-C", str(repo), "config", "--type=bool", "--get", "agents.peerRequired"],
+                        capture_output=True, text=True, check=False)
+    return rc.returncode == 0 and rc.stdout.strip() == "true"
+
+
+def check_state(path: Path, task: Task, root: Path, final: bool = False) -> tuple[list[str], list[str]]:
+    """`final=True` (the run is at its end) also demands final-review-peer.md when the code checkout requires a peer."""
     errors: list[str] = []
     warnings: list[str] = []
     lines = read_lines(path)
@@ -257,6 +266,13 @@ def check_state(path: Path, task: Task, root: Path) -> tuple[list[str], list[str
             ledger.append(line)
     if len(rows) != len(task.phases):
         errors.append(f"{rel}: {len(rows)} phase row(s) but the task has {len(task.phases)} phase(s)")
+    code_repo = front.get("code_repo") or ""
+    code = Path(code_repo or ".")
+    code = code if code.is_absolute() else root / code
+    code_ok = code.is_dir() and (code / ".git").exists()
+    if code_repo and not code_ok and not final:
+        warnings.append(f"{rel}: code_repo {code_repo!r} is not a git checkout; phase commits not verified")
+    commit_root = code if code_repo and code_ok else root  # phase commits live in the code checkout
     for cells in rows:
         n = cells[0]
         if len(cells) < 9:
@@ -269,13 +285,20 @@ def check_state(path: Path, task: Task, root: Path) -> tuple[list[str], list[str
             if cell not in VERDICTS:
                 errors.append(f"{rel}: phase {n} {label} cell {cell!r} must be one of {', '.join(VERDICTS)}")
         if commit not in ("—", "-", ""):
-            found = git_has_commit(root, commit)
+            found = git_has_commit(commit_root, commit)
             if found is None:
-                warnings.append(f"{rel}: phase {n} commit {commit} not verified ({root} is not a git repository)")
+                warnings.append(f"{rel}: phase {n} commit {commit} not verified ({commit_root} is not a git repository)")
             elif not found:
-                errors.append(f"{rel}: phase {n} commit {commit} does not exist in this repository")
+                errors.append(f"{rel}: phase {n} commit {commit} does not exist in {'the code checkout ' + str(commit_root) if commit_root != root else 'this repository'}")
         if status == "committed" and commit in ("—", "-", ""):
             errors.append(f"{rel}: phase {n} is committed but has no commit SHA")
+    if final and any(c[1] == "committed" for c in rows if len(c) >= 9):
+        if not code_ok:  # fail closed: an unreadable code checkout must not skip the peer requirement
+            errors.append(f"{rel}: code_repo {code_repo!r} is not a git checkout, so the peer requirement cannot be checked")
+        elif peer_required(code) and not (path.parent / "final-review-peer.md").is_file():
+            errors.append(f"{rel}: phases are committed but {path.parent.relative_to(root).as_posix()}/final-review-peer.md "
+                          f"is missing and the peer is required in {code} (run `at peer run --role reviewer` from there "
+                          "with the final-review brief)")
     for line in ledger:
         if not line.startswith(LEDGER_PREFIXES) or (line.startswith("Phase ") and not re.match(r"^Phase \d+:", line)):
             errors.append(f"{rel}: ledger line must start with `Phase N:`, `Ruling:`, `Interface:` or `Note:`: {line!r}")
@@ -327,7 +350,7 @@ def cmd_run_state(args: argparse.Namespace, root: Path) -> int:
         return write_out(state, render_state(task, root, args), args.force, "run state")
     if not state.is_file():
         return err(f"no run state at {state.relative_to(root).as_posix()} (run: at task run-state init {task.taskid})")
-    errors, warnings = check_state(state, task, root)
+    errors, warnings = check_state(state, task, root, final=args.final)
     for w in warnings:
         print(f"WARNING: {w}", file=sys.stderr)
     for e in errors:
@@ -358,6 +381,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_state.add_argument("--branch", default="unknown", help="branch name (init)")
     p_state.add_argument("--work-mode", default="default-branch", help="resolved work mode (init)")
     p_state.add_argument("--autonomy", default="L1", help="resolved autonomy level (init)")
+    p_state.add_argument("--code-repo", default="", help="checkout holding the code diff when it is not this one: "
+                         "path or absolute path (init; default: this checkout)")
+    p_state.add_argument("--final", action="store_true", help="the run is at its end: also require "
+                         "final-review-peer.md when the code checkout requires a peer (check)")
     p_state.add_argument("--runtime", choices=RUNTIMES, default="inline", help="dispatch runtime (init)")
     p_state.add_argument("--force", action="store_true", help="overwrite an existing state.md (init)")
     p_state.set_defaults(func=cmd_run_state)
