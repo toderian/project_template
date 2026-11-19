@@ -126,7 +126,7 @@ require_review() {
   common=$(git -C "$dir" rev-parse --git-common-dir 2>/dev/null) || return 0
   case "$common" in /*) ;; *) common="$dir/$common" ;; esac
   [ -e "$common/agents/peer-reviewed/$sha" ] && return 0
-  deny_push "peer review is required in this checkout (agents.peerRequired) and ${sha:0:9} has none. Run from this checkout: at peer run --role reviewer --brief <file> --out <file> (brief names the diff range); fix confirmed findings, review again if you commit, then push."
+  deny_push "peer review is required in this checkout (agents.peerRequired) and ${sha:0:9} has none. Run from this checkout: at peer run --role reviewer --brief <file> --out <file> (brief names the diff range). After a fix commit, re-run on the fix diff only; at most 2 re-runs per push, then rule on what is left (peer-check.md, Re-runs for the push stamp stay bounded)."
 }
 
 require_confirmed() {

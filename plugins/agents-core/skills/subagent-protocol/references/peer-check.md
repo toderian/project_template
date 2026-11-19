@@ -54,6 +54,21 @@ Codex runs with `--yolo` (no sandbox, no approvals), so only its brief keeps it 
 A `reviewer` run writes the push stamp only when it exits 0, the reply has a status line and a verdict, and
 `HEAD` is the commit that was reviewed when the run began; otherwise a line says why and no stamp exists.
 
+### Re-runs for the push stamp stay bounded
+
+A fix commit after a peer review needs a new stamp before a required checkout can push. That re-run
+is not a new review of the whole branch:
+
+- Brief it on the fix diff only (`<last stamped sha>..HEAD`) plus the numbered findings it fixes.
+  List every `Ruling:` so far under "Settled, do not re-raise".
+- A new finding from a re-run gets a fix commit only when it is a P1 that a realistic input reaches.
+  Every other new finding gets a `Ruling:` or a follow-up, and the branch pushes on the stamp it has.
+- At most **two** re-runs per push gate. At the cap, stop fixing: write the `Ruling:` lines, push the
+  last stamped commit or report the open P1 to the owner. Never commit again just to chase a verdict.
+
+The stamp records that a review ran, not that it passed, so a re-run with open findings still
+unblocks the push once those findings are ruled on.
+
 "Never blocks" holds only when the checkout did not opt into `--required`. A peer enabled in one
 checkout says nothing about another: the peer runs with cwd = the checkout that holds the code.
 

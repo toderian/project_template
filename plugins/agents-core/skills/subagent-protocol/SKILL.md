@@ -108,7 +108,10 @@ Never ignore an escalation or force the same approach without changes.
 When a review returns `FAIL` or blocking findings, the parent runs at most **three** fix rounds per
 slice, then adjudicates. Each round hands the implementer the numbered open-findings list verbatim
 (never a paraphrase, never the whole review) and is followed by a re-review scoped to those findings
-and the fix diff only.
+and the fix diff only. A new finding a re-review raises outside those findings gets a fix round only
+when it is critical on a realistic input; otherwise it gets a `Ruling:` or a follow-up. Peer re-runs
+for a push stamp follow the same bar and cap (`references/peer-check.md` §"Re-runs for the push
+stamp stay bounded").
 
 | Round | Who | Prompt |
 |---|---|---|
