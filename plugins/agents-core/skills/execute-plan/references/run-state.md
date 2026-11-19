@@ -133,7 +133,8 @@ dirty until the next phase's commit sweeps it in and committing the last one as
 - `--mode auto` (default) picks large on ≥ 3 phases, `--security`, a `Repos` row, a `### Design`
   section or `Execution: orchestrated`; it cannot count files. Small mode still dispatches an
   implementer (the driver has no "self") but runs one `Stage: both` reviewer per phase and one
-  final reviewer (none for a single phase). A run never de-escalates from large.
+  final reviewer (none for a single phase), short of the skill's two reviewers per round; add the
+  second reviewer and the peer by hand. A run never de-escalates from large.
 - Final reviewer 2 gets the same prompt as reviewer 1 (anchored); the unanchored brief is the skill's.
 - The clean-tree gate is strict: any change outside `_runs/` stops the run.
 - The scope fence is "only what the phase requires"; the script cannot infer file lists.

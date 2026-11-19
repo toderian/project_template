@@ -8,11 +8,12 @@ blind spots; the peer does not. It adds to the native review, it never replaces 
 
 Only when `at peer status` exits 0 (the checkout opted in and the other CLI is installed), and only:
 
-- at the gates the workflow skills name: architecture review and final review of a large run, task
-  verification of a large task, critique of a large or high-risk plan;
+- at the gates the workflow skills name: the final review of every run that ends with code commits,
+  task verification (`agents-tasks:verify-task`) of every task, the architecture review of a large
+  run, critique of a large or high-risk plan;
 - or when the user asks for a second opinion, a cross-check or "ask the other model".
 
-Never per phase and never on small work: a peer check is a whole second agent run. One peer check
+Never per phase: a peer check is a whole second agent run. One peer check
 per gate; re-review after fixes stays native.
 
 ## How
@@ -45,7 +46,7 @@ Codex runs with `--yolo` (no sandbox, no approvals), so only its brief keeps it 
 | Code | Meaning | What you do |
 |---|---|---|
 | 0 | A reply was saved, whatever its verdict (the stamp rules are below the table) | Weigh it, below |
-| 3 | No peer available; one reason line on stdout | Not required: record `Note: peer check unavailable: <reason>` and go on. Never wait or retry in a loop |
+| 3 | No peer available; one reason line on stdout | Not required: record `Note: peer check unavailable: <reason>`, name it in the report to the owner at a final or task-end review, and go on. Never wait or retry in a loop |
 | 3, checkout is `required` (a `BLOCKED:` line follows) | Same, but the gate is BLOCKED | Stop at the gate. Fix the peer setup (CLI on PATH, login, `at peer enable` in the checkout that holds the code) and rerun; only the owner skips it, with `at peer disable` or a `Ruling:` in chat |
 | 4 | A reply was saved, but its `## Findings: N` header and the parsed finding lines disagree (`, count mismatch`) | Read the saved reply yourself; no review stamp is written, so a required checkout cannot push until a clean run |
 | 2 | Usage error | Fix the command |

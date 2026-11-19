@@ -6,6 +6,11 @@ Notable changes to agents-template. All four plugins share the version of the re
 
 ### Added
 
+- Review rounds have at least two independent reviewers with different focus
+  (`agents-core:subagent-protocol` §"Review round"). Small-mode `execute-plan` gets a second
+  per-phase reviewer (tests and failure paths) and a two-reviewer final review; the peer joins every
+  final review and every `verify-task` run, and an unavailable peer is named to the owner.
+
 - `at peer enable <cli> --required` stores `agents.peerRequired`; `at peer disable` clears it and `at peer status`
   prints `required`. With it, exit 3 (peer unavailable) also prints a `BLOCKED` line and a gate must stop: "an
   unavailable peer never blocks" holds only when the checkout did not opt in.
@@ -26,6 +31,8 @@ Notable changes to agents-template. All four plugins share the version of the re
 
 ### Known limits
 
+- The `at task run` driver still runs one reviewer per small-mode phase and no small-mode final
+  review 2; the skill's two-reviewer rule applies to the manual path.
 - The scripted `at task run` driver does not dispatch the peer, run `--final`, or give final reviewer 2 the
   unanchored brief.
 - After a `cd` to a path the push hook cannot resolve, the required-review check reads the original checkout's

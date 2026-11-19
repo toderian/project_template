@@ -150,6 +150,15 @@ The brief's `Stage: spec | quality | both` line selects what a `reviewer` runs. 
 the merge of verdicts, the two stages may run as two parallel read-only reviewers on the same diff;
 a spec `FAIL` still sends the slice back before quality findings are acted on.
 
+### Review round
+
+Every review round has **at least two independent reviewers** with different focus (for example
+spec and correctness, and tests plus failure paths), dispatched in parallel and unseen by each other.
+A final review or a task-end review also sends its brief to the peer (§"Peer check"). When the peer
+is unavailable there, tell the owner in the report; never skip it silently. Without subagents, do
+the passes yourself in separate context breaks and label them `not independent`. More reviewers do
+not mean more fix rounds: verify each finding, then fix it or write a `Ruling:`.
+
 ### Skepticism directive for reviewers
 
 The implementer's self-report may be incomplete or optimistic. Verify independently:

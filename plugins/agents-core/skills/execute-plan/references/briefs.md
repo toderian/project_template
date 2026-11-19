@@ -75,6 +75,25 @@ Your reply is the report (I save it to docs/tasks_manager/_runs/<TASK-ID>/phase-
 the ## Status / ## Verdict / ## Findings block first, then ## Evidence; at most 40 lines.
 ```
 
+## Second reviewer (small mode, step 5.6, `reviewer`, read-only)
+
+```text
+Stage: quality
+You are one of two independent reviewers of this phase; the other checks the phase checklist. Your
+focus is what breaks: find it, do not confirm the design.
+Diff: docs/tasks_manager/_runs/<TASK-ID>/phase-N/diff.patch (BASE <rev> → working tree)
+Focus:
+- each new or changed test or check: name the input that makes it fail for its bug class; flag a
+  test that still passes with the fix reverted;
+- failure paths: what is logged, persisted or published on error, before or after redaction; when
+  one instance of a bad pattern is found, sweep the tree for the same pattern;
+- every caller of a changed function and every path the change makes newly reachable.
+Scope fence: read-only; do not edit files. Run tests only to check a specific doubt.
+Model hint: strongest available, high effort.
+Your reply is the report (I save it to docs/tasks_manager/_runs/<TASK-ID>/phase-N/review-2.md):
+the ## Status / ## Verdict / ## Findings block first, then ## Evidence; at most 40 lines.
+```
+
 ## Security auditor (step 5.6, `security-auditor`, only on a security surface)
 
 ```text
