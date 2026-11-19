@@ -10,10 +10,14 @@ Notable changes to agents-template. All four plugins share the version of the re
   (`agents-core:subagent-protocol` §"Review round"). Small-mode `execute-plan` gets a second
   per-phase reviewer (tests and failure paths) and a two-reviewer final review; the peer joins every
   final review and every `verify-task` run, and an unavailable peer is named to the owner.
-- Re-reviews are bounded. A new finding outside the fixed ones earns a fix round only when it is
-  critical on a realistic input. Peer re-runs for a required push stamp review the fix diff only, at
-  most two per push (`peer-check.md` §"Re-runs for the push stamp stay bounded"). Measured on a
-  scratch project: 4 fix commits and 5 peer runs before, 1 fix commit and 2 peer runs after.
+- Re-reviews are bounded. A new finding outside the fixed ones joins the fix loop only when it is a
+  `[C]` finding on a realistic input or an unmet acceptance criterion. In a `required` checkout, peer
+  re-runs for the push stamp review the fix diff only, add no fix rounds, and count every run (at
+  most two after the first per push). At the cap with an unstamped `HEAD` or an open `[C]` finding,
+  the agent stops and reports to the owner (`peer-check.md` §"Push stamp in a required checkout").
+  Measured on a scratch project: 4 fix commits and 5 peer runs before, 1 and 2 after.
+- The pre-push stamp check accepts commits that change only `docs/tasks_manager/` on top of a
+  stamped commit, so run state and rulings committed after the review do not block the push.
 
 - `at peer enable <cli> --required` stores `agents.peerRequired`; `at peer disable` clears it and `at peer status`
   prints `required`. With it, exit 3 (peer unavailable) also prints a `BLOCKED` line and a gate must stop: "an

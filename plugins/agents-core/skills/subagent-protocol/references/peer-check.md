@@ -14,7 +14,8 @@ Only when `at peer status` exits 0 (the checkout opted in and the other CLI is i
 - or when the user asks for a second opinion, a cross-check or "ask the other model".
 
 Never per phase: a peer check is a whole second agent run. One peer check
-per gate; re-review after fixes stays native.
+per gate; re-review after fixes stays native. Only exception: in a `required` checkout a fix commit
+needs a stamp before it can be pushed (§"Push stamp in a required checkout").
 
 ## How
 
@@ -54,20 +55,29 @@ Codex runs with `--yolo` (no sandbox, no approvals), so only its brief keeps it 
 A `reviewer` run writes the push stamp only when it exits 0, the reply has a status line and a verdict, and
 `HEAD` is the commit that was reviewed when the run began; otherwise a line says why and no stamp exists.
 
-### Re-runs for the push stamp stay bounded
+### Push stamp in a required checkout
 
-A fix commit after a peer review needs a new stamp before a required checkout can push. That re-run
-is not a new review of the whole branch:
+The stamp records that a review ran on that commit, not that it passed. Stamp re-runs never add fix
+rounds: the fix loop (`SKILL.md` §"Fix loop") and the calling skill's limits, such as `execute-plan`'s
+single final-review fix wave, decide what gets fixed. When the two disagree, the stricter one wins.
 
-- Brief it on the fix diff only (`<last stamped sha>..HEAD`) plus the numbered findings it fixes.
-  List every `Ruling:` so far under "Settled, do not re-raise".
-- A new finding from a re-run gets a fix commit only when it is a P1 that a realistic input reaches.
-  Every other new finding gets a `Ruling:` or a follow-up, and the branch pushes on the stamp it has.
-- At most **two** re-runs per push gate. At the cap, stop fixing: write the `Ruling:` lines, push the
-  last stamped commit or report the open P1 to the owner. Never commit again just to chase a verdict.
-
-The stamp records that a review ran, not that it passed, so a re-run with open findings still
-unblocks the push once those findings are ruled on.
+- **Push gate:** from the first peer review of commits that are not on the remote yet until that
+  push succeeds. A new push gate starts only with new work, never with a new attempt to push.
+- **No commits while a peer run is in progress** in a required checkout: a moved `HEAD` gets no stamp.
+- **Re-run brief:** the fix diff only (`<sha the last reply reviewed>..HEAD`), the numbered findings
+  it fixes, and every `Ruling:` so far under "Settled, do not re-raise". New work, not a fix, gets a
+  full-range brief and opens a new push gate.
+- **New finding from a re-run:** a `[C]` finding on a realistic input, or an unmet acceptance
+  criterion, goes back to the fix loop only if that loop has a round left; otherwise stop and report
+  it. Every other new finding gets `Ruling: <finding> — parked — cost if wrong: …`.
+- **Cap:** at most two peer runs after the gate's first review, per push gate. Every run counts,
+  including exit 4 and replies with no verdict.
+- **Run state and rulings** may be committed after the stamp. The hook accepts commits that change
+  only `docs/tasks_manager/` on top of a stamped commit.
+- **Stop and report to the owner** when the cap is reached and `HEAD` still has no stamp, or a
+  confirmed `[C]` finding or unmet acceptance criterion is still open. Never push an older stamped
+  commit that lacks a confirmed fix. Only the owner unblocks it, with `at peer disable` or a
+  `Ruling:` in chat.
 
 "Never blocks" holds only when the checkout did not opt into `--required`. A peer enabled in one
 checkout says nothing about another: the peer runs with cwd = the checkout that holds the code.

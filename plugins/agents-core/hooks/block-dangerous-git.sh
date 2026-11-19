@@ -116,9 +116,10 @@ is_protected() {
 # Required peer review: with `git config agents.peerRequired true` (`at peer enable <cli> --required`)
 # a push of a feature branch needs a stamp for the commit it pushes, written by `at peer run --role
 # reviewer` on exit 0 under <git-common-dir>/agents/peer-reviewed/<sha>. $1 is the ref being pushed
-# (HEAD when none is named); `dir` is the caller's checkout directory.
+# (HEAD when none is named); `dir` is the caller's checkout directory. Commits after a stamped one
+# that change only docs/tasks_manager/ (run state, rulings, ledgers) keep that stamp.
 require_review() {
-  local ref="${1:-HEAD}" sha common
+  local ref="${1:-HEAD}" sha common base i files
   [ -z "$PUSH_DELETE" ] || return 0  # deleting a remote branch pushes no commit
   [ "$(git -C "$dir" config --type=bool --get agents.peerRequired 2>/dev/null)" = true ] || return 0
   sha=$(git -C "$dir" rev-parse --verify --quiet "${ref}^{commit}" 2>/dev/null) \
@@ -126,7 +127,15 @@ require_review() {
   common=$(git -C "$dir" rev-parse --git-common-dir 2>/dev/null) || return 0
   case "$common" in /*) ;; *) common="$dir/$common" ;; esac
   [ -e "$common/agents/peer-reviewed/$sha" ] && return 0
-  deny_push "peer review is required in this checkout (agents.peerRequired) and ${sha:0:9} has none. Run from this checkout: at peer run --role reviewer --brief <file> --out <file> (brief names the diff range). After a fix commit, re-run on the fix diff only; at most 2 re-runs per push, then rule on what is left (peer-check.md, Re-runs for the push stamp stay bounded)."
+  base=$sha
+  for i in 1 2 3 4 5 6 7 8 9 10; do
+    base=$(git -C "$dir" rev-parse --verify --quiet "${base}^1" 2>/dev/null) || break
+    [ -e "$common/agents/peer-reviewed/$base" ] || continue
+    files=$(git -C "$dir" diff --name-only "$base" "$sha" 2>/dev/null) || break
+    [ -n "$files" ] && ! grep -qv '^docs/tasks_manager/' <<< "$files" && return 0
+    break
+  done
+  deny_push "peer review is required in this checkout (agents.peerRequired) and ${sha:0:9} has none. Run from this checkout: at peer run --role reviewer --brief <file> --out <file> (brief names the diff range). After a fix commit the re-run reviews the fix diff only and adds no fix rounds; every run counts, at most 2 after the first per push. At the cap with no stamp on HEAD, or with an open [C] finding, stop and report to the owner (peer-check.md, Push stamp in a required checkout)."
 }
 
 require_confirmed() {

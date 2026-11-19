@@ -169,6 +169,24 @@ run_case "git: required peer, push with a stamp for HEAD allowed" "${GIT_HOOK}" 
 git -C "${REVIEW_REPO}" -c user.name=t -c user.email=t@t commit -q --allow-empty -m two
 run_case "git: required peer, a new commit needs a new stamp" "${GIT_HOOK}" \
   "$(git_payload_in "${REVIEW_REPO}" 'git push origin feat/r')" 2
+REVIEW_STAMPED=$(git -C "${REVIEW_REPO}" rev-parse HEAD~1)
+mkdir -p "${REVIEW_REPO}/docs/tasks_manager/_runs" "${REVIEW_REPO}/src"
+git -C "${REVIEW_REPO}" reset -q --soft "${REVIEW_STAMPED}"
+echo "unreviewed" > "${REVIEW_REPO}/src/b.py"
+git -C "${REVIEW_REPO}" add src && git -C "${REVIEW_REPO}" -c user.name=t -c user.email=t@t commit -q -m unreviewed-code
+echo "Ruling: x" > "${REVIEW_REPO}/docs/tasks_manager/_runs/state.md"
+git -C "${REVIEW_REPO}" add docs && git -C "${REVIEW_REPO}" -c user.name=t -c user.email=t@t commit -q -m runstate
+run_case "git: required peer, run-state commit on an unstamped commit still blocks" "${GIT_HOOK}" \
+  "$(git_payload_in "${REVIEW_REPO}" 'git push origin feat/r')" 2
+git -C "${REVIEW_REPO}" reset -q --soft "${REVIEW_STAMPED}"
+git -C "${REVIEW_REPO}" rm -q --cached src/b.py && rm "${REVIEW_REPO}/src/b.py"
+git -C "${REVIEW_REPO}" -c user.name=t -c user.email=t@t commit -q -m runstate-only
+run_case "git: required peer, docs/tasks_manager-only commits after a stamp allowed" "${GIT_HOOK}" \
+  "$(git_payload_in "${REVIEW_REPO}" 'git push origin feat/r')" 0
+echo "code" > "${REVIEW_REPO}/src/a.py"
+git -C "${REVIEW_REPO}" add src && git -C "${REVIEW_REPO}" -c user.name=t -c user.email=t@t commit -q -m code
+run_case "git: required peer, a code commit after run-state commits needs a new stamp" "${GIT_HOOK}" \
+  "$(git_payload_in "${REVIEW_REPO}" 'git push origin feat/r')" 2
 git -C "${REVIEW_REPO}" branch -q main
 run_case "git: required peer, protected branch still blocks without the marker" "${GIT_HOOK}" \
   "$(git_payload_in "${REVIEW_REPO}" 'git push origin main')" 2
