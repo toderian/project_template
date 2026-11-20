@@ -53,7 +53,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        codex-version: ["0.147.0", "0.169.0"]
+        codex-version: ["0.147.0", "0.171.0"]
     steps:
       - uses: actions/checkout@v4
 

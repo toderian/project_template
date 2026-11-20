@@ -34,6 +34,10 @@ Notable changes to agents-template. All four plugins share the version of the re
 - A task that changes behaviour names the design leaf in `Spec refs`; `agents-tasks:complete-task`
   brings the leaf up to date before closeout.
 
+### Changed
+
+- Release checks expect Codex CLI 0.171.0 (was 0.169.0); CI tests 0.147.0 and 0.171.0.
+
 ## 1.11.0 — 2026-11-19
 
 ### Added
