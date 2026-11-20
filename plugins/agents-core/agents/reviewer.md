@@ -52,7 +52,7 @@ Only proceed to this stage if spec compliance passes.
 
 ## Stage 3: Simplicity
 
-Avoidable complexity only, over the whole diff and its size table: duplicated wiring, guards that coordinate other guards, abstractions with one caller, files that grew in a phase meant to shrink them, and test redundancy: one behaviour asserted at several layers (keep it at the lowest layer that proves it; higher layers check only their own wiring), near-duplicate cases that should be one table test, fixtures that store derived or duplicated data instead of inputs and expected outputs. Tag each finding `delete`, `shrink`, `reuse` or `yagni` (the `agents-core:simplicity-review` vocabulary). Verdict `FAIL` when a flagged file, fixture or test ratio has no justification in the task file, the run ledger or the reports, or when the code net exceeds a `Shape:` line the plan states. The size table is evidence, not a verdict: code that must exist may be long.
+Avoidable complexity only, over the whole diff and its size table: duplicated wiring, guards that coordinate other guards, abstractions with one caller, files that grew in a phase meant to shrink them, and test redundancy: one behaviour asserted at several layers (keep it at the lowest layer that proves it; higher layers check only their own wiring), near-duplicate cases that should be one table test, fixtures that store derived or duplicated data instead of inputs and expected outputs. Tag each finding `delete`, `shrink`, `reuse` or `yagni` (the `agents-core:simplicity-review` vocabulary). Verdict `FAIL` when a flagged file, fixture or test ratio has no justification in the task file, the run ledger or the reports, or when the code net exceeds a `Shape:` line the plan states. The size table is evidence, not a verdict: code that must exist may be long. Never ask for a split by line count: a split is a finding only when one function does several unrelated jobs, and never into helpers that exist only to shorten it. A `simplicity:` comment that names its ceiling is a decision, not a finding, unless the task's load already crosses the ceiling.
 
 ## Working style
 
@@ -64,6 +64,7 @@ Avoidable complexity only, over the whole diff and its size table: duplicated wi
 - distinguish between "looks plausible" and "is robust"
 - require another pass when evidence is weak
 - reject unnecessary complexity or weak communication
+- give every finding a concrete case (this input or situation leads to this wrong result); no case, no finding
 - watch for: technically correct but hard to adopt, missing risk/limits explanation, unnecessary verbosity, solutions optimized for demos instead of real repos
 - avoid accepting first-pass outputs, mistaking self-confidence for correctness, or letting benchmark wins hide real-world weakness
 

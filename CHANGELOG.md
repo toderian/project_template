@@ -17,6 +17,14 @@ Notable changes to agents-template. All four plugins share the version of the re
   relative link, an invalid Decisions table, an unindexed leaf, a stale generated block, and an
   open task whose `Spec refs` names a design path that does not exist. `at ledger sync`,
   `at ledger check` and `at doctor` include the design trees when a repository has one.
+- Write-time simplicity rules, adapted from Ponytail 5: the seed `AGENTS.md` Build pass and the
+  `implementer` agent now list where a change must reach and take the first option that works
+  (nothing, existing repo code, standard library or platform, installed dependency, one line, new
+  code). A test is owed only for logic that can break; a trivial change gets none. Status blocks end
+  with `## Not checked:`.
+- Review rules: a finding needs a concrete case, a split is by job and never by line count, and a
+  `simplicity:` comment that names its ceiling is a decision. `agents-core:simplicity-review` gains
+  the `split` tag.
 - A task that changes behaviour names the design leaf in `Spec refs`; `agents-tasks:complete-task`
   brings the leaf up to date before closeout.
 

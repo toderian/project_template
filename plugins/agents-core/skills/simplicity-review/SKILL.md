@@ -59,8 +59,9 @@ holds is the preferred implementation.
 5. **Does an installed dependency already solve it?** Reuse an existing dependency before adding one.
 6. **Can the implementation be a clear small expression?** Use the compact form when it remains
    readable and edge-case correct.
-7. **Only then write new code.** Keep the diff scoped to the current requirement and leave a small
-   runnable check for non-trivial logic.
+7. **Only then write new code.** Keep the diff scoped to the current requirement. New logic with a
+   branch, a loop, a parser, money or security leaves one test that fails when it breaks; a trivial
+   change leaves none.
 
 When two small options are available, choose the one that is more correct at the edge cases and more
 consistent with the surrounding code. Minimal does not mean fragile.
@@ -79,6 +80,12 @@ Use these tags for findings.
 - `shrink`: same behavior can be expressed more directly with less code and no loss of clarity.
 - `reuse`: local helper, component, pattern, or dependency already exists and should be used instead
   of new code.
+- `split`: one function or class does several unrelated jobs, so it is hard to read or test. Split by
+  job, never by line count, and never into helpers that exist only to make a function shorter.
+
+Every finding names a concrete case: the unused option, the second caller that does not exist, the
+standard API that covers it. No case, no finding. A `simplicity:` comment that names its ceiling is a
+decision, not a finding, unless the expected load already crosses the ceiling.
 
 ## Process
 

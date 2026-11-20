@@ -51,6 +51,7 @@ Every subagent must end with a structured report block:
 ## Concerns: (if DONE_WITH_CONCERNS) specific items the parent should evaluate
 ## Blocking on: (if NEEDS_CONTEXT or BLOCKED) what is needed to continue
 ## Files changed: list of files created or modified
+## Not checked: what you skipped or could not verify, and any risk it leaves; `none` when nothing
 ```
 
 ## Artifacts as files, verdicts in chat

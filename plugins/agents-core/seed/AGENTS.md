@@ -14,7 +14,10 @@ you can describe in one sentence skips Frame and Critique — never Test.
   inherit assumptions from the prompt, stale docs, or existing code without checking them. State the
   assumptions you keep. When the request has more than one reading, present them instead of picking
   one silently; when a simpler way exists, say so before building.
-- **Build** — make the smallest surgical change that advances the objective.
+- **Build** — first list every place the change must reach (callers, tests, fixtures, config,
+  exports); for a bug fix, grep the callers and fix the root cause once in the shared code. Then take
+  the first option that fully works: nothing (the need is speculative), code this repo already has,
+  the standard library or platform, an installed dependency, one clear line, and only then new code.
 - **Test** — run the narrowest checks first, then broader regressions; read the real output instead of
   trusting a green summary.
 - **Critique** — attack the weakest assumption and look for a simpler design.
@@ -30,14 +33,17 @@ you can describe in one sentence skips Frame and Critique — never Test.
 - **Evaluation-driven** — define done before large edits, prefer executable checks over confidence,
   and never weaken or delete a test to get green.
 - **Lean tests** — test each behaviour once, at the lowest layer that proves it; fixtures hold inputs and
-  expected outputs. Deleting a test that only repeats another is not weakening.
+  expected outputs. Deleting a test that only repeats another is not weakening. New logic with a
+  branch, a loop, a parser, money or security gets one test that fails when it breaks; a trivial
+  change gets none.
 - **Context discipline** — load only what the current step needs; write large command output to a file
   and keep head/tail in context; pass references and conclusions, not transcripts.
 - **Ratchet failures into rules** — turn a repeated mistake into a durable control (hook, test, skill
   step) at the narrowest layer that catches it, and prune rules that became redundant.
 - **Simplicity first** — no feature, option, abstraction, or error handling the request did not ask
-  for. One agent running the passes in sequence beats orchestration; delegate only when the task
-  splits cleanly into independent subproblems.
+  for. Never cut validation at a trust boundary, error handling that prevents data loss, security, or
+  accessibility. One agent running the passes in sequence beats orchestration; delegate only when the
+  task splits cleanly into independent subproblems.
 
 ## Autonomy and git
 
@@ -121,6 +127,7 @@ improvising a workflow.
 
 - The stated objective is satisfied, with the smallest diff that gets there.
 - Relevant checks were run and pass, or the gap is called out explicitly.
+- The final report ends with what was skipped or not checked, and any risk the owner must know.
 - Key assumptions were tested or written down.
 - The result survived at least one critic pass.
 - Task files, docs, and ledgers reflect what is actually true now.
