@@ -125,7 +125,7 @@ commit — without stashing or committing them first; `--commit` never sweeps th
 | Plugin | What's inside | Enable it when |
 |---|---|---|
 | `agents-core` | 18 skills (plan execution, TDD, diagnose, spec + planning workflows, grilling, codebase design, handoff, subagent protocol, security review, git discipline, project setup), 7 hooks (5 safety guards, a subagent report-contract check, a seed-drift notice at session start), 6 subagent roles, the `at` CLI | Always — it is the contract |
-| `agents-tasks` | 25 skills: the `docs/tasks_manager/` task ledger and its tooling, task simplification and verification, wayfinder decision maps, knowledge base, design trees (`at design`), workbooks, artifact registry, cross-repo workflows | The repo tracks work as task files, or wants durable notes/registries |
+| `agents-tasks` | 26 skills: the `docs/tasks_manager/` task ledger and its tooling, task simplification and verification, wayfinder decision maps, knowledge base, design trees (`at design`), exploratory testing against them (`at explore`), workbooks, artifact registry, cross-repo workflows | The repo tracks work as task files, or wants durable notes/registries |
 | `agents-extras` | 19 skills: architecture review, domain modeling, GitHub triage and PRDs, UI/frontend review, migration safety, pre-commit setup, skill and agent-doc authoring, repository memory sync | You want the wider review/GitHub/UI toolkit |
 | `agents-personal` | 8 skills: writing, editing, Obsidian, teaching, niche migrations | Personal repos; not useful in most codebases |
 

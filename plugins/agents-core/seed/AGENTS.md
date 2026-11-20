@@ -92,6 +92,7 @@ available skills and pick from that instead of guessing another prefix.
 | Did a finished task do what its file says | `agents-tasks:verify-task` |
 | Durable notes, runbooks, ADRs | `agents-tasks:knowledge-base`, `agents-extras:domain-modeling` for glossary and ADRs |
 | How a feature works and why; a behaviour change | `agents-tasks:design-doc` (`docs/resources/<area>/design/`, checked by `at design check`) |
+| Test the running product against its design tree, find bugs in a loop | `agents-tasks:exploratory-test` (`at explore`) |
 | A decision only another person can answer | `agents-extras:to-questionnaire` |
 | An agent message that did not land | `agents-core:wait-what` |
 | Writing a skill, AGENTS.md, or an agent-facing doc | `agents-extras:writing-for-agents` |

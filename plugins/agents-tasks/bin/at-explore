@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Thin wrapper: run the exploratory-test ledger and fingerprint script against the current repo.
+set -euo pipefail
+HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+exec python3 "$HERE/../skills/exploratory-test/scripts/explore.py" --root "$(git rev-parse --show-toplevel)" "$@"

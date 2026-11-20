@@ -8,6 +8,7 @@ Subcommands:
   migrate      convert a legacy `_base/`/`playbooks/` downstream to the plugin layout
   ledger       wrapper: `sync` | `check` (both include the design trees) | `rotate-log <TASK_ID>|--all`
   design       wrapper: `sync` | `check` the design trees under docs/resources/<area>/design/
+  explore      wrapper: exploratory-test ledger (`build` | `next` | `record`) and findings (`fingerprint` | `known`)
   task         `brief <TASK_ID> --phase N` | `run-state init|check <TASK_ID>` | `run <TASK_ID>` (scripted execute-plan) | `size <TASK_ID> --phase N|--final`
   addon        `list` | `status` | `enable <name>...` | `disable <name>...`: optional tools per repo
   reserve      wrapper: reserve an inbox idea or task filename
@@ -1321,6 +1322,13 @@ def cmd_design(args: argparse.Namespace) -> int:
     return subprocess.run(cmd, check=False).returncode
 
 
+def cmd_explore(args: argparse.Namespace) -> int:
+    script = tasks_root() / "skills" / "exploratory-test" / "scripts" / "explore.py"
+    if not script.exists():
+        die(f"{script} is missing from the installed agents-tasks plugin")
+    return subprocess.run([sys.executable, str(script), "--root", str(repo_root())] + args.rest, check=False).returncode
+
+
 def cmd_ledger(args: argparse.Namespace) -> int:
     if args.action != "rotate-log" and args.all:
         die("usage: `--all` belongs to `at ledger rotate-log`", code=2)
@@ -1476,6 +1484,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_design = sub.add_parser("design", help="sync | check the design trees under docs/resources/<area>/design/")
     p_design.add_argument("action", choices=("sync", "check"))
     p_design.set_defaults(func=cmd_design)
+
+    p_explore = sub.add_parser("explore", help="exploratory-test ledger and findings: build | next | record | fingerprint | known")
+    p_explore.add_argument("rest", nargs=argparse.REMAINDER)
+    p_explore.set_defaults(func=cmd_explore)
 
     p_reserve = sub.add_parser("reserve", help="reserve an inbox idea or task filename")
     p_reserve.add_argument("rest", nargs=argparse.REMAINDER)

@@ -25,6 +25,12 @@ Notable changes to agents-template. All four plugins share the version of the re
 - Review rules: a finding needs a concrete case, a split is by job and never by line count, and a
   `simplicity:` comment that names its ceiling is a decision. `agents-core:simplicity-review` gains
   the `split` tag.
+- `agents-tasks:exploratory-test`: agents test a running product end to end against its design tree.
+  One leaf statement per scenario, a replay of every mismatch, a clean-context refuter that tries to
+  explain it away, and a fingerprint so a finding is filed once, as an inbox idea. `at explore`
+  keeps the coverage ledger (`build`, `next`, `record`) and the fingerprints (`fingerprint`,
+  `known`). The repo provides the harness; `references/harness.md` says what it must do. Piloted on
+  45 cells of one product: five findings filed, all five accepted as bugs by the owner.
 - A task that changes behaviour names the design leaf in `Spec refs`; `agents-tasks:complete-task`
   brings the leaf up to date before closeout.
 
