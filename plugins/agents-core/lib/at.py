@@ -1326,7 +1326,8 @@ def cmd_explore(args: argparse.Namespace) -> int:
     script = tasks_root() / "skills" / "exploratory-test" / "scripts" / "explore.py"
     if not script.exists():
         die(f"{script} is missing from the installed agents-tasks plugin")
-    return subprocess.run([sys.executable, str(script), "--root", str(repo_root())] + args.rest, check=False).returncode
+    return subprocess.run([sys.executable, str(script), "--root", str(repo_root())]
+                          + (["--dir", args.dir] if args.dir else []) + args.rest, check=False).returncode
 
 
 def cmd_ledger(args: argparse.Namespace) -> int:
@@ -1486,6 +1487,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_design.set_defaults(func=cmd_design)
 
     p_explore = sub.add_parser("explore", help="exploratory-test ledger and findings: build | next | record | fingerprint | known")
+    p_explore.add_argument("--dir", help="harness folder, default tests/e2e-explore")
     p_explore.add_argument("rest", nargs=argparse.REMAINDER)
     p_explore.set_defaults(func=cmd_explore)
 

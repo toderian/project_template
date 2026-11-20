@@ -25,6 +25,7 @@ class Explore(unittest.TestCase):
         self.assertEqual(sorted(cells), ["FBK-01", "ROLE:buy:guest"])  # Target and Partly rules are known gaps
         self.assertEqual(at(tmp, "record", "FBK-01", "pass").returncode, 0)
         self.assertEqual(at(tmp, "build").stdout.strip(), "2 cells")
+        self.assertEqual(at(tmp, "--dir", "other", "build").stdout.strip(), "1 cells")  # no cells.tsv there
         self.assertIn("\tpass\t1\t", (tmp / "tests/e2e-explore/ledger.tsv").read_text())
     def test_next_puts_run_cells_last_and_skips_untestable(self):
         tmp = self.built()
