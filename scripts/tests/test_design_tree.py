@@ -32,7 +32,7 @@ verified:
 
 {pending}
 """
-README = "# Cart module\n\nThe cart and its prices. Second sentence.\n\n<!-- BEGIN generated-design-index -->\n<!-- END generated-design-index -->\n\n<!-- BEGIN generated-design-tasks -->\n<!-- END generated-design-tasks -->\n"
+README = "# Cart module\n\nThe cart and\nits prices. Second sentence.\n\n<!-- BEGIN generated-design-index -->\n<!-- END generated-design-index -->\n\n<!-- BEGIN generated-design-tasks -->\n<!-- END generated-design-tasks -->\n"
 TASK = "| Field | Value |\n|---|---|\n| Task ID | {id} |\n| Status | {status} |\n| Spec refs | self, `{ref}` |\n\n## {title}\n\n### Brief\n"
 def leaf(**kw):
     kw = {"summary": "What a cart holds.", "status": "implemented", "date": TODAY, "pending": "- SH-003: raise the limit.", **kw}

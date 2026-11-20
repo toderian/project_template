@@ -223,12 +223,15 @@ class Tree:
 
     # ---------------------------------------------------------------- indexes
     def summary_of(self, readme: Path) -> str:
-        """First prose line of a folder README, cut at the first sentence."""
+        """First sentence of the first prose paragraph of a folder README."""
+        para: list[str] = []
         for line in self.read(readme).split("\n"):
             line = line.strip()
             if line and not line.startswith(("#", ">", "<!--", "|", "_Generated")):
-                return re.split(r"(?<=[.!?])\s", line, maxsplit=1)[0]
-        return ""
+                para.append(line)
+            elif para:
+                break
+        return re.split(r"(?<=[.!?])\s", " ".join(para), maxsplit=1)[0]
 
     def leaves_under(self, folder: Path) -> list[Path]:
         return sorted(p for p in folder.rglob("*.md") if self.kind(p) == "leaf")

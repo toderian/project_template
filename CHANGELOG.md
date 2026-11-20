@@ -2,7 +2,15 @@
 
 Notable changes to agents-template. All four plugins share the version of the repository.
 
-## Unreleased
+## 1.12.1 — 2026-11-21
+
+### Fixed
+
+- `at design sync`: a module summary in a generated index is the first sentence of the README's first
+  paragraph. It was cut at the first line break, so a wrapped sentence lost its end.
+- The 1.12.0 section of this file was still titled Unreleased in the `v1.12.0` tag.
+
+## 1.12.0 — 2026-11-21
 
 ### Added
 
