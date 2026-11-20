@@ -51,7 +51,9 @@ For `done`:
   one phase or an execute-plan run, run `agents-tasks:verify-task` first and act on its verdict.
 - Resolve `Spec refs` and task-local spec/design sections. If the task implemented, partially
   implemented, superseded, or invalidated a durable spec, update that spec's status/evidence or record
-  a follow-up when the update is outside closeout scope.
+  a follow-up when the update is outside closeout scope. A design leaf named in `Spec refs` is
+  brought up to date before closeout, per `agents-tasks:design-doc` §"Refresh a leaf"; if the task
+  changed behaviour and no leaf changed, say why in `Resource updates`.
 - Reconcile the task's phase/progress checkboxes with the actual completed work. Mark only items with
   evidence from code, docs, tests, commits, or execution logs.
 - Run the related tests listed in the task, unless the task says `N/A - <reason>`.

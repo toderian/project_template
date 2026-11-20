@@ -1,6 +1,6 @@
 ---
 name: knowledge-base
-description: "Canonical home for durable project knowledge: docs/resources/ source-of-truth split, discovery order, ADRs, runbooks, area summaries, digests, and generated-artifact naming. Use when deciding where durable knowledge belongs, writing an ADR/runbook, or when another skill points here for the knowledge-base format."
+description: "Canonical home for durable project knowledge: docs/resources/ source-of-truth split, discovery order, design trees, ADRs, runbooks, area summaries, digests, and generated-artifact naming. Use when deciding where durable knowledge belongs, writing an ADR/runbook, checking the design-tree format, or when another skill points here for the knowledge-base format."
 metadata:
   source:
     [
@@ -25,6 +25,9 @@ This skill defines where durable project knowledge lives in template-inherited r
 that agents can refresh context without guessing whether a root file, task page, or co-located note is
 authoritative.
 
+- `references/design-convention.md` — the design tree: layout, leaf shape, Decisions table, how a
+  task changes a leaf, generated index blocks, and what `at design check` enforces; starters are
+  `assets/design-leaf.template.md` and `assets/design-readme.template.md`.
 - `references/runbook-convention.md` — the exact runbook format, placeholders, and local-bindings
   split; starter templates are `assets/runbook.template.md` and `assets/runbook.local.template.md`.
 - `references/adr-convention.md` — the three-part ADR offer test, format, and when to skip one; starter
@@ -48,8 +51,13 @@ authoritative.
   include a generated pointer to the durable area context, but agents should not add durable
   architecture notes there.
 - `docs/resources/<area>/summary.md` owns area-level architecture knowledge: responsibilities,
-  important flows, decisions, open questions, and links to dependency graphs, contracts, and component
-  contexts.
+  important flows, decisions, open questions, and links to the design tree, dependency graphs,
+  contracts, and component contexts.
+- `docs/resources/<area>/design/` owns how the product works, how it is meant to work, and why: one
+  leaf per feature or mechanism, grouped in modules, with the decisions and the tasks that made them.
+  Where an area has a design tree, it is the source of truth for behaviour; tasks name the leaves
+  they change in `Spec refs`. Format: `references/design-convention.md`. Write or refresh a leaf with
+  `agents-tasks:design-doc`.
 - `docs/resources/<area>/sources.md` owns the area source history: teammate inputs, call batches,
   uploaded documents, durable attachments, why each was added, where it is stored, and which digests,
   tasks, or canonical docs depend on it.
@@ -57,7 +65,8 @@ authoritative.
   repo/package relationships, runtime dependencies, install modes, and drift signals.
 - `docs/resources/<area>/contracts/<feature-slug>.md` owns concrete cross-repo feature contracts:
   participant responsibilities, API/schema/event/env/CLI/Docker boundaries, compatibility, rollout,
-  and verification.
+  and verification. In an area with a design tree, a feature's behaviour lives in its leaves; a
+  contract remains only for an agreement between repositories that is not one feature's behaviour.
 - `docs/resources/<area>/runbooks/<scenario-slug>.md` owns sanitized, reusable operational
   procedures: SSH, setup, debugging, deployment inspection, service restart, and similar agent-runnable
   workflows. Use `global` for cross-cutting runbooks. Local placeholder values live in
@@ -108,6 +117,9 @@ Agents may use `draft` and `accepted` specs as planning inputs. Agents may use `
 current-state evidence only when the doc records evidence. `partially-implemented` specs require
 extra care: cite the implemented rows separately from the planned rows.
 
+A design leaf never uses `partially-implemented`: the built part is an `implemented` leaf and the
+unbuilt part is its own `accepted` leaf (`references/design-convention.md`).
+
 ## Discovery Order
 
 When `CONTEXT_DOCS_DIR` is unset, a skill that needs project language or architecture context should
@@ -117,6 +129,8 @@ look in this order:
 2. Root `CONTEXT.md` if it points to the docs-primary glossary or if no docs-primary glossary exists
 3. `docs/resources/system-map.md` for repo/capability orientation and status-aware cross-repo pointers
 4. `docs/resources/<area>/summary.md` for the relevant area
+   - then `docs/resources/<area>/design/README.md` when the area has a design tree: follow its index to
+     the module and the leaf; read a leaf before changing the behaviour it describes
 5. `docs/resources/<area>/sources.md` for source provenance, teammate input history, and links to
    digests or attachments
 6. `docs/resources/<area>/dependency-graph.md` for repo/package relationships and install modes

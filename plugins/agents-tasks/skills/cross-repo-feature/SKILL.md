@@ -21,6 +21,10 @@ Use this after `agents-tasks:define-area` has indexed the area. Examples:
 
 ## Source of Truth
 
+In an area that has a `docs/resources/<area>/design/` tree, a feature's behaviour belongs in a design
+leaf (`agents-tasks:design-doc`); write a contract only for an agreement between repositories that is
+not one feature's behaviour.
+
 Feature contracts live under the area's canonical knowledge root:
 
 ```text

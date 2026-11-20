@@ -10,6 +10,7 @@ python3 scripts/tests/test_sync_todo_ledgers.py
 python3 scripts/tests/test_task_brief.py
 python3 scripts/tests/test_task_run.py
 python3 scripts/tests/test_task_size.py
+python3 scripts/tests/test_design_tree.py
 bash scripts/tests/test-at.sh
 bash scripts/tests/test-codex-live.sh
 # release.sh runs this suite inside its throwaway copy; do not recurse into it

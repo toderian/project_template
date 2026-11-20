@@ -39,6 +39,9 @@ jobs:
       - name: Task size gate tests
         run: python3 scripts/tests/test_task_size.py
 
+      - name: Design tree tests
+        run: python3 scripts/tests/test_design_tree.py
+
       - name: at CLI tests
         run: bash scripts/tests/test-at.sh
 

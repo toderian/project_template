@@ -1,14 +1,19 @@
 # Resources
 
 Durable project documentation lives here: the primary domain glossary (`CONTEXT.md`), the top-level
-system map (`system-map.md`), area summaries and dependency graphs under `<area>/`, feature contracts
-under `<area>/contracts/`, component contexts under `<area>/components/<component-slug>/CONTEXT.md`,
+system map (`system-map.md`), area summaries and dependency graphs under `<area>/`, the design tree
+under `<area>/design/`, feature contracts under `<area>/contracts/`, component contexts under `<area>/components/<component-slug>/CONTEXT.md`,
 decisions, runbooks, research notes, and other material that explains how the system works.
 
 Use `system-map.md` as a status-aware index of participant repos, capability areas, critical flows,
 cross-repo boundaries, and drift signals. Keep detailed architecture facts in the linked area docs.
 Durable specs should distinguish planned intent from implemented behavior with one of these statuses:
 `draft`, `accepted`, `partially-implemented`, `implemented`, or `superseded`.
+
+Where an area has a `design/` tree, it is the source of truth for how the product works and why: one
+leaf per feature, grouped in modules. A task that changes behaviour names the leaf in `Spec refs` and
+updates it when the change merges. Use the `agents-tasks:design-doc` skill; `at design check` validates
+the tree.
 
 Repeated operational procedures belong in `docs/resources/<area>/runbooks/<scenario-slug>.md`; use
 `global` for cross-cutting workflows. Committed runbooks are sanitized and use placeholders such as

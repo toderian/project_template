@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Thin wrapper: run the design-tree sync/check script against the current repo.
+set -euo pipefail
+HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+exec python3 "$HERE/../skills/knowledge-base/scripts/design_tree.py" --root "$(git rev-parse --show-toplevel)" "$@"

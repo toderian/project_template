@@ -49,6 +49,7 @@ docs/
 │       ├── sources.md       # Area source history and provenance ledger
 │       ├── dependency-graph.md
 │       ├── attachments/     # Durable source documents and binaries with Markdown metadata
+│       ├── design/          # Source of truth for behaviour: modules, leaves, decisions
 │       ├── contracts/<feature-slug>.md
 │       ├── runbooks/<scenario-slug>.md
 │       └── components/<component-slug>/CONTEXT.md
@@ -204,7 +205,7 @@ Add a row when it carries a real value; omit it otherwise (never fill `N/A` to s
 | `Owner` | someone specific owns it | agent or user |
 | `Blocked by` | a dependency exists | task ID or filename |
 | `Source ref` | the task came from somewhere | `I-007`, issue number, PRD path |
-| `Spec refs` | task-local spec/design sections exist (`self`) or the task depends on durable specs | comma-separated references |
+| `Spec refs` | task-local spec/design sections exist (`self`) or the task depends on durable specs; a task that changes behaviour described by a design leaf names that leaf | comma-separated references |
 | `Repos` | `.config/repos.project.md` exists and scope is inferable | repo slugs |
 | `Autonomy` | the task must be stricter than the repo default | `L0`–`L3`, never above the repo max |
 | `Target date` / `Deadline` | the user gave explicit scheduling intent | `YYYY-MM-DD` |

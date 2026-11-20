@@ -25,7 +25,7 @@ class SkillContractTests(unittest.TestCase):
         cls.metadata = {path: build.skill_frontmatter(path) for path in cls.skills}
 
     def test_repository_has_expected_skill_inventory(self) -> None:
-        self.assertEqual(len(self.skills), 69)
+        self.assertEqual(len(self.skills), 70)
         names = [str(metadata["name"]) for metadata in self.metadata.values()]
         self.assertEqual(len(names), len(set(names)), "Codex $skill names must be globally unique")
 

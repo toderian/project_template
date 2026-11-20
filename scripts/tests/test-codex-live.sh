@@ -75,7 +75,7 @@ TASKS_CACHE="$CACHE_BASE/agents-tasks/$VERSION"
   fail "installed task reservation helper is missing or not executable"
 
 SKILL_COUNT="$(find "$CACHE_BASE" -path '*/skills/*/SKILL.md' -type f | wc -l | tr -d ' ')"
-[[ "$SKILL_COUNT" == "69" ]] || fail "installed payload exposes $SKILL_COUNT skills, expected 69"
+[[ "$SKILL_COUNT" == "70" ]] || fail "installed payload exposes $SKILL_COUNT skills, expected 70"
 POLICY_COUNT="$(find "$CACHE_BASE" -path '*/skills/*/agents/openai.yaml' -type f | wc -l | tr -d ' ')"
 [[ "$POLICY_COUNT" == "9" ]] || fail "installed payload exposes $POLICY_COUNT Codex policies, expected 9"
 while IFS= read -r policy; do
@@ -143,4 +143,4 @@ export PATH="$CORE_CACHE/bin:$PATH"
   HOME="$TEST_HOME" at repos-check >/dev/null || fail "seeded repo registry failed validation"
 )
 
-echo "test-codex-live: ok (Codex $ACTUAL_VERSION, 69 skills, 9 policies, 6 roles)"
+echo "test-codex-live: ok (Codex $ACTUAL_VERSION, 70 skills, 9 policies, 6 roles)"

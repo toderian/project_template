@@ -46,7 +46,7 @@ When guiding the user, enforce these defaults:
 ## Source of Truth
 
 The full path taxonomy — what lives under `docs/resources/<area>/` (`summary.md`, `dependency-graph.md`,
-`attachments/`, `contracts/`, `runbooks/`, `components/`) — is owned by
+`design/`, `attachments/`, `contracts/`, `runbooks/`, `components/`) — is owned by
 the `agents-tasks:knowledge-base` skill §"Source of truth split". Follow it rather than
 re-deriving paths here. Area-specific reminders:
 

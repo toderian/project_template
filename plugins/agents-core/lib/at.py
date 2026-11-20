@@ -6,7 +6,8 @@ Subcommands:
   doctor       check that this repo still matches the contract
   bootstrap    install the plugins into this machine's harnesses, write ~/.local/bin/at
   migrate      convert a legacy `_base/`/`playbooks/` downstream to the plugin layout
-  ledger       wrapper: `sync` | `check` | `rotate-log <TASK_ID>|--all`
+  ledger       wrapper: `sync` | `check` (both include the design trees) | `rotate-log <TASK_ID>|--all`
+  design       wrapper: `sync` | `check` the design trees under docs/resources/<area>/design/
   task         `brief <TASK_ID> --phase N` | `run-state init|check <TASK_ID>` | `run <TASK_ID>` (scripted execute-plan) | `size <TASK_ID> --phase N|--final`
   addon        `list` | `status` | `enable <name>...` | `disable <name>...`: optional tools per repo
   reserve      wrapper: reserve an inbox idea or task filename
@@ -575,6 +576,24 @@ def _ledger_findings(repo: Path, findings: list) -> None:
         findings.append(("OK", "task ledgers are valid"))
 
 
+def _design_findings(repo: Path, findings: list) -> None:
+    found = find_tasks_root()
+    script = found / "skills" / "knowledge-base" / "scripts" / "design_tree.py" if found else None
+    if script is None or not script.exists():
+        return  # an agents-tasks without the design check: nothing to report
+    proc = subprocess.run([sys.executable, str(script), "--check", "--root", str(repo)],
+                          capture_output=True, text=True, check=False)
+    for line in (proc.stderr + proc.stdout).splitlines():
+        if line.startswith("WARNING:"):
+            findings.append(("WARN", f"design: {line[len('WARNING:'):].strip()}"))
+        elif line.startswith("ERROR:"):
+            findings.append(("ERROR", f"design: {line[len('ERROR:'):].strip()}"))
+    if proc.returncode == 0:
+        findings.append(("OK", "design trees are valid"))
+    elif not any(level == "ERROR" and text.startswith("design:") for level, text in findings):
+        findings.append(("ERROR", "design: `at design check` failed"))
+
+
 def routing_rows(text: str) -> list[str]:
     """The `## Routing table` body rows of an AGENTS.md, in order (header rows included)."""
     rows, inside = [], False
@@ -710,6 +729,8 @@ def _repo_doctor_findings(repo: Path) -> list[tuple[str, str]]:
 
     if (repo / "docs" / "tasks_manager").is_dir():
         _ledger_findings(repo, findings)
+    if any((repo / "docs" / "resources").glob("*/design")):
+        _design_findings(repo, findings)
 
     return findings
 
@@ -1292,6 +1313,14 @@ def _run_tasks_script(name: str, extra: list[str]) -> int:
     return subprocess.run(cmd, check=False).returncode
 
 
+def cmd_design(args: argparse.Namespace) -> int:
+    script = tasks_root() / "skills" / "knowledge-base" / "scripts" / "design_tree.py"
+    if not script.exists():
+        die(f"{script} is missing from the installed agents-tasks plugin")
+    cmd = [sys.executable, str(script), "--root", str(repo_root())] + (["--check"] if args.action == "check" else [])
+    return subprocess.run(cmd, check=False).returncode
+
+
 def cmd_ledger(args: argparse.Namespace) -> int:
     if args.action != "rotate-log" and args.all:
         die("usage: `--all` belongs to `at ledger rotate-log`", code=2)
@@ -1303,7 +1332,11 @@ def cmd_ledger(args: argparse.Namespace) -> int:
         if bool(args.task_id) == bool(args.all):
             die("usage: at ledger rotate-log <TASK_ID> | at ledger rotate-log --all", code=2)
         extra = ["rotate-log", args.task_id or "--all"]
-    return _run_tasks_script("sync_todo_ledgers.py", extra)
+    code = _run_tasks_script("sync_todo_ledgers.py", extra)
+    # Task `Spec refs` feed the design indexes, so the ledger commands carry the design trees along.
+    if args.action in ("sync", "check") and any((repo_root() / "docs" / "resources").glob("*/design")):
+        code = max(code, cmd_design(args))
+    return code
 
 
 def cmd_reserve(args: argparse.Namespace) -> int:
@@ -1439,6 +1472,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_ledger.add_argument("--all", action="store_true",
                           help="rotate-log: every task whose execution log is over the limit")
     p_ledger.set_defaults(func=cmd_ledger)
+
+    p_design = sub.add_parser("design", help="sync | check the design trees under docs/resources/<area>/design/")
+    p_design.add_argument("action", choices=("sync", "check"))
+    p_design.set_defaults(func=cmd_design)
 
     p_reserve = sub.add_parser("reserve", help="reserve an inbox idea or task filename")
     p_reserve.add_argument("rest", nargs=argparse.REMAINDER)

@@ -2,6 +2,24 @@
 
 Notable changes to agents-template. All four plugins share the version of the repository.
 
+## Unreleased
+
+### Added
+
+- Design trees: `docs/resources/<area>/design/` is the source of truth for how a product works and
+  why. One leaf per feature, grouped in modules, each with frontmatter (`summary`, `status`,
+  `verified`), fixed sections and an append-only Decisions table. The format is
+  `agents-tasks:knowledge-base` `references/design-convention.md`; the new skill
+  `agents-tasks:design-doc` writes, refreshes, splits and converts leaves. Piloted on a 151-file
+  tree converted from 26 feature contracts.
+- `at design sync` writes the generated index and open-task blocks in design `README.md` files;
+  `at design check` fails on a missing or invalid leaf header, a leaf over 500 lines, a broken
+  relative link, an invalid Decisions table, an unindexed leaf, a stale generated block, and an
+  open task whose `Spec refs` names a design path that does not exist. `at ledger sync`,
+  `at ledger check` and `at doctor` include the design trees when a repository has one.
+- A task that changes behaviour names the design leaf in `Spec refs`; `agents-tasks:complete-task`
+  brings the leaf up to date before closeout.
+
 ## 1.11.0 — 2026-11-19
 
 ### Added

@@ -10,7 +10,7 @@ it names (`agents-tasks:task-ledger` references/spec-lifecycle.md).
 |-----|------|
 | `### Specification` | acceptance criteria alone would lose the intent: non-goals, constraints, open questions, a behavior with edge cases worth naming |
 | `### Design` | the approach needs agreement before code edits: touched components, interface or data changes, test strategy, rollout/reversibility |
-| `Spec refs` row | either section exists (`self`), or the task must satisfy a PRD, plan, `docs/resources/system-map.md`, area summary, dependency graph, component context, or feature contract |
+| `Spec refs` row | either section exists (`self`), or the task must satisfy a PRD, plan, `docs/resources/system-map.md`, area summary, dependency graph, component context, or feature contract; or it changes behaviour a design leaf describes (name the leaf under `docs/resources/<area>/design/`) |
 
 Both sections stay concise; a spec longer than the brief plus the criteria is a sign the task should
 be split, not that the spec should grow. Do not add them to routine tasks.

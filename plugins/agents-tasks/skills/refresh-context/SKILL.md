@@ -73,6 +73,7 @@ can drift (in-repo paths shown; remap when `CONTEXT_DOCS_DIR` is set):
 - area summaries: `docs/resources/<area>/summary.md`
 - system map: `docs/resources/system-map.md`
 - dependency graphs: `docs/resources/<area>/dependency-graph.md`
+- design trees: `docs/resources/<area>/design/**/*.md`
 - feature contracts: `docs/resources/<area>/contracts/*.md`
 - operational runbooks: `docs/resources/<area>/runbooks/*.md` and `docs/resources/global/runbooks/*.md`
 - attachment metadata and indexes: `docs/resources/<area>/attachments/*.md`
@@ -150,6 +151,8 @@ to the configured knowledge root:
   boundaries, and invariants.
 - Update `docs/resources/<area>/dependency-graph.md` for participant repos, package/import names,
   runtime dependencies, install modes, and drift signals.
+- Update a design leaf under `docs/resources/<area>/design/` when the code no longer does what it
+  states, per `agents-tasks:design-doc` §"Refresh a leaf".
 - Update `docs/resources/<area>/contracts/<feature-slug>.md` when an existing cross-repo feature
   contract's responsibilities, boundaries, compatibility expectations, rollout order, or verification
   matrix drifted.
