@@ -1318,7 +1318,7 @@ def cmd_design(args: argparse.Namespace) -> int:
     script = tasks_root() / "skills" / "knowledge-base" / "scripts" / "design_tree.py"
     if not script.exists():
         die(f"{script} is missing from the installed agents-tasks plugin")
-    cmd = [sys.executable, str(script), "--root", str(repo_root())] + (["--check"] if args.action == "check" else [])
+    cmd = [sys.executable, str(script), "--root", str(repo_root())] + {"check": ["--check"], "stale": ["--stale"]}.get(args.action, [])
     return subprocess.run(cmd, check=False).returncode
 
 
@@ -1482,8 +1482,8 @@ def build_parser() -> argparse.ArgumentParser:
                           help="rotate-log: every task whose execution log is over the limit")
     p_ledger.set_defaults(func=cmd_ledger)
 
-    p_design = sub.add_parser("design", help="sync | check the design trees under docs/resources/<area>/design/")
-    p_design.add_argument("action", choices=("sync", "check"))
+    p_design = sub.add_parser("design", help="sync | check | stale: the design trees under docs/resources/<area>/design/")
+    p_design.add_argument("action", choices=("sync", "check", "stale"))
     p_design.set_defaults(func=cmd_design)
 
     p_explore = sub.add_parser("explore", help="exploratory-test ledger and findings: build | next | record | fingerprint | known")

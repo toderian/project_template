@@ -83,6 +83,7 @@ edit an unmerged change makes to a leaf.
 ```bash
 at design sync      # rewrites the generated index and open-task blocks
 at design check     # fails on a broken link, a bad Decisions table, an unindexed or oversized leaf
+at design stale     # lists leaves whose code changed since their verified commit (needs .local/repos.map)
 ```
 
 Fix every error. Report each warning or fix it. Then report: the leaves written or changed, what was

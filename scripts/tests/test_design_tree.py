@@ -131,5 +131,22 @@ class DesignTree(unittest.TestCase):
         self.assertIn("generated block is stale", at(tmp, "ledger", "check").stdout)
         self.assertIn("updated docs/resources/shop/design/cart/README.md", at(tmp, "ledger", "sync").stdout)
         self.assertIn("design check ok", at(tmp, "ledger", "check").stdout)
+    def test_stale_lists_a_leaf_whose_code_changed_since_it_was_verified(self):
+        tmp = self.synced(); prod = pathlib.Path(tempfile.mkdtemp())
+        git = lambda *a: subprocess.run(["git", "-C", str(prod), "-c", "user.name=t", "-c", "user.email=t@t", *a],
+                                        check=True, capture_output=True, text=True).stdout.strip()
+        git("init", "-q"); (prod / "src").mkdir()
+        (prod / "src/cart.py").write_text("LIMIT = 20\n"); git("add", "."); git("commit", "-qm", "one")
+        first = git("rev-parse", "--short", "HEAD")
+        (prod / "src/cart.py").write_text("LIMIT = 50\n"); git("commit", "-qam", "two")
+        (tmp / ".local").mkdir(); (tmp / ".local/repos.map").write_text(f"# local\nshop: {prod}\n")
+        readme = tmp / DESIGN / "README.md"
+        readme.write_text(readme.read_text() + "\n| Prefix | Meaning |\n|---|---|\n| `src/` | `shop`, `src/` |\n")
+        cart = tmp / DESIGN / "cart/cart.md"
+        cart.write_text(cart.read_text().replace("abc1234", first))
+        out = at(tmp, "stale").stdout
+        self.assertIn("STALE: docs/resources/shop/design/cart/cart.md: changed since it was verified: src/cart.py", out)
+        cart.write_text(cart.read_text().replace(first, git("rev-parse", "--short", "HEAD")))
+        self.assertIn("design stale: 0 of 1", at(tmp, "stale").stdout)
 if __name__ == "__main__":
     unittest.main()

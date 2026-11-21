@@ -2,14 +2,23 @@
 
 Notable changes to agents-template. All four plugins share the version of the repository.
 
-## 1.12.2 — 2026-11-21
+## 1.13.0 — 2026-11-21
+
+### Added
+
+- `at design stale` lists every implemented design leaf whose `code_paths` hold a file that changed
+  since the leaf's `verified` commit. It reads the product checkouts from `.local/repos.map` and the
+  path prefixes from the tree's root `README.md`. On the pilot tree it named 29 of 116 leaves after
+  one product merge.
+
+## 1.12.2 — 2026-11-20
 
 ### Fixed
 
 - `at explore --dir <path> ...` was rejected as an unknown argument; the option now reaches the ledger
   script.
 
-## 1.12.1 — 2026-11-21
+## 1.12.1 — 2026-11-20
 
 ### Fixed
 
@@ -17,7 +26,7 @@ Notable changes to agents-template. All four plugins share the version of the re
   paragraph. It was cut at the first line break, so a wrapped sentence lost its end.
 - The 1.12.0 section of this file was still titled Unreleased in the `v1.12.0` tag.
 
-## 1.12.0 — 2026-11-21
+## 1.12.0 — 2026-11-20
 
 ### Added
 

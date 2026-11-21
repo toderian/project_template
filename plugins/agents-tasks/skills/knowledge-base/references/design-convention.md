@@ -114,6 +114,21 @@ both directions). A decision that spans several leaves, or needs more than a row
 A change to behaviour with no leaf change is a review finding: either the leaf was already wrong, or
 it is wrong now.
 
+## Finding leaves the code has left behind
+
+`at design stale` lists every `implemented` leaf with a file under its `code_paths` that changed
+between the leaf's `verified` commit and the `HEAD` of the product checkout. It reads two things:
+
+- the checkout of each repo slug from the machine-local `.local/repos.map` (`<slug>: <path>`);
+- the path prefixes from a table in the tree's root `README.md`. A row is read when its first cell
+  is a prefix in backticks ending in `/`; the first backticked word after it is the repo slug and
+  the second, when present, is the folder inside that repository:
+  ``| `BE/` | `shop-backend`, `src/shop/` |``.
+
+It always exits 0 and is not part of `at design check`, because its answer depends on the local
+checkouts. A listed leaf is a lead: the file changed, the described behaviour may not have. Re-read
+the leaf against the diff, correct it, and move `verified` to the new commit.
+
 ## Variants of the leaf shape
 
 - **A design that is not built** (`accepted` or `draft`). Sections: Intent and why, the decisions

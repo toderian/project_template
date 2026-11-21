@@ -4,6 +4,7 @@
 Usage:
   design_tree.py --root <repo>            rewrite the generated blocks (`at design sync`)
   design_tree.py --root <repo> --check    report problems, write nothing (`at design check`)
+  design_tree.py --root <repo> --stale    list leaves whose code changed since they were verified (`at design stale`)
 
 The format is defined in the knowledge-base skill, `references/design-convention.md`.
 Exit codes: 0 ok (warnings allowed), 1 errors, 2 usage. Python 3 stdlib only.
@@ -12,7 +13,9 @@ Exit codes: 0 ok (warnings allowed), 1 errors, 2 usage. Python 3 stdlib only.
 from __future__ import annotations
 
 import datetime
+import fnmatch
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -303,6 +306,59 @@ class Tree:
                 self.errors.append(f"{rel}: does not link to {leaf.relative_to(readme.parent).as_posix()}; "
                                    f"add the link or a {INDEX_BEGIN} block")
 
+    # ------------------------------------------------------------------ stale
+    def stale(self) -> int:
+        """Compare each implemented leaf's `code_paths` with what changed in the product checkouts
+        since its `verified` commit. Checkouts come from the machine-local `.local/repos.map`."""
+        checkouts = {}
+        for line in (self.read(self.repo / ".local/repos.map") if (self.repo / ".local/repos.map").exists() else "").split("\n"):
+            slug, _, where = line.partition(":")
+            if where.strip() and not line.startswith("#"):
+                checkouts[slug.strip()] = Path(where.strip()).expanduser()
+        changed: dict[tuple[str, str], set[str] | None] = {}
+        stale = skipped = leaves = 0
+        for root in sorted(p for p in (self.repo / "docs" / "resources").glob("*/design") if p.is_dir()):
+            prefixes = {}  # "BE/" -> (repo slug, path inside the repo), from the root README's prefix table
+            for row in self.read(root / "README.md").split("\n") if (root / "README.md").exists() else []:
+                cells = [c.strip() for c in row.strip().strip("|").split("|")]
+                ticks = re.findall(r"`([^`]+)`", " ".join(cells[1:]))
+                if len(cells) > 1 and re.fullmatch(r"`[^`\s]+/`", cells[0]) and ticks:
+                    prefixes[cells[0].strip("`")] = (ticks[0], ticks[1].strip("/") + "/" if len(ticks) > 1 else "")
+            for path in sorted(root.rglob("*.md")):
+                meta = frontmatter(self.read(path)) or {}
+                if self.kind(path) != "leaf" or meta.get("status") != "implemented":
+                    continue
+                leaves += 1
+                verified = meta.get("verified") if isinstance(meta.get("verified"), dict) else {}
+                hits, checked = [], False
+                for entry in meta.get("code_paths") or []:
+                    entry = entry.split(" (")[0].strip()
+                    prefix = next((p for p in prefixes if entry.startswith(p)), None)
+                    slug, inside = prefixes.get(prefix, ("", ""))
+                    commit = (verified.get(slug) or "").split(" ")[0]
+                    if slug not in checkouts or not re.fullmatch(r"[0-9a-f]{7,40}", commit):
+                        continue
+                    if (slug, commit) not in changed:
+                        run = subprocess.run(["git", "-C", str(checkouts[slug]), "diff", "--name-only", commit, "HEAD"],
+                                             capture_output=True, text=True, check=False)
+                        changed[(slug, commit)] = set(run.stdout.split()) if run.returncode == 0 else None
+                    files = changed[(slug, commit)]
+                    if files is None:
+                        hits.append(f"{slug} has no commit {commit}")
+                        continue
+                    checked = True
+                    target = inside + entry[len(prefix):]
+                    hits += sorted(f"{prefix}{f[len(inside):]}" for f in files
+                                   if f == target or fnmatch.fnmatch(f, target) or f.startswith(target.rstrip("/") + "/"))
+                if hits:
+                    stale += 1
+                    print(f"STALE: {self.rel(path)}: changed since it was verified: {', '.join(dict.fromkeys(hits))}")
+                elif not checked:
+                    skipped += 1
+        print(f"design stale: {stale} of {leaves} implemented leaves have code that changed since they were verified; "
+              f"{skipped} could not be compared (no checkout in .local/repos.map, no verified commit, or no code_paths)")
+        return 0
+
     # -------------------------------------------------------------------- run
     def run(self) -> int:
         roots = sorted(p for p in (self.repo / "docs" / "resources").glob("*/design") if p.is_dir())
@@ -333,19 +389,21 @@ class Tree:
 
 
 def main(argv: list[str]) -> int:
-    root, check = None, False
+    root, check, stale = None, False, False
     args = list(argv)
     while args:
         arg = args.pop(0)
         if arg == "--check":
             check = True
+        elif arg == "--stale":
+            stale = True
         elif arg == "--root" and args:
             root = Path(args.pop(0))
         else:
             print(__doc__.strip().split("\n\n")[1], file=sys.stderr)
             return 2
     repo = (root or Path.cwd()).resolve()
-    return Tree(repo, check).run()
+    return Tree(repo, True).stale() if stale else Tree(repo, check).run()
 
 
 if __name__ == "__main__":
