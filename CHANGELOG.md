@@ -2,6 +2,14 @@
 
 Notable changes to agents-template. All four plugins share the version of the repository.
 
+## 1.13.1 — 2026-11-21
+
+### Fixed
+
+- `at design stale` reads square brackets in a `code_paths` entry as part of a folder name. A route
+  folder such as `app/[jobId]/**` was read as a character class and never matched, so the leaf was
+  reported as current.
+
 ## 1.13.0 — 2026-11-21
 
 ### Added

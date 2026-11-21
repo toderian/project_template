@@ -148,5 +148,20 @@ class DesignTree(unittest.TestCase):
         self.assertIn("STALE: docs/resources/shop/design/cart/cart.md: changed since it was verified: src/cart.py", out)
         cart.write_text(cart.read_text().replace(first, git("rev-parse", "--short", "HEAD")))
         self.assertIn("design stale: 0 of 1", at(tmp, "stale").stdout)
+    def test_stale_reads_square_brackets_in_a_code_path_as_a_literal_folder_name(self):
+        tmp = self.synced(); prod = pathlib.Path(tempfile.mkdtemp())
+        git = lambda *a: subprocess.run(["git", "-C", str(prod), "-c", "user.name=t", "-c", "user.email=t@t", *a],
+                                        check=True, capture_output=True, text=True).stdout.strip()
+        git("init", "-q"); (prod / "src/app/[cartId]").mkdir(parents=True)
+        page = prod / "src/app/[cartId]/page.tsx"
+        page.write_text("one\n"); git("add", "."); git("commit", "-qm", "one")
+        first = git("rev-parse", "--short", "HEAD")
+        page.write_text("two\n"); git("commit", "-qam", "two")
+        (tmp / ".local").mkdir(); (tmp / ".local/repos.map").write_text(f"shop: {prod}\n")
+        readme = tmp / DESIGN / "README.md"
+        readme.write_text(readme.read_text() + "\n| Prefix | Meaning |\n|---|---|\n| `src/` | `shop`, `src/` |\n")
+        cart = tmp / DESIGN / "cart/cart.md"
+        cart.write_text(cart.read_text().replace("abc1234", first).replace("src/cart.py", "src/app/[cartId]/**"))
+        self.assertIn("changed since it was verified: src/app/[cartId]/page.tsx", at(tmp, "stale").stdout)
 if __name__ == "__main__":
     unittest.main()

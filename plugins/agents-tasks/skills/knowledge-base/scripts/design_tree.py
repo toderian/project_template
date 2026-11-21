@@ -349,7 +349,7 @@ class Tree:
                     checked = True
                     target = inside + entry[len(prefix):]
                     hits += sorted(f"{prefix}{f[len(inside):]}" for f in files
-                                   if f == target or fnmatch.fnmatch(f, target) or f.startswith(target.rstrip("/") + "/"))
+                                   if f == target or fnmatch.fnmatch(f, target.replace("[", "[[]")) or f.startswith(target.rstrip("/") + "/"))
                 if hits:
                     stale += 1
                     print(f"STALE: {self.rel(path)}: changed since it was verified: {', '.join(dict.fromkeys(hits))}")
