@@ -508,6 +508,27 @@ run_case "bash: a partly quoted heredoc tag closes" "${BASH_HOOK}" \
 x
 EOF
 echo k > .env')" 2
+run_case "bash: tee into .env inside an output process substitution blocks" "${BASH_HOOK}" \
+  "$(git_payload 'exec > >(tee -a .env) 2>&1')" 2
+run_case "bash: cp onto .env with a \$( ) source blocks" "${BASH_HOOK}" \
+  "$(git_payload 'cp "$(cat /tmp/source-path)" .env')" 2
+run_case "bash: sed -i on .env with a \$( ) script blocks" "${BASH_HOOK}" \
+  "$(git_payload 'sed -i "$(printf s/a/b/)" .env')" 2
+run_case "bash: cp .env{.example,} blocks" "${BASH_HOOK}" \
+  "$(git_payload 'cp .env{.example,}')" 2
+run_case "bash: tee after a process substitution holding a redirect blocks" "${BASH_HOOK}" \
+  "$(git_payload 'echo x | tee >(gzip > /tmp/x.gz) .env')" 2
+run_case "bash: a repo script named install is not install" "${BASH_HOOK}" \
+  "$(git_payload './install --env-file .env')" 0
+run_case "bash: > inside [[ ]] is a comparison" "${BASH_HOOK}" \
+  "$(git_payload '[[ foo > .env ]]')" 0
+run_case "bash: a path that leaves .creds/ through .. is not in it" "${BASH_HOOK}" \
+  "$(git_payload 'echo x > .creds/../notes.txt')" 0
+run_case "bash: case inside a quoted \$( ) does not leak into later lines" "${BASH_HOOK}" \
+  "$(git_payload "v=\"\$(case \$1 in a) echo \"it's\";; esac)\"
+echo k > .env")" 2
+run_case "bash: .env.local.example is a scaffold" "${BASH_HOOK}" \
+  "$(git_payload 'cp .env.example .env.local.example')" 0
 run_case "bash: a multi-line single-quoted message stays text" "${BASH_HOOK}" \
   "$(git_payload "git commit -m 'fix: guard
 

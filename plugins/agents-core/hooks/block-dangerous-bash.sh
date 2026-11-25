@@ -59,158 +59,239 @@ for pattern in "${DANGEROUS_PATTERNS[@]}"; do
 done
 
 # Writes into .creds/ or a .env file. block-write-sensitive.sh guards the file
-# tools; this is the same guardrail for the common shell forms: a redirect
-# (`>`, `>>`, `>|`), tee, the destination of cp/mv/install (also `-t DIR`), and
-# sed -i. Reading stays allowed (`cat .env`, `cp .env /tmp/x`). It stops the
-# accidental write, not a determined one: a path built from a variable, or a
-# command run through eval or `bash -c '...'`, passes.
-TOKEN="[^[:space:];&|<>()]"
-NAME="[^[:space:];&|<>()/]"
-END="([[:space:];&|)<>]|\$)"
-# A directory prefix may include a command substitution, nested once:
-# "$(dirname "$(pwd)")/.env".
-PREFIX="((${TOKEN}|\\\$\\(([^()]|\\\$?\\([^()]*\\))*\\))*/)?"
-CREDS_BASE="\\.creds"
-# The same .env files as block-write-sensitive.sh: .env, .env.<x>, .envrc, <name>.env.
-ENV_BASE="(\\.env[*?]*(\\{[^{}[:space:]]*\\})?(\\.${NAME}*)?|\\.envrc|${NAME}+\\.env)"
-CREDS_TARGET="${PREFIX}${CREDS_BASE}(/${TOKEN}*)?"
-ENV_TARGET="${PREFIX}${ENV_BASE}"
-
-# A write command starts a statement: after a separator, `(`, `{`, `$(` or a
-# `case` pattern's `)`, behind any keywords and wrappers (if, elif, while,
-# until, then, do, else, !, time, VAR=value, env, command, nohup, exec, sudo,
-# doas, xargs), each with its options. The command may be named by its path
-# (`/bin/cp`).
-WRAP="(([A-Za-z_][A-Za-z0-9_]*=${TOKEN}*|if|elif|while|until|then|do|else|!|time|command|nohup|exec|env|sudo|doas|xargs)([[:blank:]]+-${TOKEN}*([[:blank:]]+[^-[:space:];&|<>()]${TOKEN}*)?)*[[:blank:]]+)*"
-WB="(^|[;&|({)]|\\\$\\()[[:blank:]]*${WRAP}(${TOKEN}*/)?"
-
-# write_patterns <target regex> <basename regex>: one pattern per line. The
-# cp/mv/install destination is the last word, which may be followed by options
-# (`-f`, `-m 600`, `-o root`), its own redirect or a here-string. `>&` and
-# `&>` redirect into a file too. Copying a protected name
-# into `.` writes it there too (`cp ../main/.env .`).
-AFTER="([[:blank:]]+(-[ogm][[:blank:]]+${TOKEN}+|-${TOKEN}*))*[[:blank:]]*([;&|)<]|\$|[0-9&]*>)"
-write_patterns() {
-  printf '%s\n' \
-    ">[>|&]?[[:blank:]]*$1${END}" \
-    "${WB}tee[[:blank:]]+([^;&|<>()]*[[:blank:]])?$1${END}" \
-    "${WB}(cp|mv|install)[[:blank:]]+[^;&|<>()]*[[:blank:]]$1${AFTER}" \
-    "${WB}(cp|mv|install)[[:blank:]]+([^;&|<>()]*[[:blank:]])?${PREFIX}$2/?[[:blank:]]+([^;&|<>()]*[[:blank:]])?\\./?${AFTER}" \
-    "${WB}sed[[:blank:]]+([^;&|<>()]*[[:blank:]])?(-[A-Za-z]*i|--in-place)[^;&|<>()]*[[:blank:]]$1${END}"
-}
-
-# Read the command the way the shell does, so text it only carries is not a
-# write: a quoted commit message, a heredoc body, a comment. The scanner keeps a
-# stack of contexts: code (unquoted, or inside `$( )` or backticks), '...',
-# $'...', "...". A backtick substitution reads as `$( )`; a process
-# substitution `<( )`/`>( )` is code that reads as one word in its command.
-# - Text inside quotes becomes plain word characters: whitespace, newlines,
-#   quotes and shell operators turn into `_`. A quoted target stays a target
-#   (`> 'my app.env'` reads `> my_app.env`); a message keeps no operator.
-#   `$( )` inside "..." is code again, so `x="$(echo k > .env)"` is a write.
-# - A heredoc body is dropped; the line that opens it keeps its redirect. Every
-#   opener form counts (`<<EOF`, `<<-EOF`, `<<'EOF'`, `<<"EOF"`, `<<\EOF`, a
-#   quoted tag with spaces, any unquoted word as tag, several on one line, one inside `"$( ... )"`), and
-#   `EOF)` closes one inside `$( )`. `<<<`, and `<<` in quotes or arithmetic,
-#   open nothing. Only `<<-` lets the closing tag carry leading tabs.
-# - `#` at the start of a word starts a comment; a backslash-newline joins lines.
-# A command over 100 KB is checked as written (some awks slow down
-# quadratically on very long input): a heredoc body there is checked as code,
-# and a quoted target with a space in it passes.
-if (( ${#COMMAND} > 100000 )); then
-  SCAN=$COMMAND
-else
-SCAN=$(printf '%s\n' "$COMMAND" | tr -d '\r' | awk '
-  function sp(c) { return index(" \t<>|;&()\"\047`", c) ? "_" : c }
-  function wordstart(s, i) { return i == 1 || (i - 1 != esc && index(" \t;&|(", substr(s, i - 1, 1)) > 0) }
-  BEGIN { d = 1; st[1] = "U" }
-  {
-    s = $0
-    if (skipping) {
-      line = s; if (strip[ti]) sub(/^\t+/, "", line)
-      tl = length(tags[ti])
-      if (line == tags[ti] || (st[d] == "C" && substr(line, 1, tl + 1) == tags[ti] ")")) {
-        rest = substr(line, tl + 1)
-        if (++ti > nt) { skipping = 0; nt = 0 }
-        if (skipping || rest == "") next
-        s = rest
-      } else next
-    }
-    n = length(s); cont = 0; esc = 0
+# tools; this is the same guardrail for the common shell forms: an output
+# redirect (`>`, `>>`, `>|`, `>&`, `&>`), tee, the destination of
+# cp/mv/install (also `-t DIR`, and a protected name copied into `.`),
+# `install -d`, and sed -i. Reading stays allowed (`cat .env`, `cp .env /tmp/x`).
+# It stops the accidental write, not a determined one: a path built from a
+# variable, eval, `bash -c '...'`, or another write tool (curl -o, ln, rsync)
+# passes.
+#
+# The awk program reads the command the way the shell does, so text a command
+# only carries is never a write: it splits the command into simple commands and
+# words, keeping quoted text inside its word, and drops heredoc bodies and
+# comments. `$( )`, backticks and `<( )`/`>( )` are commands of their own, and
+# stand for one opaque piece of the word they sit in. `$(( ))`, `(( ))` and
+# `[[ ]]` hold no redirects. Brace expansion (`.env{.example,}`) is expanded.
+# Protected: a `.creds` path segment; a basename `.env`, `.env.<x>`, `.env*`,
+# `.envrc` or `<name>.env`, except a scaffold: a `.env` name ending in `.example`,
+# `.sample` or `.template` (`.env.example`, `.env.local.example`). `..` segments are resolved first.
+SCAN_BLOCK=$(printf '%s\n' "$COMMAND" | tr -d '\r' | awk '
+  function prot(p,   n, s, i, o, k, b, r) {
+    n = split(p, s, "/"); k = 0
     for (i = 1; i <= n; i++) {
-      c = substr(s, i, 1); t = st[d]
-      if (t == "S") { if (c == "\047") d--; else printf "%s", sp(c); continue }
-      if (c == "\\") {
-        if (i == n) { cont = 1; break }
-        i++; esc = i; printf "%s", sp(substr(s, i, 1)); continue
-      }
-      if (t == "A") { if (c == "\047") d--; else printf "%s", sp(c); continue }
-      if (t == "D") {
-        if (c == "\"") d--
-        else if (substr(s, i, 2) == "$(" && substr(s, i + 2, 1) != "(") { st[++d] = "C"; printf "$("; i++ }
-        else if (c == "`") { st[++d] = "B"; printf "$(" }
-        else printf "%s", sp(c)
+      if (s[i] == "." || (s[i] == "" && i > 1)) continue
+      if (s[i] == ".." && k > 0 && o[k] != ".." && o[k] != "") { k--; continue }
+      o[++k] = s[i]
+    }
+    for (i = 1; i <= k; i++) if (o[i] == ".creds") return 1
+    if (k == 0) return 0
+    b = o[k]
+    if (b == ".envrc") return 1
+    if (substr(b, 1, 4) == ".env") {
+      r = substr(b, 5)
+      if (r == "") return 1
+      if (r ~ /\.(example|sample|template)[*?]*$/) return 0
+      return r ~ /^[.*?]/
+    }
+    return b ~ /.\.env$/
+  }
+  function base(p) { sub(/\/+$/, "", p); sub(/.*\//, "", p); return p }
+  # Brace expansion, one group at a time; a group needs a comma.
+  function expand(w, res,   q, qn, qi, cur, s, e, pre, body, post, parts, np2, j, k) {
+    k = 0; qn = 1; q[1] = w; qi = 0
+    while (qi < qn) {
+      cur = q[++qi]; s = index(cur, "{"); e = s ? index(substr(cur, s), "}") : 0
+      if (!s || !e || !index(substr(cur, s, e), ",") || qn > 64) { res[++k] = cur; continue }
+      pre = substr(cur, 1, s - 1); body = substr(cur, s + 1, e - 2); post = substr(cur, s + e)
+      np2 = split(body, parts, ",")
+      for (j = 1; j <= np2; j++) q[++qn] = pre parts[j] post
+    }
+    return k
+  }
+  function checkword(w,   r, k, i) { k = expand(w, r); for (i = 1; i <= k; i++) if (prot(r[i])) blocked = 1 }
+  function add(f, c) { if (length(CW[f]) < 4096) CW[f] = CW[f] c }
+  function endword(f,   w) {
+    if (!CH[f] && CW[f] == "") return
+    w = CW[f]; CW[f] = ""; CH[f] = 0
+    if (RP[f] == 1 || (RP[f] == 4 && w !~ /^([0-9]+-?|-)$/)) { checkword(w); RP[f] = 0; return }
+    if (RP[f]) { RP[f] = 0; return }
+    W[f, ++WN[f]] = w
+    if (w == "[[") DBL[f] = 1
+    else if (w == "]]") DBL[f] = 0
+    else if (w == "case") INC[f]++
+    else if (w == "esac" && INC[f] > 0) INC[f]--
+  }
+  function evalcmd(f,   A, na, i, j, k, r, w, a, cmd, td, ops, no, dd, dflag, ip, sg, pos, t, d, ns) {
+    na = 0
+    for (i = 1; i <= WN[f]; i++) { k = expand(W[f, i], r); for (j = 1; j <= k; j++) A[++na] = r[j] }
+    WN[f] = 0; RP[f] = 0
+    i = 1
+    while (i <= na) {
+      w = A[i]
+      if (w ~ /^[A-Za-z_][A-Za-z0-9_]*=/ || w ~ /^(!|\{|\}|then|do|else|elif|if|while|until|time|command|nohup|exec|builtin)$/) { i++; continue }
+      if (w ~ /^(sudo|doas|env|xargs|timeout|nice|ionice|stdbuf)$/) {
+        i++
+        while (i <= na && (A[i] ~ /^-/ || (w == "env" && A[i] ~ /=/))) {
+          if ((w ~ /^(sudo|doas)$/ && A[i] ~ /^-[ugCDhprRT]$/) || (w == "env" && A[i] ~ /^-[uSC]$/) \
+              || (w == "xargs" && A[i] ~ /^-[IdLnPsaE]$/) || (w == "timeout" && A[i] ~ /^-[sk]$/) \
+              || (w ~ /^(nice|ionice|stdbuf)$/ && A[i] ~ /^-[nctioe]$/)) i++
+          i++
+        }
+        if (w == "timeout") i++
         continue
       }
-      if (c == "#" && arith == 0 && wordstart(s, i)) break
-      if (c == "$" && index("\047\"", substr(s, i + 1, 1))) { st[++d] = substr(s, i + 1, 1) == "\047" ? "A" : "D"; i++; continue }
-      if (c == "\047") { st[++d] = "S"; continue }
-      if (c == "\"") { st[++d] = "D"; continue }
-      if (c == "`") { if (t == "B") { d--; printf ")" } else { st[++d] = "B"; printf "$(" }; continue }
-      if (substr(s, i, 3) == "$((") { arith++; printf "$(("; i += 2; continue }
-      if (substr(s, i, 2) == "((" && (wordstart(s, i) || substr(s, i - 3, 3) == "for")) { arith++; printf "(("; i++; continue }
-      if (arith > 0 && substr(s, i, 2) == "))") { arith--; printf "))"; i++; continue }
-      if (arith == 0 && substr(s, i, 2) == "$(") { st[++d] = "C"; printf "$("; i++; continue }
-      if (arith == 0 && (substr(s, i, 2) == "<(" || substr(s, i, 2) == ">(")) { st[++d] = "P"; printf "_"; i++; continue }
-      if ((t == "C" || t == "P") && c == "(") { st[++d] = "C"; printf "("; continue }
-      if (t == "C" && c == ")") { d--; printf ")"; continue }
-      if (t == "P" && c == ")") { d--; printf "_"; continue }
-      if (substr(s, i, 3) == "<<<") { printf "<<<"; i += 2; continue }
-      if (arith == 0 && substr(s, i, 2) == "<<") {
-        j = i + 2; dash = 0; if (substr(s, j, 1) == "-") { dash = 1; j++ }
-        while (substr(s, j, 1) == " " || substr(s, j, 1) == "\t") j++
-        q2 = ""; tag = ""; if (substr(s, j, 1) == "\\") j++
-        while (j <= n) {
-          c2 = substr(s, j, 1)
-          if (q2 != "") { if (c2 == q2) q2 = ""; else tag = tag c2 }
-          else if (c2 == "\047" || c2 == "\"") q2 = c2
-          else if (index(" \t;&|<>()", c2)) break
-          else tag = tag c2
-          j++
-        }
-        if (tag != "") {
-          tags[++nt] = tag; strip[nt] = dash; shown = tag; gsub(/[ \t]/, "_", shown)
-          printf "<<%s", shown; i = j - 1; continue
-        }
-      }
-      printf "%s", c
+      break
     }
-    if (cont) next
-    if (nt > 0 && !skipping) { skipping = 1; ti = 1 }
-    arith = 0
-    printf "%s", (index("UCBP", st[d]) ? "\n" : "_")
+    if (i > na) return
+    cmd = A[i++]; if (cmd ~ /^\//) sub(/.*\//, "", cmd)
+    if (cmd == "tee") {
+      for (dd = 0; i <= na; i++) {
+        a = A[i]
+        if (!dd && a == "--") { dd = 1; continue }
+        if (!dd && a ~ /^-./) continue
+        if (prot(a)) blocked = 1
+      }
+      return
+    }
+    if (cmd == "cp" || cmd == "mv" || cmd == "install") {
+      td = ""; no = 0; dd = 0; dflag = 0
+      for (; i <= na; i++) {
+        a = A[i]
+        if (dd || a !~ /^-./) { ops[++no] = a; continue }
+        if (a == "--") { dd = 1; continue }
+        if (a ~ /^--target-directory=/) { td = substr(a, 20); continue }
+        if (a == "--target-directory") { td = A[++i]; continue }
+        if (a ~ /^--/) continue
+        if (cmd == "install" && a ~ /^-[^-]*d/) dflag = 1
+        pos = index(a, "t")
+        if (pos) { t = substr(a, pos + 1); td = (t != "") ? t : A[++i]; continue }
+        if ((cmd == "install" && a ~ /[mogS]$/) || a ~ /S$/) i++
+      }
+      if (dflag) { for (k = 1; k <= no; k++) if (prot(ops[k])) blocked = 1; return }
+      if (td != "") { d = td; ns = no }
+      else { if (no < 2) return; d = ops[no]; ns = no - 1 }
+      if (prot(d)) blocked = 1
+      if (d ~ /^\.\/?$/) for (k = 1; k <= ns; k++) if (prot(base(ops[k]))) blocked = 1
+      return
+    }
+    if (cmd == "sed") {
+      ip = 0; sg = 0; no = 0; dd = 0
+      for (; i <= na; i++) {
+        a = A[i]
+        if (dd || a !~ /^-./) { if (!sg) sg = 1; else ops[++no] = a; continue }
+        if (a == "--") { dd = 1; continue }
+        if (a ~ /^--in-place/) { ip = 1; continue }
+        if (a ~ /^--(expression|file)$/) { sg = 1; i++; continue }
+        if (a ~ /^--(expression|file)=/) { sg = 1; continue }
+        if (a ~ /^--/) continue
+        if (a ~ /^-[^-i]*i/) { ip = 1; continue }
+        if (a ~ /[ef]$/) { sg = 1; i++ }
+      }
+      if (ip) for (k = 1; k <= no; k++) if (prot(ops[k])) blocked = 1
+    }
   }
-  END { printf "\n" }')
+  function openf(k) { fd++; FK[fd] = k; CW[fd] = ""; CH[fd] = 0; WN[fd] = 0; RP[fd] = 0; QS[fd] = ""; INC[fd] = 0; DBL[fd] = 0 }
+  function closef() {
+    endword(fd); evalcmd(fd)
+    if (fd > 1) { fd--; add(fd, "\001"); CH[fd] = 1 }
+  }
+  function arith(j, f,   dep) {
+    dep = 2
+    for (; j <= n; j++) { if (ch[j] == "(") dep++; else if (ch[j] == ")" && --dep == 0) break }
+    add(f, "\001"); CH[f] = 1
+    return j
+  }
+  function heredoc(j,   dash, q2, tag, c2) {
+    dash = 0; if (ch[j] == "-") { dash = 1; j++ }
+    while (ch[j] == " " || ch[j] == "\t") j++
+    if (ch[j] == "\\") j++
+    q2 = ""; tag = ""
+    for (; j <= n; j++) {
+      c2 = ch[j]
+      if (q2 != "") { if (c2 == q2) q2 = ""; else tag = tag c2; continue }
+      if (c2 == "\047" || c2 == "\"") { q2 = c2; continue }
+      if (index(" \t;&|<>()", c2)) break
+      tag = tag c2
+    }
+    if (tag != "") { ptag[++np] = tag; pdash[np] = dash }
+    return j - 1
+  }
+  function skipdocs(   line, t) {
+    while (pt <= np && ln < m) {
+      line = L[++ln]; if (pdash[pt]) sub(/^\t+/, "", line)
+      t = ptag[pt]
+      if (line == t) { pt++; continue }
+      if (fd > 1 && substr(line, 1, length(t) + 1) == t ")") { L[ln] = substr(line, length(t) + 1); pt++; ln--; break }
+    }
+    if (pt > np) { np = 0; pt = 1 }
+  }
+  { L[++m] = $0 }
+  END {
+    fd = 1; FK[1] = "T"; np = 0; pt = 1
+    for (ln = 1; ln <= m && !blocked; ln++) {
+      n = split(L[ln], ch, ""); cont = 0
+      for (i = 1; i <= n && !blocked; i++) {
+        c = ch[i]; f = fd; qs = QS[f]
+        if (qs == "S") { if (c == "\047") QS[f] = ""; else add(f, c); continue }
+        if (c == "\\") {
+          if (i == n) { cont = 1; break }
+          c = ch[++i]
+          if (qs == "D" && !index("$`\"\\", c)) add(f, "\\")
+          add(f, c); CH[f] = 1; continue
+        }
+        if (qs == "A") { if (c == "\047") QS[f] = ""; else add(f, c); continue }
+        if (qs == "D") {
+          if (c == "\"") QS[f] = ""
+          else if (c == "$" && ch[i + 1] == "(" && ch[i + 2] == "(") i = arith(i + 3, f)
+          else if (c == "$" && ch[i + 1] == "(") { i++; openf("C") }
+          else if (c == "`") openf("B")
+          else add(f, c)
+          continue
+        }
+        if (c == " " || c == "\t") { endword(f); continue }
+        if (c == "#" && CW[f] == "" && !CH[f]) break
+        if (c == "\047" || c == "\"") {
+          isd = (CW[f] ~ /\$$/); if (isd) CW[f] = substr(CW[f], 1, length(CW[f]) - 1)
+          QS[f] = (c == "\"") ? "D" : (isd ? "A" : "S"); CH[f] = 1; continue
+        }
+        if (c == "`") { if (FK[f] == "B") closef(); else openf("B"); continue }
+        if (c == "$" && ch[i + 1] == "(" && ch[i + 2] == "(") { i = arith(i + 3, f); continue }
+        if (c == "(" && ch[i + 1] == "(" && !CH[f] && (CW[f] == "for" || (CW[f] == "" && (WN[f] == 0 || W[f, WN[f]] == "for")))) { endword(f); i = arith(i + 2, f); continue }
+        if (c == "$" && ch[i + 1] == "(") { i++; openf("C"); continue }
+        if ((c == "<" || c == ">") && ch[i + 1] == "(" && !DBL[f]) { i++; openf("P"); continue }
+        if (c == ")") { endword(f); if ((FK[f] == "C" || FK[f] == "P") && !INC[f]) closef(); else evalcmd(f); continue }
+        if (c == "(" || c == ";" || c == "|" || (c == "&" && ch[i + 1] != ">")) { endword(f); evalcmd(f); continue }
+        if (DBL[f] && (c == "<" || c == ">")) { endword(f); continue }
+        if (c == "&") { endword(f); i++; if (ch[i + 1] == ">") i++; RP[f] = 1; continue }
+        if (c == ">") {
+          if (CW[f] ~ /^[0-9]+$/ && !CH[f]) CW[f] = ""; else endword(f)
+          if (ch[i + 1] == ">" || ch[i + 1] == "|") { i++; RP[f] = 1 }
+          else if (ch[i + 1] == "&") { i++; RP[f] = 4 }
+          else RP[f] = 1
+          continue
+        }
+        if (c == "<") {
+          if (CW[f] ~ /^[0-9]+$/ && !CH[f]) CW[f] = ""; else endword(f)
+          if (ch[i + 1] == "<" && ch[i + 2] == "<") { i += 2; RP[f] = 2; continue }
+          if (ch[i + 1] == "<") { i = heredoc(i + 2); continue }
+          if (ch[i + 1] == "&" || ch[i + 1] == ">") i++
+          RP[f] = 2; continue
+        }
+        add(f, c)
+      }
+      if (cont || blocked) continue
+      if (QS[fd] != "") { add(fd, "\n"); continue }
+      endword(fd); evalcmd(fd)
+      if (np >= pt) skipdocs()
+    }
+    while (fd >= 1 && !blocked) { endword(fd); evalcmd(fd); fd-- }
+    if (blocked) print "BLOCK"
+  }')
+
+if [[ "$SCAN_BLOCK" == BLOCK ]]; then
+  echo "BLOCKED: '$COMMAND' writes to a sensitive path (.creds/ or a .env file). If this is intentional, ask the user to do it." >&2
+  exit 2
 fi
-
-# `cp -t DIR SRC...` (also `-vt DIR`): move DIR to the end, where the destination rule looks.
-SCAN=$(printf '%s\n' "$SCAN" | sed -E "s/(^|[[:blank:]])(-[A-Za-z]*t[[:blank:]]*|--target-directory[=[:blank:]][[:blank:]]*)(${TOKEN}+)([^;&|<>()]*)/\\1\\4 \\3/g")
-
-# .env.example, .env.sample and .env.template are committed scaffolds: drop
-# those words before the .env check. Nothing under .creds/ is a scaffold, so
-# that check reads the command as scanned.
-SCAFFOLD_FREE=$(printf '%s\n' "$SCAN" | sed -E "s/${TOKEN}*\\.(example|sample|template)[*?]*${END}/\\2/g")
-
-check_writes() {
-  local text="$1" target="$2" pattern
-  while IFS= read -r pattern; do
-    if printf '%s\n' "$text" | grep -qE -- "$pattern"; then
-      echo "BLOCKED: '$COMMAND' writes to a sensitive path (.creds/ or a .env file). If this is intentional, ask the user to do it." >&2
-      exit 2
-    fi
-  done < <(write_patterns "$target" "$3")
-}
-check_writes "$SCAN" "$CREDS_TARGET" "$CREDS_BASE"
-check_writes "$SCAFFOLD_FREE" "$ENV_TARGET" "$ENV_BASE"
 
 exit 0

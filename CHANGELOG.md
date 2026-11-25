@@ -30,19 +30,21 @@ Notable changes to agents-template. All four plugins share the version of the re
   which every later call passed to Codex. A peer entry with more than three fields is now refused.
 
 - The sensitive-path guard had gaps, found by a Codex peer security review of the hook.
-  - Shell writes were not guarded at all. `block-dangerous-bash.sh` now blocks a redirect, `tee`,
-    `>|`, the destination of `cp`/`mv`/`install` (also `-t DIR`), and `sed -i`/`--in-place` when the
-    target is under `.creds/` or is a `.env` file (`.env`, `.env.<x>`, `.envrc`, `<name>.env`, as
-    the file-tool guard). The command may follow `then`, `do`, `{`, `(`, `!`, `VAR=value`, `sudo`
-    or `doas` with options, and the like. Reading stays allowed, and so does writing `.env.example`.
+  - Shell writes were not guarded at all. `block-dangerous-bash.sh` now blocks an output redirect,
+    `tee`, the destination of `cp`/`mv`/`install` (also `-t DIR`, and a protected name copied into
+    `.`), `install -d`, and `sed -i`/`--in-place` when the target is under `.creds/` or is a `.env`
+    file (`.env`, `.env.<x>`, `.envrc`, `<name>.env`, as the file-tool guard). Wrappers such as
+    `sudo`, `env`, `xargs`, `timeout` and `nice` and keywords such as `if`, `then` and `do` do not
+    hide the command. Reading stays allowed, and so does writing a scaffold (`.env.example`).
   - `block-write-sensitive.sh` now blocks `credentials.json`, `secrets.yaml` and the like (a
     sensitive name with a config-file extension), any `*.env` file, `.envrc`, `id_ecdsa`, `id_dsa`
     and `*.pfx`.
   - A path that reaches a protected directory through a symlink is blocked (needs GNU `realpath`).
-  - The shell rule reads the command the way the shell does, so text a command only carries is not
-    a write: a quoted commit message (also multi-line, also the `"$(cat <<'EOF' ... )"` form), a
-    heredoc body, a comment. A quoted target (`> ".creds/x"`, `cp x 'my dir/.env'`) still is, and a
-    line continuation does not hide one.
+  - The shell rule tokenizes the command the way the shell does, so text a command only carries is
+    not a write: a quoted commit message (also multi-line, also the `"$(cat <<'EOF' ... )"` form), a
+    heredoc body, a comment. A quoted target (`> ".creds/x"`, `cp x 'my dir/.env'`) still is.
+    `$( )`, backticks and `<( )`/`>( )` are checked as commands of their own, brace expansion is
+    expanded, `..` is resolved, and `>` inside `[[ ]]` or `(( ))` is not a redirect.
 
 ## 1.13.1 — 2026-11-21
 
