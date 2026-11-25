@@ -130,7 +130,7 @@ process per dispatch, and commits each phase (`feat: <ID> phase N — <title>`),
 dirty until the next phase's commit sweeps it in and committing the last one as
 `chore: <ID> run state`. Differences from the skill:
 
-- `--mode auto` (default) picks large on ≥ 3 phases, `--security`, a `Repos` row, a `### Design`
+- `--mode auto` (default) picks large on ≥ 3 phases, `--security`, a `Repos` row naming more than one repo, a `### Design`
   section or `Execution: orchestrated`; it cannot count files. Small mode still dispatches an
   implementer (the driver has no "self") but runs one `Stage: both` reviewer per phase and one
   final reviewer (none for a single phase), short of the skill's two reviewers per round; add the

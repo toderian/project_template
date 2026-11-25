@@ -456,7 +456,7 @@ class Runner:
 
     # -- helpers
     def say(self, msg: str) -> None:
-        print(f"at task run: {msg}")
+        print(f"at task run: {msg}", flush=True)  # a run logged to a file shows progress, and keeps it if killed
 
     def git(self, *a: str) -> subprocess.CompletedProcess:
         return sh(["git", *a], self.repo)
@@ -756,8 +756,11 @@ class Runner:
                 reasons.append(f"{len(state.rows)} phases")
             if self.args.security:
                 reasons.append("--security")
-            if re.search(r"^\|\s*Repos\s*\|", text, re.M):
-                reasons.append("Repos row")
+            repos = re.search(r"^\|\s*Repos\s*\|([^|\n]*)\|", text, re.M)
+            names = [r for r in re.split(r"[,\s]+", repos.group(1) if repos else "")
+                     if r and r.lower() not in ("n/a", "none", "-")]
+            if len(names) > 1:  # the skill's trigger is work across repos, not the row itself
+                reasons.append(f"{len(names)} repos")
             if re.search(r"^\|\s*Execution\s*\|\s*orchestrated", text, re.M | re.I):
                 reasons.append("Execution: orchestrated")
             if re.search(r"^### Design\b", text, re.M):
@@ -841,7 +844,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--security", action="store_true", help="also run security-auditor on every phase")
     p.add_argument("--mode", choices=("small", "large", "auto"), default="auto",
                    help="small: one reviewer per phase, one final reviewer; large: the full pipeline; "
-                        "auto (default): large on >=3 phases, --security, a Repos row, a Design section or Execution: orchestrated")
+                        "auto (default): large on >=3 phases, --security, a Repos row naming 2+ repos, a Design section or Execution: orchestrated")
     p.add_argument("--max-rounds", type=int, default=3)
     p.add_argument("--project", help="one-line project context for the implementer prompt")
     p.add_argument("--no-commit", action="store_true", help="stop after reviews pass; leave the tree uncommitted")

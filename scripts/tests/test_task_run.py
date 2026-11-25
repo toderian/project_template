@@ -109,6 +109,15 @@ class TaskRun(unittest.TestCase):
         lock.write_text(f"999999 {os.uname().nodename} earlier\n")
         p = run(tmp, "--phase", "1"); self.assertEqual(p.returncode, 0, p.stderr); self.assertIn("stale lock", p.stdout)
         self.assertFalse(lock.exists())
+    def test_auto_mode_counts_repos_in_the_repos_row(self):
+        def mode(value):
+            t = repo(); f = next((t / "docs/tasks_manager/_todos").glob("TST-003-*.md"))
+            f.write_text(f.read_text().replace("| Repos         | demo-service                                  |", f"| Repos         | {value} |"))
+            subprocess.run(["git", "-C", str(t), "commit", "-qam", "repos"], check=True)
+            p = run(t, "--phase", "1", "--dry-run"); self.assertEqual(p.returncode, 0, p.stderr); return p.stdout
+        self.assertNotIn("repos", mode("demo-service").split("[mode")[1].split("]")[0])
+        self.assertNotIn("repos", mode("N/A").split("[mode")[1].split("]")[0])
+        self.assertIn("2 repos", mode("demo-service, edge-node"))
     def test_small_mode_uses_one_reviewer_per_phase_and_one_final(self):
         tmp = repo(); p = run(tmp, "--mode", "small"); self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
         calls = (tmp.parent / (tmp.name + ".calls")).read_text()
