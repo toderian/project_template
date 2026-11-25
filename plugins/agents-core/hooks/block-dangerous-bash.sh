@@ -59,57 +59,105 @@ for pattern in "${DANGEROUS_PATTERNS[@]}"; do
 done
 
 # Writes into .creds/ or a .env file. block-write-sensitive.sh guards the file
-# tools; this is the same guardrail for the common shell forms: a redirect,
-# tee, the destination of cp/mv/install, and sed -i. Reading stays allowed
-# (`cat .env`, `cp .env /tmp/x`). It stops the accidental write, not a
-# determined one.
-Q="[\"']?"
-TOKEN="[^[:space:];&|<>\"']"
-NAME="[^[:space:];&|<>\"'/]"
-END="${Q}([[:space:];&|)]|\$)"
+# tools; this is the same guardrail for the common shell forms: a redirect
+# (`>`, `>>`, `>|`), tee, the destination of cp/mv/install (also `-t DIR`), and
+# sed -i. Reading stays allowed (`cat .env`, `cp .env /tmp/x`). It stops the
+# accidental write, not a determined one: a path built from a variable, or a
+# command run through eval or `bash -c '...'`, passes.
+TOKEN="[^[:space:];&|<>()]"
+NAME="[^[:space:];&|<>()/]"
+END="([[:space:];&|)<>]|\$)"
 CREDS_TARGET="(${TOKEN}*/)?\\.creds(/${TOKEN}*)?"
 # The same .env files as block-write-sensitive.sh: .env, .env.<x>, .envrc, <name>.env.
 ENV_TARGET="(${TOKEN}*/)?(\\.env(\\.${NAME}*)?|\\.envrc|${NAME}+\\.env)"
 
-# write_patterns <target regex>: one pattern per line. `>|` is the clobber
-# redirect; a cp/mv/install destination may be followed by its own redirect.
+# A write command starts a statement: after a separator, `(`, `{` or `$(`,
+# behind any keywords and wrappers (then, do, else, !, time, VAR=value, env,
+# command, nohup, exec, sudo, doas, xargs), each with its options.
+WRAP="(([A-Za-z_][A-Za-z0-9_]*=${TOKEN}*|then|do|else|!|time|command|nohup|exec|env|sudo|doas|xargs)([[:blank:]]+-${TOKEN}*([[:blank:]]+[^-[:space:];&|<>()]${TOKEN}*)?)*[[:blank:]]+)*"
+WB="(^|[;&|({]|\\\$\\()[[:blank:]]*${WRAP}"
+
+# write_patterns <target regex>: one pattern per line. The cp/mv/install
+# destination is the last word, which may be followed by its own redirect.
 write_patterns() {
   printf '%s\n' \
-    ">[>|]?[[:blank:]]*${Q}$1${END}" \
-    "${CB}tee[[:blank:]]+([^;&|]*[[:blank:]])?${Q}$1${END}" \
-    "${CB}(cp|mv|install)[[:blank:]]+[^;&|]*[[:blank:]]${Q}$1${Q}[[:blank:]]*([;&|)]|\$|[0-9&]*>)" \
-    "${CB}sed[[:blank:]]+([^;&|]*[[:blank:]])?-i[^;&|]*[[:blank:]]${Q}$1${END}"
+    ">[>|]?[[:blank:]]*$1${END}" \
+    "${WB}tee[[:blank:]]+([^;&|<>()]*[[:blank:]])?$1${END}" \
+    "${WB}(cp|mv|install)[[:blank:]]+[^;&|<>()]*[[:blank:]]$1[[:blank:]]*([;&|)]|\$|[0-9&]*>)" \
+    "${WB}sed[[:blank:]]+([^;&|<>()]*[[:blank:]])?(-i|--in-place)[^;&|<>()]*[[:blank:]]$1${END}"
 }
 
-# Text a command only carries is not a write: a commit message or echo string
-# that mentions `> .env`, or a heredoc body.
-# 1. Drop heredoc bodies. The line that opens a heredoc stays, with its own
-#    redirect. `<<` inside quotes or `$((...))` does not open one.
-# 2. Over the whole command (a quoted message may span lines): unquote a quoted
-#    word with no whitespace or shell operator in it (`cp x ".env"` is still a
-#    write), then blank every other quoted string.
-SQ="'"
-NL=$'\001'
-SCAN=$(printf '%s\n' "$COMMAND" | awk '
-  skip { line = $0; sub(/^\t+/, "", line); if (line == tag) skip = 0; next }
-  { print
-    if (match($0, /<<-?[ \t]*["\047]?[A-Za-z_][A-Za-z0-9_]*/) && substr($0, RSTART + 2, 1) != "<" \
-        && (RSTART == 1 || substr($0, RSTART - 1, 1) != "<")) {
-      before = substr($0, 1, RSTART - 1)
-      dq = gsub(/"/, "&", before); sq = gsub(/\047/, "&", before)
-      if (dq % 2 == 0 && sq % 2 == 0 && before !~ /\$\(\([^)]*$/) {
-        tag = substr($0, RSTART, RLENGTH); sub(/^<<-?[ \t]*["\047]?/, "", tag); skip = 1
+# Read the command the way the shell does, so text it only carries is not a
+# write: a quoted commit message, a heredoc body, a comment.
+# - A quoted string becomes one plain word: the quotes go, and whitespace,
+#   newlines, quotes and shell operators inside it become `_`. A quoted target
+#   stays a target (`> 'my app.env'` reads `> my_app.env`); a message keeps no
+#   operator. A backslash escape reads the same way.
+# - A heredoc body is dropped; the line that opens it keeps its redirect. Every
+#   opener form counts (`<<EOF`, `<<-EOF`, `<<'EOF'`, `<<"EOF"`, `<<\EOF`, a tag
+#   with `-` or `.`, several on one line), and so does one inside `"$( ... )"`,
+#   the usual commit-message form. `<<` in other quoted text, `<<<` and `<<`
+#   inside `$(( ))` open nothing.
+# - `#` at the start of a word starts a comment; a backslash-newline joins lines.
+SCAN=$(printf '%s\n' "$COMMAND" | tr -d '\r' | awk '
+  function sp(c) { return index(" \t<>|;&()\"\047", c) ? "_" : c }
+  function wordstart(s, i) { return i == 1 || index(" \t;&|(", substr(s, i - 1, 1)) > 0 }
+  skipping {
+    line = $0; sub(/^\t+/, "", line)
+    if (line == tags[ti] && ++ti > nt) { skipping = 0; nt = 0 }
+    next
+  }
+  {
+    s = $0; n = length(s); cont = 0
+    for (i = 1; i <= n; i++) {
+      c = substr(s, i, 1)
+      if (q == "\047") { if (c == q) q = ""; else printf "%s", sp(c); continue }
+      if (c == "\\") {
+        if (i == n) { cont = 1; break }
+        i++; printf "%s", sp(substr(s, i, 1)); continue
       }
-    } }' \
-  | tr '\n' "$NL" \
-  | sed -E -e "s/\"([^\"[:space:]${NL}<>|;&]*)\"/\\1/g" -e "s/${SQ}([^${SQ}[:space:]${NL}<>|;&]*)${SQ}/\\1/g" \
-           -e "s/\"[^\"]*\"/\"\"/g" -e "s/${SQ}[^${SQ}]*${SQ}/${SQ}${SQ}/g" \
-  | tr "$NL" '\n')
+      if (q == "\"" && dsub == 0) {
+        if (c == q) q = ""
+        else if (c == "$" && substr(s, i + 1, 1) == "(" && substr(s, i + 2, 1) != "(") { dsub = 1; i++; printf "__" }
+        else printf "%s", sp(c)
+        continue
+      }
+      if (q == "\"") {
+        if (c == "\"") { q = ""; dsub = 0; continue }
+        if (c == ")") { dsub--; printf "_"; continue }
+        if (c == "(") { dsub++; printf "_"; continue }
+      } else {
+        if (c == "#" && arith == 0 && wordstart(s, i)) break
+        if (c == "\"" || c == "\047") { q = c; continue }
+        if (substr(s, i, 3) == "$((") { arith++; printf "$(("; i += 2; continue }
+        if (arith > 0 && substr(s, i, 2) == "))") { arith--; printf "))"; i++; continue }
+      }
+      if (substr(s, i, 3) == "<<<") { printf "%s", (q == "" ? "<<<" : "___"); i += 2; continue }
+      if (arith == 0 && substr(s, i, 2) == "<<") {
+        j = i + 2; if (substr(s, j, 1) == "-") j++
+        while (substr(s, j, 1) == " " || substr(s, j, 1) == "\t") j++
+        qc = substr(s, j, 1); if (qc == "\047" || qc == "\"" || qc == "\\") j++
+        tag = ""; while (substr(s, j, 1) ~ /[A-Za-z0-9_.-]/) { tag = tag substr(s, j, 1); j++ }
+        if (tag != "") {
+          if ((qc == "\047" || qc == "\"") && substr(s, j, 1) == qc) j++
+          tags[++nt] = tag; printf "%s", (q == "" ? "<<" : "__") tag; i = j - 1; continue
+        }
+      }
+      printf "%s", (q == "" ? c : sp(c))
+    }
+    if (cont) next
+    if (nt > 0) { skipping = 1; ti = 1 }
+    printf "%s", (q == "" ? "\n" : "_")
+  }
+  END { printf "\n" }')
+
+# `cp -t DIR SRC...`: move DIR to the end, where the destination rule looks.
+SCAN=$(printf '%s\n' "$SCAN" | sed -E "s/(-t[[:blank:]]*|--target-directory[=[:blank:]][[:blank:]]*)(${TOKEN}+)([^;&|<>()]*)/\\3 \\2/g")
 
 # .env.example, .env.sample and .env.template are committed scaffolds: drop
 # those words before the .env check. Nothing under .creds/ is a scaffold, so
 # that check reads the command as scanned.
-SCAFFOLD_FREE=$(printf '%s\n' "$SCAN" | sed -E "s/${TOKEN}*\\.(example|sample|template)(${Q}([[:space:];&|)]|\$))/\\2/g")
+SCAFFOLD_FREE=$(printf '%s\n' "$SCAN" | sed -E "s/${TOKEN}*\\.(example|sample|template)${END}/\\2/g")
 
 check_writes() {
   local text="$1" target="$2" pattern

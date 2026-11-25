@@ -389,6 +389,53 @@ run_case "bash: redirect into environment.ts stays allowed" "${BASH_HOOK}" \
   "$(git_payload 'echo x > src/environment.ts')" 0
 run_case "bash: a quoted word holding a redirect is text" "${BASH_HOOK}" \
   "$(git_payload 'echo "a>b.env"')" 0
+run_case "bash: a quoted .env target with a space blocks" "${BASH_HOOK}" \
+  "$(git_payload "echo x > 'deploy/my app.env'")" 2
+run_case "bash: cp into a quoted .creds/ path with a space blocks" "${BASH_HOOK}" \
+  "$(git_payload "cp /tmp/key '.creds/my key'")" 2
+run_case "bash: cp onto .env before a comment blocks" "${BASH_HOOK}" \
+  "$(git_payload 'cp /tmp/key .env # update')" 2
+run_case "bash: cp -t into .creds/ blocks" "${BASH_HOOK}" \
+  "$(git_payload 'cp -t .creds/ /tmp/key')" 2
+run_case "bash: mv --target-directory=.creds blocks" "${BASH_HOOK}" \
+  "$(git_payload 'mv --target-directory=.creds /tmp/key')" 2
+run_case "bash: a redirect inside a comment is not a write" "${BASH_HOOK}" \
+  "$(git_payload 'echo ok # > .env')" 0
+run_case "bash: an escaped quote inside a message stays text" "${BASH_HOOK}" \
+  "$(git_payload 'git commit -m "say \"hi\" then echo x > .env"')" 0
+run_case "bash: cp onto .env inside if/then blocks" "${BASH_HOOK}" \
+  "$(git_payload 'if [ ! -f .env ]; then cp .env.example .env; fi')" 2
+run_case "bash: cp onto .env behind a VAR=value prefix blocks" "${BASH_HOOK}" \
+  "$(git_payload 'FOO=1 cp a .env')" 2
+run_case "bash: sudo -u root tee into .env blocks" "${BASH_HOOK}" \
+  "$(git_payload 'echo x | sudo -u root tee .env')" 2
+run_case "bash: sed --in-place on .env blocks" "${BASH_HOOK}" \
+  "$(git_payload "sed --in-place 's/a/b/' .env")" 2
+run_case "bash: a line continuation does not hide the target" "${BASH_HOOK}" \
+  "$(git_payload 'cp a \
+  .env')" 2
+run_case "bash: a heredoc tag with a dash closes and later lines are checked" "${BASH_HOOK}" \
+  "$(git_payload "cat <<'END-NOTE' > n
+x
+END-NOTE
+echo X > .env")" 2
+run_case "bash: cp -t naming a .env source is a read" "${BASH_HOOK}" \
+  "$(git_payload 'cp -t /tmp/backup .env')" 0
+run_case "bash: tee reading .env on stdin is a read" "${BASH_HOOK}" \
+  "$(git_payload 'tee out.txt < .env')" 0
+run_case "bash: the \$(cat <<'EOF') commit form is text" "${BASH_HOOK}" \
+  "$(git_payload "git commit -m \"\$(cat <<'EOF'
+fix: guard blocks \"echo x > .env file\" writes
+EOF
+)\"")" 0
+run_case "bash: a <<\\EOF heredoc body is text" "${BASH_HOOK}" \
+  "$(git_payload 'cat <<\EOF > notes
+echo > .env file
+EOF')" 0
+run_case "bash: a multi-line single-quoted message stays text" "${BASH_HOOK}" \
+  "$(git_payload "git commit -m 'fix: guard
+
+tee .creds/x < k'")" 0
 
 # jq missing: fail closed.
 run_case "bash: jq missing fails closed" "${BASH_HOOK}" \
