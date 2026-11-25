@@ -78,10 +78,25 @@ write_patterns() {
     "${CB}sed[[:blank:]]+([^;&|]*[[:blank:]])?-i[^;&|]*[[:blank:]]${Q}$1${END}"
 }
 
+# Text a command only carries is not a write: a commit message or echo string
+# that mentions `> .env`, or a heredoc body. Drop heredoc bodies (the line that
+# opens the heredoc stays, with its own redirect), unquote a quoted redirect
+# target (`> ".creds/x"` is still a write), then blank every other quoted string.
+SQ="'"
+SCAN=$(printf '%s\n' "$COMMAND" | awk '
+  skip { line = $0; sub(/^\t+/, "", line); if (line == tag) skip = 0; next }
+  { print
+    if (match($0, /<<-?[ \t]*["\047]?[A-Za-z_][A-Za-z0-9_]*/) && substr($0, RSTART + 2, 1) != "<" \
+        && (RSTART == 1 || substr($0, RSTART - 1, 1) != "<")) {
+      tag = substr($0, RSTART, RLENGTH); sub(/^<<-?[ \t]*["\047]?/, "", tag); skip = 1
+    } }' \
+  | sed -E -e "s/(>>?[[:blank:]]*)\"([^\"]*)\"/\\1\\2/g" -e "s/(>>?[[:blank:]]*)${SQ}([^${SQ}]*)${SQ}/\\1\\2/g" \
+           -e "s/\"[^\"]*\"/\"\"/g" -e "s/${SQ}[^${SQ}]*${SQ}/${SQ}${SQ}/g")
+
 # .env.example, .env.sample and .env.template are committed scaffolds: drop
 # those words before the .env check. Nothing under .creds/ is a scaffold, so
-# that check reads the command as given.
-SCAFFOLD_FREE=$(printf '%s\n' "$COMMAND" | sed -E "s/${TOKEN}*\\.(example|sample|template)(${Q}([[:space:];&|)]|\$))/\\2/g")
+# that check reads the command as scanned.
+SCAFFOLD_FREE=$(printf '%s\n' "$SCAN" | sed -E "s/${TOKEN}*\\.(example|sample|template)(${Q}([[:space:];&|)]|\$))/\\2/g")
 
 check_writes() {
   local text="$1" target="$2" pattern
@@ -92,7 +107,7 @@ check_writes() {
     fi
   done < <(write_patterns "$target")
 }
-check_writes "$COMMAND" "$CREDS_TARGET"
+check_writes "$SCAN" "$CREDS_TARGET"
 check_writes "$SCAFFOLD_FREE" "$ENV_TARGET"
 
 exit 0

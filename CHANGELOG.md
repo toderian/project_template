@@ -37,6 +37,8 @@ Notable changes to agents-template. All four plugins share the version of the re
     sensitive name with a config-file extension), any `*.env` file, `.envrc`, `id_ecdsa`, `id_dsa`
     and `*.pfx`.
   - A path that reaches a protected directory through a symlink is blocked (needs GNU `realpath`).
+  - The shell rule reads past text a command only carries: a commit message or a heredoc body that
+    mentions `> .env` is not a write. A quoted redirect target (`> ".creds/x"`) still is.
 
 ## 1.13.1 — 2026-11-21
 

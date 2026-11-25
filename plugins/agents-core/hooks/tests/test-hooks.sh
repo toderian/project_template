@@ -339,6 +339,23 @@ run_case "bash: copying out of .creds/ stays allowed" "${BASH_HOOK}" \
   "$(git_payload 'cp -r .creds /tmp/backup')" 0
 run_case "bash: redirect into .envoy.yaml stays allowed" "${BASH_HOOK}" \
   "$(git_payload 'echo x > .envoy.yaml')" 0
+run_case "bash: a commit message that mentions a .env redirect stays allowed" "${BASH_HOOK}" \
+  "$(git_payload 'git commit -m "docs: echo x > .env is blocked"')" 0
+run_case "bash: a heredoc body that mentions a .creds/ redirect stays allowed" "${BASH_HOOK}" \
+  "$(git_payload "cat <<'EOF' > notes.md
+run: echo k > .creds/token
+EOF")" 0
+run_case "bash: a heredoc written into .env blocks" "${BASH_HOOK}" \
+  "$(git_payload 'cat <<EOF > .env
+A=1
+EOF')" 2
+run_case "bash: a command after a heredoc is still checked" "${BASH_HOOK}" \
+  "$(git_payload "cat <<'EOF' > notes.md
+text
+EOF
+echo k > .creds/token")" 2
+run_case "bash: a quoted redirect target into .creds/ blocks" "${BASH_HOOK}" \
+  "$(git_payload "echo k > '.creds/x'")" 2
 
 # jq missing: fail closed.
 run_case "bash: jq missing fails closed" "${BASH_HOOK}" \
