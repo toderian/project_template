@@ -67,29 +67,32 @@ done
 TOKEN="[^[:space:];&|<>()]"
 NAME="[^[:space:];&|<>()/]"
 END="([[:space:];&|)<>]|\$)"
-# A directory prefix may include a command substitution: "$(pwd)/.env".
-PREFIX="((${TOKEN}|\\\$\\([^()]*\\))*/)?"
+# A directory prefix may include a command substitution, nested once:
+# "$(dirname "$(pwd)")/.env".
+PREFIX="((${TOKEN}|\\\$\\(([^()]|\\\$?\\([^()]*\\))*\\))*/)?"
 CREDS_BASE="\\.creds"
 # The same .env files as block-write-sensitive.sh: .env, .env.<x>, .envrc, <name>.env.
-ENV_BASE="(\\.env(\\.${NAME}*)?|\\.envrc|${NAME}+\\.env)"
+ENV_BASE="(\\.env[*?]*(\\{[^{}[:space:]]*\\})?(\\.${NAME}*)?|\\.envrc|${NAME}+\\.env)"
 CREDS_TARGET="${PREFIX}${CREDS_BASE}(/${TOKEN}*)?"
 ENV_TARGET="${PREFIX}${ENV_BASE}"
 
 # A write command starts a statement: after a separator, `(`, `{`, `$(` or a
 # `case` pattern's `)`, behind any keywords and wrappers (if, elif, while,
 # until, then, do, else, !, time, VAR=value, env, command, nohup, exec, sudo,
-# doas, xargs), each with its options.
+# doas, xargs), each with its options. The command may be named by its path
+# (`/bin/cp`).
 WRAP="(([A-Za-z_][A-Za-z0-9_]*=${TOKEN}*|if|elif|while|until|then|do|else|!|time|command|nohup|exec|env|sudo|doas|xargs)([[:blank:]]+-${TOKEN}*([[:blank:]]+[^-[:space:];&|<>()]${TOKEN}*)?)*[[:blank:]]+)*"
-WB="(^|[;&|({)]|\\\$\\()[[:blank:]]*${WRAP}"
+WB="(^|[;&|({)]|\\\$\\()[[:blank:]]*${WRAP}(${TOKEN}*/)?"
 
 # write_patterns <target regex> <basename regex>: one pattern per line. The
 # cp/mv/install destination is the last word, which may be followed by options
-# (`-f`, `-m 600`), its own redirect or a here-string. Copying a protected name
+# (`-f`, `-m 600`, `-o root`), its own redirect or a here-string. `>&` and
+# `&>` redirect into a file too. Copying a protected name
 # into `.` writes it there too (`cp ../main/.env .`).
-AFTER="([[:blank:]]+-${TOKEN}*([[:blank:]]+[0-9]+)?)*[[:blank:]]*([;&|)<]|\$|[0-9&]*>)"
+AFTER="([[:blank:]]+(-[ogm][[:blank:]]+${TOKEN}+|-${TOKEN}*))*[[:blank:]]*([;&|)<]|\$|[0-9&]*>)"
 write_patterns() {
   printf '%s\n' \
-    ">[>|]?[[:blank:]]*$1${END}" \
+    ">[>|&]?[[:blank:]]*$1${END}" \
     "${WB}tee[[:blank:]]+([^;&|<>()]*[[:blank:]])?$1${END}" \
     "${WB}(cp|mv|install)[[:blank:]]+[^;&|<>()]*[[:blank:]]$1${AFTER}" \
     "${WB}(cp|mv|install)[[:blank:]]+([^;&|<>()]*[[:blank:]])?${PREFIX}$2/?[[:blank:]]+([^;&|<>()]*[[:blank:]])?\\./?${AFTER}" \
@@ -99,7 +102,8 @@ write_patterns() {
 # Read the command the way the shell does, so text it only carries is not a
 # write: a quoted commit message, a heredoc body, a comment. The scanner keeps a
 # stack of contexts: code (unquoted, or inside `$( )` or backticks), '...',
-# $'...', "...". A backtick substitution reads as `$( )`.
+# $'...', "...". A backtick substitution reads as `$( )`; a process
+# substitution `<( )`/`>( )` is code that reads as one word in its command.
 # - Text inside quotes becomes plain word characters: whitespace, newlines,
 #   quotes and shell operators turn into `_`. A quoted target stays a target
 #   (`> 'my app.env'` reads `> my_app.env`); a message keeps no operator.
@@ -118,7 +122,7 @@ if (( ${#COMMAND} > 100000 )); then
 else
 SCAN=$(printf '%s\n' "$COMMAND" | tr -d '\r' | awk '
   function sp(c) { return index(" \t<>|;&()\"\047`", c) ? "_" : c }
-  function wordstart(s, i) { return i == 1 || index(" \t;&|(", substr(s, i - 1, 1)) > 0 }
+  function wordstart(s, i) { return i == 1 || (i - 1 != esc && index(" \t;&|(", substr(s, i - 1, 1)) > 0) }
   BEGIN { d = 1; st[1] = "U" }
   {
     s = $0
@@ -132,13 +136,13 @@ SCAN=$(printf '%s\n' "$COMMAND" | tr -d '\r' | awk '
         s = rest
       } else next
     }
-    n = length(s); cont = 0
+    n = length(s); cont = 0; esc = 0
     for (i = 1; i <= n; i++) {
       c = substr(s, i, 1); t = st[d]
       if (t == "S") { if (c == "\047") d--; else printf "%s", sp(c); continue }
       if (c == "\\") {
         if (i == n) { cont = 1; break }
-        i++; printf "%s", sp(substr(s, i, 1)); continue
+        i++; esc = i; printf "%s", sp(substr(s, i, 1)); continue
       }
       if (t == "A") { if (c == "\047") d--; else printf "%s", sp(c); continue }
       if (t == "D") {
@@ -149,25 +153,30 @@ SCAN=$(printf '%s\n' "$COMMAND" | tr -d '\r' | awk '
         continue
       }
       if (c == "#" && arith == 0 && wordstart(s, i)) break
-      if (c == "\047") { st[++d] = (i > 1 && substr(s, i - 1, 1) == "$") ? "A" : "S"; continue }
+      if (c == "$" && index("\047\"", substr(s, i + 1, 1))) { st[++d] = substr(s, i + 1, 1) == "\047" ? "A" : "D"; i++; continue }
+      if (c == "\047") { st[++d] = "S"; continue }
       if (c == "\"") { st[++d] = "D"; continue }
       if (c == "`") { if (t == "B") { d--; printf ")" } else { st[++d] = "B"; printf "$(" }; continue }
       if (substr(s, i, 3) == "$((") { arith++; printf "$(("; i += 2; continue }
       if (substr(s, i, 2) == "((" && (wordstart(s, i) || substr(s, i - 3, 3) == "for")) { arith++; printf "(("; i++; continue }
       if (arith > 0 && substr(s, i, 2) == "))") { arith--; printf "))"; i++; continue }
       if (arith == 0 && substr(s, i, 2) == "$(") { st[++d] = "C"; printf "$("; i++; continue }
-      if (t == "C" && c == "(") { st[++d] = "C"; printf "("; continue }
+      if (arith == 0 && (substr(s, i, 2) == "<(" || substr(s, i, 2) == ">(")) { st[++d] = "P"; printf "_"; i++; continue }
+      if ((t == "C" || t == "P") && c == "(") { st[++d] = "C"; printf "("; continue }
       if (t == "C" && c == ")") { d--; printf ")"; continue }
+      if (t == "P" && c == ")") { d--; printf "_"; continue }
       if (substr(s, i, 3) == "<<<") { printf "<<<"; i += 2; continue }
       if (arith == 0 && substr(s, i, 2) == "<<") {
         j = i + 2; dash = 0; if (substr(s, j, 1) == "-") { dash = 1; j++ }
         while (substr(s, j, 1) == " " || substr(s, j, 1) == "\t") j++
-        qc = substr(s, j, 1); tag = ""
-        if (qc == "\047" || qc == "\"") {
-          k = index(substr(s, j + 1), qc); if (k > 1) { tag = substr(s, j + 1, k - 1); j += k + 1 }
-        } else {
-          if (qc == "\\") j++
-          while (j <= n && !index(" \t;&|<>()\"\047", substr(s, j, 1))) { tag = tag substr(s, j, 1); j++ }
+        q2 = ""; tag = ""; if (substr(s, j, 1) == "\\") j++
+        while (j <= n) {
+          c2 = substr(s, j, 1)
+          if (q2 != "") { if (c2 == q2) q2 = ""; else tag = tag c2 }
+          else if (c2 == "\047" || c2 == "\"") q2 = c2
+          else if (index(" \t;&|<>()", c2)) break
+          else tag = tag c2
+          j++
         }
         if (tag != "") {
           tags[++nt] = tag; strip[nt] = dash; shown = tag; gsub(/[ \t]/, "_", shown)
@@ -179,18 +188,18 @@ SCAN=$(printf '%s\n' "$COMMAND" | tr -d '\r' | awk '
     if (cont) next
     if (nt > 0 && !skipping) { skipping = 1; ti = 1 }
     arith = 0
-    printf "%s", (st[d] == "U" || st[d] == "C" || st[d] == "B" ? "\n" : "_")
+    printf "%s", (index("UCBP", st[d]) ? "\n" : "_")
   }
   END { printf "\n" }')
 fi
 
-# `cp -t DIR SRC...`: move DIR to the end, where the destination rule looks.
-SCAN=$(printf '%s\n' "$SCAN" | sed -E "s/(^|[[:blank:]])(-t[[:blank:]]*|--target-directory[=[:blank:]][[:blank:]]*)(${TOKEN}+)([^;&|<>()]*)/\\1\\4 \\3/g")
+# `cp -t DIR SRC...` (also `-vt DIR`): move DIR to the end, where the destination rule looks.
+SCAN=$(printf '%s\n' "$SCAN" | sed -E "s/(^|[[:blank:]])(-[A-Za-z]*t[[:blank:]]*|--target-directory[=[:blank:]][[:blank:]]*)(${TOKEN}+)([^;&|<>()]*)/\\1\\4 \\3/g")
 
 # .env.example, .env.sample and .env.template are committed scaffolds: drop
 # those words before the .env check. Nothing under .creds/ is a scaffold, so
 # that check reads the command as scanned.
-SCAFFOLD_FREE=$(printf '%s\n' "$SCAN" | sed -E "s/${TOKEN}*\\.(example|sample|template)${END}/\\2/g")
+SCAFFOLD_FREE=$(printf '%s\n' "$SCAN" | sed -E "s/${TOKEN}*\\.(example|sample|template)[*?]*${END}/\\2/g")
 
 check_writes() {
   local text="$1" target="$2" pattern

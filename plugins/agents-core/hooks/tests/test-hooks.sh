@@ -481,6 +481,33 @@ EOF')" 0
 run_case "bash: << inside for (( )) is not a heredoc" "${BASH_HOOK}" \
   "$(git_payload 'for((i=0;i<<1;i++)); do :; done
 echo k > .env')" 2
+run_case "bash: cp from a process substitution onto .env blocks" "${BASH_HOOK}" \
+  "$(git_payload 'cp <(printf x) .env')" 2
+run_case "bash: diff of two process substitutions reading .env is a read" "${BASH_HOOK}" \
+  "$(git_payload 'diff <(sort .env) <(sort .env.example)')" 0
+run_case "bash: a .env glob copied into . blocks" "${BASH_HOOK}" \
+  "$(git_payload 'cp ../main/.env* .')" 2
+run_case "bash: an ANSI-C quoted .creds/ target blocks" "${BASH_HOOK}" \
+  "$(git_payload "tee \$'.creds/key' < /tmp/key")" 2
+run_case "bash: a nested \$( ) path prefix does not hide a .env target" "${BASH_HOOK}" \
+  "$(git_payload 'printf x > "$(dirname "$(pwd)")/.env"')" 2
+run_case "bash: # after an escaped space is not a comment" "${BASH_HOOK}" \
+  "$(git_payload 'echo hello\ # > .env')" 2
+run_case "bash: >& into .env blocks" "${BASH_HOOK}" \
+  "$(git_payload 'echo x >& .env')" 2
+run_case "bash: cp named by its path onto .env blocks" "${BASH_HOOK}" \
+  "$(git_payload '/bin/cp /tmp/k .env')" 2
+run_case "bash: cp -vt into .creds blocks" "${BASH_HOOK}" \
+  "$(git_payload 'cp -vt .creds k')" 2
+run_case "bash: cp -vt naming a .env source is a read" "${BASH_HOOK}" \
+  "$(git_payload 'cp -vt /tmp .env')" 0
+run_case "bash: install onto .env with -o root after it blocks" "${BASH_HOOK}" \
+  "$(git_payload 'install k .env -o root')" 2
+run_case "bash: a partly quoted heredoc tag closes" "${BASH_HOOK}" \
+  "$(git_payload 'cat <<E"OF" > n
+x
+EOF
+echo k > .env')" 2
 run_case "bash: a multi-line single-quoted message stays text" "${BASH_HOOK}" \
   "$(git_payload "git commit -m 'fix: guard
 
