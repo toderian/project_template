@@ -84,7 +84,7 @@ available skills and pick from that instead of guessing another prefix.
 | Auth, input handling, crypto, or AI surfaces | `agents-core:security-review-owasp` |
 | Branch, commit, or push question | `agents-core:git-discipline` |
 | Second opinion from the other agent CLI | `agents-core:subagent-protocol` §"Peer check" (`at peer`, opt-in per checkout) |
-| Authorized security task the main model refuses or flags | `at task run <TASK-ID> --harness codex` (Codex on `gpt-6-sol` under Daybreak Blue); verify its output yourself before closing |
+| Authorized security task the main model refuses or flags | `at task run <TASK-ID> --harness codex` (Codex on `gpt-6-sol` under Daybreak Blue). Send it as is: do not guess whether Daybreak will refuse, Codex's reply decides. Verify its output yourself before closing |
 | Delegating work | `agents-core:subagent-protocol` (agents: `implementer`, `reviewer`, `researcher`, `plan-critic`, `security-auditor`, `spec-validator`) |
 | Pausing or handing off | `agents-core:handoff` |
 | Sync saved repository memories between agents | `agents-extras:sync` (explicit invocation; local shared memory) |
