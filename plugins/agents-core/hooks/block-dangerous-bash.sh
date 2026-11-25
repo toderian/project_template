@@ -71,25 +71,28 @@ CREDS_TARGET="(${TOKEN}*/)?\\.creds(/${TOKEN}*)?"
 # The same .env files as block-write-sensitive.sh: .env, .env.<x>, .envrc, <name>.env.
 ENV_TARGET="(${TOKEN}*/)?(\\.env(\\.${NAME}*)?|\\.envrc|${NAME}+\\.env)"
 
-# A write command starts a statement: after a separator, `(`, `{` or `$(`,
-# behind any keywords and wrappers (then, do, else, !, time, VAR=value, env,
-# command, nohup, exec, sudo, doas, xargs), each with its options.
-WRAP="(([A-Za-z_][A-Za-z0-9_]*=${TOKEN}*|then|do|else|!|time|command|nohup|exec|env|sudo|doas|xargs)([[:blank:]]+-${TOKEN}*([[:blank:]]+[^-[:space:];&|<>()]${TOKEN}*)?)*[[:blank:]]+)*"
-WB="(^|[;&|({]|\\\$\\()[[:blank:]]*${WRAP}"
+# A write command starts a statement: after a separator, `(`, `{`, `$(` or a
+# `case` pattern's `)`, behind any keywords and wrappers (if, elif, while,
+# until, then, do, else, !, time, VAR=value, env, command, nohup, exec, sudo,
+# doas, xargs), each with its options.
+WRAP="(([A-Za-z_][A-Za-z0-9_]*=${TOKEN}*|if|elif|while|until|then|do|else|!|time|command|nohup|exec|env|sudo|doas|xargs)([[:blank:]]+-${TOKEN}*([[:blank:]]+[^-[:space:];&|<>()]${TOKEN}*)?)*[[:blank:]]+)*"
+WB="(^|[;&|({)]|\\\$\\()[[:blank:]]*${WRAP}"
 
 # write_patterns <target regex>: one pattern per line. The cp/mv/install
-# destination is the last word, which may be followed by its own redirect.
+# destination is the last word, which may be followed by options (`-f`,
+# `-m 600`) and its own redirect.
 write_patterns() {
   printf '%s\n' \
     ">[>|]?[[:blank:]]*$1${END}" \
     "${WB}tee[[:blank:]]+([^;&|<>()]*[[:blank:]])?$1${END}" \
-    "${WB}(cp|mv|install)[[:blank:]]+[^;&|<>()]*[[:blank:]]$1[[:blank:]]*([;&|)]|\$|[0-9&]*>)" \
+    "${WB}(cp|mv|install)[[:blank:]]+[^;&|<>()]*[[:blank:]]$1([[:blank:]]+-${TOKEN}*([[:blank:]]+[0-9]+)?)*[[:blank:]]*([;&|)]|\$|[0-9&]*>)" \
     "${WB}sed[[:blank:]]+([^;&|<>()]*[[:blank:]])?(-[A-Za-z]*i|--in-place)[^;&|<>()]*[[:blank:]]$1${END}"
 }
 
 # Read the command the way the shell does, so text it only carries is not a
 # write: a quoted commit message, a heredoc body, a comment. The scanner keeps a
-# stack of contexts: code (unquoted, or inside `$( )`), '...', $'...', "...".
+# stack of contexts: code (unquoted, or inside `$( )` or backticks), '...',
+# $'...', "...". A backtick substitution reads as `$( )`.
 # - Text inside quotes becomes plain word characters: whitespace, newlines,
 #   quotes and shell operators turn into `_`. A quoted target stays a target
 #   (`> 'my app.env'` reads `> my_app.env`); a message keeps no operator.
@@ -133,12 +136,14 @@ SCAN=$(printf '%s\n' "$COMMAND" | tr -d '\r' | awk '
       if (t == "D") {
         if (c == "\"") d--
         else if (substr(s, i, 2) == "$(" && substr(s, i + 2, 1) != "(") { st[++d] = "C"; printf "$("; i++ }
+        else if (c == "`") { st[++d] = "B"; printf "$(" }
         else printf "%s", sp(c)
         continue
       }
       if (c == "#" && arith == 0 && wordstart(s, i)) break
       if (c == "\047") { st[++d] = (i > 1 && substr(s, i - 1, 1) == "$") ? "A" : "S"; continue }
       if (c == "\"") { st[++d] = "D"; continue }
+      if (c == "`") { if (t == "B") { d--; printf ")" } else { st[++d] = "B"; printf "$(" }; continue }
       if (substr(s, i, 3) == "$((") { arith++; printf "$(("; i += 2; continue }
       if (substr(s, i, 2) == "((" && wordstart(s, i)) { arith++; printf "(("; i++; continue }
       if (arith > 0 && substr(s, i, 2) == "))") { arith--; printf "))"; i++; continue }
@@ -165,7 +170,7 @@ SCAN=$(printf '%s\n' "$COMMAND" | tr -d '\r' | awk '
     }
     if (cont) next
     if (nt > 0 && !skipping) { skipping = 1; ti = 1 }
-    printf "%s", (st[d] == "U" || st[d] == "C" ? "\n" : "_")
+    printf "%s", (st[d] == "U" || st[d] == "C" || st[d] == "B" ? "\n" : "_")
   }
   END { printf "\n" }')
 fi

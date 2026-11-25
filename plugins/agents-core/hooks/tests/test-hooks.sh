@@ -455,6 +455,16 @@ run_case "bash: a tab-indented tag does not close a plain << heredoc" "${BASH_HO
 	EOF
 echo k > .env
 EOF")" 0
+run_case "bash: cp onto .env as an if condition blocks" "${BASH_HOOK}" \
+  "$(git_payload 'if cp /tmp/key .env; then echo ok; fi')" 2
+run_case "bash: cp onto .env as a case action blocks" "${BASH_HOOK}" \
+  "$(git_payload 'case x in x) cp /tmp/key .env ;; esac')" 2
+run_case "bash: install onto .env with trailing options blocks" "${BASH_HOOK}" \
+  "$(git_payload 'install /tmp/key .env -m 600')" 2
+run_case "bash: a write in backticks inside double quotes blocks" "${BASH_HOOK}" \
+  "$(git_payload 'x="`echo hi > .env`"')" 2
+run_case "bash: cp from .env with a trailing option is a read" "${BASH_HOOK}" \
+  "$(git_payload 'cp .env /tmp/bk -f')" 0
 run_case "bash: a multi-line single-quoted message stays text" "${BASH_HOOK}" \
   "$(git_payload "git commit -m 'fix: guard
 
