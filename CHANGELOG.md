@@ -20,6 +20,8 @@ Notable changes to agents-template. All four plugins share the version of the re
 
 - A role card sent to Codex or `claude -p` carried `${CLAUDE_PLUGIN_ROOT}` unexpanded, so the agent
   could not open the skill files the card names. `card_body` now puts in the plugin path.
+- `at peer enable codex:<model>::<effort>` (one colon too many) stored the effort as `:<effort>`,
+  which every later call passed to Codex. A peer entry with more than three fields is now refused.
 
 - The sensitive-path guard had gaps, found by a Codex peer security review of the hook.
   - Shell writes were not guarded at all. `block-dangerous-bash.sh` now blocks a redirect, `tee`,

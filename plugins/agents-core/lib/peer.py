@@ -52,8 +52,9 @@ def parse_entries(value: str) -> tuple[list[tuple[str, str | None, str | None]],
     """
     entries, unknown = [], []
     for word in value.replace(",", " ").split():
-        cli, model, effort = (word.split(":", 2) + ["", ""])[:3]
-        if cli in CLIS:
+        parts = word.split(":")
+        cli, model, effort = (parts + ["", ""])[:3]
+        if cli in CLIS and len(parts) <= 3:  # `codex:m::low` would store the effort ":low"
             entries.append((cli, model or None, effort or None))
         else:
             unknown.append(word)

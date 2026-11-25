@@ -765,6 +765,8 @@ peer "" ok run --from codex --model opus --effort xhigh --role reviewer --brief 
 assert_contains "$PEER_CALLS" "--model opus --effort xhigh" "--model and --effort reach claude"
 peer 1 ok enable codex::low claude:sonnet:medium >/dev/null
 assert_eq "$(git -C "$PEER_REPO" config --get agents.peers)" "codex::low claude:sonnet:medium" "enable stores default model and effort per CLI"
+peer 1 ok enable codex:gpt-x::low >/dev/null 2>&1; assert_eq "$?" "2" "enable refuses a fourth colon field"
+assert_eq "$(git -C "$PEER_REPO" config --get agents.peers)" "codex::low claude:sonnet:medium" "and keeps the stored setting"
 assert_eq "$(peer 1 ok status)" "peer: codex (model gpt-6-sol, effort low, cyber daybreak_blue)" "without a model codex runs on gpt-6-sol"
 : > "$PEER_CALLS"
 peer "" ok run --from codex --role reviewer --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/m.md" >/dev/null
