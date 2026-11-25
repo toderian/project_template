@@ -465,6 +465,22 @@ run_case "bash: a write in backticks inside double quotes blocks" "${BASH_HOOK}"
   "$(git_payload 'x="`echo hi > .env`"')" 2
 run_case "bash: cp from .env with a trailing option is a read" "${BASH_HOOK}" \
   "$(git_payload 'cp .env /tmp/bk -f')" 0
+run_case "bash: copying a .env into . blocks" "${BASH_HOOK}" \
+  "$(git_payload 'cp ../main/.env .')" 2
+run_case "bash: copying .env.example into . stays allowed" "${BASH_HOOK}" \
+  "$(git_payload 'cp ../main/.env.example .')" 0
+run_case "bash: a \$( ) path prefix does not hide a .env target" "${BASH_HOOK}" \
+  "$(git_payload 'echo A=1 >> "$(git rev-parse --show-toplevel)/.env"')" 2
+run_case "bash: install into .creds/ fed by a here-string blocks" "${BASH_HOOK}" \
+  "$(git_payload 'install -D -m 600 /dev/stdin .creds/key <<< "$K"')" 2
+run_case "bash: an unclosed (( on one line does not leak into a later heredoc" "${BASH_HOOK}" \
+  "$(git_payload 'x=$((cd a && ls) | wc -l)
+cat <<EOF > n
+cp a .env
+EOF')" 0
+run_case "bash: << inside for (( )) is not a heredoc" "${BASH_HOOK}" \
+  "$(git_payload 'for((i=0;i<<1;i++)); do :; done
+echo k > .env')" 2
 run_case "bash: a multi-line single-quoted message stays text" "${BASH_HOOK}" \
   "$(git_payload "git commit -m 'fix: guard
 

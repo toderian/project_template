@@ -67,9 +67,13 @@ done
 TOKEN="[^[:space:];&|<>()]"
 NAME="[^[:space:];&|<>()/]"
 END="([[:space:];&|)<>]|\$)"
-CREDS_TARGET="(${TOKEN}*/)?\\.creds(/${TOKEN}*)?"
+# A directory prefix may include a command substitution: "$(pwd)/.env".
+PREFIX="((${TOKEN}|\\\$\\([^()]*\\))*/)?"
+CREDS_BASE="\\.creds"
 # The same .env files as block-write-sensitive.sh: .env, .env.<x>, .envrc, <name>.env.
-ENV_TARGET="(${TOKEN}*/)?(\\.env(\\.${NAME}*)?|\\.envrc|${NAME}+\\.env)"
+ENV_BASE="(\\.env(\\.${NAME}*)?|\\.envrc|${NAME}+\\.env)"
+CREDS_TARGET="${PREFIX}${CREDS_BASE}(/${TOKEN}*)?"
+ENV_TARGET="${PREFIX}${ENV_BASE}"
 
 # A write command starts a statement: after a separator, `(`, `{`, `$(` or a
 # `case` pattern's `)`, behind any keywords and wrappers (if, elif, while,
@@ -78,14 +82,17 @@ ENV_TARGET="(${TOKEN}*/)?(\\.env(\\.${NAME}*)?|\\.envrc|${NAME}+\\.env)"
 WRAP="(([A-Za-z_][A-Za-z0-9_]*=${TOKEN}*|if|elif|while|until|then|do|else|!|time|command|nohup|exec|env|sudo|doas|xargs)([[:blank:]]+-${TOKEN}*([[:blank:]]+[^-[:space:];&|<>()]${TOKEN}*)?)*[[:blank:]]+)*"
 WB="(^|[;&|({)]|\\\$\\()[[:blank:]]*${WRAP}"
 
-# write_patterns <target regex>: one pattern per line. The cp/mv/install
-# destination is the last word, which may be followed by options (`-f`,
-# `-m 600`) and its own redirect.
+# write_patterns <target regex> <basename regex>: one pattern per line. The
+# cp/mv/install destination is the last word, which may be followed by options
+# (`-f`, `-m 600`), its own redirect or a here-string. Copying a protected name
+# into `.` writes it there too (`cp ../main/.env .`).
+AFTER="([[:blank:]]+-${TOKEN}*([[:blank:]]+[0-9]+)?)*[[:blank:]]*([;&|)<]|\$|[0-9&]*>)"
 write_patterns() {
   printf '%s\n' \
     ">[>|]?[[:blank:]]*$1${END}" \
     "${WB}tee[[:blank:]]+([^;&|<>()]*[[:blank:]])?$1${END}" \
-    "${WB}(cp|mv|install)[[:blank:]]+[^;&|<>()]*[[:blank:]]$1([[:blank:]]+-${TOKEN}*([[:blank:]]+[0-9]+)?)*[[:blank:]]*([;&|)]|\$|[0-9&]*>)" \
+    "${WB}(cp|mv|install)[[:blank:]]+[^;&|<>()]*[[:blank:]]$1${AFTER}" \
+    "${WB}(cp|mv|install)[[:blank:]]+([^;&|<>()]*[[:blank:]])?${PREFIX}$2/?[[:blank:]]+([^;&|<>()]*[[:blank:]])?\\./?${AFTER}" \
     "${WB}sed[[:blank:]]+([^;&|<>()]*[[:blank:]])?(-[A-Za-z]*i|--in-place)[^;&|<>()]*[[:blank:]]$1${END}"
 }
 
@@ -104,7 +111,8 @@ write_patterns() {
 #   open nothing. Only `<<-` lets the closing tag carry leading tabs.
 # - `#` at the start of a word starts a comment; a backslash-newline joins lines.
 # A command over 100 KB is checked as written (some awks slow down
-# quadratically on very long input); that errs toward blocking.
+# quadratically on very long input): a heredoc body there is checked as code,
+# and a quoted target with a space in it passes.
 if (( ${#COMMAND} > 100000 )); then
   SCAN=$COMMAND
 else
@@ -145,7 +153,7 @@ SCAN=$(printf '%s\n' "$COMMAND" | tr -d '\r' | awk '
       if (c == "\"") { st[++d] = "D"; continue }
       if (c == "`") { if (t == "B") { d--; printf ")" } else { st[++d] = "B"; printf "$(" }; continue }
       if (substr(s, i, 3) == "$((") { arith++; printf "$(("; i += 2; continue }
-      if (substr(s, i, 2) == "((" && wordstart(s, i)) { arith++; printf "(("; i++; continue }
+      if (substr(s, i, 2) == "((" && (wordstart(s, i) || substr(s, i - 3, 3) == "for")) { arith++; printf "(("; i++; continue }
       if (arith > 0 && substr(s, i, 2) == "))") { arith--; printf "))"; i++; continue }
       if (arith == 0 && substr(s, i, 2) == "$(") { st[++d] = "C"; printf "$("; i++; continue }
       if (t == "C" && c == "(") { st[++d] = "C"; printf "("; continue }
@@ -170,6 +178,7 @@ SCAN=$(printf '%s\n' "$COMMAND" | tr -d '\r' | awk '
     }
     if (cont) next
     if (nt > 0 && !skipping) { skipping = 1; ti = 1 }
+    arith = 0
     printf "%s", (st[d] == "U" || st[d] == "C" || st[d] == "B" ? "\n" : "_")
   }
   END { printf "\n" }')
@@ -190,9 +199,9 @@ check_writes() {
       echo "BLOCKED: '$COMMAND' writes to a sensitive path (.creds/ or a .env file). If this is intentional, ask the user to do it." >&2
       exit 2
     fi
-  done < <(write_patterns "$target")
+  done < <(write_patterns "$target" "$3")
 }
-check_writes "$SCAN" "$CREDS_TARGET"
-check_writes "$SCAFFOLD_FREE" "$ENV_TARGET"
+check_writes "$SCAN" "$CREDS_TARGET" "$CREDS_BASE"
+check_writes "$SCAFFOLD_FREE" "$ENV_TARGET" "$ENV_BASE"
 
 exit 0
