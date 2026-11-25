@@ -369,7 +369,8 @@ def merge_settings_json(dst_path: Path, seed_json: dict) -> str:
     Managed: `extraKnownMarketplaces` and `enabledPlugins` (missing keys added),
     `permissions.deny` and `permissions.ask` (union, existing order kept; retired
     deny rules dropped),
-    `statusLine` (set only if the repo has none — never replaces a custom one).
+    `statusLine` and `autoCompactWindow` (each set only if the repo has none — never replaces
+    the repo's own value).
     Returns 'created', 'merged' or 'kept'.
     """
     existed = dst_path.exists()
@@ -415,8 +416,9 @@ def merge_settings_json(dst_path: Path, seed_json: dict) -> str:
             rule for rule in existing_permissions["deny"] if rule not in RETIRED_DENY_RULES
         ]
 
-    if "statusLine" in seed_json and "statusLine" not in data:
-        data["statusLine"] = seed_json["statusLine"]
+    for key in ("statusLine", "autoCompactWindow"):
+        if key in seed_json and key not in data:
+            data[key] = seed_json[key]
 
     if existed and json.dumps(data, sort_keys=True) == before:
         return "kept"

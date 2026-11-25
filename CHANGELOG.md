@@ -15,6 +15,9 @@ Notable changes to agents-template. All four plugins share the version of the re
 - Seed `AGENTS.md`: an authorized security task the main model refuses or flags goes to
   `at task run <TASK-ID> --harness codex`.
 - The release check expects Codex CLI 0.172.0.
+- The seed `.claude/settings.json` sets `"autoCompactWindow": 300000`: Claude Code compacts near 300k
+  tokens. `at init` adds it only to a repo that has no value of its own. A number in
+  `.claude/settings.local.json`, `CLAUDE_CODE_AUTO_COMPACT_WINDOW` or `/autocompact` overrides it.
 - `at task run --mode auto` picks large for a `Repos` row only when it names more than one repo, as
   the skill says. A single repo or `N/A` sent every such task through the large pipeline.
 - `at task run` flushes each progress line, so a run logged to a file shows where it is.

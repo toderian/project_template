@@ -153,6 +153,18 @@ at init --all >/dev/null 2>&1
 STATUSLINE_CMD="$(python3 -c 'import json;print(json.load(open(".claude/settings.json"))["statusLine"]["command"])')"
 assert_eq "$STATUSLINE_CMD" "echo custom" "at init never replaces a custom statusLine"
 
+# the seed compacts at 300k tokens; a repo's own window survives re-init
+assert_eq "$(python3 -c 'import json;print(json.load(open(".claude/settings.json"))["autoCompactWindow"])')" "300000" \
+  "at init sets autoCompactWindow 300000"
+python3 -c 'import json, pathlib
+p = pathlib.Path(".claude/settings.json")
+d = json.loads(p.read_text())
+d["autoCompactWindow"] = 500000
+p.write_text(json.dumps(d, indent=2) + "\n")'
+at init --all >/dev/null 2>&1
+assert_eq "$(python3 -c 'import json;print(json.load(open(".claude/settings.json"))["autoCompactWindow"])')" "500000" \
+  "at init never replaces a repo's own autoCompactWindow"
+
 # retired deny rules from an already-seeded repo are dropped on re-init
 python3 -c 'import json,pathlib
 p = pathlib.Path(".claude/settings.json")

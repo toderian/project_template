@@ -93,6 +93,13 @@ at addon enable browser       # opt in, this repo: UI skills plus a browser the 
 bundled safety hooks. In Codex, open `/hooks` after installation or an update and review/trust the
 hook definitions; changed hooks are skipped until their new hash is trusted.
 
+The seed `.claude/settings.json` sets `"autoCompactWindow": 300000`, so Claude Code compacts the
+conversation near 300k tokens instead of filling the model's whole window. To change it in one
+checkout without touching the committed file, put a number in `.claude/settings.local.json` (for
+example `{"autoCompactWindow": 1000000}`); `"auto"` there does not override the project value.
+`CLAUDE_CODE_AUTO_COMPACT_WINDOW=<tokens>` in the shell and `/autocompact` in a session also win.
+`at init` adds the key only when the repo has none.
+
 ## Keep it up to date
 
 Agents close verified tasks through `agents-tasks:complete-task` as part of authorized execution,

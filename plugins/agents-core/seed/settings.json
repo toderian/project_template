@@ -17,6 +17,7 @@
     "agents-core@agents-template": true,
     "caveman@caveman": true
   },
+  "autoCompactWindow": 300000,
   "permissions": {
     "deny": [
       "Edit(./.creds/**)",
