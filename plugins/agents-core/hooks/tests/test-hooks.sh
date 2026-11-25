@@ -529,6 +529,24 @@ run_case "bash: case inside a quoted \$( ) does not leak into later lines" "${BA
 echo k > .env")" 2
 run_case "bash: .env.local.example is a scaffold" "${BASH_HOOK}" \
   "$(git_payload 'cp .env.example .env.local.example')" 0
+run_case "bash: a quoted [[ argument does not hide a later redirect" "${BASH_HOOK}" \
+  "$(git_payload "grep -F '[[' scripts/*.sh | wc -l; echo X=1 > .env")" 2
+run_case "bash: a quoted case argument inside \$( ) does not hide a later write" "${BASH_HOOK}" \
+  "$(git_payload "n=\"\$(grep -c 'case' src/x.sh)\"; echo \$n > .env")" 2
+run_case "bash: command -p does not hide cp" "${BASH_HOOK}" \
+  "$(git_payload 'command -p cp a .env')" 2
+run_case "bash: a write inside a function body blocks" "${BASH_HOOK}" \
+  "$(git_payload 'function f { cp a .env; }; f')" 2
+run_case "bash: a glob that matches .creds blocks" "${BASH_HOOK}" \
+  "$(git_payload 'echo x > .creds*/token')" 2
+run_case "bash: a subshell inside a quoted \$( ) does not hide tee" "${BASH_HOOK}" \
+  "$(git_payload 'echo "$( (cd /tmp) | tee .env )"')" 2
+run_case "bash: <> opens .env for writing" "${BASH_HOOK}" \
+  "$(git_payload 'exec 3<> .env')" 2
+run_case "bash: BSD sed -I on .env blocks" "${BASH_HOOK}" \
+  "$(git_payload "sed -I '' 's/a/b/' .env")" 2
+run_case "bash: braces inside a quoted sed script are not expanded" "${BASH_HOOK}" \
+  "$(git_payload "sed -i 's/{a,b}/.env/' README.md")" 0
 run_case "bash: a multi-line single-quoted message stays text" "${BASH_HOOK}" \
   "$(git_payload "git commit -m 'fix: guard
 

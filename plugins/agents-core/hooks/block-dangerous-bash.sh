@@ -60,7 +60,7 @@ done
 
 # Writes into .creds/ or a .env file. block-write-sensitive.sh guards the file
 # tools; this is the same guardrail for the common shell forms: an output
-# redirect (`>`, `>>`, `>|`, `>&`, `&>`), tee, the destination of
+# redirect (`>`, `>>`, `>|`, `>&`, `&>`, `<>`), tee, the destination of
 # cp/mv/install (also `-t DIR`, and a protected name copied into `.`),
 # `install -d`, and sed -i. Reading stays allowed (`cat .env`, `cp .env /tmp/x`).
 # It stops the accidental write, not a determined one: a path built from a
@@ -71,9 +71,10 @@ done
 # only carries is never a write: it splits the command into simple commands and
 # words, keeping quoted text inside its word, and drops heredoc bodies and
 # comments. `$( )`, backticks and `<( )`/`>( )` are commands of their own, and
-# stand for one opaque piece of the word they sit in. `$(( ))`, `(( ))` and
+# stand for one opaque piece of the word they sit in; a `( )` subshell is a
+# group of its own. `$(( ))`, `(( ))` and
 # `[[ ]]` hold no redirects. Brace expansion (`.env{.example,}`) is expanded.
-# Protected: a `.creds` path segment; a basename `.env`, `.env.<x>`, `.env*`,
+# Protected: a `.creds` path segment (a glob segment counts if it matches); a basename `.env`, `.env.<x>`, `.env*`,
 # `.envrc` or `<name>.env`, except a scaffold: a `.env` name ending in `.example`,
 # `.sample` or `.template` (`.env.example`, `.env.local.example`). `..` segments are resolved first.
 SCAN_BLOCK=$(printf '%s\n' "$COMMAND" | tr -d '\r' | awk '
@@ -84,9 +85,10 @@ SCAN_BLOCK=$(printf '%s\n' "$COMMAND" | tr -d '\r' | awk '
       if (s[i] == ".." && k > 0 && o[k] != ".." && o[k] != "") { k--; continue }
       o[++k] = s[i]
     }
-    for (i = 1; i <= k; i++) if (o[i] == ".creds") return 1
+    for (i = 1; i <= k; i++) if (gm(o[i], ".creds")) return 1
     if (k == 0) return 0
     b = o[k]
+    if (b ~ /[*?[]/ && (gm(b, ".env") || gm(b, ".envrc"))) return 1
     if (b == ".envrc") return 1
     if (substr(b, 1, 4) == ".env") {
       r = substr(b, 5)
@@ -95,6 +97,18 @@ SCAN_BLOCK=$(printf '%s\n' "$COMMAND" | tr -d '\r' | awk '
       return r ~ /^[.*?]/
     }
     return b ~ /.\.env$/
+  }
+  # gm(pattern, name): does the glob match the name? A leading dot must match literally.
+  function gm(p, x,   re, i, c) {
+    if (p !~ /[*?[]/) return p == x
+    if (substr(x, 1, 1) == "." && substr(p, 1, 1) != ".") return 0
+    re = ""
+    for (i = 1; i <= length(p); i++) {
+      c = substr(p, i, 1)
+      if (c == "*") re = re ".*"; else if (c == "?") re = re "."; else if (c == "[") re = re "["
+      else if (index("\\^$.|+(){}]", c)) re = re "\\" c; else re = re c
+    }
+    return x ~ ("^" re "$")
   }
   function base(p) { sub(/\/+$/, "", p); sub(/.*\//, "", p); return p }
   # Brace expansion, one group at a time; a group needs a comma.
@@ -109,33 +123,39 @@ SCAN_BLOCK=$(printf '%s\n' "$COMMAND" | tr -d '\r' | awk '
     }
     return k
   }
-  function checkword(w,   r, k, i) { k = expand(w, r); for (i = 1; i <= k; i++) if (prot(r[i])) blocked = 1 }
+  function checkword(w, q,   r, k, i) { if (q) { if (prot(w)) blocked = 1; return }; k = expand(w, r); for (i = 1; i <= k; i++) if (prot(r[i])) blocked = 1 }
   function add(f, c) { if (length(CW[f]) < 4096) CW[f] = CW[f] c }
-  function endword(f,   w) {
+  # A keyword counts only unquoted, where a command starts.
+  function cmdpos(f) { return WN[f] == 0 || W[f, WN[f]] ~ /^(if|elif|while|until|then|do|else|!|\{|time)$/ }
+  function endword(f,   w, kw, q) {
     if (!CH[f] && CW[f] == "") return
-    w = CW[f]; CW[f] = ""; CH[f] = 0
-    if (RP[f] == 1 || (RP[f] == 4 && w !~ /^([0-9]+-?|-)$/)) { checkword(w); RP[f] = 0; return }
+    w = CW[f]; q = CH[f]; kw = !q && cmdpos(f); CW[f] = ""; CH[f] = 0
+    if (RP[f] == 1 || (RP[f] == 4 && w !~ /^([0-9]+-?|-)$/)) { checkword(w, q); RP[f] = 0; return }
     if (RP[f]) { RP[f] = 0; return }
-    W[f, ++WN[f]] = w
-    if (w == "[[") DBL[f] = 1
-    else if (w == "]]") DBL[f] = 0
-    else if (w == "case") INC[f]++
-    else if (w == "esac" && INC[f] > 0) INC[f]--
+    if (DBL[f] && w == "]]") DBL[f] = 0
+    else if (kw && w == "[[") DBL[f] = 1
+    else if (kw && w == "case") INC[f]++
+    else if (kw && w == "esac" && INC[f] > 0) INC[f]--
+    W[f, ++WN[f]] = w; WQ[f, WN[f]] = q
   }
   function evalcmd(f,   A, na, i, j, k, r, w, a, cmd, td, ops, no, dd, dflag, ip, sg, pos, t, d, ns) {
     na = 0
-    for (i = 1; i <= WN[f]; i++) { k = expand(W[f, i], r); for (j = 1; j <= k; j++) A[++na] = r[j] }
+    for (i = 1; i <= WN[f]; i++) {
+      if (WQ[f, i]) { A[++na] = W[f, i]; continue }
+      k = expand(W[f, i], r); for (j = 1; j <= k; j++) A[++na] = r[j]
+    }
     WN[f] = 0; RP[f] = 0
     i = 1
     while (i <= na) {
       w = A[i]
-      if (w ~ /^[A-Za-z_][A-Za-z0-9_]*=/ || w ~ /^(!|\{|\}|then|do|else|elif|if|while|until|time|command|nohup|exec|builtin)$/) { i++; continue }
-      if (w ~ /^(sudo|doas|env|xargs|timeout|nice|ionice|stdbuf)$/) {
+      if (w ~ /^[A-Za-z_][A-Za-z0-9_]*\+?=/ || w ~ /^(!|\{|\}|then|do|else|elif|if|while|until|nohup)$/) { i++; continue }
+      if (w == "function") { i += 2; continue }
+      if (w ~ /^(sudo|doas|env|xargs|timeout|nice|ionice|stdbuf|command|builtin|time|exec)$/) {
         i++
         while (i <= na && (A[i] ~ /^-/ || (w == "env" && A[i] ~ /=/))) {
           if ((w ~ /^(sudo|doas)$/ && A[i] ~ /^-[ugCDhprRT]$/) || (w == "env" && A[i] ~ /^-[uSC]$/) \
               || (w == "xargs" && A[i] ~ /^-[IdLnPsaE]$/) || (w == "timeout" && A[i] ~ /^-[sk]$/) \
-              || (w ~ /^(nice|ionice|stdbuf)$/ && A[i] ~ /^-[nctioe]$/)) i++
+              || (w ~ /^(nice|ionice|stdbuf)$/ && A[i] ~ /^-[nctioe]$/) || (w == "exec" && A[i] == "-a")) i++
           i++
         }
         if (w == "timeout") i++
@@ -185,7 +205,7 @@ SCAN_BLOCK=$(printf '%s\n' "$COMMAND" | tr -d '\r' | awk '
         if (a ~ /^--(expression|file)$/) { sg = 1; i++; continue }
         if (a ~ /^--(expression|file)=/) { sg = 1; continue }
         if (a ~ /^--/) continue
-        if (a ~ /^-[^-i]*i/) { ip = 1; continue }
+        if (a ~ /^-[^-iI]*[iI]/) { ip = 1; continue }
         if (a ~ /[ef]$/) { sg = 1; i++ }
       }
       if (ip) for (k = 1; k <= no; k++) if (prot(ops[k])) blocked = 1
@@ -260,8 +280,16 @@ SCAN_BLOCK=$(printf '%s\n' "$COMMAND" | tr -d '\r' | awk '
         if (c == "(" && ch[i + 1] == "(" && !CH[f] && (CW[f] == "for" || (CW[f] == "" && (WN[f] == 0 || W[f, WN[f]] == "for")))) { endword(f); i = arith(i + 2, f); continue }
         if (c == "$" && ch[i + 1] == "(") { i++; openf("C"); continue }
         if ((c == "<" || c == ">") && ch[i + 1] == "(" && !DBL[f]) { i++; openf("P"); continue }
-        if (c == ")") { endword(f); if ((FK[f] == "C" || FK[f] == "P") && !INC[f]) closef(); else evalcmd(f); continue }
-        if (c == "(" || c == ";" || c == "|" || (c == "&" && ch[i + 1] != ">")) { endword(f); evalcmd(f); continue }
+        if (c == "$" && ch[i + 1] == "[") { for (i += 2; i <= n && ch[i] != "]"; i++); add(f, "\001"); CH[f] = 1; continue }
+        if (c == ")") {
+          endword(f)
+          if (FK[f] == "G") { evalcmd(f); fd-- }
+          else if ((FK[f] == "C" || FK[f] == "P") && !INC[f]) closef()
+          else evalcmd(f)
+          continue
+        }
+        if (c == "(") { endword(f); evalcmd(f); openf("G"); continue }
+        if (c == ";" || c == "|" || (c == "&" && ch[i + 1] != ">")) { endword(f); evalcmd(f); continue }
         if (DBL[f] && (c == "<" || c == ">")) { endword(f); continue }
         if (c == "&") { endword(f); i++; if (ch[i + 1] == ">") i++; RP[f] = 1; continue }
         if (c == ">") {
@@ -275,7 +303,8 @@ SCAN_BLOCK=$(printf '%s\n' "$COMMAND" | tr -d '\r' | awk '
           if (CW[f] ~ /^[0-9]+$/ && !CH[f]) CW[f] = ""; else endword(f)
           if (ch[i + 1] == "<" && ch[i + 2] == "<") { i += 2; RP[f] = 2; continue }
           if (ch[i + 1] == "<") { i = heredoc(i + 2); continue }
-          if (ch[i + 1] == "&" || ch[i + 1] == ">") i++
+          if (ch[i + 1] == ">") { i++; RP[f] = 1; continue }
+          if (ch[i + 1] == "&") i++
           RP[f] = 2; continue
         }
         add(f, c)
