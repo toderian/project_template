@@ -8,10 +8,13 @@ source "${SCRIPT_DIR}/lib/paths.sh"
 
 INPUT=$(cat)
 
-# Segment-anchored: a sensitive word only blocks when it is (or starts) a
-# whole path segment — "docs/secrets-rotation.md" is fine, "secrets/x" or
-# "config/credentials/prod.json" is not.
-SEGMENT_PATTERN='(^|/)(\.env(\..*)?|secrets?|credentials?)(/|$)'
+# Segment-anchored: a sensitive word only blocks when it is a whole path
+# segment, alone or with a config-file extension — "docs/secrets-rotation.md"
+# and "docs/secrets.md" are fine; "secrets/x", "secrets.yaml",
+# "config/credentials/prod.json" and "credentials.json" are not. Any "*.env"
+# file (prod.env) and .envrc count as .env files.
+SECRET_EXT='json|ya?ml|toml|ini|txt|env|properties|xml|conf|cfg'
+SEGMENT_PATTERN="(^|/)(\\.env(\\..*)?|\\.envrc|[^/]+\\.env|(secrets?|credentials?)(\\.(${SECRET_EXT}))?)(/|\$)"
 
 # .creds/ is checked separately, before the example/sample/template
 # allowlist below: unlike .env.example, a file under .creds/ is never a
@@ -19,7 +22,7 @@ SEGMENT_PATTERN='(^|/)(\.env(\..*)?|secrets?|credentials?)(/|$)'
 CREDS_PATTERN='(^|/)\.creds(/|$)'
 
 # Whole-basename patterns for well-known private-key file shapes.
-BASENAME_PATTERN='^(id_rsa|id_ed25519|.*\.pem|.*\.key|.*\.p12|.*\.agekey)$'
+BASENAME_PATTERN='^(id_(rsa|dsa|ecdsa|ed25519)(_sk)?|.*\.pem|.*\.key|.*\.p12|.*\.pfx|.*\.agekey)$'
 
 OTHER_SENSITIVE_PATTERNS=(
   '\.git/'
@@ -27,7 +30,7 @@ OTHER_SENSITIVE_PATTERNS=(
   '\.aws/'
 )
 
-PROTECTED_SUMMARY="Protected: .env, .creds/, .git/, credentials, secrets, private keys, .pem/.key, .ssh/, .aws/. If this is intentional, ask the user to override."
+PROTECTED_SUMMARY="Protected: .env and *.env, .creds/, .git/, credentials, secrets, private keys, .pem/.key, .ssh/, .aws/. If this is intentional, ask the user to override."
 
 # Example/sample/template scaffolds are committed, non-secret docs by
 # convention (e.g. .env.example, project.env.template). Never block these —
@@ -39,35 +42,53 @@ is_allowlisted() {
   esac
 }
 
-while IFS= read -r FILE_PATH; do
-  [ -z "${FILE_PATH}" ] && continue
+# check_path <path> <path as the tool call gave it>: exits 2 on a protected path.
+check_path() {
+  local path="$1" shown="$2" pattern
 
-  if echo "${FILE_PATH}" | grep -qE "${CREDS_PATTERN}"; then
-    echo "BLOCKED: refused to write to sensitive path '${FILE_PATH}' (matched: ${CREDS_PATTERN}). ${PROTECTED_SUMMARY}" >&2
+  if echo "${path}" | grep -qE "${CREDS_PATTERN}"; then
+    echo "BLOCKED: refused to write to sensitive path '${shown}' (matched: ${CREDS_PATTERN}). ${PROTECTED_SUMMARY}" >&2
     exit 2
   fi
 
-  if is_allowlisted "${FILE_PATH}"; then
-    continue
+  if is_allowlisted "${path}"; then
+    return 0
   fi
 
-  if echo "${FILE_PATH}" | grep -qE "${SEGMENT_PATTERN}"; then
-    echo "BLOCKED: refused to write to sensitive path '${FILE_PATH}' (matched: ${SEGMENT_PATTERN}). ${PROTECTED_SUMMARY}" >&2
+  if echo "${path}" | grep -qE "${SEGMENT_PATTERN}"; then
+    echo "BLOCKED: refused to write to sensitive path '${shown}' (matched: ${SEGMENT_PATTERN}). ${PROTECTED_SUMMARY}" >&2
     exit 2
   fi
 
-  BASENAME=$(basename "${FILE_PATH}")
-  if echo "${BASENAME}" | grep -qE "${BASENAME_PATTERN}"; then
-    echo "BLOCKED: refused to write to sensitive path '${FILE_PATH}' (matched basename: ${BASENAME_PATTERN}). ${PROTECTED_SUMMARY}" >&2
+  if basename "${path}" | grep -qE "${BASENAME_PATTERN}"; then
+    echo "BLOCKED: refused to write to sensitive path '${shown}' (matched basename: ${BASENAME_PATTERN}). ${PROTECTED_SUMMARY}" >&2
     exit 2
   fi
 
   for pattern in "${OTHER_SENSITIVE_PATTERNS[@]}"; do
-    if echo "${FILE_PATH}" | grep -qE "${pattern}"; then
-      echo "BLOCKED: refused to write to sensitive path '${FILE_PATH}' (matched: ${pattern}). ${PROTECTED_SUMMARY}" >&2
+    if echo "${path}" | grep -qE "${pattern}"; then
+      echo "BLOCKED: refused to write to sensitive path '${shown}' (matched: ${pattern}). ${PROTECTED_SUMMARY}" >&2
       exit 2
     fi
   done
+}
+
+# Relative paths resolve against the tool call's cwd, as the tool itself does.
+HOOK_CWD=$(echo "${INPUT}" | jq -r '.cwd // empty')
+[ -n "${HOOK_CWD}" ] && cd "${HOOK_CWD}" 2>/dev/null
+
+while IFS= read -r FILE_PATH; do
+  [ -z "${FILE_PATH}" ] && continue
+  check_path "${FILE_PATH}" "${FILE_PATH}"
+
+  # A symlink on the way (safe -> .creds) hides the real target: when resolving
+  # links changes the path, the resolved path must pass too. Without GNU
+  # realpath both come back empty and only the path as given is checked.
+  RESOLVED=$(realpath -m -- "${FILE_PATH}" 2>/dev/null)
+  LEXICAL=$(realpath -ms -- "${FILE_PATH}" 2>/dev/null)
+  if [ -n "${RESOLVED}" ] && [ "${RESOLVED}" != "${LEXICAL}" ]; then
+    check_path "${RESOLVED}" "${FILE_PATH} -> ${RESOLVED}"
+  fi
 done < <(hook_target_paths "${INPUT}")
 
 exit 0

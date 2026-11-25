@@ -314,6 +314,32 @@ run_case "bash: rm -rf ./build stays allowed" "${BASH_HOOK}" \
 run_case "bash: rm -rf /tmp/scratch-dir stays allowed" "${BASH_HOOK}" \
   "$(git_payload 'rm -rf /tmp/scratch-dir')" 0
 
+# Shell writes into .creds/ or a .env file block; reads and scaffolds do not.
+run_case "bash: redirect into .env blocks" "${BASH_HOOK}" \
+  "$(git_payload 'printf x > .env')" 2
+run_case "bash: append into .creds/ blocks" "${BASH_HOOK}" \
+  "$(git_payload 'echo k >> .creds/token')" 2
+run_case "bash: redirect into a quoted nested .env.local blocks" "${BASH_HOOK}" \
+  "$(git_payload 'cd app && cat tmpl >"config/.env.local"')" 2
+run_case "bash: cp onto .env blocks" "${BASH_HOOK}" \
+  "$(git_payload 'cp .env.example .env')" 2
+run_case "bash: mv into .creds/ blocks" "${BASH_HOOK}" \
+  "$(git_payload 'mv /tmp/key .creds/')" 2
+run_case "bash: tee into .creds/ blocks" "${BASH_HOOK}" \
+  "$(git_payload 'echo k | tee -a .creds/x')" 2
+run_case "bash: sed -i on .env blocks" "${BASH_HOOK}" \
+  "$(git_payload "sed -i 's/a/b/' .env")" 2
+run_case "bash: redirect into .creds/x.example blocks" "${BASH_HOOK}" \
+  "$(git_payload 'echo k > .creds/x.example')" 2
+run_case "bash: redirect into .env.example stays allowed" "${BASH_HOOK}" \
+  "$(git_payload 'printf "A=1" > .env.example')" 0
+run_case "bash: reading .env stays allowed" "${BASH_HOOK}" \
+  "$(git_payload 'grep -c = .env > /tmp/count; cat .env')" 0
+run_case "bash: copying out of .creds/ stays allowed" "${BASH_HOOK}" \
+  "$(git_payload 'cp -r .creds /tmp/backup')" 0
+run_case "bash: redirect into .envoy.yaml stays allowed" "${BASH_HOOK}" \
+  "$(git_payload 'echo x > .envoy.yaml')" 0
+
 # jq missing: fail closed.
 run_case "bash: jq missing fails closed" "${BASH_HOOK}" \
   "$(git_payload 'ls -la')" 2 "${NONEXISTENT_PATH}"
@@ -356,6 +382,36 @@ run_case "write: config/credentials/prod.json blocks" "${WRITE_HOOK}" \
   "$(file_payload 'config/credentials/prod.json')" 2
 run_case "write: id_rsa blocks" "${WRITE_HOOK}" \
   "$(file_payload 'id_rsa')" 2
+
+# A sensitive name with a config extension, *.env files and the other key shapes block.
+run_case "write: credentials.json blocks" "${WRITE_HOOK}" \
+  "$(file_payload 'config/credentials.json')" 2
+run_case "write: secrets.yaml blocks" "${WRITE_HOOK}" \
+  "$(file_payload 'secrets.yaml')" 2
+run_case "write: prod.env blocks" "${WRITE_HOOK}" \
+  "$(file_payload 'deploy/prod.env')" 2
+run_case "write: .envrc blocks" "${WRITE_HOOK}" \
+  "$(file_payload '.envrc')" 2
+run_case "write: id_ecdsa blocks" "${WRITE_HOOK}" \
+  "$(file_payload 'id_ecdsa')" 2
+run_case "write: key.pfx blocks" "${WRITE_HOOK}" \
+  "$(file_payload 'certs/key.pfx')" 2
+run_case "write: docs/secrets.md stays allowed" "${WRITE_HOOK}" \
+  "$(file_payload 'docs/secrets.md')" 0
+run_case "write: src/environment.ts stays allowed" "${WRITE_HOOK}" \
+  "$(file_payload 'src/environment.ts')" 0
+
+# A symlink on the way to a protected directory does not hide it.
+LINK_REPO="${WORKDIR}/link-repo"
+mkdir -p "${LINK_REPO}/.creds" "${LINK_REPO}/src"
+ln -s .creds "${LINK_REPO}/safe"
+ln -s src "${LINK_REPO}/code"
+run_case "write: path through a symlink into .creds/ blocks" "${WRITE_HOOK}" \
+  "$(jq -n --arg cwd "${LINK_REPO}" '{cwd: $cwd, tool_input: {file_path: "safe/token"}}')" 2
+run_case "write: absolute path through a symlink into .creds/ blocks" "${WRITE_HOOK}" \
+  "$(file_payload "${LINK_REPO}/safe/token")" 2
+run_case "write: path through a symlink into an ordinary directory stays allowed" "${WRITE_HOOK}" \
+  "$(jq -n --arg cwd "${LINK_REPO}" '{cwd: $cwd, tool_input: {file_path: "code/a.js"}}')" 0
 
 # apply_patch (Codex): path recovered from the patch body, not tool_input.file_path.
 run_case "apply_patch: '*** Add File: .creds/token.txt' blocks" "${WRITE_HOOK}" \

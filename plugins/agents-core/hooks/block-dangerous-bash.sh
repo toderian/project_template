@@ -58,4 +58,41 @@ for pattern in "${DANGEROUS_PATTERNS[@]}"; do
   fi
 done
 
+# Writes into .creds/ or a .env file. block-write-sensitive.sh guards the file
+# tools; this is the same guardrail for the common shell forms: a redirect,
+# tee, the destination of cp/mv/install, and sed -i. Reading stays allowed
+# (`cat .env`, `cp .env /tmp/x`). It stops the accidental write, not a
+# determined one.
+Q="[\"']?"
+TOKEN="[^[:space:];&|<>\"']"
+END="${Q}([[:space:];&|)]|\$)"
+CREDS_TARGET="(${TOKEN}*/)?\\.creds(/${TOKEN}*)?"
+ENV_TARGET="(${TOKEN}*/)?\\.env(\\.[^[:space:];&|<>\"'/]*)?"
+
+# write_patterns <target regex>: one pattern per line.
+write_patterns() {
+  printf '%s\n' \
+    ">>?[[:blank:]]*${Q}$1${END}" \
+    "${CB}tee[[:blank:]]+([^;&|]*[[:blank:]])?${Q}$1${END}" \
+    "${CB}(cp|mv|install)[[:blank:]]+[^;&|]*[[:blank:]]${Q}$1${Q}[[:blank:]]*([;&|)]|\$)" \
+    "${CB}sed[[:blank:]]+([^;&|]*[[:blank:]])?-i[^;&|]*[[:blank:]]${Q}$1${END}"
+}
+
+# .env.example, .env.sample and .env.template are committed scaffolds: drop
+# those words before the .env check. Nothing under .creds/ is a scaffold, so
+# that check reads the command as given.
+SCAFFOLD_FREE=$(printf '%s\n' "$COMMAND" | sed -E "s/${TOKEN}*\\.(example|sample|template)(${Q}([[:space:];&|)]|\$))/\\2/g")
+
+check_writes() {
+  local text="$1" target="$2" pattern
+  while IFS= read -r pattern; do
+    if printf '%s\n' "$text" | grep -qE -- "$pattern"; then
+      echo "BLOCKED: '$COMMAND' writes to a sensitive path (.creds/ or a .env file). If this is intentional, ask the user to do it." >&2
+      exit 2
+    fi
+  done < <(write_patterns "$target")
+}
+check_writes "$COMMAND" "$CREDS_TARGET"
+check_writes "$SCAFFOLD_FREE" "$ENV_TARGET"
+
 exit 0
