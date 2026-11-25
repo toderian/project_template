@@ -84,75 +84,94 @@ write_patterns() {
     ">[>|]?[[:blank:]]*$1${END}" \
     "${WB}tee[[:blank:]]+([^;&|<>()]*[[:blank:]])?$1${END}" \
     "${WB}(cp|mv|install)[[:blank:]]+[^;&|<>()]*[[:blank:]]$1[[:blank:]]*([;&|)]|\$|[0-9&]*>)" \
-    "${WB}sed[[:blank:]]+([^;&|<>()]*[[:blank:]])?(-i|--in-place)[^;&|<>()]*[[:blank:]]$1${END}"
+    "${WB}sed[[:blank:]]+([^;&|<>()]*[[:blank:]])?(-[A-Za-z]*i|--in-place)[^;&|<>()]*[[:blank:]]$1${END}"
 }
 
 # Read the command the way the shell does, so text it only carries is not a
-# write: a quoted commit message, a heredoc body, a comment.
-# - A quoted string becomes one plain word: the quotes go, and whitespace,
-#   newlines, quotes and shell operators inside it become `_`. A quoted target
-#   stays a target (`> 'my app.env'` reads `> my_app.env`); a message keeps no
-#   operator. A backslash escape reads the same way.
+# write: a quoted commit message, a heredoc body, a comment. The scanner keeps a
+# stack of contexts: code (unquoted, or inside `$( )`), '...', $'...', "...".
+# - Text inside quotes becomes plain word characters: whitespace, newlines,
+#   quotes and shell operators turn into `_`. A quoted target stays a target
+#   (`> 'my app.env'` reads `> my_app.env`); a message keeps no operator.
+#   `$( )` inside "..." is code again, so `x="$(echo k > .env)"` is a write.
 # - A heredoc body is dropped; the line that opens it keeps its redirect. Every
-#   opener form counts (`<<EOF`, `<<-EOF`, `<<'EOF'`, `<<"EOF"`, `<<\EOF`, a tag
-#   with `-` or `.`, several on one line), and so does one inside `"$( ... )"`,
-#   the usual commit-message form. `<<` in other quoted text, `<<<` and `<<`
-#   inside `$(( ))` open nothing.
+#   opener form counts (`<<EOF`, `<<-EOF`, `<<'EOF'`, `<<"EOF"`, `<<\EOF`, a
+#   quoted tag with spaces, any unquoted word as tag, several on one line, one inside `"$( ... )"`), and
+#   `EOF)` closes one inside `$( )`. `<<<`, and `<<` in quotes or arithmetic,
+#   open nothing. Only `<<-` lets the closing tag carry leading tabs.
 # - `#` at the start of a word starts a comment; a backslash-newline joins lines.
+# A command over 100 KB is checked as written (some awks slow down
+# quadratically on very long input); that errs toward blocking.
+if (( ${#COMMAND} > 100000 )); then
+  SCAN=$COMMAND
+else
 SCAN=$(printf '%s\n' "$COMMAND" | tr -d '\r' | awk '
-  function sp(c) { return index(" \t<>|;&()\"\047", c) ? "_" : c }
+  function sp(c) { return index(" \t<>|;&()\"\047`", c) ? "_" : c }
   function wordstart(s, i) { return i == 1 || index(" \t;&|(", substr(s, i - 1, 1)) > 0 }
-  skipping {
-    line = $0; sub(/^\t+/, "", line)
-    if (line == tags[ti] && ++ti > nt) { skipping = 0; nt = 0 }
-    next
-  }
+  BEGIN { d = 1; st[1] = "U" }
   {
-    s = $0; n = length(s); cont = 0
+    s = $0
+    if (skipping) {
+      line = s; if (strip[ti]) sub(/^\t+/, "", line)
+      tl = length(tags[ti])
+      if (line == tags[ti] || (st[d] == "C" && substr(line, 1, tl + 1) == tags[ti] ")")) {
+        rest = substr(line, tl + 1)
+        if (++ti > nt) { skipping = 0; nt = 0 }
+        if (skipping || rest == "") next
+        s = rest
+      } else next
+    }
+    n = length(s); cont = 0
     for (i = 1; i <= n; i++) {
-      c = substr(s, i, 1)
-      if (q == "\047") { if (c == q) q = ""; else printf "%s", sp(c); continue }
+      c = substr(s, i, 1); t = st[d]
+      if (t == "S") { if (c == "\047") d--; else printf "%s", sp(c); continue }
       if (c == "\\") {
         if (i == n) { cont = 1; break }
         i++; printf "%s", sp(substr(s, i, 1)); continue
       }
-      if (q == "\"" && dsub == 0) {
-        if (c == q) q = ""
-        else if (c == "$" && substr(s, i + 1, 1) == "(" && substr(s, i + 2, 1) != "(") { dsub = 1; i++; printf "__" }
+      if (t == "A") { if (c == "\047") d--; else printf "%s", sp(c); continue }
+      if (t == "D") {
+        if (c == "\"") d--
+        else if (substr(s, i, 2) == "$(" && substr(s, i + 2, 1) != "(") { st[++d] = "C"; printf "$("; i++ }
         else printf "%s", sp(c)
         continue
       }
-      if (q == "\"") {
-        if (c == "\"") { q = ""; dsub = 0; continue }
-        if (c == ")") { dsub--; printf "_"; continue }
-        if (c == "(") { dsub++; printf "_"; continue }
-      } else {
-        if (c == "#" && arith == 0 && wordstart(s, i)) break
-        if (c == "\"" || c == "\047") { q = c; continue }
-        if (substr(s, i, 3) == "$((") { arith++; printf "$(("; i += 2; continue }
-        if (arith > 0 && substr(s, i, 2) == "))") { arith--; printf "))"; i++; continue }
-      }
-      if (substr(s, i, 3) == "<<<") { printf "%s", (q == "" ? "<<<" : "___"); i += 2; continue }
+      if (c == "#" && arith == 0 && wordstart(s, i)) break
+      if (c == "\047") { st[++d] = (i > 1 && substr(s, i - 1, 1) == "$") ? "A" : "S"; continue }
+      if (c == "\"") { st[++d] = "D"; continue }
+      if (substr(s, i, 3) == "$((") { arith++; printf "$(("; i += 2; continue }
+      if (substr(s, i, 2) == "((" && wordstart(s, i)) { arith++; printf "(("; i++; continue }
+      if (arith > 0 && substr(s, i, 2) == "))") { arith--; printf "))"; i++; continue }
+      if (arith == 0 && substr(s, i, 2) == "$(") { st[++d] = "C"; printf "$("; i++; continue }
+      if (t == "C" && c == "(") { st[++d] = "C"; printf "("; continue }
+      if (t == "C" && c == ")") { d--; printf ")"; continue }
+      if (substr(s, i, 3) == "<<<") { printf "<<<"; i += 2; continue }
       if (arith == 0 && substr(s, i, 2) == "<<") {
-        j = i + 2; if (substr(s, j, 1) == "-") j++
+        j = i + 2; dash = 0; if (substr(s, j, 1) == "-") { dash = 1; j++ }
         while (substr(s, j, 1) == " " || substr(s, j, 1) == "\t") j++
-        qc = substr(s, j, 1); if (qc == "\047" || qc == "\"" || qc == "\\") j++
-        tag = ""; while (substr(s, j, 1) ~ /[A-Za-z0-9_.-]/) { tag = tag substr(s, j, 1); j++ }
+        qc = substr(s, j, 1); tag = ""
+        if (qc == "\047" || qc == "\"") {
+          k = index(substr(s, j + 1), qc); if (k > 1) { tag = substr(s, j + 1, k - 1); j += k + 1 }
+        } else {
+          if (qc == "\\") j++
+          while (j <= n && !index(" \t;&|<>()\"\047", substr(s, j, 1))) { tag = tag substr(s, j, 1); j++ }
+        }
         if (tag != "") {
-          if ((qc == "\047" || qc == "\"") && substr(s, j, 1) == qc) j++
-          tags[++nt] = tag; printf "%s", (q == "" ? "<<" : "__") tag; i = j - 1; continue
+          tags[++nt] = tag; strip[nt] = dash; shown = tag; gsub(/[ \t]/, "_", shown)
+          printf "<<%s", shown; i = j - 1; continue
         }
       }
-      printf "%s", (q == "" ? c : sp(c))
+      printf "%s", c
     }
     if (cont) next
-    if (nt > 0) { skipping = 1; ti = 1 }
-    printf "%s", (q == "" ? "\n" : "_")
+    if (nt > 0 && !skipping) { skipping = 1; ti = 1 }
+    printf "%s", (st[d] == "U" || st[d] == "C" ? "\n" : "_")
   }
   END { printf "\n" }')
+fi
 
 # `cp -t DIR SRC...`: move DIR to the end, where the destination rule looks.
-SCAN=$(printf '%s\n' "$SCAN" | sed -E "s/(-t[[:blank:]]*|--target-directory[=[:blank:]][[:blank:]]*)(${TOKEN}+)([^;&|<>()]*)/\\3 \\2/g")
+SCAN=$(printf '%s\n' "$SCAN" | sed -E "s/(^|[[:blank:]])(-t[[:blank:]]*|--target-directory[=[:blank:]][[:blank:]]*)(${TOKEN}+)([^;&|<>()]*)/\\1\\4 \\3/g")
 
 # .env.example, .env.sample and .env.template are committed scaffolds: drop
 # those words before the .env check. Nothing under .creds/ is a scaffold, so

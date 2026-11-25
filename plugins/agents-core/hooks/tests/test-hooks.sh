@@ -432,6 +432,29 @@ run_case "bash: a <<\\EOF heredoc body is text" "${BASH_HOOK}" \
   "$(git_payload 'cat <<\EOF > notes
 echo > .env file
 EOF')" 0
+run_case "bash: a source word with -t in it is not cp -t" "${BASH_HOOK}" \
+  "$(git_payload 'cp ~/Downloads/gcp-token.json .creds/')" 2
+run_case "bash: a .env source under a dir with -t in it is a read" "${BASH_HOOK}" \
+  "$(git_payload 'cp ../web-tests/.env ../backup/')" 0
+run_case "bash: sed -Ei on .env blocks" "${BASH_HOOK}" \
+  "$(git_payload "sed -Ei 's/a/b/' .env")" 2
+run_case "bash: a write inside a quoted command substitution blocks" "${BASH_HOOK}" \
+  "$(git_payload 'x="$(echo hi > .env)"')" 2
+run_case "bash: a double quote inside single quotes in \$( ) does not hide later writes" "${BASH_HOOK}" \
+  "$(git_payload "msg=\"\$(printf '%s\"' x)\"; echo k > .env")" 2
+run_case "bash: an arithmetic shift in (( )) is not a heredoc" "${BASH_HOOK}" \
+  "$(git_payload '(( y = x << 2 ))
+echo k > .env')" 2
+run_case "bash: EOF) closes a heredoc inside \$( )" "${BASH_HOOK}" \
+  "$(git_payload 'x=$(cat <<EOF
+hi
+EOF)
+echo k > .env')" 2
+run_case "bash: a tab-indented tag does not close a plain << heredoc" "${BASH_HOOK}" \
+  "$(git_payload "cat <<EOF > n
+	EOF
+echo k > .env
+EOF")" 0
 run_case "bash: a multi-line single-quoted message stays text" "${BASH_HOOK}" \
   "$(git_payload "git commit -m 'fix: guard
 
