@@ -356,6 +356,39 @@ EOF
 echo k > .creds/token")" 2
 run_case "bash: a quoted redirect target into .creds/ blocks" "${BASH_HOOK}" \
   "$(git_payload "echo k > '.creds/x'")" 2
+# Quoted destinations of cp/tee/sed -i are still writes.
+run_case "bash: cp onto a quoted .env blocks" "${BASH_HOOK}" \
+  "$(git_payload 'cp .env.example ".env"')" 2
+run_case "bash: tee into a quoted .creds/ path blocks" "${BASH_HOOK}" \
+  "$(git_payload "tee '.creds/x' < k")" 2
+run_case "bash: sed -i on a quoted .env blocks" "${BASH_HOOK}" \
+  "$(git_payload "sed -i 's/a/b/' \".env\"")" 2
+run_case "bash: cp onto .env with a trailing redirect blocks" "${BASH_HOOK}" \
+  "$(git_payload 'cp x .env 2>/dev/null')" 2
+# A multi-line quoted message is text, not a command.
+run_case "bash: a multi-line commit message that mentions a .env write stays allowed" "${BASH_HOOK}" \
+  "$(git_payload 'git commit -m "fix: guard
+
+- cp .env.example .env
+- echo x > .env"')" 0
+# Only a real heredoc opens a heredoc body.
+run_case "bash: an arithmetic shift is not a heredoc" "${BASH_HOOK}" \
+  "$(git_payload 'echo $((a<<b)) > out
+echo x > .env')" 2
+run_case "bash: quoted heredoc syntax is not a heredoc" "${BASH_HOOK}" \
+  "$(git_payload "echo 'cat <<EOF'
+echo x > .env")" 2
+# The shell rule covers the same .env files as the file tools, and the clobber redirect.
+run_case "bash: tee into .envrc blocks" "${BASH_HOOK}" \
+  "$(git_payload 'echo x | tee .envrc')" 2
+run_case "bash: redirect into deploy/prod.env blocks" "${BASH_HOOK}" \
+  "$(git_payload 'echo x > deploy/prod.env')" 2
+run_case "bash: clobber redirect into .env blocks" "${BASH_HOOK}" \
+  "$(git_payload 'echo a >| .env')" 2
+run_case "bash: redirect into environment.ts stays allowed" "${BASH_HOOK}" \
+  "$(git_payload 'echo x > src/environment.ts')" 0
+run_case "bash: a quoted word holding a redirect is text" "${BASH_HOOK}" \
+  "$(git_payload 'echo "a>b.env"')" 0
 
 # jq missing: fail closed.
 run_case "bash: jq missing fails closed" "${BASH_HOOK}" \

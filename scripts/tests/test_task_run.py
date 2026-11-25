@@ -111,13 +111,17 @@ class TaskRun(unittest.TestCase):
         self.assertFalse(lock.exists())
     def test_auto_mode_counts_repos_in_the_repos_row(self):
         def mode(value):
-            t = repo(); f = next((t / "docs/tasks_manager/_todos").glob("TST-003-*.md"))
-            f.write_text(f.read_text().replace("| Repos         | demo-service                                  |", f"| Repos         | {value} |"))
+            # Drop the other large triggers (Design section, a third phase) so only the Repos row decides.
+            t = repo(); f = next((t / "docs/tasks_manager/_todos").glob("TST-003-*.md")); text = f.read_text()
+            text = text[:text.index("### Design")] + text[text.index("### Phases"):]
+            text = text[:text.index("#### Phase 3")] + text[text.index("### Acceptance criteria"):]
+            f.write_text(text.replace("| Repos         | demo-service                                  |", f"| Repos         | {value} |"))
             subprocess.run(["git", "-C", str(t), "commit", "-qam", "repos"], check=True)
-            p = run(t, "--phase", "1", "--dry-run"); self.assertEqual(p.returncode, 0, p.stderr); return p.stdout
-        self.assertNotIn("repos", mode("demo-service").split("[mode")[1].split("]")[0])
-        self.assertNotIn("repos", mode("N/A").split("[mode")[1].split("]")[0])
-        self.assertIn("2 repos", mode("demo-service, edge-node"))
+            p = run(t, "--phase", "1", "--dry-run"); self.assertEqual(p.returncode, 0, p.stderr)
+            return p.stdout.split("[mode ")[1].split("]")[0]
+        self.assertEqual(mode("demo-service"), "small: no large trigger")
+        self.assertEqual(mode("N/A"), "small: no large trigger")
+        self.assertEqual(mode("demo-service, edge-node"), "large: 2 repos")
     def test_small_mode_uses_one_reviewer_per_phase_and_one_final(self):
         tmp = repo(); p = run(tmp, "--mode", "small"); self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
         calls = (tmp.parent / (tmp.name + ".calls")).read_text()

@@ -31,14 +31,16 @@ Notable changes to agents-template. All four plugins share the version of the re
 
 - The sensitive-path guard had gaps, found by a Codex peer security review of the hook.
   - Shell writes were not guarded at all. `block-dangerous-bash.sh` now blocks a redirect, `tee`,
-    the destination of `cp`/`mv`/`install`, and `sed -i` when the target is under `.creds/` or is a
-    `.env` file. Reading stays allowed, and so does writing `.env.example`.
+    `>|`, the destination of `cp`/`mv`/`install`, and `sed -i` when the target is under `.creds/` or
+    is a `.env` file (`.env`, `.env.<x>`, `.envrc`, `<name>.env`, as the file-tool guard). Reading
+    stays allowed, and so does writing `.env.example`.
   - `block-write-sensitive.sh` now blocks `credentials.json`, `secrets.yaml` and the like (a
     sensitive name with a config-file extension), any `*.env` file, `.envrc`, `id_ecdsa`, `id_dsa`
     and `*.pfx`.
   - A path that reaches a protected directory through a symlink is blocked (needs GNU `realpath`).
   - The shell rule reads past text a command only carries: a commit message or a heredoc body that
-    mentions `> .env` is not a write. A quoted redirect target (`> ".creds/x"`) still is.
+    mentions `> .env` is not a write, even when the message spans lines. A quoted target
+    (`> ".creds/x"`, `cp x ".env"`) still is.
 
 ## 1.13.1 — 2026-11-21
 

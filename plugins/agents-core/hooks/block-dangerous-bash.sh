@@ -65,33 +65,46 @@ done
 # determined one.
 Q="[\"']?"
 TOKEN="[^[:space:];&|<>\"']"
+NAME="[^[:space:];&|<>\"'/]"
 END="${Q}([[:space:];&|)]|\$)"
 CREDS_TARGET="(${TOKEN}*/)?\\.creds(/${TOKEN}*)?"
-ENV_TARGET="(${TOKEN}*/)?\\.env(\\.[^[:space:];&|<>\"'/]*)?"
+# The same .env files as block-write-sensitive.sh: .env, .env.<x>, .envrc, <name>.env.
+ENV_TARGET="(${TOKEN}*/)?(\\.env(\\.${NAME}*)?|\\.envrc|${NAME}+\\.env)"
 
-# write_patterns <target regex>: one pattern per line.
+# write_patterns <target regex>: one pattern per line. `>|` is the clobber
+# redirect; a cp/mv/install destination may be followed by its own redirect.
 write_patterns() {
   printf '%s\n' \
-    ">>?[[:blank:]]*${Q}$1${END}" \
+    ">[>|]?[[:blank:]]*${Q}$1${END}" \
     "${CB}tee[[:blank:]]+([^;&|]*[[:blank:]])?${Q}$1${END}" \
-    "${CB}(cp|mv|install)[[:blank:]]+[^;&|]*[[:blank:]]${Q}$1${Q}[[:blank:]]*([;&|)]|\$)" \
+    "${CB}(cp|mv|install)[[:blank:]]+[^;&|]*[[:blank:]]${Q}$1${Q}[[:blank:]]*([;&|)]|\$|[0-9&]*>)" \
     "${CB}sed[[:blank:]]+([^;&|]*[[:blank:]])?-i[^;&|]*[[:blank:]]${Q}$1${END}"
 }
 
 # Text a command only carries is not a write: a commit message or echo string
-# that mentions `> .env`, or a heredoc body. Drop heredoc bodies (the line that
-# opens the heredoc stays, with its own redirect), unquote a quoted redirect
-# target (`> ".creds/x"` is still a write), then blank every other quoted string.
+# that mentions `> .env`, or a heredoc body.
+# 1. Drop heredoc bodies. The line that opens a heredoc stays, with its own
+#    redirect. `<<` inside quotes or `$((...))` does not open one.
+# 2. Over the whole command (a quoted message may span lines): unquote a quoted
+#    word with no whitespace or shell operator in it (`cp x ".env"` is still a
+#    write), then blank every other quoted string.
 SQ="'"
+NL=$'\001'
 SCAN=$(printf '%s\n' "$COMMAND" | awk '
   skip { line = $0; sub(/^\t+/, "", line); if (line == tag) skip = 0; next }
   { print
     if (match($0, /<<-?[ \t]*["\047]?[A-Za-z_][A-Za-z0-9_]*/) && substr($0, RSTART + 2, 1) != "<" \
         && (RSTART == 1 || substr($0, RSTART - 1, 1) != "<")) {
-      tag = substr($0, RSTART, RLENGTH); sub(/^<<-?[ \t]*["\047]?/, "", tag); skip = 1
+      before = substr($0, 1, RSTART - 1)
+      dq = gsub(/"/, "&", before); sq = gsub(/\047/, "&", before)
+      if (dq % 2 == 0 && sq % 2 == 0 && before !~ /\$\(\([^)]*$/) {
+        tag = substr($0, RSTART, RLENGTH); sub(/^<<-?[ \t]*["\047]?/, "", tag); skip = 1
+      }
     } }' \
-  | sed -E -e "s/(>>?[[:blank:]]*)\"([^\"]*)\"/\\1\\2/g" -e "s/(>>?[[:blank:]]*)${SQ}([^${SQ}]*)${SQ}/\\1\\2/g" \
-           -e "s/\"[^\"]*\"/\"\"/g" -e "s/${SQ}[^${SQ}]*${SQ}/${SQ}${SQ}/g")
+  | tr '\n' "$NL" \
+  | sed -E -e "s/\"([^\"[:space:]${NL}<>|;&]*)\"/\\1/g" -e "s/${SQ}([^${SQ}[:space:]${NL}<>|;&]*)${SQ}/\\1/g" \
+           -e "s/\"[^\"]*\"/\"\"/g" -e "s/${SQ}[^${SQ}]*${SQ}/${SQ}${SQ}/g" \
+  | tr "$NL" '\n')
 
 # .env.example, .env.sample and .env.template are committed scaffolds: drop
 # those words before the .env check. Nothing under .creds/ is a scaffold, so
