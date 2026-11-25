@@ -76,7 +76,13 @@ done
 # `[[ ]]` hold no redirects. Brace expansion (`.env{.example,}`) is expanded.
 # Protected: a `.creds` path segment (a glob segment counts if it matches); a basename `.env`, `.env.<x>`, `.env*`,
 # `.envrc` or `<name>.env`, except a scaffold: a `.env` name ending in `.example`,
-# `.sample` or `.template` (`.env.example`, `.env.local.example`). `..` segments are resolved first.
+# `.sample` or `.template` (`.env.example`, `.env.local.example`). `..` segments are
+# resolved first.
+#
+# Known gaps, left open on purpose (rare forms; see the 2026-11 review rounds):
+# a brace word with a quoted part after the braces (`.env{.example,}''`), a
+# target spelled with `$'\NNN'` escapes, a `case` inside `( )` inside "$( )".
+# A quoted `'.env*'` is treated as a glob and blocked.
 SCAN_BLOCK=$(printf '%s\n' "$COMMAND" | tr -d '\r' | awk '
   function prot(p,   n, s, i, o, k, b, r) {
     n = split(p, s, "/"); k = 0
@@ -98,15 +104,17 @@ SCAN_BLOCK=$(printf '%s\n' "$COMMAND" | tr -d '\r' | awk '
     }
     return b ~ /.\.env$/
   }
-  # gm(pattern, name): does the glob match the name? A leading dot must match literally.
-  function gm(p, x,   re, i, c) {
+  # gm(pattern, name): does the glob match the name? A leading dot must match
+  # literally; a bracket class `[...]` matches any one character.
+  function gm(p, x,   re, i, c, j) {
     if (p !~ /[*?[]/) return p == x
     if (substr(x, 1, 1) == "." && substr(p, 1, 1) != ".") return 0
     re = ""
     for (i = 1; i <= length(p); i++) {
       c = substr(p, i, 1)
-      if (c == "*") re = re ".*"; else if (c == "?") re = re "."; else if (c == "[") re = re "["
-      else if (index("\\^$.|+(){}]", c)) re = re "\\" c; else re = re c
+      if (c == "*") re = re ".*"; else if (c == "?") re = re "."
+      else if (c == "[" && (j = index(substr(p, i + 1), "]")) > 1) { re = re "."; i += j }
+      else if (index("\\^$.|+(){}[]", c)) re = re "\\" c; else re = re c
     }
     return x ~ ("^" re "$")
   }
@@ -124,12 +132,13 @@ SCAN_BLOCK=$(printf '%s\n' "$COMMAND" | tr -d '\r' | awk '
     return k
   }
   function checkword(w, q,   r, k, i) { if (q) { if (prot(w)) blocked = 1; return }; k = expand(w, r); for (i = 1; i <= k; i++) if (prot(r[i])) blocked = 1 }
-  function add(f, c) { if (length(CW[f]) < 4096) CW[f] = CW[f] c }
+  # QB marks a word whose braces came from quoted text: bash does not expand those.
+  function add(f, c) { if (QS[f] != "" && index("{,}", c)) QB[f] = 1; if (length(CW[f]) < 4096) CW[f] = CW[f] c }
   # A keyword counts only unquoted, where a command starts.
   function cmdpos(f) { return WN[f] == 0 || W[f, WN[f]] ~ /^(if|elif|while|until|then|do|else|!|\{|time)$/ }
   function endword(f,   w, kw, q) {
     if (!CH[f] && CW[f] == "") return
-    w = CW[f]; q = CH[f]; kw = !q && cmdpos(f); CW[f] = ""; CH[f] = 0
+    w = CW[f]; q = QB[f]; kw = !CH[f] && cmdpos(f); CW[f] = ""; CH[f] = 0; QB[f] = 0
     if (RP[f] == 1 || (RP[f] == 4 && w !~ /^([0-9]+-?|-)$/)) { checkword(w, q); RP[f] = 0; return }
     if (RP[f]) { RP[f] = 0; return }
     if (DBL[f] && w == "]]") DBL[f] = 0
@@ -184,9 +193,12 @@ SCAN_BLOCK=$(printf '%s\n' "$COMMAND" | tr -d '\r' | awk '
         if (a == "--target-directory") { td = A[++i]; continue }
         if (a ~ /^--/) continue
         if (cmd == "install" && a ~ /^-[^-]*d/) dflag = 1
-        pos = index(a, "t")
-        if (pos) { t = substr(a, pos + 1); td = (t != "") ? t : A[++i]; continue }
-        if ((cmd == "install" && a ~ /[mogS]$/) || a ~ /S$/) i++
+        # Short flags left to right: -t takes DIR; -S (and install -m -o -g) take a value.
+        for (pos = 2; pos <= length(a); pos++) {
+          t = substr(a, pos, 1)
+          if (t == "t") { t = substr(a, pos + 1); td = (t != "") ? t : A[++i]; break }
+          if (t == "S" || (cmd == "install" && index("mog", t))) { if (pos == length(a)) i++; break }
+        }
       }
       if (dflag) { for (k = 1; k <= no; k++) if (prot(ops[k])) blocked = 1; return }
       if (td != "") { d = td; ns = no }
@@ -211,7 +223,7 @@ SCAN_BLOCK=$(printf '%s\n' "$COMMAND" | tr -d '\r' | awk '
       if (ip) for (k = 1; k <= no; k++) if (prot(ops[k])) blocked = 1
     }
   }
-  function openf(k) { fd++; FK[fd] = k; CW[fd] = ""; CH[fd] = 0; WN[fd] = 0; RP[fd] = 0; QS[fd] = ""; INC[fd] = 0; DBL[fd] = 0 }
+  function openf(k) { fd++; FK[fd] = k; CW[fd] = ""; CH[fd] = 0; QB[fd] = 0; WN[fd] = 0; RP[fd] = 0; QS[fd] = ""; INC[fd] = 0; DBL[fd] = 0 }
   function closef() {
     endword(fd); evalcmd(fd)
     if (fd > 1) { fd--; add(fd, "\001"); CH[fd] = 1 }

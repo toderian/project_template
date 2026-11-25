@@ -547,6 +547,16 @@ run_case "bash: BSD sed -I on .env blocks" "${BASH_HOOK}" \
   "$(git_payload "sed -I '' 's/a/b/' .env")" 2
 run_case "bash: braces inside a quoted sed script are not expanded" "${BASH_HOOK}" \
   "$(git_payload "sed -i 's/{a,b}/.env/' README.md")" 0
+run_case "bash: a dotfile bracket glob does not crash the guard" "${BASH_HOOK}" \
+  "$(git_payload 'cp -r ../template/.[!.]* . && echo X=1 >> .env')" 2
+run_case "bash: an unclosed [ in a path does not crash the guard" "${BASH_HOOK}" \
+  "$(git_payload "echo x > '.creds['; tee .env")" 2
+run_case "bash: copying dotfiles into . by bracket glob blocks" "${BASH_HOOK}" \
+  "$(git_payload 'cp -r tmpl/.[!.]* .')" 2
+run_case "bash: cp -S.txt does not read the suffix as -t" "${BASH_HOOK}" \
+  "$(git_payload 'cp -S.txt source .env')" 2
+run_case "bash: braces after a quoted directory still expand" "${BASH_HOOK}" \
+  "$(git_payload 'cp .env.example "$APP_DIR"/.env{,.local}')" 2
 run_case "bash: a multi-line single-quoted message stays text" "${BASH_HOOK}" \
   "$(git_payload "git commit -m 'fix: guard
 
