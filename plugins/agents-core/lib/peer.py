@@ -4,7 +4,8 @@ A session running in Claude Code can ask Codex to review, and the reverse, when 
 opted in: `git config agents.peers "<cli>[:<model>[:<effort>]] ..."` (local git config, so per repo and never
 committed — the peer's provider receives the brief and every file the peer reads). The peer never
 edits: Codex runs with `--yolo` (no sandbox) and is told not to edit, Claude runs without the edit
-tools and with read-only git commands only. The dispatch itself is `task_run.Harness`, the same code `at task run` uses.
+tools and with read-only git commands only. The dispatch itself is `task_run.Harness`, the same code `at task run` uses;
+Codex runs on gpt-6-sol unless a model is set, under the Daybreak Blue cyber access program.
 
 Exit codes of `at peer run` / `at peer status`: 0 a reply was saved (whatever its verdict) or a peer
 is available; 3 no peer available, with one reason line; 2 usage error. A caller treats 3 as "go on
@@ -110,8 +111,15 @@ def pick(repo: Path, from_arg: str | None) -> tuple[tuple[str, str | None, str |
     return others[0], ""
 
 
-def describe(model: str | None, effort: str | None) -> str:
-    return f"model {model or 'default'}, effort {effort or 'default'}"
+def describe(model: str | None, effort: str | None, cyber: str | None = None) -> str:
+    return f"model {model or 'default'}, effort {effort or 'default'}" + (f", cyber {cyber}" if cyber else "")
+
+
+def _codex_defaults(cli: str, model: str | None, effort: str | None) -> tuple[str | None, str | None, str | None]:
+    """(model, effort, cyber program) as the dispatch will run them: Codex fills in its model and program."""
+    if cli == "codex":
+        return model or task_run.CODEX_MODEL, effort, task_run.CODEX_CYBER
+    return model, effort, None
 
 
 def doctor_findings(repo: Path) -> list[tuple[str, str]]:
@@ -169,7 +177,7 @@ def cmd_status(args: argparse.Namespace, repo: Path) -> int:
     peer, reason = pick(repo, args.from_cli)
     if not peer:
         return _unavailable(reason, repo)
-    print(f"peer: {peer[0]} ({describe(peer[1], peer[2])})" + (", required" if required(repo) else ""))
+    print(f"peer: {peer[0]} ({describe(*_codex_defaults(*peer))})" + (", required" if required(repo) else ""))
     return 0
 
 
@@ -204,7 +212,7 @@ def cmd_run(args: argparse.Namespace, repo: Path, core_root: Path) -> int:
         return _unavailable(f"{cli} returned an empty reply", repo)
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(f"Peer: {cli} ({describe(model, effort)}), role {args.role}, {task_run.now_iso()}\n\n"
+    out.write_text(f"Peer: {cli} ({describe(*_codex_defaults(cli, model, effort))}), role {args.role}, {task_run.now_iso()}\n\n"
                    f"{message.rstrip()}\n", encoding="utf-8")
     verdicts = ANY_VERDICT_RE.findall(message)
     found = list(dict.fromkeys(task_run.findings(message)))  # a reply may list a finding twice

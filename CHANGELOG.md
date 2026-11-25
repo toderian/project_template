@@ -4,7 +4,22 @@ Notable changes to agents-template. All four plugins share the version of the re
 
 ## Unreleased
 
+### Changed
+
+- Every Codex dispatch (`at peer run`, `at task run --harness codex`) runs on `gpt-6-sol` unless a
+  model is set, and always under OpenAI's Daybreak Blue cyber access program
+  (`--cyber-access-program daybreak_blue`). With `daybreak = true` in the Codex config, the earlier
+  headless pin `gpt-6-astra` failed before it started, because that model has no Blue. The account
+  needs Daybreak access. `at peer status`, the saved reply's `Peer:` line and the task-run label name
+  the model and the program.
+- Seed `AGENTS.md`: an authorized security task the main model refuses or flags goes to
+  `at task run <TASK-ID> --harness codex`.
+- The release check expects Codex CLI 0.172.0.
+
 ### Fixed
+
+- A role card sent to Codex or `claude -p` carried `${CLAUDE_PLUGIN_ROOT}` unexpanded, so the agent
+  could not open the skill files the card names. `card_body` now puts in the plugin path.
 
 - The sensitive-path guard had gaps, found by a Codex peer security review of the hook.
   - Shell writes were not guarded at all. `block-dangerous-bash.sh` now blocks a redirect, `tee`,

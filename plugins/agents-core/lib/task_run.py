@@ -65,7 +65,16 @@ def card_body(core_root: Path, role: str) -> str:
     text = (core_root / "agents" / f"{role}.md").read_text(encoding="utf-8")
     if text.startswith("---"):
         text = text.split("\n---", 1)[1]
-    return text.strip()
+    # Claude Code expands this variable in a card it loads itself; a card sent as a prompt arrives
+    # literal, and a Codex auditor could not open the skill files the card points to.
+    return text.strip().replace("${CLAUDE_PLUGIN_ROOT}", str(core_root))
+
+
+# Every Codex dispatch runs under OpenAI's Daybreak Blue cyber access program, on a model that
+# offers it: with `daybreak = true` in the Codex config a model without Blue (gpt-6-astra) fails
+# before it starts. The account must hold Daybreak access. --model replaces the model.
+CODEX_MODEL = "gpt-6-sol"
+CODEX_CYBER = "daybreak_blue"
 
 
 # ---- state.md ------------------------------------------------------------------
@@ -190,12 +199,11 @@ class Harness:
         # codex
         out_file = self.log.parent / f"last-message-{role}-{uuid.uuid4().hex[:8]}.txt"  # parallel reviewers share a role
         # --yolo: no sandbox, no approvals; a read-only role is held by its prompt alone
-        cmd = [self.driver_cmd or "codex", "exec", "-C", str(self.repo), "--yolo", "-o", str(out_file)]
-        if model:
-            cmd += ["-m", model]
+        cmd = [self.driver_cmd or "codex", "exec", "-C", str(self.repo), "--yolo", "-o", str(out_file),
+               "-m", model or CODEX_MODEL]
         if effort:
             cmd += ["-c", f'model_reasoning_effort="{effort}"']
-        cmd.append("-")
+        cmd += ["--cyber-access-program", CODEX_CYBER, "-"]
         proc = self._sh(role, cmd, input=system + "\n\n---\n\n" + prompt, env=run_env)
         self._log(role, cmd, proc)
         if proc.returncode != 0:
@@ -207,14 +215,20 @@ class Harness:
         return message, None
 
     def label(self) -> str:
-        """`claude`, or `claude, model sonnet/opus, effort low/high` when the run set any (routine/strong)."""
+        """`claude`, or `claude, model sonnet/opus, effort low/high` when the run set any (routine/strong).
+
+        Codex always names its model (gpt-6-sol unless set) and its cyber access program."""
         def pair(routine: str | None, strong: str | None) -> str:
             return routine or "default" if routine == strong else f"{routine or 'default'}/{strong or 'default'}"
+        codex = self.name == "codex"
+        model, strong = (self.model or CODEX_MODEL, self.strong or CODEX_MODEL) if codex else (self.model, self.strong)
         parts = [self.name]
-        if self.model or self.strong:
-            parts.append(f"model {pair(self.model, self.strong)}")
+        if model or strong:
+            parts.append(f"model {pair(model, strong)}")
         if self.effort or self.strong_effort:
             parts.append(f"effort {pair(self.effort, self.strong_effort)}")
+        if codex:
+            parts.append(f"cyber {CODEX_CYBER}")
         return ", ".join(parts)
 
     def _log(self, role: str, cmd: list[str], proc: subprocess.CompletedProcess) -> None:

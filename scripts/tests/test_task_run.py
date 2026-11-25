@@ -66,7 +66,9 @@ class TaskRun(unittest.TestCase):
             self.assertTrue(all(c.endswith("|effort=medium") for c in implementers), implementers)
             self.assertTrue(all(c.endswith("|effort=high") for c in reviewers), reviewers)
             task = next((tmp / "docs/tasks_manager/_todos").glob("TST-003-*.md")).read_text()
-            self.assertIn(f"(at task run, {harness}, model default/big, effort medium/high)", task)
+            label = {"claude": "claude, model default/big, effort medium/high",
+                     "codex": "codex, model gpt-6-sol/big, effort medium/high, cyber daybreak_blue"}[harness]
+            self.assertIn(f"(at task run, {label})", task)
         tmp = repo(); p = run(tmp, "--phase", "1"); self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
         self.assertNotIn("effort=", (tmp.parent / (tmp.name + ".calls")).read_text())
         self.assertIn("(at task run, claude)", next((tmp / "docs/tasks_manager/_todos").glob("TST-003-*.md")).read_text())
@@ -120,6 +122,15 @@ class TaskRun(unittest.TestCase):
         calls = (tmp.parent / (tmp.name + ".calls")).read_text()
         self.assertIn("implementer||1|codex|resume=False|ro=False|mode=yolo", calls)
         self.assertIn("reviewer|spec|1|codex|resume=False|ro=True|mode=yolo", calls)
+    def test_codex_runs_on_gpt_6_sol_under_daybreak_blue_with_resolved_cards(self):
+        import sys; sys.path.insert(0, str(ROOT / "plugins/agents-core/lib")); import task_run
+        tmp = repo(); p = run(tmp, "--phase", "1", harness="codex"); self.assertEqual(p.returncode, 0, p.stderr)
+        log = (tmp / "docs/tasks_manager/_runs/TST-003/driver.log").read_text()
+        self.assertIn("-m gpt-6-sol --cyber-access-program daybreak_blue -", log)
+        h = task_run.Harness("codex", tmp, ROOT / "plugins/agents-core", None, None, None, tmp / "x.log", 1, None)
+        self.assertEqual(h.label(), "codex, model gpt-6-sol, cyber daybreak_blue")
+        card = task_run.card_body(ROOT / "plugins/agents-core", "security-auditor")
+        self.assertNotIn("${CLAUDE_PLUGIN_ROOT}", card); self.assertIn(str(ROOT / "plugins/agents-core/skills/security-review-owasp/SKILL.md"), card)
     def test_run_prompts_carry_the_same_test_rules_as_the_briefs(self):
         import sys; sys.path.insert(0, str(ROOT / "plugins/agents-core/lib")); import task_run
         briefs = (ROOT / "plugins/agents-core/skills/execute-plan/references/briefs.md").read_text()

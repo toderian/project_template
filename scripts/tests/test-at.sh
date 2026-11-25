@@ -733,7 +733,7 @@ peer 1 ok enable gemini >/dev/null; assert_eq "$?" "2" "at peer enable rejects a
 PEER_OUT="$(peer 1 ok enable codex:gpt-test claude)"
 assert_stdout_contains "$PEER_OUT" "sends the brief and the files the peer reads" "enable warns that code leaves to the provider"
 assert_eq "$(git -C "$PEER_REPO" config --get agents.peers)" "codex:gpt-test claude" "enable writes local git config"
-assert_eq "$(peer 1 ok status)" "peer: codex (model gpt-test, effort default)" "from Claude Code the peer is codex"
+assert_eq "$(peer 1 ok status)" "peer: codex (model gpt-test, effort default, cyber daybreak_blue)" "from Claude Code the peer is codex"
 assert_eq "$(peer "" ok status --from codex)" "peer: claude (model default, effort default)" "from codex the peer is claude"
 peer "" ok run --role reviewer --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/r.md" >/dev/null
 assert_eq "$?" "2" "at peer run needs --from when the caller is unknown"
@@ -742,10 +742,11 @@ PEER_OUT="$(peer 1 ok run --role reviewer --brief "$WORKDIR/peer-brief.md" --out
 assert_eq "$PEER_RC" "0" "a peer review that FAILs the code still exits 0: $PEER_OUT"
 assert_stdout_contains "$PEER_OUT" "peer codex (reviewer): FAIL, 2 finding(s), 1 critical -> $WORKDIR/peer-out/r.md" \
   "the summary line counts each finding once"
-assert_contains "$WORKDIR/peer-out/r.md" "Peer: codex (model gpt-test, effort default), role reviewer" "the saved reply names the peer and model"
+assert_contains "$WORKDIR/peer-out/r.md" "Peer: codex (model gpt-test, effort default, cyber daybreak_blue), role reviewer" "the saved reply names the peer and model"
 assert_contains "$WORKDIR/peer-out/r.md" "## Verdict: FAIL" "the saved reply holds the peer's text"
 assert_contains "$PEER_CALLS" "codex|depth=1|exec -C $PEER_REPO --yolo" "codex runs with --yolo, marked as a peer"
 assert_contains "$PEER_CALLS" "-m gpt-test" "the model from agents.peers is passed on"
+assert_contains "$PEER_CALLS" "--cyber-access-program daybreak_blue -" "codex runs under Daybreak Blue"
 assert_contains "$PEER_CALLS" "|fenced" "the brief carries the read-only fence"
 
 : > "$PEER_CALLS"
@@ -758,13 +759,13 @@ assert_contains "$PEER_CALLS" "--allowedTools Bash(git show:*),Bash(git diff:*),
 # The caller picks model and effort per call; agents.peers holds the defaults (<cli>:<model>:<effort>).
 : > "$PEER_CALLS"
 peer 1 ok run --model gpt-big --effort high --role reviewer --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/m.md" >/dev/null
-assert_contains "$PEER_CALLS" '-m gpt-big -c model_reasoning_effort="high"' "--model and --effort reach codex and outrank the setting"
-assert_contains "$WORKDIR/peer-out/m.md" "Peer: codex (model gpt-big, effort high)" "the saved reply records the model and effort used"
+assert_contains "$PEER_CALLS" '-m gpt-big -c model_reasoning_effort="high" --cyber-access-program daybreak_blue' "--model and --effort reach codex and outrank the setting"
+assert_contains "$WORKDIR/peer-out/m.md" "Peer: codex (model gpt-big, effort high, cyber daybreak_blue)" "the saved reply records the model and effort used"
 peer "" ok run --from codex --model opus --effort xhigh --role reviewer --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/m.md" >/dev/null
 assert_contains "$PEER_CALLS" "--model opus --effort xhigh" "--model and --effort reach claude"
 peer 1 ok enable codex::low claude:sonnet:medium >/dev/null
 assert_eq "$(git -C "$PEER_REPO" config --get agents.peers)" "codex::low claude:sonnet:medium" "enable stores default model and effort per CLI"
-assert_eq "$(peer 1 ok status)" "peer: codex (model default, effort low)" "an effort can be set without a model"
+assert_eq "$(peer 1 ok status)" "peer: codex (model gpt-6-sol, effort low, cyber daybreak_blue)" "without a model codex runs on gpt-6-sol"
 : > "$PEER_CALLS"
 peer "" ok run --from codex --role reviewer --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/m.md" >/dev/null
 assert_contains "$PEER_CALLS" "--model sonnet --effort medium" "the stored defaults are used when the call names none"
@@ -825,7 +826,7 @@ assert_missing "$STAMPS/$(git -C "$PEER_REPO" rev-parse HEAD)" "the new HEAD is 
 PEER_HEAD="$(git -C "$PEER_REPO" rev-parse HEAD)"
 
 # B1: --required stores agents.peerRequired; unavailable then prints BLOCKED (exit code unchanged).
-assert_stdout_contains "$(peer 1 ok status)" "peer: codex (model gpt-test, effort default)" "status without --required"
+assert_stdout_contains "$(peer 1 ok status)" "peer: codex (model gpt-test, effort default, cyber daybreak_blue)" "status without --required"
 case "$(peer 1 ok status)" in *required*) fail "status prints required before --required is set";; *) pass;; esac
 peer 1 ok enable codex:gpt-test claude --required >/dev/null
 assert_eq "$(git -C "$PEER_REPO" config --get agents.peerRequired)" "true" "enable --required stores agents.peerRequired"
