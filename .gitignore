@@ -22,3 +22,6 @@ __pycache__/
 docs/_plans/_runs/**/diff.patch
 docs/_plans/_runs/**/*.patch
 docs/_plans/_runs/*/lock
+
+# Worktrees the harness makes for isolated subagents.
+.claude/worktrees/

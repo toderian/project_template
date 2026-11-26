@@ -31,6 +31,7 @@ STEPS=(
   "python3 scripts/tests/test_task_run.py Lanes"
   "python3 scripts/tests/test_task_run.py FixWave"
   "python3 scripts/tests/test_run_watch.py"
+  "python3 scripts/tests/test_lease.py"
   "python3 scripts/tests/test_task_size.py"
   "python3 scripts/tests/test_task_report.py"
   "python3 scripts/tests/test_design_tree.py"

@@ -13,6 +13,7 @@ Subcommands:
   run-guard    `arm [--watch ...] <TASK_ID|state.md>...` | `status` | `disarm` | `watch`: keep this session from ending a
                turn mid-run; `--watch` adds a detached watchdog that restarts the session if its process dies
   notify       `<title> [--event KEY --session ID]`: send title + stdin body through the owner's notify command
+  lease        `take <res> --ttl MIN [--for ID] [--restore]` | `release` | `list [--json]` | `clear <res> --restored` | `run <res> -- CMD`: host-wide single-holder leases
   addon        `list` | `status` | `enable <name>...` | `disable <name>...`: optional tools per repo
   reserve      wrapper: reserve an inbox idea or task filename
   repos-check  wrapper: validate `.config/repos.project.md`
@@ -1362,6 +1363,11 @@ def cmd_reserve(args: argparse.Namespace) -> int:
     return _run_tasks_script("reserve_work_item.sh", list(args.rest))
 
 
+def cmd_lease(args: argparse.Namespace) -> int:
+    import lease  # lib/lease.py, next to this file
+    return lease.main(list(args.rest))
+
+
 def cmd_task(args: argparse.Namespace) -> int:
     if not args.rest:
         die("usage: at task brief <TASK_ID> --phase N | at task run-state init|check <TASK_ID> | at task run <TASK_ID>... | at task size <TASK_ID> --phase N|--final", code=2)
@@ -1731,6 +1737,10 @@ def build_parser() -> argparse.ArgumentParser:
                              "hook keeps this session from ending a turn while the armed run is open")
     p_guard.add_argument("rest", nargs=argparse.REMAINDER)
     p_guard.set_defaults(func=cmd_run_guard)
+
+    p_lease = sub.add_parser("lease", help="take|release|list|clear|run: host-wide single-holder leases on shared resources")
+    p_lease.add_argument("rest", nargs=argparse.REMAINDER)
+    p_lease.set_defaults(func=cmd_lease)
 
     p_notify = sub.add_parser("notify", help="<title> [--event KEY --session ID]: send title + stdin to the owner's "
                               "notify command (git config agents.notifyCommand or AGENTS_NOTIFY_CMD)")

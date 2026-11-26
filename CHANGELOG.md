@@ -2,6 +2,21 @@
 
 Notable changes to agents-template. All four plugins share the version of the repository.
 
+## Unreleased
+
+### Added
+
+- **`at lease`**: host-wide single-holder leases on shared resources (`take`, `release`, `list`, `clear`,
+  `run`), under `~/.local/state/agents-template/leases/`. A lease is `held`, `overdue` (TTL passed,
+  holder alive), `owed` (holder gone, restore flag set) or free; a reused pid counts as a dead holder.
+  `clear` is for the owner's own shell.
+
+### Fixed
+
+- `at reserve` keeps a host-wide high-water mark per repo (git common dir) and prefix, so two worktrees
+  of one repo no longer reserve the same ID while the state directory is writable; without one it
+  works as before, per checkout.
+
 ## 1.16.0 — 2026-11-26
 
 ### Changed

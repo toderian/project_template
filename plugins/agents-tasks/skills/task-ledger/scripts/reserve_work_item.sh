@@ -149,16 +149,70 @@ id_exists() {
   return 1
 }
 
-acquire_lock() {
-  local attempts=0
-  while ! mkdir "${LOCK_DIR}" 2>/dev/null; do
-    attempts=$((attempts + 1))
-    if (( attempts >= 100 )); then
-      die "could not acquire reservation lock at $(rel_repo "${LOCK_DIR}")"
+# Host-wide high-water mark, so two checkouts of one repo never reserve the same ID: the lock and
+# one number file per prefix live under the state directory, keyed by the git common dir. If that
+# directory cannot be made or written (or there is no absolute git common dir), HWM_BASE stays empty
+# and only the per-checkout lock and scan apply.
+HWM_BASE=""
+HOST_LOCK=""
+init_state() {
+  local common key dir="${XDG_STATE_HOME:-${HOME:-/nonexistent}/.local/state}/agents-template/reserve"
+  common="$(git -C "${REPO_ROOT}" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || return 0
+  [[ "$common" == /* ]] || return 0
+  key="$(printf '%s' "$common" | cksum | cut -d' ' -f1)"
+  mkdir -p "$dir" 2>/dev/null && [[ -w "$dir" ]] || return 0
+  HOST_LOCK="${dir}/${key}.lock"
+  HWM_BASE="${dir}/${key}"
+}
+
+# max(checkout scan, high-water mark) for a prefix ("I" for inbox)
+with_hwm() {
+  local scan="$1" prefix="$2" mark=0
+  [[ -n "$HWM_BASE" && -r "${HWM_BASE}-${prefix}" ]] && mark="$(cat "${HWM_BASE}-${prefix}" 2>/dev/null)"
+  [[ "$mark" =~ ^[0-9]+$ ]] || mark=0
+  (( mark > scan )) && scan="$mark"
+  printf '%s' "$scan"
+}
+
+save_hwm() {
+  [[ -n "$HWM_BASE" ]] || return 0
+  printf '%s' "$2" > "${HWM_BASE}-${1}.$$" 2>/dev/null && mv -f "${HWM_BASE}-${1}.$$" "${HWM_BASE}-${1}" 2>/dev/null \
+    || rm -f "${HWM_BASE}-${1}.$$" 2>/dev/null || true
+}
+
+# One lock dir holding its owner's pid: a lock whose pid is dead is taken over (the mv is atomic, so
+# one taker wins). A lock without a pid file is never taken over. simplicity: two takers can still
+# race between the pid check and the mv; revisit when that shows up.
+HELD_LOCKS=()
+lock_dir() {
+  local dir="$1" attempts=0 pid
+  while ! mkdir "$dir" 2>/dev/null; do
+    pid="$(cat "$dir/pid" 2>/dev/null || true)"
+    if [[ "$pid" =~ ^[0-9]+$ ]] && ! kill -0 "$pid" 2>/dev/null; then
+      mv "$dir" "$dir.stale.$$" 2>/dev/null && rm -rf "$dir.stale.$$"
+      continue
     fi
+    attempts=$((attempts + 1))
+    (( attempts < 100 )) || die "could not acquire reservation lock at ${dir}; if no reservation is running, remove it with: rm -rf '${dir}'"
     sleep 0.1
   done
-  trap 'rmdir "${LOCK_DIR}" 2>/dev/null || true' EXIT
+  printf '%s' "$$" > "$dir/pid" 2>/dev/null || true
+  HELD_LOCKS+=("$dir")
+}
+
+release_locks() {
+  local d
+  for d in "${HELD_LOCKS[@]+"${HELD_LOCKS[@]}"}"; do
+    rm -f "$d/pid" 2>/dev/null; rmdir "$d" 2>/dev/null || true
+  done
+}
+
+# The per-checkout lock always; the host lock too when the state directory works, so a sandboxed
+# process and a normal one in the same checkout still exclude each other.
+acquire_lock() {
+  trap release_locks EXIT
+  lock_dir "${LOCK_DIR}"
+  [[ -z "$HOST_LOCK" ]] || lock_dir "$HOST_LOCK"
 }
 
 # Reservation loops call this in a `while true` loop keyed on an incrementing
@@ -187,7 +241,7 @@ readonly MAX_RESERVE_ATTEMPTS=1000
 reserve_inbox() {
   local slug="$1" n id path attempts=0
   validate_slug "$slug"
-  n=$(($(highest_inbox_id) + 1))
+  n=$(($(with_hwm "$(highest_inbox_id)" I) + 1))
   while true; do
     attempts=$((attempts + 1))
     (( attempts <= MAX_RESERVE_ATTEMPTS )) || die "gave up after ${MAX_RESERVE_ATTEMPTS} attempts to reserve an inbox ID"
@@ -197,7 +251,7 @@ reserve_inbox() {
       continue
     fi
     path="${INBOX}/${id}_${slug}.md"
-    reserve_file "$path" && return 0
+    reserve_file "$path" && { save_hwm I "$n"; return 0; }
     n=$((n + 1))
   done
 }
@@ -207,7 +261,7 @@ reserve_task() {
   validate_prefix_registered "$prefix"
   [[ "$type" =~ ^[FDCR]$ ]] || die "type must be one of F, D, C, R"
   validate_slug "$slug"
-  n=$(($(highest_task_id "$prefix") + 1))
+  n=$(($(with_hwm "$(highest_task_id "$prefix")" "$prefix") + 1))
   while true; do
     attempts=$((attempts + 1))
     (( attempts <= MAX_RESERVE_ATTEMPTS )) || die "gave up after ${MAX_RESERVE_ATTEMPTS} attempts to reserve a task ID"
@@ -217,7 +271,7 @@ reserve_task() {
       continue
     fi
     path="${TODOS}/${id}-${type}_${slug}.md"
-    reserve_file "$path" && return 0
+    reserve_file "$path" && { save_hwm "$prefix" "$n"; return 0; }
     n=$((n + 1))
   done
 }
@@ -230,12 +284,14 @@ case "${1:-}" in
   inbox)
     [[ $# -eq 2 ]] || { usage >&2; exit 2; }
     require_initialized
+    init_state
     acquire_lock
     reserve_inbox "$2"
     ;;
   task)
     [[ $# -eq 4 ]] || { usage >&2; exit 2; }
     require_initialized
+    init_state
     acquire_lock
     reserve_task "$2" "$3" "$4"
     ;;
