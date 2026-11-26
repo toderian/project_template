@@ -141,3 +141,5 @@ Ruling: re-review findings 1, 3, 4, 5 (report skipped for a marker cwd below the
 Ruling: simplicity findings 1, 3, 4, 5, 6, 7, 8 (one-caller helper, repeated id regex, doubled floor check, python twin of the open scan, test overlap, live-scenario heredocs) — accepted as follow-ups, finding 2 fixed as D7 — cost if wrong: about 80 avoidable lines stay
 Decision: run_watch.py ceiling 400 code lines (was 380) — why: the final fix wave added five guards (stale BLOCKED, report cwd, report only with run state, rowless state, failed report notified) — cost if wrong: the module is 100 lines over the plan's Shape
 Final review: live E3 E4 E5 E7 E8 PASS on the fixed code (E4 on its second attempt; E5 after the failed-report notification was renamed so it does not read as a second "Run finished")
+Note: owner answered 2026-11-26: E9 first, release only after it passes and on the owner's word; no push
+Note: owner said 2026-11-26 "we should release first": release 1.15.0 (minor: new features) before E9, which stays open; no push

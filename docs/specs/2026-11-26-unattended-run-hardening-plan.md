@@ -256,7 +256,7 @@ After: 4, 6
 - [x] The scripted suite E1–E8 run once from a clean checkout, output saved next to the facts file.
 - [ ] Scenario E9 on one small real task in a downstream repo, with the owner present; its evidence
       goes into the facts file. It is the one step of this plan that waits for a person.
-- [ ] README, seed `AGENTS.md`, CHANGELOG; `scripts/release.sh`.
+- [x] README, seed `AGENTS.md`, CHANGELOG; `scripts/release.sh`.
 
 Shape: text only, apart from the suite's saved output.
 E2E: E1–E8 green in one run, then E9 by hand, before the release.
@@ -420,4 +420,5 @@ The end-to-end suite E1–E8 passes from a clean checkout, and E9 was run once w
   test_run_watch 36, test_task_run 63, test_task_report 22, run-all ok, live E3 E4 E5 E7 E8 PASS.
   Size: +6665 / -235 before the wave, code net +1660; run_watch.py 398 code lines (ceiling 400 by
   Decision). Follow-ups are the `Ruling:` lines "accepted as follow-ups" in the run state.
-
+- 2026-11-26: Released as 1.15.0 on the owner's word, before E9 (the owner changed the order). E9 and
+  the heartbeat half of E6 stay open. Not pushed.
