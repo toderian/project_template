@@ -95,16 +95,16 @@ E2E: E1.
 
 After: 0
 
-- [ ] The marker schema and lifecycle of §"Shared design": `arm` writes the `meta` lines,
+- [x] The marker schema and lifecycle of §"Shared design": `arm` writes the `meta` lines,
       `run-guard.sh` writes `.status` at every allowed stop (including the five-sent-back and
       empty-message pass-throughs) and marks `DONE` instead of deleting; `status` and `disarm`
       know the new files.
-- [ ] `hooks/run-guard-remind.sh`, a `SessionStart` hook for `compact` and `resume`: when this
+- [x] `hooks/run-guard-remind.sh`, a `SessionStart` hook for `compact` and `resume`: when this
       session's marker has open targets, print which tasks are open, the first open row, and "load
       `agents-core:execute-plan` and resume from `state.md`". Prints nothing otherwise; always exit 0.
-- [ ] The open-target scan is one shared function in `hooks/lib/`, used by this hook and
+- [x] The open-target scan is one shared function in `hooks/lib/`, used by this hook and
       `run-guard.sh` (no second copy).
-- [ ] `hooks.json` entry; `build.py`; hook tests: open run prints, no marker is silent, finished run
+- [x] `hooks.json` entry; `build.py`; hook tests: open run prints, no marker is silent, finished run
       is silent, missing `jq` is silent, a `DONE` marker lets a stop through.
 
 Shape: ≤ ~90 new code lines; `run-guard.sh` gives the scan away.
@@ -199,16 +199,17 @@ E2E: E5, E6.
 
 After: 0
 
-- [ ] `at task run` reads `After:` lines. A row that ends `blocked` or `parked` no longer ends the
+- [x] `at task run` reads `After:` lines. A row that ends `blocked` or `parked` no longer ends the
       run: phases that do not depend on it still run; its dependants are set `parked` with a note.
-- [ ] With `Execution: unattended`, a phase at the fix-loop cap follows the line
-      `At review cap: park | continue` of the task's `### Unattended run` section (a fixed key, not
-      prose; missing means `park`). `continue` commits with a `Decision:` line naming the open
-      findings, and never applies to a critical finding.
-- [ ] `at task run <ID> <ID>...` runs a chain in the given order, skipping a task whose `Blocked by`
+- [x] With `Execution: unattended`, a phase that ends blocked is `parked` instead. A phase at the
+      fix-loop cap parks unless the driver was started with `--at-review-cap continue`; then it
+      commits with a `Decision:` line naming the open findings, never with a critical one. The rule
+      comes only from the command line: the task file is writable by the implementers the driver
+      dispatches (found in the Phase 5 reviews).
+- [x] `at task run <ID> <ID>...` runs a chain in the given order, skipping a task whose `Blocked by`
       is not done.
-- [ ] Exit code 0 only when every row is committed; 4 when it finished with parked rows.
-- [ ] `test_task_run.py` cases for each bullet.
+- [x] Exit code 0 only when every row is committed; 4 when it finished with parked rows.
+- [x] `test_task_run.py` cases for each bullet.
 
 Shape: ≤ ~150 new code lines in `lib/task_run.py`.
 E2E: E7.
@@ -243,7 +244,8 @@ After: 4, 6
 
 - [ ] `agents-core:unattended-run` step 3 asks these every time, with a recommended default:
       what to do at the review cap (recommend: park the phase, never self-rule a critical finding;
-      step 4 writes the answer as the `At review cap:` line);
+      step 4 records the answer as the `At review cap:` line, and whoever starts `at task run`
+      passes it as `--at-review-cap`);
       the lane cap for the night (recommend 2); what to do when the model refuses or a safety
       classifier stops a step (recommend: route that phase to `at task run --harness codex`, else park);
       what to do when another session holds a shared resource (recommend: wait up to N minutes, then
@@ -353,3 +355,17 @@ The end-to-end suite E1–E8 passes from a clean checkout, and E9 was run once w
   caller's repo), fix round 1, re-review PASS 0/0/3; minors A and B fixed by the orchestrator, C ruled.
   Size: +406 lines, all test harness and docs; flagged: none. See
   `docs/_plans/_runs/unattended-run-hardening/phase-0/`.
+- 2026-11-26: Phase 5 done on lane branch `lane-b/driver` (`52e97e9`); its live scenario E7 is
+  written with Phase 6, after the harness was merged into the lane. Reviews: all three FAIL at
+  round 0 (1 critical: `continue` committed unreviewed edits), three fix rounds, the third
+  structural: the cap rule now comes only from `--at-review-cap`, never from a file. Final: spec and
+  quality PASS, security's open items closed, one more important finding fixed by the orchestrator
+  (an implementer that commits aborts the run). Rulings: 5. Size: `task_run.py` +206/-37 against
+  ~150, flagged and ruled. See `docs/_plans/_runs/unattended-run-hardening/phase-5/`.
+- 2026-11-26: Phase 1 done. The Stop hook writes `<session>.status` and marks DONE instead of
+  deleting the marker; a SessionStart `resume|compact` hook re-prints the open rows; `arm` records
+  pid, cwd and time. Reviews: spec FAIL at round 0 (12 findings), one fix round, re-review PASS;
+  four follow-ups and two test flakes fixed by the orchestrator (1 ruling). Live E1 found one more
+  defect: stderr noise before a send-back makes the harness ignore it. Checks: test-hooks 296/0,
+  test-at 348/0, run-all ok, live E1 E2 PASS. Size: net code about 85 lines against ~90.
+  See `docs/_plans/_runs/unattended-run-hardening/phase-1/`.

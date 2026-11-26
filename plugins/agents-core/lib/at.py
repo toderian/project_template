@@ -1379,6 +1379,16 @@ def run_guard_dir() -> Path:
     return Path(state) / "agents-template" / "run-guard"
 
 
+def _run_guard_clear(marker: Path, everything: bool = False) -> None:
+    """Remove a marker's side files (.status, .count, .watch, .sent/), and the marker when `everything`."""
+    sides = [marker.with_name(marker.name + s) for s in (".status", ".count", ".watch", ".sent")]
+    sides += marker.parent.glob(marker.name + ".status.*")  # temp files of an interrupted write
+    for side in sides:
+        shutil.rmtree(side, ignore_errors=True) if side.is_dir() and not side.is_symlink() else side.unlink(missing_ok=True)
+    if everything:
+        marker.unlink(missing_ok=True)
+
+
 def cmd_run_guard(args: argparse.Namespace) -> int:
     """Arm, show or drop the Stop-hook marker of this session (hooks/run-guard.sh reads it)."""
     usage = "usage: at run-guard arm <TASK_ID|path/to/state.md>... | status | disarm  [--session ID]"
@@ -1398,16 +1408,26 @@ def cmd_run_guard(args: argparse.Namespace) -> int:
         return 3
     marker = run_guard_dir() / session
     if rest[0] == "disarm":
-        for path in (marker, marker.with_name(marker.name + ".count")):
-            path.unlink(missing_ok=True)
+        _run_guard_clear(marker, everything=True)
         print("run-guard: off for this session")
         return 0
-    lines = marker.read_text().splitlines() if marker.is_file() else []
+    # split on \n only: Python's splitlines() also breaks on U+2028 and friends, which a session could plant
+    lines = [x for x in marker.read_text(errors="replace").split("\n") if x] if marker.is_file() else []
     if rest[0] == "status":
         if not lines:
             print("run-guard: off for this session")
         for line in lines:
             print("run-guard: " + line.replace("\t", " "))
+        status = marker.with_name(marker.name + ".status")
+        if status.is_file():
+            print("run-guard: status " + " | ".join(x for x in status.read_text(errors="replace").split("\n") if x))
+        count, sent, watch = (marker.with_name(marker.name + x) for x in (".count", ".sent", ".watch"))
+        if count.is_file():
+            print("run-guard: sent back " + count.read_text(errors="replace").strip()[:10] + " time(s) in a row")
+        if sent.is_dir():
+            print("run-guard: notified " + (", ".join(sorted(e.name for e in sent.iterdir())) or "nothing"))
+        if watch.exists():
+            print("run-guard: a watcher is attached")
         return 0
     if len(rest) < 2:
         die(usage, code=2)
@@ -1421,13 +1441,28 @@ def cmd_run_guard(args: argparse.Namespace) -> int:
             line = f"task\t{root}\t{target}"
         if line not in lines:
             lines.append(line)
-    marker.parent.mkdir(parents=True, exist_ok=True)
+    marker.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    marker.parent.chmod(0o700)  # mkdir's mode does not tighten a directory that already exists
     cutoff = time.time() - 14 * 86400
-    for old in marker.parent.iterdir():  # markers of sessions that are long gone
-        if old.is_file() and old.stat().st_mtime < cutoff:
-            old.unlink(missing_ok=True)
+    for old in marker.parent.iterdir():  # markers and side files of sessions that are long gone
+        try:
+            if old.lstat().st_mtime >= cutoff:
+                continue
+            if old.is_dir() and not old.is_symlink():
+                if old.name.endswith(".sent"):  # only this tool's own directory, never someone else's
+                    shutil.rmtree(old, ignore_errors=True)
+            else:
+                old.unlink(missing_ok=True)
+        except OSError:
+            pass  # a prune must never stop `arm`
+    _run_guard_clear(marker)  # a new arm starts clean: no DONE status, no count, no sent events
+    now = time.strftime("%Y-%m-%dT%H:%M:%S%z")
+    meta = [f"meta\tpid\t{os.environ['CLAUDE_PID']}"] if os.environ.get("CLAUDE_PID", "").isdigit() else []
+    meta += [f"meta\tcwd\t{Path.cwd()}", f"meta\tarmed\t{now}"]
+    lines = [x for x in lines if not x.startswith("meta\t")] + meta
     marker.write_text("\n".join(lines) + "\n")
-    print(f"run-guard: armed for this session ({len(lines)} target(s)); the turn ends only on "
+    marker.chmod(0o600)
+    print(f"run-guard: armed for this session ({len(lines) - len(meta)} target(s)); the turn ends only on "
           "`Run: WAITING <job>` or `Run: BLOCKED <decision>` until they are done")
     return 0
 

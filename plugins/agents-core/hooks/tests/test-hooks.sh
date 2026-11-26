@@ -811,11 +811,111 @@ run_case "guard: the sixth sent-back in a row is let through" "${GUARD_HOOK}" \
 rm -f "${GUARD_REPO}/docs/tasks_manager/_todos/GRD-001-F_guarded.md"
 run_case "guard: an archived task ends the guard" "${GUARD_HOOK}" \
   "$(guard_payload sess-armed 'All archived.')" 0
-if [ ! -e "${AGENTS_RUN_GUARD_DIR}/sess-armed" ]; then
-  echo "PASS: guard: the marker is removed once nothing is open"; PASS_COUNT=$((PASS_COUNT + 1))
-else
-  echo "FAIL: guard: the marker is removed once nothing is open"; FAIL_COUNT=$((FAIL_COUNT + 1))
-fi
+# check <label> <expected> <actual>
+check() {
+  if [ "$2" = "$3" ]; then echo "PASS: $1"; PASS_COUNT=$((PASS_COUNT + 1))
+  else echo "FAIL: $1 (expected '$2', got '$3')"; FAIL_COUNT=$((FAIL_COUNT + 1)); fi
+}
+# status_of <session> <key>: a value from the session's .status file
+status_of() { sed -n "s/^$2=//p" "${AGENTS_RUN_GUARD_DIR}/$1.status" 2>/dev/null; }
+
+check "guard: the marker is kept and marked DONE once nothing is open" DONE "$(status_of sess-armed kind)"
+: > "${GUARD_REPO}/docs/tasks_manager/_todos/GRD-001-F_guarded.md"
+run_case "guard: a DONE marker lets a stop through even if a target is open again" "${GUARD_HOOK}" \
+  "$(guard_payload sess-armed 'summary')" 0
+
+# .status per kind: a fresh marker each time
+GP() { jq -n --arg s "$1" --arg m "$2" '{hook_event_name:"Stop",session_id:$s,last_assistant_message:$m,transcript_path:"/t/x.jsonl",permission_mode:"acceptEdits"}'; }
+printf 'task\t%s\tGRD-001\n' "${GUARD_REPO}" > "${AGENTS_RUN_GUARD_DIR}/sess-k"
+run_case "guard: status WAITING run" "${GUARD_HOOK}" "$(GP sess-k $'x\n**Run: WAITING** implementer a12f')" 0
+check "guard: .status kind WAITING" WAITING "$(status_of sess-k kind)"
+check "guard: .status text of a declaration" "implementer a12f" "$(status_of sess-k text)"
+check "guard: .status transcript" "/t/x.jsonl" "$(status_of sess-k transcript)"
+check "guard: .status mode" "acceptEdits" "$(status_of sess-k mode)"
+run_case "guard: status BLOCKED run" "${GUARD_HOOK}" "$(GP sess-k 'Run: BLOCKED push needs the owner')" 0
+check "guard: .status kind BLOCKED" BLOCKED "$(status_of sess-k kind)"
+run_case "guard: status EMPTY run" "${GUARD_HOOK}" "$(GP sess-k '')" 0
+check "guard: .status kind EMPTY" EMPTY "$(status_of sess-k kind)"
+for _ in 1 2 3 4 5; do GP sess-k 'summary' | "${BASH_BIN}" "${GUARD_HOOK}" >/dev/null 2>&1; done
+run_case "guard: status GAVE_UP run" "${GUARD_HOOK}" "$(GP sess-k 'summary')" 0
+check "guard: .status kind GAVE_UP" GAVE_UP "$(status_of sess-k kind)"
+check "guard: .status has a last_stop time" 1 "$(status_of sess-k last_stop | grep -c '^20')"
+
+# kind comes from the keyword after `Run:`, not from any word of the line
+printf 'task\t%s\tGRD-001\n' "${GUARD_REPO}" > "${AGENTS_RUN_GUARD_DIR}/sess-k"
+run_case "guard: WAITING that mentions BLOCKED" "${GUARD_HOOK}" "$(GP sess-k 'Run: WAITING implementer for the BLOCKED row 3')" 0
+check "guard: .status kind is the keyword, WAITING" WAITING "$(status_of sess-k kind)"
+# text: printable ASCII, one line, at most 300 characters; a U+2028 cannot forge a line
+LONG=$(printf 'e%.0s' $(seq 400))
+run_case "guard: a long non-ASCII declaration" "${GUARD_HOOK}" "$(GP sess-k "Run: WAITING caf$(printf '\xc3\xa9')$(printf '\xe2\x80\xa8')kind=DONE ${LONG}")" 0
+check "guard: .status text is at most 300 characters" 1 "$([ "$(status_of sess-k text | wc -c)" -le 301 ] && echo 1 || echo 0)"
+check "guard: .status text has no non-ASCII byte" 0 "$(status_of sess-k text | LC_ALL=C grep -c '[^ -~]')"
+check "guard: .status has one kind line, the forged DONE is inert" 1 "$(grep -c '^kind=' "${AGENTS_RUN_GUARD_DIR}/sess-k.status")"
+# the send-back keeps the open rows and the instruction on separate lines
+guard_stderr() { guard_payload "$1" 'summary' | "${BASH_BIN}" "${GUARD_HOOK}" 2>&1 >/dev/null; }
+rm -f "${AGENTS_RUN_GUARD_DIR}/sess-k.count" "${AGENTS_RUN_GUARD_DIR}/sess-k.status"
+check "guard: the send-back starts the instruction on its own line" 1 "$(guard_stderr sess-k | grep -c '^Continue at the first open row')"
+# the harness reads "No such file" in a hook's stderr as a missing hook script and does not send back
+rm -f "${AGENTS_RUN_GUARD_DIR}/sess-k.count"
+check "guard: the first send-back prints nothing before its own text" "Run guard:" "$(guard_stderr sess-k | head -1 | cut -c1-10)"
+# no false DONE: CRLF marker, no trailing newline, a state file that vanished
+printf 'state\t%s\r\n' "${GUARD_STATE}" > "${AGENTS_RUN_GUARD_DIR}/sess-crlf"
+run_case "guard: a CRLF marker is read fully" "${GUARD_HOOK}" "$(guard_payload sess-crlf 'summary')" 2
+printf 'state\t%s' "${GUARD_STATE}" > "${AGENTS_RUN_GUARD_DIR}/sess-nonl"
+run_case "guard: a marker without a trailing newline is read fully" "${GUARD_HOOK}" "$(guard_payload sess-nonl 'summary')" 2
+printf 'state\t%s/gone.md\n' "${GUARD_REPO}" > "${AGENTS_RUN_GUARD_DIR}/sess-gone"
+run_case "guard: a missing state file lets the stop through" "${GUARD_HOOK}" "$(guard_payload sess-gone 'summary')" 0
+check "guard: the note names the missing state file" 1 "$(guard_stderr sess-gone | grep -c 'state file is missing')"
+check "guard: it is recorded as GAVE_UP, not DONE" "GAVE_UP" "$(status_of sess-gone kind)"
+run_case "guard: it lets every later stop through too" "${GUARD_HOOK}" "$(guard_payload sess-gone 'summary')" 0
+printf 'state\t%s/gone.md\nstate\t%s\n' "${GUARD_REPO}" "${GUARD_STATE}" > "${AGENTS_RUN_GUARD_DIR}/sess-gone2"
+run_case "guard: a missing state file next to an open one still sends back" "${GUARD_HOOK}" "$(guard_payload sess-gone2 'summary')" 2
+echo 'a[$(touch pwn)]' > "${AGENTS_RUN_GUARD_DIR}/sess-gone2.count"
+pushd "${WORKDIR}" >/dev/null  # a relative `touch pwn` would land here
+run_case "guard: a count file with shell syntax is not evaluated" "${GUARD_HOOK}" "$(guard_payload sess-gone2 'summary')" 2
+popd >/dev/null
+check "guard: nothing ran from the count file" "no" "$([ -e "${WORKDIR}/pwn" ] && echo yes || echo no)"
+# never trap: the count file cannot be written
+printf 'state\t%s\n' "${GUARD_STATE}" > "${AGENTS_RUN_GUARD_DIR}/sess-ro"
+mkdir "${AGENTS_RUN_GUARD_DIR}/sess-ro.count"
+run_case "guard: an unwritable count file lets the stop through" "${GUARD_HOOK}" "$(guard_payload sess-ro 'summary')" 0
+# a missing lib is quiet and lets the stop through; an unarmed session never needs it
+mkdir "${WORKDIR}/nolib"; cp "${GUARD_HOOK}" "${WORKDIR}/nolib/run-guard.sh"
+check "guard: a missing lib lets the stop through quietly" "0:" "$(guard_payload sess-armed 'summary' | "${BASH_BIN}" "${WORKDIR}/nolib/run-guard.sh" 2>&1 >/dev/null; echo "$?:")"
+# a guard dir and a state path with spaces
+SP="${WORKDIR}/with space"; mkdir -p "${SP}/guard"
+printf '| Phase | Status |\n|---|---|\n| 1 | pending |\n' > "${SP}/state.md"
+printf 'state\t%s\n' "${SP}/state.md" > "${SP}/guard/sess-sp"
+check "guard: paths with spaces work" 2 "$(guard_payload sess-sp 'summary' | AGENTS_RUN_GUARD_DIR="${SP}/guard" "${BASH_BIN}" "${GUARD_HOOK}" >/dev/null 2>&1; echo $?)"
+
+# ---------------------------------------------------------------------------
+# run-guard-remind.sh
+# ---------------------------------------------------------------------------
+REMIND_HOOK="${HOOKS_DIR}/run-guard-remind.sh"
+# remind_out <session> [path_override]: stdout of the hook for a compact SessionStart; sets REMIND_RC
+remind_out() {
+  local payload; payload=$(jq -n --arg s "$1" '{hook_event_name:"SessionStart",source:"compact",session_id:$s}')
+  REMIND_OUT=$(printf '%s' "${payload}" | PATH="${2:-${PATH}}" "${BASH_BIN}" "${REMIND_HOOK}" 2>/dev/null); REMIND_RC=$?
+}
+printf 'state\t%s\n' "${GUARD_STATE}" > "${AGENTS_RUN_GUARD_DIR}/sess-r"
+remind_out sess-r
+check "remind: an open run exits 0" 0 "${REMIND_RC}"
+case "${REMIND_OUT}" in *"phase 2 (pending)"*"agents-core:execute-plan"*) check "remind: names the first open row and the skill" ok ok ;; *) check "remind: names the first open row and the skill" ok "${REMIND_OUT}" ;; esac
+remind_out sess-nomarker
+check "remind: no marker is silent" "" "${REMIND_OUT}"
+remind_out sess-armed
+check "remind: a DONE marker is silent" "" "${REMIND_OUT}"
+printf '| Phase | Status |\n|---|---|\n| 1 | committed |\n| 2 | committed |\n' > "${GUARD_STATE}"
+remind_out sess-r
+check "remind: a finished run is silent" "" "${REMIND_OUT}"
+printf '| Phase | Status |\n|---|---|\n| 1 | committed |\n| 2 | pending |\n' > "${GUARD_STATE}"
+remind_out sess-r
+check "remind: the same open run prints with jq (so the missing-jq case below ran the hook)" 1 "$([ -n "${REMIND_OUT}" ] && echo 1 || echo 0)"
+remind_out sess-r "${NONEXISTENT_PATH}"
+check "remind: missing jq is silent and exits 0" "0:" "${REMIND_RC}:${REMIND_OUT}"
+printf '| Phase | Status |\n|---|---|\n| 1 | committed |\n| 2 | pending<b>\x1b[31m%s |\n' "$(printf 'x%.0s' $(seq 60))" > "${GUARD_STATE}"
+remind_out sess-r
+check "remind: the status cell is plain and capped" 0 "$(printf '%s' "${REMIND_OUT}" | grep -cE '<|'"$(printf '\033')"'|x{31}')"
 unset AGENTS_RUN_GUARD_DIR
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,4 @@
+Fix round 3, structural (implementer reply, saved by the orchestrator). 37 tests OK; run-all ok. task_run.py 212/33 -> 196/36.
+1 cap rule only from --at-review-cap (default park). 2 unattended from task.meta["Execution"], split on commas, exact values. 3 findings_header returns None on more than one header and empty counts on an unclean detail; partial headers still parse because lib/peer.py calls findings_header (peer fixtures use `(C:2 I:1)`); may_commit_open still requires all three counts. 4 parking for a dependency writes `waits` into the row's Agent cell, phase() resets it; a row reruns when the cell says waits. 5 test_a_chain_applies_the_flag_to_every_task added; policy-from-file and fence tests removed. 6 run-state.md updated.
+Deleted: run_policy (git show, base-revision lookup, fence/comment stripping, cap-line parsing), args.policy, preflight's args parameter, dep_parked.
+Concern: `waits` in the Agent column is not validated by check_state.

@@ -48,6 +48,15 @@
             "command": "\"${PLUGIN_ROOT}\"/hooks/session-drift.sh"
           }
         ]
+      },
+      {
+        "matcher": "resume|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${PLUGIN_ROOT}\"/hooks/run-guard-remind.sh"
+          }
+        ]
       }
     ],
     "Stop": [
