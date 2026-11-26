@@ -20,29 +20,36 @@ them run in parallel. Do not use it for one task: run `agents-core:execute-plan`
 
 ## Set up, in this order
 
-1. Copy `assets/profile.json` and fill it: repos, resources (`name`, default `minutes`, `auto`), session `cap`,
-   `land` mode, and the lab wrapper scripts as absolute paths.
+1. Copy `assets/profile.json` and fill it: repos, resources (`name`, default `minutes`, `auto`, and `scripts`: the
+   lab wrapper scripts of that resource as absolute paths), session `cap` and `land` mode.
 2. `at sup init --profile <p> --hub <hub> --from <profile.json>` (the owner's shell or chat; a worker or tick is
-   refused). It records the hub in the profile's config, so later commands need no `--hub`, and writes into the hub
-   `.claude/agents/<p>-supervisor.md`, `-adviser.md`, `-operator.md` and `.claude/supervisor/<p>.json`,
-   `<p>.settings.json`, `<p>.tables.json`. Existing files are refused without `--force`.
-3. Review the generated files. Check that the supervisor's tool list has no Edit or Write and that
-   `<p>.tables.json` (mode 0600) lists only your operator scripts: the supervisor's own commands are the guard's
-   built-in table (`DEFAULT_MAIN` in `sup_guard.py`), which the file does not override.
+   refused). It records the hub in the profile's config, so later commands need no `--hub`, and writes nothing into
+   the hub. Everything goes to `${AGENTS_SUP_DIR:-~/.local/state/agents-template/sup}/<p>/conf/` (mode 0700):
+   `settings.json`, `tables.json` (0600), `profile.json` and `.claude/agents/<p>-supervisor.md`, `-adviser.md`,
+   `-operator.md`. Existing files are refused without `--force`.
+3. Review the generated files. Check that the supervisor's tool list has no Edit or Write, that `settings.json` runs
+   `/bin/bash <path>/sup-guard.sh` as its PreToolUse hook, and that `tables.json` holds only the operator's `at sup op`
+   rule, `at lease list` and an empty adviser table: the supervisor's own commands are the guard's built-in table
+   (`DEFAULT_MAIN` in `sup_guard.py`), which the file cannot override.
 4. `at sup pack <name> <TASK>... [--parallel]` for each pack, `at sup ready <TASK>` for each task, then
    `at sup start-pack <name>`.
-5. `at sup watch start --profile <p>`: the watcher starts ready tasks in a running pack, grants `auto` resources,
-   and starts a tick (`at sup tick`) on an event that needs judgement.
-6. `at sup chat --profile <p>`: the owner's interactive session; its opening message is the digest.
+5. `at sup watch start --profile <p>` (the owner's shell): the watcher starts ready tasks in a running pack, grants
+   `auto` resources, and starts a tick (`at sup tick`) on an event that needs judgement. It tells the owner by itself
+   (a queue entry and `at notify`) about a dead worker, a refused start or landing, an owed or overdue lease, paused
+   ticks and a worker that stops BLOCKED or GAVE_UP, with or without ticks.
+6. `at sup chat --profile <p>` (the owner's shell): the owner's interactive session; its opening message is the
+   digest. Its working directory is the `conf/` directory, not the hub, so Claude Code asks you once to trust that
+   directory: accept it. The supervisor reads hub files by absolute path.
 
 ## The owner's commands
 
 - In chat: "status" (the digest, the queue first), answers to the queue (`at sup answer <Q-id> '<text>' --owner`),
   standing instructions (recorded at once with `at sup instruct`), `pack`, `start-pack`, `pause-pack`,
-  `close-pack`, `order`, `cap`, `watch start|stop`. Only the chat session (its token) runs these from a supervisor.
+  `close-pack`, `order`, `cap`. Only the chat session (its token) runs these from a supervisor.
 - `at sup board` writes and prints `board.md`: digest plus the whole queue.
 - Agent view: watch a worker or approve a permission prompt; no supervisor can.
-- Owner's shell only: `at sup init|tick|chat`, `at sup watch once`, `at lease clear`, and any `git push`. No LLM pushes.
+- Owner's shell only: `at sup init|tick|chat`, `at sup watch start|stop|once`, `at lease clear`, and any `git push`.
+  No LLM pushes.
 - When a pack is finished: `at sup done <pack>` (exit 0 when every task is landed and nothing is live), then
   `at sup close-pack <pack>`.
 
@@ -50,9 +57,19 @@ them run in parallel. Do not use it for one task: run `agents-core:execute-plan`
 
 - Answer a worker only when the answer follows from the task file, the owner's standing instructions or a recorded
   decision; each answer is a `Decision: [sup-<n>]` line naming its source. Never above the repo's `Autonomy max`.
-- Grant or deny a resource request (`at sup grant <TASK> <resource>`, `at sup deny <TASK> <resource> '<reason>'`); land a task that passed the done check; start the next ready task.
-- It may not edit files, push, clear a lease, change instructions or pack controls from a tick, or run any command
-  outside the guard's tables. Everything else stays in the owner's queue.
+- Grant or deny a resource request (`at sup grant <TASK> <resource>`, `at sup deny <TASK> <resource> '<reason>'`);
+  leave anything else for the owner with `at sup escalate '<text>' [--task <TASK>] [--blocking]`; land a task that
+  passed the done check; start the next ready task. Lab scripts run only through the operator's `at sup op`.
+- It has no `git`, `gh` or `claude` command and no `at lease take|release`; it may not edit files, push, clear a
+  lease, change instructions or pack controls from a tick, or run any command outside the guard's tables.
+  Everything else stays in the owner's queue.
+
+## What the guard does and does not protect
+
+A worker runs under the same user as the state directory, so nothing in `at sup` stops a worker: the chat token, the
+guard and `by: owner` marks stop only the guarded supervisor (a tick or the chat) and honest mistakes, and
+`touch.log` is a record, not proof. Worker text never enters a tick prompt: events are ids only, and the supervisor
+reads questions itself with `at sup queue`, as data.
 
 ## Trial arms
 
@@ -65,11 +82,11 @@ them run in parallel. Do not use it for one task: run `agents-core:execute-plan`
 
 - `at sup watch stop --profile <p>`. A tick in flight can be killed: the cursor moves only when it ends with
   `TICK done:`, so the next tick repeats the events.
-- Remove a profile by deleting the generated hub files and `${AGENTS_SUP_DIR:-~/.local/state/agents-template/sup}/<p>/`
+- Remove a profile by deleting `${AGENTS_SUP_DIR:-~/.local/state/agents-template/sup}/<p>/` (its `conf/` included)
   after `at sup close-pack` on each pack. Chat tokens expire after 12 hours.
 
 ## Completion criteria
 
-- `at sup init` wrote every file and `at sup chat --print-command` shows the settings file and the agent.
+- `at sup init` wrote every file under `conf/` and `at sup chat --print-command` shows the settings file and the agent.
 - A tick on a test event ends with `TICK done:` and moves the cursor; a failing tick leaves it.
 - The owner can read each answer the supervisor gave in the queue or the inbox and overrule it.

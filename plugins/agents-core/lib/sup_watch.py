@@ -7,8 +7,13 @@
 Files in the profile directory: watch.pid ("<pid> <start time>"), watch.log, watch.json (what was already
 emitted, so each notice is sent once), tick.pid (written by the running tick only; the watcher reads it, and emits
 `tick_failed` when a tick exits non-zero). `watch start` and `watch stop` are chat-only (sup_ask.require_chat). One pass is `step(profile, hub)`, in order:
-liveness, leases, answers, free resources, starts, landing, tick. Every change of supervisor state takes
+liveness, leases, answers, free resources, starts, landing, notices, tick. Every change of supervisor state takes
 `sup_state.locked` briefly; external programs (`at`, `sup_workers`) run outside it, because they lock themselves.
+Policy: a dead worker is woken with a restart text up to sup_workers.DEAD_RESTARTS times before `dead` is final; a bad
+`claude agents` answer never declares anyone dead; paused and closed packs get no start, wake or landing; an owner-stopped
+row is never woken; a refused start is retried only when the owner touches or the pack file changes, a refused landing only
+when task/<ID> has a new tip or the owner touches; `dead`, `start_refused`, `land_refused`, `owed`, `overdue`,
+`ticks_paused` and a BLOCKED or GAVE_UP stop add a non-blocking queue entry (source `watcher`) and run `at notify`.
 `sup_workers` (is_alive, wake, next_tasks) is imported inside the functions. `at` is $AGENTS_AT_BIN. Every `at`
 subprocess runs with cwd = the profile's hub (config key `hub`) and AGENTS_SUPERVISOR set, never with the chat token.
 Exit codes: 0 ok, 2 usage, 3 refused. stdlib only.
@@ -16,7 +21,6 @@ Exit codes: 0 ok, 2 usage, 3 refused. stdlib only.
 from __future__ import annotations
 
 import argparse
-import contextlib
 import json
 import os
 import signal
@@ -24,13 +28,13 @@ import subprocess
 import sys
 import time
 import traceback
+from datetime import datetime
 from pathlib import Path
 
 import lease
 import sup_state
 
 TICK_TIMEOUT = 600.0
-WAKE_TRIES = 3
 TICK_TRIES = 3
 STOP = False
 
@@ -72,7 +76,7 @@ def _emit(profile: str, kind: str, task=None, session=None, **data) -> None:
 
 
 def _env(profile: str) -> dict:
-    return {**{k: v for k, v in os.environ.items() if k != "AGENTS_SUP_CHAT_TOKEN"}, "AGENTS_SUPERVISOR": profile}
+    return _workers().clean_env(AGENTS_SUPERVISOR=profile)
 
 
 def _cwd(profile: str) -> str | None:
@@ -80,29 +84,61 @@ def _cwd(profile: str) -> str | None:
     return hub if hub and os.path.isdir(hub) else None
 
 
-def _run_at(profile: str, args: list[str], timeout: float = 300) -> tuple[int, str]:
+def _run_at(profile: str, args: list[str], timeout: float = 300, with_profile: bool = True) -> tuple[int, str]:
     """Run `at <args>` in the hub; returns (exit code, first line of the reason)."""
     try:
-        p = subprocess.run([_at(), *args, "--profile", profile], capture_output=True, text=True, cwd=_cwd(profile),
-                           timeout=timeout, env=_env(profile), stdin=subprocess.DEVNULL)
+        p = subprocess.run([_at(), *args, *(["--profile", profile] if with_profile else [])], capture_output=True, text=True,
+                           cwd=_cwd(profile), timeout=timeout, env=_env(profile), stdin=subprocess.DEVNULL)
     except (OSError, subprocess.TimeoutExpired) as e:
         return 1, f"{type(e).__name__}: {e}"
     reason = next((ln.strip() for ln in (p.stderr + p.stdout).splitlines() if ln.strip()), "")
     return p.returncode, reason[:300]
 
 
+def _owner_touches(profile: str) -> int:
+    """Lines of touch.log that are the owner's; a supervisor-run command writes `sup: ...` and is not counted."""
+    try:
+        lines = (sup_state.profile_dir(profile) / "touch.log").read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return 0
+    return sum(1 for ln in lines if not ln.partition("\t")[2].startswith("sup:"))
+
+
+def _age(stamp: str) -> float:
+    try:
+        return time.time() - datetime.strptime(stamp, "%Y-%m-%dT%H:%M:%S%z").timestamp()
+    except (TypeError, ValueError):
+        return 0.0
+
+
 # ---- the pass --------------------------------------------------------------------------
 
 def _liveness(profile: str, mem: dict, acts: list[str]) -> None:
     w = _workers()
-    for row in sup_state.live_workers(profile):
-        if w.is_alive(row):
+    rows = sup_state.live_workers(profile)
+    found = w.agents() if any(r.get("mode") != "headless" and r.get("state") != "starting" for r in rows) else None
+    for row in rows:
+        task, session = row.get("task"), row["session"]
+        if row.get("state") == "starting":
+            if _age(row.get("started")) > w.STARTING_TTL:  # a start-worker that died: no session was recorded
+                with sup_state.locked(profile):
+                    sup_state.drop_worker(profile, session)
+                acts.append(f"start abandoned {task}")
             continue
+        if w.is_alive(row, found) is not False:  # None: `claude agents` failed, so nobody is declared dead
+            continue
+        restarts = row.get("restarts", 0)
         with sup_state.locked(profile):
-            sup_state.set_worker(profile, row["session"], state="stopped")
-            sup_state.emit(profile, "dead", row.get("task"), row["session"])
-        mem.setdefault("dead", []).append(row["session"])
-        acts.append(f"dead {row.get('task')}")
+            if restarts < w.DEAD_RESTARTS:
+                sup_state.set_worker(profile, session, state="stopped", restarts=restarts + 1, restart_pending=True)
+            else:
+                sup_state.set_worker(profile, session, state="stopped")
+                sup_state.emit(profile, "dead", task, session)
+        if restarts < w.DEAD_RESTARTS:
+            acts.append(f"dead {task}, restart {restarts + 1}")
+        else:
+            mem.setdefault("dead", []).append(session)
+            acts.append(f"dead {task}")
 
 
 def _leases(profile: str, mem: dict, acts: list[str]) -> None:
@@ -118,24 +154,34 @@ def _leases(profile: str, mem: dict, acts: list[str]) -> None:
 
 def _answers(profile: str, mem: dict, acts: list[str]) -> None:
     w = _workers()
-    tries = mem.setdefault("wake_fail", {})
     for row in sup_state.workers(profile):
-        task, session = row.get("task"), row.get("session")
-        if row.get("state") not in ("stopped", "waiting") or not task or tries.get(session, 0) >= WAKE_TRIES:
+        due = w.wake_due(profile, row)
+        if due is None:
             continue
-        if not sup_state.inbox(profile, task, unread_only=True):
-            continue
-        if w.wake(profile, session, "Read your answers with: at sup inbox"):
-            tries.pop(session, None)
-            with sup_state.locked(profile):
-                sup_state.set_worker(profile, session, state="running", waiting_for=None)
+        (text, key), task, session = due, row["task"], row["session"]
+        with sup_state.locked(profile):  # claim a slot first: a wake never takes a slot a start has filled
+            cur = sup_state.worker_for(profile, session=session)
+            others = [x for x in sup_state.live_workers(profile) if x["session"] != session]
+            if cur is None or cur.get("state") not in ("stopped", "waiting") or len(others) >= sup_state.config(profile)["cap"]:
+                continue
+            sup_state.set_worker(profile, session, state="starting", started=sup_state.now())
+        ok = w.wake(profile, session, text)
+        with sup_state.locked(profile):
+            if ok:
+                sup_state.set_worker(profile, session, state="running", waiting_for=None, restart_pending=False,
+                                     wake_fail=0, wake_key=None)
                 sup_state.emit(profile, "restarted", task, session)
+            else:
+                fails = (row.get("wake_fail", 0) if row.get("wake_key") == key else 0) + 1
+                sup_state.set_worker(profile, session, state=cur["state"], started=cur.get("started"), wake_fail=fails,
+                                     wake_key=key)
+                if fails >= w.WAKE_TRIES:
+                    sup_state.emit(profile, "dead", task, session, reason=f"wake failed {fails} times")
+        if ok:
             acts.append(f"restarted {task}")
             continue
-        tries[session] = tries.get(session, 0) + 1
         acts.append(f"wake failed {task}")
-        if tries[session] >= WAKE_TRIES:
-            _emit(profile, "dead", task, session, reason="wake failed 3 times")
+        if fails >= w.WAKE_TRIES:
             acts.append(f"dead {task}")
 
 
@@ -144,7 +190,7 @@ def _free(profile: str, mem: dict, acts: list[str]) -> None:
     events = sup_state.events_since(profile, 0)
     for row in sup_state.workers(profile):
         res, task = row.get("waiting_for"), row.get("task")
-        if row.get("state") != "waiting" or not res or not task:
+        if row.get("state") != "waiting" or not res or not task or not sup_state.RES.match(res):
             continue
         with lease.locked() as d:
             _, state = lease.read(d, res)
@@ -162,33 +208,86 @@ def _free(profile: str, mem: dict, acts: list[str]) -> None:
 
 
 def _starts(profile: str, mem: dict, acts: list[str]) -> None:
+    """A refused start is tried again only when the owner touches or the pack file changes."""
+    tried = mem.setdefault("start_tried", {})
     for task in _workers().next_tasks(profile):
+        key = [_owner_touches(profile), json.dumps(sup_state.pack_of(profile, task), sort_keys=True)]
+        if tried.get(task) == key:
+            continue
         rc, reason = _run_at(profile, ["sup", "start-worker", task])
         if rc == 0:
+            tried.pop(task, None)
             acts.append(f"started {task}")
             continue
+        tried[task] = key
         _log(profile, f"start-worker {task} refused: {reason}")
-        if _once(mem, "start_refused", task):
+        if _once(mem, "start_refused", f"{task}:{reason}"):
             _emit(profile, "start_refused", task, reason=reason)
             acts.append(f"start_refused {task}")
+        _remember(profile, mem)
+
+
+def _tip(profile: str, task: str) -> str:
+    hub = _cwd(profile)
+    if hub is None:
+        return ""
+    try:
+        p = subprocess.run(["git", "-C", hub, "rev-parse", "--verify", "-q", f"refs/heads/task/{task}"], capture_output=True,
+                           text=True, timeout=30, env=_env(profile))
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    return p.stdout.strip()
 
 
 def _landing(profile: str, mem: dict, acts: list[str]) -> None:
+    """A refused landing is tried again only when the tip of task/<ID> changes or the owner touches."""
     if sup_state.config(profile).get("land") != "auto":
         return
+    tried = mem.setdefault("land_tried", {})
     for row in sup_state.workers(profile):
         task = row.get("task")
         gone = row.get("state") == "stopped" and row.get("session") in mem.get("dead", [])
         if not task or task in mem.get("landed", []) or not (row.get("state") == "done" or gone):
             continue
+        pack = sup_state.pack_of(profile, task)
+        if pack and pack.get("state") in ("paused", "closed"):
+            continue
+        key = [_tip(profile, task), _owner_touches(profile)]
+        if tried.get(task) == key:
+            continue
         rc, reason = _run_at(profile, ["sup", "land", task])
         if rc == 0:
+            tried.pop(task, None)
             mem.setdefault("landed", []).append(task)
-            _emit(profile, "landed", task, row.get("session"))
+            if not any(e.get("kind") == "landed" and e.get("task") == task for e in sup_state.events_since(profile, 0)):
+                _emit(profile, "landed", task, row.get("session"))  # `at sup land` emits it itself; this is the fallback
             acts.append(f"landed {task}")
-        elif _once(mem, "land_refused", f"{task}:{reason}"):
+        else:
+            tried[task] = key
             _emit(profile, "land_refused", task, row.get("session"), reason=reason)
             acts.append(f"land_refused {task}")
+        _remember(profile, mem)
+
+
+NOTIFY = ("dead", "start_refused", "land_refused", "owed", "overdue", "ticks_paused")
+
+
+def _notices(profile: str, mem: dict, acts: list[str]) -> None:
+    """Trouble reaches the owner without a tick: a non-blocking queue entry and a best-effort `at notify`, once per event."""
+    last = mem.get("notice_id", 0)
+    for e in sup_state.events_since(profile, last):
+        last = max(last, e["id"])
+        kind, task = e.get("kind"), e.get("task")
+        if not (kind in NOTIFY or (kind == "stopped" and e.get("status") in ("BLOCKED", "GAVE_UP"))):
+            continue
+        what = f"{kind} {e.get('status') or ''}".strip()
+        detail = e.get("reason") or e.get("resource") or ""
+        with sup_state.locked(profile):
+            sup_state.queue_add(profile, task if task and sup_state.TASK.match(task) else None,
+                                f"{what} {task or ''}: {detail}".strip()[:200], source="watcher", blocking=False)
+        _run_at(profile, ["notify", f"{profile}: {what} {task or ''}".strip()], timeout=30, with_profile=False)
+        acts.append(f"notified {what} {task or ''}".strip())
+    mem["notice_id"] = last
 
 
 def _pid_file_alive(path: Path) -> bool:
@@ -198,12 +297,6 @@ def _pid_file_alive(path: Path) -> bool:
     except (OSError, ValueError, IndexError):
         return False
     return True
-
-
-def _touch_size(profile: str) -> int:
-    with contextlib.suppress(OSError):
-        return (sup_state.profile_dir(profile) / "touch.log").stat().st_size
-    return 0
 
 
 def _run_tick(profile: str) -> bool:
@@ -223,7 +316,7 @@ def _run_tick(profile: str) -> bool:
 
 def _tick(profile: str, mem: dict, acts: list[str]) -> None:
     if mem.get("paused") is not None:
-        if _touch_size(profile) == mem["paused"]:
+        if _owner_touches(profile) == mem["paused"]:
             return
         mem["paused"], mem["tick_fail"] = None, 0
     if not sup_state.events_since(profile) or _pid_file_alive(sup_state.profile_dir(profile) / "tick.pid"):
@@ -236,19 +329,22 @@ def _tick(profile: str, mem: dict, acts: list[str]) -> None:
     _emit(profile, "tick_failed", reason=f"failure {mem['tick_fail']} of {TICK_TRIES}")
     acts.append("tick_failed")
     if mem["tick_fail"] >= TICK_TRIES:
-        mem["paused"] = _touch_size(profile)
+        mem["paused"] = _owner_touches(profile)
         _emit(profile, "ticks_paused", reason="3 failed ticks in a row; resumes after an owner touch")
         acts.append("ticks_paused")
 
 
 def step(profile: str, hub=None, tick: bool = True) -> list[str]:
-    """One pass; returns the actions taken."""
+    """One pass; returns the actions taken. watch.json is saved after every step that changed it."""
     mem, acts = _memory(profile), []
+    saved = json.dumps(mem, sort_keys=True)
     try:
-        for part in (_liveness, _leases, _answers, _free, _starts, _landing):
+        for part in (_liveness, _leases, _answers, _free, _starts, _landing, _notices) + ((_tick,) if tick else ()):
             part(profile, mem, acts)
-        if tick:
-            _tick(profile, mem, acts)
+            now = json.dumps(mem, sort_keys=True)
+            if now != saved:
+                _remember(profile, mem)
+                saved = now
     finally:
         _remember(profile, mem)
     for a in acts:
@@ -308,9 +404,9 @@ def loop(profile: str, interval: float, tick: bool) -> int:
             while not STOP and time.time() < end:
                 time.sleep(min(0.2, max(0.0, end - time.time())))
     finally:
+        _log(profile, "watcher stopped")
         if _pid_path(profile).read_text().split()[:1] == [str(os.getpid())]:
             _pid_path(profile).unlink(missing_ok=True)
-        _log(profile, "watcher stopped")
     return 0
 
 
@@ -318,7 +414,7 @@ def loop(profile: str, interval: float, tick: bool) -> int:
 
 def _profile(args) -> str | None:
     try:
-        profile = sup_state.current_profile(args.profile)
+        profile = sup_state.current_profile(getattr(args, "profile", None))
     except ValueError as e:
         print(f"at: sup: {e}", file=sys.stderr)
         return None

@@ -44,17 +44,19 @@ import json, os, sys
 d, a = os.environ["FAKE_DIR"], sys.argv[1:]
 with open(d + "/claude.log", "a") as f:
     f.write(json.dumps({"argv": a, "cwd": os.getcwd(), "env": {k: v for k, v in os.environ.items() if k.startswith("AGENTS_")}}) + "\\n")
-if a[:1] == ["--bg"] and "--resume" not in a:
+if "--resume" in a:
+    print("woke session " + a[a.index("--resume") + 1][:8] + " with its saved options")
+elif a[:1] == ["--bg"]:
     name = a[a.index("--name") + 1]
-    open(d + "/name", "w").write(name)
-    print("backgrounded \\u00b7 abcd1234 \\u00b7 " + name)
+    open(d + "/name", "w").write(name); open(d + "/sid", "w").write(a[a.index("--session-id") + 1])
+    print("backgrounded \\u00b7 " + a[a.index("--session-id") + 1][:8] + " \\u00b7 " + name)
 elif a[:1] == ["agents"]:
-    name = open(d + "/name").read() if os.path.exists(d + "/name") else ""
-    print(json.dumps([{"sessionId": "abcd1234-full", "name": name, "pid": 77}]))
+    sid = open(d + "/sid").read() if os.path.exists(d + "/sid") else ""
+    print(json.dumps([{"sessionId": sid, "name": "x", "pid": 77}] if sid else []))
 elif "-p" in a:
     print(json.dumps({"result": "TICK done: 1 handled, 0 left for the owner", "total_cost_usd": 0.01}))
 """
-TASK, SESSION = "TST-009", "abcd1234-full"
+TASK = "TST-009"
 
 
 def git(path, *a):
@@ -100,16 +102,18 @@ class Flow(unittest.TestCase):
         self.assertEqual(self.at("watch", "once", "--no-tick").stdout.split(), ["started", TASK])
         worker = st.worker_for("p", task=TASK)
         wt = self.tmp / "hub-tst-009"
-        self.assertEqual((worker["session"], worker["state"], worker["cwd"]), (SESSION, "running", str(wt)))
+        SESSION = worker["session"]
+        self.assertEqual((worker["state"], worker["cwd"]), ("running", str(wt)))
         first = self.claude_calls()[0]
+        self.assertEqual(first["argv"][first["argv"].index("--session-id") + 1], SESSION)
         self.assertEqual(first["env"]["AGENTS_SUP_TASK"], TASK); self.assertEqual(first["env"]["AGENTS_SUPERVISOR"], "p")
         self.assertEqual(Path(first["cwd"]).resolve(), wt)
 
         worker_env = {"AGENTS_SUPERVISOR": "p", "AGENTS_SUP_TASK": TASK, "CLAUDE_CODE_SESSION_ID": SESSION}
         out = self.at("ask", "Which db?", "--option", "pg", "--option", "sqlite", "--recommend", "pg", env=worker_env).stdout
-        self.assertEqual(out, "Q1\nWAITING supervisor: Q1\n")
+        self.assertTrue(out.startswith("Q1\n") and out.endswith("WAITING supervisor: Q1\n"), out)
         status = self.at("status").stdout
-        self.assertIn("OPEN QUESTIONS (1)", status); self.assertIn("Q1 TST-009: Which db?", status)
+        self.assertIn("OPEN QUESTIONS (1)", status); self.assertIn("Q1 TST-009 BLOCKING: Which db?", status)
         self.assertEqual(self.at("watch", "once", "--no-tick").stdout.split(), [])  # nothing to wake yet
 
         self.at("answer", "Q1", "sqlite")
@@ -123,6 +127,7 @@ class Flow(unittest.TestCase):
         # the worker closes the task out on its branch; the Stop hook (sup_event) marks the row done
         (wt / "docs/tasks_manager/_todos_archived").mkdir(parents=True)
         git(wt, "mv", f"docs/tasks_manager/_todos/{TASK}-F_x.md", f"docs/tasks_manager/_todos_archived/{TASK}-F_x.md")
+        done = wt / f"docs/tasks_manager/_todos_archived/{TASK}-F_x.md"; done.write_text(done.read_text().replace("- [ ]", "- [x]"))
         (wt / "src").mkdir(); (wt / "src/a.py").write_text("x = 1\n")
         git(wt, "add", "-A"); git(wt, "commit", "-q", "-m", f"{TASK} work"); git(wt, "commit", "-q", "--allow-empty", "-m", f"{TASK} closeout")
         with st.locked("p"):
@@ -136,7 +141,7 @@ class Flow(unittest.TestCase):
         self.assertEqual(st.cursor("p"), st.events_since("p", 0)[-1]["id"])  # the tick handled everything
         tick = [c for c in self.claude_calls() if "-p" in c["argv"]][0]
         self.assertEqual(tick["argv"][tick["argv"].index("--agent") + 1], "p-supervisor")
-        self.assertEqual(Path(tick["cwd"]).resolve(), self.hub)
+        self.assertEqual(Path(tick["cwd"]).resolve(), (st.profile_dir("p") / "conf").resolve())  # never the hub
 
         self.assertEqual(self.at("done", "a").stdout.strip(), "done: a")
         self.assertEqual(json.loads(self.at("measure", "--json").stdout)["tasks_landed"], 1)
@@ -146,13 +151,15 @@ class Flow(unittest.TestCase):
         args = {"instruct": ["x"], "pack": ["b", TASK], "start-pack": ["b"], "pause-pack": ["b"], "close-pack": ["b"],
                 "order": ["b", TASK], "cap": ["2"], "watch start": [], "watch stop": [], "init": ["--force"]}
         self.assertEqual(sorted(args), sorted(sup_guard.CHAT_COMMANDS))
-        session = {"CLAUDE_CODE_SESSION_ID": "worker-1"}
+        session = {"CLAUDE_CODE_SESSION_ID": "worker-0001"}
         for cmd, rest in args.items():
             p = self.at(*cmd.split(), *rest, env=session, ok=False)
             self.assertEqual((cmd, p.returncode), (cmd, 3), p.stderr); self.assertIn("only the owner's chat", p.stderr)
+        st.set_worker("p", "worker-0001", task=TASK, state="running", mode="bg")  # a worker that `start-worker` registered
         self.at("ask", "Q?", env={**session, "AGENTS_SUP_TASK": TASK})  # the worker side stays open
         p = self.at("answer", "Q1", "x", "--owner", env=session, ok=False); self.assertEqual(p.returncode, 3)
-        self.assertEqual(self.at("answer", "Q1", "x", env=session).returncode, 0)
+        p = self.at("answer", "Q1", "x", env=session, ok=False); self.assertEqual(p.returncode, 3)  # a registered worker may not answer
+        self.assertEqual(self.at("answer", "Q1", "x").returncode, 0)  # the supervisor's tick (no worker row) may
 
     def test_every_guard_rule_for_at_sup_names_a_command_that_exists(self):
         import argparse, sup

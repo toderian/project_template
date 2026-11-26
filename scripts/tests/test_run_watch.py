@@ -4,6 +4,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 AT = ROOT / "plugins/agents-core/bin/at"
 sys.path.insert(0, str(ROOT / "plugins/agents-core/lib"))
 import run_watch  # noqa: E402
+import sup_state  # noqa: E402
 
 TASK = """| Field | Value |
 |---|---|
@@ -480,22 +481,82 @@ class Watch(unittest.TestCase):
         self.assertEqual(self.lines(self.notes), ["Run finished: TST-001",
                                                   "Morning report not written: run `at task report TST-001`"])
 
-    def sup_env(self):
-        return dict(AGENTS_SUPERVISOR="p1", AGENTS_SUP_DIR=str(self.tmp / "sup"), AGENTS_SUP_TASK="TST-001")
+    SID = "sess-0001"  # the supervisor refuses event sessions that are not session-id shaped (not "s1")
 
-    def test_a_session_waiting_on_the_supervisor_is_not_restarted_and_resumes_when_the_status_changes(self):
-        self.marker(self.dead_pid(), "kind=WAITING\ntext=supervisor: Q1\nmode=acceptEdits\n")
-        p = subprocess.Popen([str(AT), "run-guard", "watch", "--session", "s1", "--interval", "0.1", "--pause", "0"],
-                             cwd=self.repo, env=dict(self.env, FAKE_FINISH="1", **self.sup_env()),
-                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        self.assertTrue(wait_for(lambda: "waiting on supervisor" in self.log()))
+    def sup_env(self, task="TST-001"):
+        env = dict(AGENTS_SUPERVISOR="p1", AGENTS_SUP_DIR=str(self.tmp / "sup"))
+        return dict(env, AGENTS_SUP_TASK=task) if task else env
+
+    def sup_marker(self, pid, status, row_state="waiting"):
+        """A marker named SID plus a registry row of the same session; returns a starter of the watcher."""
+        self.marker(pid, status)
+        for suffix in ("", ".status"):
+            (self.guard / f"s1{suffix}").rename(self.guard / f"{self.SID}{suffix}")
+        env = dict(self.sup_env(), AGENTS_SUP_DIR=str(self.tmp / "sup"))
+        os.environ["AGENTS_SUP_DIR"] = str(self.tmp / "sup"); self.addCleanup(os.environ.pop, "AGENTS_SUP_DIR", None)
+        sup_state.set_worker("p1", self.SID, task="TST-001", state=row_state, waiting_for="Q1")
+        self.addCleanup(lambda: subprocess.run([str(AT), "run-guard", "disarm", "--session", self.SID], env=self.env,
+                                               capture_output=True, timeout=10))
+
+    def sup_watch(self, *flags, task="TST-001", env=None, wait=False, **extra):
+        cmd = [str(AT), "run-guard", "watch", "--session", self.SID, "--interval", "0.1", "--pause", "0", *flags]
+        run_env = dict(self.env, **self.sup_env(task), **(env or {}), **extra)
+        if wait:
+            return subprocess.run(cmd, cwd=self.repo, env=run_env, capture_output=True, text=True, timeout=20)
+        p = subprocess.Popen(cmd, cwd=self.repo, env=run_env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        self.procs.append(p)
+        return p
+
+    def sup_log(self):
+        f = self.guard / f"{self.SID}.watch.log"
+        return f.read_text() if f.exists() else ""
+
+    def sup_events(self):
+        f = self.tmp / "sup/p1/events.jsonl"
+        return [json.loads(x) for x in f.read_text().splitlines()] if f.exists() else []
+
+    def test_a_parked_session_is_not_restarted_even_with_a_newer_state_file_and_leaves_on_a_new_status(self):
+        self.sup_marker(self.dead_pid(), "kind=WAITING\ntext=supervisor: Q1\nmode=acceptEdits\n")
+        state = self.repo / "docs/tasks_manager/_runs/TST-001/state.md"
+        self.sup_watch("--idle", "999", FAKE_FINISH="1")
+        self.assertTrue(wait_for(lambda: "waiting on supervisor" in self.sup_log()))
+        time.sleep(1.2); state.write_text(state.read_text() + "\n")  # a state change after the stop: the stale rule must not fire
         time.sleep(0.6)
-        self.assertEqual((self.argv(), self.log().count("waiting on supervisor")), ([], 1))
-        self.assertEqual(self.record()["used"], 0)
-        (self.guard / "s1.status").write_text("kind=GAVE_UP\nmode=acceptEdits\n")  # the supervisor's watcher woke it, it stopped again
-        p.wait(timeout=20); self.assertEqual(p.returncode, 0); self.assertEqual(len(self.argv()), 1)
-        events = [json.loads(x) for x in (self.tmp / "sup/p1/events.jsonl").read_text().splitlines()]
-        self.assertEqual([(e["kind"], e["session"], e["task"]) for e in events], [("restarted", "s1", "TST-001")])
+        self.assertEqual((self.argv(), self.sup_log().count("waiting on supervisor")), ([], 1))
+        self.assertEqual(self.record_of(self.SID)["used"], 0)
+        (self.guard / f"{self.SID}.status").write_text("kind=GAVE_UP\nmode=acceptEdits\n")  # a new status ends the park
+        self.assertTrue(wait_for(lambda: len(self.argv()) == 1, 5), self.sup_log())  # dead and open: restarted at last
+
+    def record_of(self, sid):
+        return json.loads((self.guard / f"{sid}.watch.state").read_text())
+
+    def test_a_parked_session_that_died_gets_one_dead_event_and_a_live_one_the_idle_notice(self):
+        self.sup_marker(self.dead_pid(), "kind=WAITING\ntext=supervisor: Q1\nmode=acceptEdits\n")
+        self.sup_watch("--idle", "999", FAKE_FINISH="1")
+        self.assertTrue(wait_for(lambda: [e["kind"] for e in self.sup_events()] == ["dead"], 5))
+        time.sleep(0.6)
+        self.assertEqual(([e["kind"] for e in self.sup_events()], self.argv()), (["dead"], []))
+        self.assertEqual(self.sup_events()[0]["session"], self.SID)
+
+    def test_a_parked_session_with_a_live_process_gets_the_idle_notice(self):
+        self.sup_marker(self.live().pid, "kind=WAITING\ntext=supervisor: Q1\nmode=acceptEdits\n")
+        self.sup_watch("--idle", "0")
+        self.assertTrue(wait_for(lambda: any("Run idle" in n for n in self.lines(self.notes)), 5), self.sup_log())
+        self.assertEqual(self.argv(), [])
+
+    def test_only_the_exact_supervisor_prefix_parks(self):
+        self.sup_marker(self.dead_pid(), "kind=WAITING\ntext=supervisord restart of job 3\nmode=acceptEdits\n")
+        p = self.sup_watch(wait=True, FAKE_FINISH="1")
+        self.assertEqual((p.returncode, len(self.argv())), (0, 1)); self.assertNotIn("waiting on supervisor", self.sup_log())
+
+    def test_a_restart_sets_the_row_running_found_by_the_task_when_the_session_has_no_row(self):
+        self.sup_marker(self.dead_pid(), "kind=GAVE_UP\nmode=acceptEdits\n")
+        sup_state.drop_worker("p1", self.SID); sup_state.set_worker("p1", "other-0001", task="TST-001", state="stopped", waiting_for="Q1")
+        p = self.sup_watch(task=None, wait=True, FAKE_FINISH="1")
+        self.assertEqual((p.returncode, len(self.argv())), (0, 1))
+        row = sup_state.worker_for("p1", task="TST-001")
+        self.assertEqual((row["state"], row["waiting_for"]), ("running", None))
+        self.assertEqual([(e["kind"], e["task"]) for e in self.sup_events()], [("restarted", "TST-001")])
 
     def test_without_a_supervisor_the_same_status_is_restarted_as_before(self):
         self.marker(self.dead_pid(), "kind=WAITING\ntext=supervisor: Q1\nmode=acceptEdits\n")

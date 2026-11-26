@@ -8,11 +8,18 @@ inbox; `grant` and `deny` settle a `need`; `queue` lists the owner's open questi
 with `waiting_for` None is what the watcher wakes. Chat-only commands (`instruct`, `answer --owner`, and the ones in the
 other parts: sup_guard.CHAT_COMMANDS) call `require_chat()`: allowed in a plain shell, and in a Claude session only with
 the chat token of that session (sup_guard.check_chat_token).
+
+Trust model: a worker runs under the same uid as the state directory, so nothing here is a fence against a worker. The
+checks stop the guarded supervisor (tick or chat) and honest mistakes: supervisor- and owner-side commands (`answer`,
+`grant`, `deny`, `instruct`, `escalate`) refuse when AGENTS_SUP_TASK is set or the caller's session is a registered
+worker of the profile, and chat-only ones also without a chat token. `touch.log` and `by: owner` are records, not proof.
+`ask` and `need` never create a worker row: they update the row found by session id, else by task, else refuse (3).
 Exit codes: 0 ok, 2 usage, 3 refused. stdlib only.
 """
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import os
 import sys
@@ -22,7 +29,9 @@ import lease
 import sup_state as st
 
 REFUSED = "at: sup: only the owner's chat may run this"
+REFUSED_WORKER = "at: sup: a worker session may not run this"
 DEFAULT_MINUTES = 30
+MAX_MINUTES = 480  # profile key max_minutes overrides
 
 
 def _err(msg: str, code: int = 3) -> int:
@@ -41,10 +50,20 @@ class _Usage(Exception):
     pass
 
 
+def _one(s, n: int = 300) -> str:
+    """One line: whitespace collapsed, cut."""
+    s = " ".join(str(s).split())
+    return s if len(s) <= n else s[: n - 1] + "…"
+
+
 def require_chat() -> bool:
-    """True for the owner at a plain shell (no CLAUDE_CODE_SESSION_ID) or in the chat session that holds a valid
-    token (sup_guard.check_chat_token). Every chat-only command of `at sup` calls this, from any part."""
+    """True for the owner at a plain shell or in the chat session that holds a valid token (sup_guard.check_chat_token).
+    Every chat-only command of `at sup` calls this, from any part. Refused under AGENTS_SUP_TASK (a worker session) and
+    in a process with AGENTS_SUPERVISOR but no session id. Not a fence against a worker: see the module docstring."""
     session = os.environ.get("CLAUDE_CODE_SESSION_ID")
+    if os.environ.get("AGENTS_SUP_TASK") or (session is None and os.environ.get("AGENTS_SUPERVISOR")):
+        print(REFUSED, file=sys.stderr)
+        return False
     if session is None:
         return True
     import sup_guard
@@ -54,8 +73,18 @@ def require_chat() -> bool:
     return False
 
 
-def _run(fn, args, chat: bool = False, task: bool = False) -> int:
-    """Resolve profile (and task for worker commands), check the chat token, then call fn under the lock."""
+def not_worker(profile: str) -> bool:
+    """False under AGENTS_SUP_TASK or when the caller's session is a registered worker of the profile."""
+    sid = os.environ.get("CLAUDE_CODE_SESSION_ID")
+    if os.environ.get("AGENTS_SUP_TASK") or (sid and st.worker_for(profile, session=sid)):
+        print(REFUSED_WORKER, file=sys.stderr)
+        return False
+    return True
+
+
+def _run(fn, args, chat: bool = False, task: bool = False, sup: bool = False) -> int:
+    """Resolve profile (and task for worker commands), refuse a worker for supervisor-side commands, check the chat
+    token, then call fn under the lock."""
     try:
         profile = _profile(args)
         if profile is None:
@@ -65,6 +94,8 @@ def _run(fn, args, chat: bool = False, task: bool = False) -> int:
             tid = getattr(args, "task", None) or os.environ.get("AGENTS_SUP_TASK")
             if not tid or not st.TASK.match(tid):
                 return _err("no task: pass --task or set AGENTS_SUP_TASK (like RM-12)", 2)
+        if (sup or chat) and not not_worker(profile):
+            return 3
         if chat and not require_chat():
             return 3
         with st.locked(profile):
@@ -75,18 +106,14 @@ def _run(fn, args, chat: bool = False, task: bool = False) -> int:
         return _err(str(e), 2)
 
 
-def _session(profile: str, task: str | None) -> str | None:
+def _worker_row(profile: str, task: str) -> dict | None:
+    """The worker's row: by the caller's session id, else by task. Never created here."""
     sid = os.environ.get("CLAUDE_CODE_SESSION_ID")
-    if sid:
-        return sid
-    row = st.worker_for(profile, task=task)
-    return row.get("session") if row else None
+    return (sid and st.worker_for(profile, session=sid)) or st.worker_for(profile, task=task)
 
 
-def _row(profile: str, task: str | None, **fields) -> None:
-    sid = _session(profile, task)
-    if sid:
-        st.set_worker(profile, sid, task=task, **fields)
+def _set_row(profile: str, row: dict, **fields) -> None:
+    st.set_worker(profile, row["session"], **fields)
 
 
 def _wake(profile: str, task: str, waiting_for: str | None = None) -> None:
@@ -96,47 +123,70 @@ def _wake(profile: str, task: str, waiting_for: str | None = None) -> None:
         st.set_worker(profile, row["session"], state="stopped", waiting_for=None)
 
 
+def _no_row(task: str) -> int:
+    return _err(f"no worker row for {task}: a worker started by `at sup start-worker` asks, nobody else")
+
+
 # ---- worker side ---------------------------------------------------------------------------
 
 def _ask(profile: str, task: str, a) -> int:
+    row = _worker_row(profile, task)
+    if row is None:
+        return _no_row(task)
     blocking = not a.no_block
     qid = st.queue_add(profile, task, a.question, a.option or [], a.recommend, a.source or "worker", blocking)
-    st.emit(profile, "ask", task=task, session=_session(profile, task), q=qid, blocking=blocking)
-    if blocking:
-        _row(profile, task, state="waiting", waiting_for=qid)
+    st.emit(profile, "ask", task=task, session=row["session"], q=qid, blocking=blocking)
     print(qid)
     if blocking:
+        _set_row(profile, row, state="waiting", waiting_for=qid)
+        print("next: end your turn with the last line below; when you wake, read the answer with: at sup inbox")
         print(f"WAITING supervisor: {qid}")
+    else:
+        print("next: keep working; the answer arrives in: at sup inbox")
     return 0
 
 
 def _need(profile: str, task: str, a) -> int:
+    row = _worker_row(profile, task)
+    if row is None:
+        return _no_row(task)
     res, cfg = a.resource, st.config(profile)
+    if a.minutes > cfg.get("max_minutes", MAX_MINUTES):
+        return _err(f"--minutes {a.minutes} is above the profile maximum {cfg.get('max_minutes', MAX_MINUTES)}", 2)
     grants = cfg.get("grants") or {}
     granted = res in (grants.get(task) or [])
     if res in cfg.get("auto", []) or granted:
         with lease.locked() as d:
-            free = lease.read(d, res)[0] is None
-        if free and lease.take(res, a.minutes, task=task, reason=a.reason, restore=a.restore) == 0:
+            rec = lease.read(d, res)[0]
+        # the holder may re-take its own lease (a renewal); lease.take refuses anyone else
+        if (rec is None or lease.is_holder(rec)) and lease.take(res, a.minutes, task=task, reason=a.reason, restore=a.restore) == 0:
             if granted:
                 left = [r for r in grants[task] if r != res]
                 grants = {**grants, task: left}
                 if not left:
                     del grants[task]
                 st.set_config(profile, grants=grants)
-            st.emit(profile, "granted", task=task, session=_session(profile, task), resource=res, minutes=a.minutes)
+            st.emit(profile, "granted", task=task, session=row["session"], resource=res, minutes=a.minutes)
             print(f"granted: {res} for {a.minutes} minutes")
+            print(f"next: when you are done with it, run: at sup release {res}")
             return 0
-    st.emit(profile, "need", task=task, session=_session(profile, task), resource=res, minutes=a.minutes, reason=a.reason)
-    _row(profile, task, state="waiting", waiting_for=res)
+    st.emit(profile, "need", task=task, session=row["session"], resource=res, minutes=a.minutes, reason=a.reason)
+    _set_row(profile, row, state="waiting", waiting_for=res)
+    print("next: end your turn with the last line below; when you wake, read the answer with: at sup inbox")
     print(f"WAITING supervisor: {res}")
     return 0
 
 
 def _release(profile: str, task: str, a) -> int:
+    with lease.locked() as d:
+        rec = lease.read(d, a.resource)[0]
+    if rec is None:
+        print(f"not held: {a.resource}")
+        return 0
     code = lease.release(a.resource)
     if code == 0:
-        st.emit(profile, "released", task=task, session=_session(profile, task), resource=a.resource)
+        row = _worker_row(profile, task)
+        st.emit(profile, "released", task=task, session=row["session"] if row else None, resource=a.resource)
         print(f"released: {a.resource}")
     return code
 
@@ -150,24 +200,38 @@ def _inbox(profile: str, task: str, a) -> int:
     qs = {q["id"]: q for q in st.queue(profile, open_only=False)}
     for e in st.inbox(profile, task, unread_only=True):
         q = qs.get(e.get("q"))
-        about = f" (answers {q['id']}: {q['question']})" if q else ""
-        print(f"{e['id']} from {e['by']}: {e['text']}{about}")
+        about = f" (answers {q['id']}: {_one(q['question'])})" if q else ""
+        print(f"{e['id']} from {e['by']}: {_one(e['text'], 1000)}{about}")
+        print(f"next: once read, run: at sup inbox --ack {e['id']}")
     return 0
 
 
 # ---- supervisor and owner side -------------------------------------------------------------
 
+def _answered_event(profile: str, qid: str) -> bool:
+    return any(e.get("kind") == "answered" and e.get("q") == qid for e in st.events_since(profile, 0))
+
+
 def _answer(profile: str, _task, a) -> int:
+    """The inbox entry comes first and the close second, so a kill between them leaves a question that a rerun finishes:
+    the entry already written decides the text (the first answer wins)."""
     by = "owner" if a.owner else "sup"
     q = next((r for r in st.queue(profile, open_only=False) if r.get("id") == a.qid), None)
     if q is None:
         return _err(f"no question {a.qid}")
-    if not st.queue_close(profile, a.qid, a.text, by):
+    task = q.get("task")
+    prior = next((e for e in st.inbox(profile, task) if e.get("q") == a.qid), None) if task else None
+    text = prior["text"] if prior else a.text
+    closed = q.get("answer") is not None
+    if closed and (q["answer"] != text or _answered_event(profile, a.qid)):
         return _err(f"{a.qid} is already answered")
-    if q.get("task"):
-        st.inbox_add(profile, q["task"], a.text, by=by, q=a.qid)
-        _wake(profile, q["task"], a.qid)
-    st.emit(profile, "answered", task=q.get("task"), q=a.qid, by=by)
+    if task and prior is None:
+        st.inbox_add(profile, task, text, by=by, q=a.qid)
+    if not closed:
+        st.queue_close(profile, a.qid, text, by)
+    if task:
+        _wake(profile, task, a.qid)
+    st.emit(profile, "answered", task=task, q=a.qid, by=by)
     if a.owner:
         st.touch(profile, f"answer {a.qid}")
     print(f"answered: {a.qid} by {by}")
@@ -183,6 +247,9 @@ def _minutes_asked(profile: str, task: str, res: str) -> int:
 
 def _grant(profile: str, _task, a) -> int:
     task, res = a.task_id, a.resource
+    row = st.worker_for(profile, task=task)
+    if not row or row.get("state") != "waiting" or row.get("waiting_for") != res:
+        return _err(f"{task} is not waiting for {res}: a grant answers a `need`")
     grants = st.config(profile).get("grants") or {}
     if res not in grants.get(task, []):
         st.set_config(profile, grants={**grants, task: [*grants.get(task, []), res]})
@@ -195,6 +262,10 @@ def _grant(profile: str, _task, a) -> int:
 
 
 def _deny(profile: str, _task, a) -> int:
+    grants = st.config(profile).get("grants") or {}
+    if a.resource in grants.get(a.task_id, []):  # a grant not yet used is withdrawn
+        left = {**grants, a.task_id: [r for r in grants[a.task_id] if r != a.resource]}
+        st.set_config(profile, grants={k: v for k, v in left.items() if v})
     st.inbox_add(profile, a.task_id, f"denied: {a.resource}: {a.reason}", by="sup")
     _wake(profile, a.task_id, a.resource)
     st.emit(profile, "denied", task=a.task_id, resource=a.resource, reason=a.reason)
@@ -204,7 +275,7 @@ def _deny(profile: str, _task, a) -> int:
 
 def _age(ts: str) -> str:
     try:
-        secs = max(0, int(time.time() - time.mktime(time.strptime(ts[:19], "%Y-%m-%dT%H:%M:%S"))))
+        secs = max(0, int(time.time() - datetime.datetime.strptime(ts, "%Y-%m-%dT%H:%M:%S%z").timestamp()))
     except (ValueError, TypeError):
         return "?"
     return f"{secs // 86400}d" if secs >= 86400 else f"{secs // 3600}h" if secs >= 3600 else f"{secs // 60}m"
@@ -216,15 +287,21 @@ def _queue(profile: str, _task, a) -> int:
         print(json.dumps(rows, indent=1, ensure_ascii=False))
         return 0
     for r in rows:
-        line = f"{r['id']} {r.get('task') or '-'} [{_age(r.get('ts', ''))}] {r['question']}"
+        line = f"{r['id']} {r.get('task') or '-'} [{_age(r.get('ts', ''))}] worker text: {_one(r['question'])}"
         if r.get("options"):
-            line += " | options: " + "; ".join(r["options"])
+            line += " | options: " + "; ".join(_one(o, 100) for o in r["options"])
         if r.get("recommendation"):
-            line += f" | recommend: {r['recommendation']}"
-        line += f" | source: {r.get('source')}"
+            line += f" | recommend: {_one(r['recommendation'])}"
+        line += f" | source: {_one(r.get('source'), 60)}"
         if r.get("answer") is not None:
-            line += f" | answered by {r.get('by')}: {r['answer']}"
+            line += f" | answered by {r.get('by')}: {_one(r['answer'])}"
         print(line)
+    return 0
+
+
+def _escalate(profile: str, _task, a) -> int:
+    qid = st.queue_add(profile, a.task, a.text, source="sup", blocking=a.blocking)
+    print(qid)
     return 0
 
 
@@ -242,7 +319,28 @@ def _instructions(profile: str, _task, a) -> int:
 
 # ---- argparse ------------------------------------------------------------------------------
 
+def _pattern(rx, what):
+    def conv(v: str) -> str:
+        if not rx.match(v):
+            raise argparse.ArgumentTypeError(f"{what} {v!r} is not valid")
+        return v
+    return conv
+
+
+def _text(v: str) -> str:
+    if not v.strip():
+        raise argparse.ArgumentTypeError("text must not be empty")
+    return v
+
+
+def _minutes(v: str):
+    f = lease.ttl_arg(v)
+    return int(f) if f == int(f) else f
+
+
 def register(sup_sub) -> None:
+    res, qid, task_id = _pattern(st.RES, "resource"), _pattern(st.QID, "question id"), _pattern(st.TASK, "task ID")
+
     def add(name, fn, **kw):
         p = sup_sub.add_parser(name, help=fn.__doc__)
         p.add_argument("--profile")
@@ -251,39 +349,43 @@ def register(sup_sub) -> None:
 
     def worker(name, fn):
         p = add(name, fn, task=True)
-        p.add_argument("--task", help="task ID (default: AGENTS_SUP_TASK)")
+        p.add_argument("--task", type=task_id, help="task ID (default: AGENTS_SUP_TASK)")
         return p
 
     p = worker("ask", _ask)
-    p.add_argument("question")
+    p.add_argument("question", type=_text)
     p.add_argument("--option", action="append")
     p.add_argument("--recommend")
     p.add_argument("--source")
     p.add_argument("--no-block", action="store_true")
     p = worker("need", _need)
-    p.add_argument("resource")
-    p.add_argument("--minutes", type=int, required=True)
+    p.add_argument("resource", type=res)
+    p.add_argument("--minutes", type=_minutes, required=True, help="how long you need it (required)")
     p.add_argument("--reason")
     p.add_argument("--restore", action="store_true")
-    worker("release", _release).add_argument("resource")
+    worker("release", _release).add_argument("resource", type=res)
     worker("inbox", _inbox).add_argument("--ack", metavar="A-ID")
 
-    p = add("answer", _answer)
-    p.add_argument("qid", metavar="Q-id")
-    p.add_argument("text")
+    p = add("answer", _answer, sup=True)
+    p.add_argument("qid", metavar="Q-id", type=qid)
+    p.add_argument("text", type=_text)
     p.add_argument("--owner", action="store_true")
-    p.set_defaults(func=lambda a: _run(_answer, a, chat=a.owner))
-    p = add("grant", _grant)
-    p.add_argument("task_id", metavar="TASK-ID")
-    p.add_argument("resource")
-    p = add("deny", _deny)
-    p.add_argument("task_id", metavar="TASK-ID")
-    p.add_argument("resource")
+    p.set_defaults(func=lambda a: _run(_answer, a, chat=a.owner, sup=True))
+    p = add("grant", _grant, sup=True)
+    p.add_argument("task_id", metavar="TASK-ID", type=task_id)
+    p.add_argument("resource", type=res)
+    p = add("deny", _deny, sup=True)
+    p.add_argument("task_id", metavar="TASK-ID", type=task_id)
+    p.add_argument("resource", type=res)
     p.add_argument("reason")
     p = add("queue", _queue)
     p.add_argument("--all", action="store_true")
     p.add_argument("--json", action="store_true")
-    add("instruct", _instruct, chat=True).add_argument("text")
+    p = add("escalate", _escalate, sup=True)
+    p.add_argument("text", type=_text)
+    p.add_argument("--task", type=task_id)
+    p.add_argument("--blocking", action="store_true")
+    add("instruct", _instruct, chat=True).add_argument("text", type=_text)
     add("instructions", _instructions)
 
 

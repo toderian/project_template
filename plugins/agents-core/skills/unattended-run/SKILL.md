@@ -153,6 +153,12 @@ each point where you would ask the owner:
 A failing tool or host is not a decision point: retry twice with a changed approach, try the
 alternative the plan allows, then park.
 
+**Under a supervisor** (`AGENTS_SUPERVISOR` is set): a decision outside the authorised scope goes to
+`at sup ask "<question>" --option … --recommend …`, and a shared resource to `at sup need <resource>
+--minutes <n>` (`--minutes` is required; `at sup release <resource>` when done). Both print the exact
+`WAITING supervisor: <id>` line: end the turn with it as the last line. On waking, read `at sup inbox`,
+then `at sup inbox --ack <id>` for each entry you used. Keep working on what does not depend on the answer.
+
 Never end a turn on a status summary. The turn ends only when everything is committed or parked, or
 on the `Run:` line the run guard accepts.
 

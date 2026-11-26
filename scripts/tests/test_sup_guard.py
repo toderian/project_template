@@ -15,6 +15,7 @@ sys.path.insert(0, LIB)
 import sup_guard as g  # noqa: E402
 
 TABLES = {"main": g.DEFAULT_MAIN, "programs": []}
+os.environ["AGENTS_SUPERVISOR"] = "rm"  # the only profile the guard lets a command name
 
 ALLOWED = [
     "at sup status", "at sup status --json", "at sup board", "at sup queue --json",
@@ -22,40 +23,33 @@ ALLOWED = [
     "at sup start-worker RM-1", "at sup stop-worker RM-1", "at sup land RM-1 --dry-run",
     "at sup grant RM-1 lab", "at sup deny RM-1 lab 'not now'", "at sup done alpha", "at sup packs --profile rm",
     "at sup measure --json --since 2026-11-01", "at sup watch status", "at sup instructions", "at sup queue --all",
-    "at lease take lab --ttl 30", "at lease take lab --ttl=30 --for RM-1 --reason waiting --restore",
-    "at lease release lab", "at lease list --json", "at run-guard status --all",
-    "claude agents --json", "claude agents --json --all",
-    "git status --short --porcelain", "git log --oneline -n 5 main", "git log --format=%H",
-    "git branch --show-current", "git branch --list", "git worktree list --porcelain",
-    "git rev-parse --short --abbrev-ref HEAD", "git diff --stat a b",
-    "gh pr view 12 --json state", "gh pr view feature/x", "gh pr list --state open --limit 5",
-    "gh pr checks 12",
+    "at sup escalate nothing", "at sup escalate 'needs a schema choice' --task RM-1 --blocking",
+    "at lease list --json", "at lease list",
 ]
 DENIED = [
     "at sup status; rm -rf x", "at sup status && x", "at sup status | x", "at sup status > f",
     "$(x)", "`x`", "FOO=1 at sup status", "PATH=. at sup status", "/usr/bin/git status",
     "./at sup status", 'sh -c "at sup status"', 'bash -lc "at sup status"',
     "at lease run x -- sh -c y", "at lease clear x --restored", "at sup push p",
-    "git -c core.pager=x status", "git -c alias.x=!y x", "git -C /tmp status",
-    "git --git-dir=x status", "git --no-pager log", "git diff --ext-diff", "git diff --stat --output=f",
-    "git log --output=f", "git log -O x", "git log --upload-pack=x", "git grep -Ox y",
-    "git push", "git commit -m x", "git log a b", "git diff --stat a b c",
-    "gh api /x", "gh alias set a b", "gh pr view 1 --web", "gh pr list --web", "gh pr checks",
-    "claude -p x", "claude --bg x", "claude agents", "claude agents --all",
+    "git status", "git log --oneline", "git diff --stat a b", "git rev-parse HEAD", "git branch --list",
+    "git worktree list", "git -c core.pager=x status", "git push", "git commit -m x",
+    "gh pr view 12 --json state", "gh pr list", "gh pr checks 12", "gh api /x",
+    "claude agents --json", "claude -p x", "claude --bg x", "at run-guard status",
+    "at lease take lab --ttl 30", "at lease take hub-ledger --ttl 999999999", "at lease release lab",
     "at sup status\nrm x", "at sup status\rx", "at sup status 'unterminated", "", "   ",
     'at sup answer RM-1 "text with $(x)"', "at sup answer rm-1 x", "at sup answer RM-1",
-    "at lease take lab", "at lease take lab --ttl x", "at sup status --json --json",
-    "at sup status --bogus", "at sup status --", "at sup status extra", "at sup ready -x",
-    "at sup inbox RM-1", "at sup answer RM-1 yes", "at sup stop-worker RM-1 --stuck", "at sup op deploy now",
-    "at sup measure alpha", "at sup worktree RM-1", "at sup status --hub /tmp", "at sup land RM-1 --into x",
-    "at sup init --hub /tmp", "at sup tick", "at sup chat", "at sup watch once", "at sup watch start",
+    "at sup status --json --json", "at sup status --bogus", "at sup status --", "at sup status extra",
+    "at sup ready -x", "at sup inbox RM-1", "at sup answer RM-1 yes", "at sup stop-worker RM-1 --stuck",
+    "at sup op deploy now", "at sup measure alpha", "at sup worktree RM-1", "at sup status --hub /tmp",
+    "at sup land RM-1 --into x", "at sup init --hub /tmp", "at sup tick", "at sup chat", "at sup watch once",
+    "at sup watch start", "at sup watch stop", "at sup watch start --no-tick",
     "at sup ask 'q'", "at sup need lab --minutes 5", "at sup release lab", "at sup status --profile Bad",
-    "git log [-]-output=x", "at sup answer T-1 [-]-owner yes", "git log *", "git log ?", "git log ~",
-    "git log a#b", "git log ^a", "git log !a", 'at sup answer RM-1 "double quoted"',
-    "at sup  status", "git log " + "a" * 9000, "gh pr view https://x/pull/1", "git log /etc/passwd",
-    "git log HEAD:.env", "git log ~x", "git log .hidden", "git log --format=%G?", "git log --format=%H%GG",
+    "at sup status --profile other", "at sup land --profile other RM-1", "at sup answer --profile other Q1 yes",
+    "at sup status --profile=other", "at sup --help", "at lease --help", "at sup help",
+    'at sup answer RM-1 "double quoted"', "at sup answer Q3 'no'", "at sup  status", "at sup escalate",
+    "at sup escalate x --task rm-1", "at sup escalate x --bogus",
     "at sup instruct x", "at sup answer Q1 x --owner", "at sup start-pack alpha", "at sup cap 3",
-    "at sup pack alpha RM-1", "at sup watch stop", "at sup close-pack alpha",
+    "at sup pack alpha RM-1", "at sup close-pack alpha", "at sup status " + "a" * 9000,
 ]
 
 
@@ -101,7 +95,7 @@ class ChatToken(unittest.TestCase):
     def test_chat_commands(self):
         cmds = ["at sup instruct x", "at sup answer Q1 x --owner", "at sup start-pack alpha",
                 "at sup pause-pack alpha", "at sup close-pack alpha", "at sup order alpha RM-1", "at sup cap 3",
-                "at sup pack alpha RM-1 RM-2 --parallel", "at sup watch start --no-tick", "at sup watch stop"]
+                "at sup pack alpha RM-1 RM-2 --parallel"]
         for cmd in cmds:  # no token set
             self.assertEqual(g.decide(cmd, None, TABLES, "chat1"), (False, "chat only"), cmd)
         os.environ["AGENTS_SUP_CHAT_TOKEN"] = "a1b2c3d4e5f60718"  # token set, file missing
@@ -114,7 +108,7 @@ class ChatToken(unittest.TestCase):
         self.assertTrue(g.decide("at sup cap 3", None, free, "chat1")[0])
         os.environ["AGENTS_SUP_CHAT_TOKEN"] = "../a1b2c3d4e5f60718"
         self.assertFalse(g.decide(cmds[0], None, TABLES, "chat1")[0])
-        for cmd in ("at sup push p", "at lease clear x", "at lease run x y"):  # never, even with token
+        for cmd in ("at sup push p", "at lease clear x", "at lease run x y", "at sup watch start", "at sup init"):  # never, even with token
             self.token()
             self.assertFalse(g.decide(cmd, None, TABLES, "chat1")[0], cmd)
 
@@ -163,6 +157,9 @@ class LauncherEnv(unittest.TestCase):
         self.assertEqual(pairs, {"core.fsmonitor": "false", "log.showSignature": "false",
                                  "gpg.program": "/bin/false", "core.hooksPath": "/dev/null"})
         self.assertNotIn("evil", env["PATH"])
+        self.assertEqual(env["AGENTS_SUP_ORIG_PATH"], "/evil")  # D-G: workers and the watcher get this PATH back
+        again = g.launcher_env(env)  # a session that launches again keeps the first PATH
+        self.assertEqual(again["AGENTS_SUP_ORIG_PATH"], "/evil")
 
 
 class AgentTypes(unittest.TestCase):
@@ -281,6 +278,10 @@ class EndToEnd(unittest.TestCase):
                 "interp2": table("i2.json", {"programs": ["/usr/bin/python3"],
                                              "lab": [{"argv": ["/usr/bin/python3"]}]}),
                 "badclass": table("c.json", {"lab": [{"argv": ["x"], "args": ["bogus"]}]}),
+                "main": table("m.json", {"main": [{"argv": ["git"], "args": ["any*"]}]}, 0o644),
+                "main600": table("m6.json", {"main": [{"argv": ["git"], "args": ["any*"]}]}),
+                "toolskey": table("tk.json", {"tools": ["Bash", "Write"]}),
+                "norules": table("nr.json", {"lab": "x"}),
             }
             for name, path in cases.items():
                 p, _ = self.run_hook(self.call("at sup status"), AGENTS_SUP_GUARD_TABLES=path)
@@ -301,6 +302,27 @@ class EndToEnd(unittest.TestCase):
             self.assertEqual((len(lines), len(lines[0].split("\t"))), (1, 6))
             self.assertNotIn("\x1b", lines[0])
             self.assertEqual(os.stat(path).st_mode & 0o777, 0o600)
+
+    def test_a_fifo_as_tables_file_or_log_does_not_hang_the_guard(self):
+        with tempfile.TemporaryDirectory() as d:
+            fifo = os.path.join(d, "t.fifo")
+            os.mkfifo(fifo)
+            p, _ = self.run_hook(self.call("at sup status"), AGENTS_SUP_GUARD_TABLES=fifo)
+            self.assertEqual(p.returncode, 2)
+            sup = os.path.join(d, "sup")
+            os.mkdir(sup)
+            os.mkfifo(os.path.join(sup, "_guard.log"))
+            e = {**os.environ, "AGENTS_SUP_DIR": sup}
+            p = subprocess.run(["/bin/bash", HOOK], input=self.call("at sup status"), capture_output=True, text=True,
+                               env=e, timeout=20)
+            self.assertEqual(p.returncode, 0)  # the decision stands, the log line is dropped
+            os.mkfifo(os.path.join(d, "x"))
+            link = os.path.join(sup, "_guard.log")
+            os.unlink(link)
+            os.symlink(os.path.join(d, "target.log"), link)
+            subprocess.run(["/bin/bash", HOOK], input=self.call("at sup status"), capture_output=True, text=True, env=e,
+                           timeout=20)
+            self.assertFalse(os.path.exists(os.path.join(d, "target.log")))  # O_NOFOLLOW: the symlink is not followed
 
     def test_log_failure_keeps_decision(self):
         p, _ = self.run_hook(self.call("at sup status"), AGENTS_SUP_DIR="/proc/nope/x")

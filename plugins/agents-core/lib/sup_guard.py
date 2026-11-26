@@ -5,12 +5,16 @@ The supervisor runs with bypassPermissions, so this hook is the only fence on it
 No shell is ever invoked: the command is checked for metacharacters, split with shlex and
 matched against exact tables. Deny = exit 2 plus one stderr line; allow = exit 0, no output.
 
-Tables: {"programs": [absolute paths], "tools": [names], "main": [rule, ...], "<agent_type>": [...]}.
-The main session (no agent_type in the hook input) uses "main"; an agent type without a table
-is denied; main, programs and tools are reserved and never valid agent types. The built-in
-DEFAULT_MAIN and DEFAULT_TOOLS are used unless the tables file (env AGENTS_SUP_GUARD_TABLES,
-JSON) defines them. The file must be owned by the uid and not group/world-writable; an
-unreadable or invalid file denies everything. Any tool outside "tools" is denied.
+Trust model: a worker session runs under the same uid as the state directory, so nothing here fences a
+worker. This guard, the chat token and `require_chat` stop only the guarded supervisor (a tick or the chat
+session) and honest mistakes.
+
+Tables: {"programs": [absolute paths], "<agent_type>": [rule, ...]}. The main session (no agent_type in the
+hook input) uses the built-in DEFAULT_MAIN and the tools in DEFAULT_TOOLS; the tables file may not define
+"main" or "tools". An agent type without a table is denied; main, programs and tools are reserved and never
+valid agent types. The file (env AGENTS_SUP_GUARD_TABLES, JSON) must be a regular file owned by the uid and not
+group/world-writable; an unreadable or invalid file denies everything. Any tool outside DEFAULT_TOOLS is denied.
+DEFAULT_MAIN holds only `at sup ...` commands and `at lease list`: no git, gh or claude.
 
 Rule: {"argv": [...], "flags": {...}, "args": [...], "required": [...], "chat": bool}
   argv      tokens that must equal the start of the command. argv[0] containing "/" must be
@@ -25,7 +29,7 @@ Rule: {"argv": [...], "flags": {...}, "args": [...], "required": [...], "chat": 
   chat      only with a valid chat token. Every command in CHAT_PREFIXES and any
             "at sup answer ... --owner" need it whatever the table says.
 Classes: any (free text), task-id [A-Z][A-Z0-9]*-[0-9]+, q-id Q[0-9]+, name [a-z0-9][a-z0-9-]*, int [0-9]+,
-pr-ref (digits, or a ref with no ":" and no leading "~", "/" or "."), format (any without %G).
+profile (only the value of AGENTS_SUPERVISOR).
 
 The command must equal shlex.join of its own parse: single quotes only, one space between
 tokens, so bash sees no glob, tilde, history or other parse differential. Max 8 KB.
@@ -37,7 +41,8 @@ writes it and starts claude with `--session-id <that id>`; sup_ask.require_chat 
 The launcher must start the session with launcher_env(os.environ): GIT_CONFIG_COUNT overrides
 (core.fsmonitor=false, log.showSignature=false, gpg.program=/bin/false, core.hooksPath=/dev/null),
 GIT_CONFIG_NOSYSTEM=1, GIT_DIR, GIT_EXTERNAL_DIFF, GH_HOST, GH_REPO and PYTHONPATH removed, PATH rebuilt from the directories of at, claude, git, gh, python3
-and jq plus /usr/bin:/bin, minus any directory under `deny_under` (the hub and its worktrees).
+and jq plus /usr/bin:/bin, minus any directory under `deny_under` (the hub and its worktrees). The incoming
+PATH is kept in AGENTS_SUP_ORIG_PATH so workers and the watcher can be started with the owner's PATH again.
 """
 import json
 import os
@@ -54,12 +59,12 @@ CLASSES = {
     "name": re.compile(r"[a-z0-9][a-z0-9-]*"),
     "q-id": re.compile(r"Q[0-9]+"),
     "int": re.compile(r"[0-9]+"),
-    "pr-ref": re.compile(r"[0-9]+|[A-Za-z0-9_@%+,=^][A-Za-z0-9_@%+,=^~./-]*"),
-    "format": re.compile(r"(?!.*%G).+", re.S),
+    "profile": re.compile(r".+"),  # checked against AGENTS_SUPERVISOR in _ok
 }
 DEFAULT_TOOLS = ["Bash", "Agent", "AskUserQuestion", "Read", "Glob", "Grep"]
 RESERVED = {"main", "programs", "tools"}
-# Commands only the owner's chat may run (`answer --owner` is checked in decide). `at sup` calls require_chat for the same list.
+# Commands only the owner's chat (or plain shell) may run; `answer --owner` is checked in decide. `at sup` calls
+# require_chat for the same list. Of these only the first group is in DEFAULT_MAIN: init and watch start|stop are the owner's shell.
 CHAT_COMMANDS = ("instruct", "pack", "start-pack", "pause-pack", "close-pack", "order", "cap", "watch start",
                  "watch stop", "init")
 CHAT_PREFIXES = [f"at sup {c}".split() for c in CHAT_COMMANDS]
@@ -78,7 +83,7 @@ def _r(argv, flags=None, args=(), required=(), chat=False):
             "required": list(required), "chat": chat}
 
 
-PROFILE = {"--profile": "name"}  # the hub is never a flag here: it comes from the profile's config
+PROFILE = {"--profile": "profile"}  # only the supervisor's own profile; the hub is never a flag (profile config)
 
 DEFAULT_MAIN = [
     _r("at sup status", {**PROFILE, "--json": None}), _r("at sup board", PROFILE),
@@ -88,28 +93,16 @@ DEFAULT_MAIN = [
     _r("at sup answer", PROFILE, ["q-id", "any+"]),
     _r("at sup grant", PROFILE, ["task-id", "name"]),
     _r("at sup deny", PROFILE, ["task-id", "name", "any"]),
+    _r("at sup escalate", {**PROFILE, "--task": "task-id", "--blocking": None}, ["any+"]),
     _r("at sup start-worker", PROFILE, ["task-id"]),
     _r("at sup stop-worker", PROFILE, ["task-id"]),
     _r("at sup land", {**PROFILE, "--dry-run": None}, ["task-id"]),
     _r("at sup done", PROFILE, ["name"]),
     _r("at sup measure", {**PROFILE, "--json": None, "--since": "any"}),
     _r("at sup watch status", PROFILE),
-    _r("at lease take", {"--ttl": "int", "--for": "task-id", "--reason": "any", "--restore": None},
-       ["name"], required=["--ttl"]),
-    _r("at lease release", args=["name"]), _r("at lease list", {"--json": None}),
-    _r("at run-guard status", {"--all": None}),
-    _r("claude agents", {"--json": None, "--all": None}, required=["--json"]),
-    _r("git status", {"--short": None, "--porcelain": None}),
-    _r("git log", {"--oneline": None, "-n": "int", "--format": "format"}, ["pr-ref?"]),
-    _r("git branch --show-current"), _r("git branch --list"),
-    _r("git worktree list", {"--porcelain": None}),
-    _r("git rev-parse", {"--short": None, "--abbrev-ref": None}, ["pr-ref?"]),
-    _r("git diff --stat", args=["pr-ref?", "pr-ref?"]),
-    _r("gh pr view", {"--json": "any"}, ["pr-ref"]),
-    _r("gh pr list", {"--json": "any", "--state": "name", "--limit": "int"}),
-    _r("gh pr checks", args=["pr-ref"]),
-    # chat only: a tick has no token. `init`, `tick`, `chat`, `watch once` and the worker-side ask|need|release|inbox
-    # are in no table: the supervisor never runs them.
+    _r("at lease list", {"--json": None}),
+    # chat only: a tick has no token. `init`, `tick`, `chat`, `watch start|stop|once` and the worker-side
+    # ask|need|release|inbox are in no table: the supervisor never runs them.
     _r("at sup instruct", PROFILE, ["any+"], chat=True),
     _r("at sup answer", {**PROFILE, "--owner": None}, ["q-id", "any+"], chat=True),
     _r("at sup pack", {**PROFILE, "--parallel": None}, ["name", "task-id+"], chat=True),
@@ -118,9 +111,12 @@ DEFAULT_MAIN = [
     _r("at sup close-pack", PROFILE, ["name"], chat=True),
     _r("at sup order", PROFILE, ["name", "task-id+"], chat=True),
     _r("at sup cap", PROFILE, ["int"], chat=True),
-    _r("at sup watch start", {**PROFILE, "--no-tick": None, "--interval": "int"}, chat=True),
-    _r("at sup watch stop", PROFILE, chat=True),
 ]
+
+
+def hook_path():
+    """Absolute path of hooks/sup-guard.sh; settings files run it as `/bin/bash <path>` so the mode bit does not matter."""
+    return os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "hooks", "sup-guard.sh")
 
 
 def sup_dir():
@@ -172,13 +168,16 @@ def launcher_env(base, deny_under=None):
            ("GIT_DIR", "GIT_EXTERNAL_DIFF", "GH_HOST", "GH_REPO", "PYTHONPATH")}
     conf = [("core.fsmonitor", "false"), ("log.showSignature", "false"),
             ("gpg.program", "/bin/false"), ("core.hooksPath", "/dev/null")]
-    env.update(GIT_CONFIG_COUNT=str(len(conf)), GIT_CONFIG_NOSYSTEM="1", PATH=_safe_path(base, deny_under))
+    env.update(GIT_CONFIG_COUNT=str(len(conf)), GIT_CONFIG_NOSYSTEM="1", PATH=_safe_path(base, deny_under),
+               AGENTS_SUP_ORIG_PATH=base.get("AGENTS_SUP_ORIG_PATH") or base.get("PATH", ""))
     for i, (k, v) in enumerate(conf):
         env[f"GIT_CONFIG_KEY_{i}"], env[f"GIT_CONFIG_VALUE_{i}"] = k, v
     return env
 
 
 def _ok(cls, value):
+    if cls == "profile":
+        return value == os.environ.get("AGENTS_SUPERVISOR") and not value.startswith("-")
     return not value.startswith("-") and bool(CLASSES[cls].fullmatch(value))
 
 
@@ -265,25 +264,29 @@ def log(session, agent, allowed, reason, command):
                   "allow" if allowed else "deny", reason, str(command)[:300]]
         line = "\t".join(CTRL.sub(" ", f) for f in fields)
         os.makedirs(sup_dir(), exist_ok=True)
-        fd = os.open(os.path.join(sup_dir(), "_guard.log"), os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+        fd = os.open(os.path.join(sup_dir(), "_guard.log"),
+                     os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NONBLOCK | os.O_NOFOLLOW, 0o600)
         with os.fdopen(fd, "a") as f:
-            f.write(line + "\n")
+            if stat.S_ISREG(os.fstat(f.fileno()).st_mode):  # a FIFO or device here must not hang or take the line
+                f.write(line + "\n")
     except Exception:
         pass
 
 
 def validate(t):
     """Raise ValueError unless the tables are well formed; fill rule defaults."""
-    progs, tools = t.get("programs", []), t.get("tools", [])
+    progs = t.get("programs", [])
     if not (isinstance(progs, list) and all(isinstance(p, str) and os.path.isabs(p) for p in progs)):
         raise ValueError("programs must be absolute paths")
-    if not (isinstance(tools, list) and all(isinstance(x, str) for x in tools)):
-        raise ValueError("tools must be a list of names")
+    if "main" in t or "tools" in t:
+        raise ValueError("the tables file may not define main or tools")
     for key, rules in t.items():
-        if key in ("programs", "tools"):
+        if key == "programs":
             continue
+        if not (isinstance(rules, list) and all(isinstance(r, dict) for r in rules)):
+            raise ValueError("a table must be a list of rules")
         for r in rules:
-            argv = r["argv"]
+            argv = r.get("argv")
             if not (isinstance(argv, list) and argv and all(isinstance(x, str) and x for x in argv)):
                 raise ValueError("bad argv")
             if INTERPRETERS.fullmatch(os.path.basename(argv[0])):
@@ -300,10 +303,10 @@ def load_tables():
     tables = {"main": DEFAULT_MAIN, "tools": DEFAULT_TOOLS}
     path = os.environ.get("AGENTS_SUP_GUARD_TABLES")
     if path:
-        with open(path) as f:
+        with os.fdopen(os.open(path, os.O_RDONLY | os.O_NONBLOCK | os.O_NOFOLLOW)) as f:
             st = os.fstat(f.fileno())
-            if st.st_uid != os.getuid() or st.st_mode & 0o022:
-                raise ValueError("tables file not private")
+            if not stat.S_ISREG(st.st_mode) or st.st_uid != os.getuid() or st.st_mode & 0o022:
+                raise ValueError("tables file not a private regular file")
             extra = json.load(f)
         if not isinstance(extra, dict):
             raise ValueError("tables file is not an object")

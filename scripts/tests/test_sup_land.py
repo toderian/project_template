@@ -1,5 +1,5 @@
 """`sup worktree|land|ready` (plugins/agents-core/lib/sup.py) against throwaway git repos."""
-import os, pathlib, re, shutil, subprocess, sys, tempfile, unittest
+import json, os, pathlib, re, shutil, subprocess, sys, tempfile, unittest
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 SUP = ROOT / "plugins/agents-core/lib/sup.py"
 ARCH = "docs/tasks_manager/_todos_archived"
@@ -23,7 +23,8 @@ class Base(unittest.TestCase):
         g(self.hub, "init", "-q", "-b", "main"); g(self.hub, "config", "user.name", "T"); g(self.hub, "config", "user.email", "t@example.invalid")
         write(self.hub / "README.md", "base\n"); write(self.hub / ".gitignore", "*.log\n__pycache__/\n")
         g(self.hub, "add", "-A"); g(self.hub, "commit", "-q", "-m", "base")
-        self.env = dict(os.environ, AGENTS_SUP_DIR=str(self.tmp / "state"), AGENTS_LEASE_DIR=str(self.tmp / "leases"))
+        self.env = {k: v for k, v in os.environ.items() if k not in ("CLAUDE_CODE_SESSION_ID", "AGENTS_SUP_TASK", "AGENTS_SUPERVISOR")}
+        self.env.update(AGENTS_SUP_DIR=str(self.tmp / "state"), AGENTS_LEASE_DIR=str(self.tmp / "leases"))
 
     def sup(self, *a, cwd=None):
         return subprocess.run([sys.executable, str(SUP), *a], cwd=str(cwd or self.hub), capture_output=True, text=True, env=self.env)
@@ -156,6 +157,36 @@ class Land(Base):
         g(self.hub, "checkout", "-q", "-b", "other"); p = self.sup("land", "TST-001", "--into", "other"); self.assertEqual(p.returncode, 0, p.stderr)
         self.assertEqual(g(self.hub, "log", "-1", "--format=%s", "other").stdout.strip(), "feat: TST-001 Add thing")
 
+    def events(self):
+        f = self.tmp / "state/p/events.jsonl"
+        return [json.loads(ln) for ln in f.read_text().splitlines()] if f.exists() else []
+
+    def test_land_emits_landed_for_the_profile_only(self):
+        self.task("TST-001"); self.task("TST-002")
+        self.assertEqual(self.sup("land", "TST-001").returncode, 0); self.assertEqual(self.events(), [])
+        p = self.sup("land", "TST-002", "--profile", "p"); self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertEqual([(e["kind"], e["task"]) for e in self.events()], [("landed", "TST-002")])
+        self.env["AGENTS_SUPERVISOR"] = "p"; self.task("TST-003"); self.assertEqual(self.sup("land", "TST-003").returncode, 0)
+        self.assertEqual([e["task"] for e in self.events()], ["TST-002", "TST-003"])
+
+    def test_a_worker_session_may_not_land(self):
+        self.task("TST-001"); before = self.snapshot(); self.env["AGENTS_SUP_TASK"] = "TST-001"
+        p = self.sup("land", "TST-001"); self.assertEqual(p.returncode, 3); self.assertIn("worker", p.stderr); self.assertEqual(self.snapshot(), before)
+
+    def test_claude_files_need_the_owner_flag(self):
+        for name in (".claude/settings.json", ".mcp.json", "sub/.claude/agents/x.md"):
+            with self.subTest(name):
+                tid = "TST-%03d" % (len(name) + 100)
+                self.task(tid, files={name: "{}\n"}); before = self.snapshot()
+                p = self.sup("land", tid); self.assertEqual(p.returncode, 3); self.assertIn("--allow-claude-files", p.stderr)
+                self.assertEqual(self.snapshot(), before)
+                self.assertEqual(self.sup("land", tid, "--dry-run").returncode, 3)
+                self.env["CLAUDE_CODE_SESSION_ID"] = "chat-sess-0001"
+                p = self.sup("land", tid, "--allow-claude-files"); self.assertEqual(p.returncode, 3); self.assertIn("owner", p.stderr)
+                self.assertEqual(self.snapshot(), before)
+                del self.env["CLAUDE_CODE_SESSION_ID"]
+                p = self.sup("land", tid, "--allow-claude-files"); self.assertEqual(p.returncode, 0, p.stderr)
+
     def ledger_hub(self):
         shutil.copytree(FIX, self.hub, dirs_exist_ok=True); g(self.hub, "add", "-A"); g(self.hub, "commit", "-q", "-m", "ledger")
 
@@ -175,6 +206,26 @@ class Land(Base):
         self.ledger_hub(); p = self.sup("worktree", "TST-001"); self.archive(pathlib.Path(p.stdout.strip()), "x"); before = self.snapshot()
         self.env["AT_TASKS_ROOT"] = str(self.tmp / "none"); p = self.sup("land", "TST-001")
         self.assertEqual(p.returncode, 3); self.assertIn("agents-tasks", p.stderr); self.assertEqual(self.snapshot(), before)
+
+
+class Parser(Base):
+    def test_top_level_flags_reach_every_part(self):
+        # before the subcommand, as `at sup --help` shows them
+        p = self.sup("--profile", "p", "queue", cwd=self.tmp); self.assertEqual((p.returncode, p.stdout), (0, ""), p.stderr)
+        p = self.sup("--profile", "p", "--hub", str(self.hub), "status", cwd=self.tmp)
+        self.assertEqual(p.returncode, 0, p.stderr); self.assertIn("supervisor p", p.stdout)
+        p = self.sup("--profile", "p", "watch", "status", cwd=self.tmp)
+        self.assertNotIn("no profile", p.stderr)
+        self.assertEqual(self.sup("status", "--profile", "p", "--hub", str(self.hub), cwd=self.tmp).returncode, 0)
+
+    def test_every_subcommand_is_registered(self):
+        import argparse
+        sys.path.insert(0, str(SUP.parent)); import sup
+        ap = argparse.ArgumentParser(); sup.add_parser(ap.add_subparsers(dest="cmd"))
+        names = set(ap._subparsers._group_actions[0].choices["sup"]._subparsers._group_actions[0].choices)
+        want = {"worktree", "land", "ready", "status", "done", "measure", "ask", "need", "release", "inbox", "answer", "grant",
+                "deny", "queue", "escalate", "instruct", "instructions"}
+        self.assertEqual(want - names, set())
 
 
 READY = """| Field | Value |

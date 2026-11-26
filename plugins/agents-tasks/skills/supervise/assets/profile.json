@@ -1,10 +1,10 @@
 {
   "repos": ["/abs/path/to/repo-a", "/abs/path/to/repo-b"],
   "resources": [
-    {"name": "full-suite", "minutes": 30, "auto": true},
-    {"name": "lab", "minutes": 120, "auto": false}
+    {"name": "full-suite", "minutes": 30, "auto": true, "scripts": []},
+    {"name": "lab", "minutes": 120, "auto": false,
+     "scripts": ["/abs/path/to/hub/scripts/lab-restore.sh", "/abs/path/to/hub/scripts/lab-scan.sh"]}
   ],
   "cap": 3,
-  "land": "auto",
-  "operators": ["/abs/path/to/hub/scripts/lab-restore.sh", "/abs/path/to/hub/scripts/lab-scan.sh"]
+  "land": "auto"
 }

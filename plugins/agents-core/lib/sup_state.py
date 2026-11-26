@@ -6,9 +6,10 @@ Directory: ${AGENTS_SUP_DIR:-${XDG_STATE_HOME:-~/.local/state}/agents-template/s
   packs/<name>.json  {"name", "tasks": [id…], "state": "new|running|paused|closed", "parallel": bool,
                       "branches": {repo: branch}, "prs": {repo: url}}
   workers.json       [{"session", "task", "pack", "cwd", "mode": "bg|headless", "started",
-                       "state": "running|waiting|stopped|done", "waiting_for": resource|null}]
-  events.jsonl       one JSON object per line: {"id": n, "ts", "kind", "task", "session", …}; `cursor` holds the
-                     id of the last event a tick handled
+                       "state": "starting|running|waiting|stopped|done", "waiting_for": resource|null,
+                       "stopped_by": null|"owner"}]
+  events.jsonl       one JSON object per line: {"id": n, "ts", "kind", "task", "session", …}; `events.seq` holds
+                     the last id given out, `cursor` the id of the last event a tick handled
   queue.json         [{"id": "Q1", "ts", "task", "question", "options": [..], "recommendation", "source",
                        "blocking": bool, "answer": null|str, "by": null|"owner"|"sup"}]   (questions for the owner)
   inbox/<TASK>.json  [{"id": "A1", "ts", "text", "by": "owner"|"sup", "q": "Q1"|null, "ack": bool}]  (answers for a worker)
@@ -39,8 +40,15 @@ import time
 from pathlib import Path
 
 NAME = re.compile(r"[a-z0-9][a-z0-9-]*\Z")
+RES = re.compile(r"[a-z0-9][a-z0-9-]*\Z")  # a resource name (same as lease.NAME)
 TASK = re.compile(r"[A-Z][A-Z0-9]*-[0-9]+\Z")
-WORKER_STATES = ("running", "waiting", "stopped", "done")
+KEY = re.compile(r"[a-z][a-z0-9_]*\Z")  # an event field name
+QID = re.compile(r"Q[0-9]+\Z")
+SESSION = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]{7,63}\Z")
+EVENT_KINDS = ("started", "stopped", "done", "waiting", "idle", "dead", "restarted", "ask", "need", "granted",
+               "denied", "released", "answered", "overdue", "owed", "start_refused", "land_refused", "landed",
+               "tick_failed", "ticks_paused")
+WORKER_STATES = ("starting", "running", "waiting", "stopped", "done")
 PACK_STATES = ("new", "running", "paused", "closed")
 NO_JUDGEMENT = ("started", "restarted", "landed", "released", "granted", "answered", "denied", "waiting",
                 "tick_failed", "ticks_paused")
@@ -77,10 +85,22 @@ def profile_dir(profile: str, create: bool = True) -> Path:
 
 
 @contextlib.contextmanager
-def locked(profile: str):
-    """One lock per profile for every change of its state. Not reentrant: take it once, at the command level."""
+def locked(profile: str, wait: float | None = None):
+    """One lock per profile for every change of its state. Not reentrant: take it once, at the command level.
+    `wait` bounds the wait in seconds (TimeoutError); the default waits as long as it takes."""
     with open(profile_dir(profile) / "lock", "a+") as fh:
-        fcntl.flock(fh, fcntl.LOCK_EX)
+        if wait is None:
+            fcntl.flock(fh, fcntl.LOCK_EX)
+        else:
+            end = time.monotonic() + wait
+            while True:
+                try:
+                    fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except BlockingIOError:
+                    if time.monotonic() >= end:
+                        raise TimeoutError(f"profile {profile!r} is locked") from None
+                    time.sleep(0.05)
         try:
             yield
         finally:
@@ -196,7 +216,7 @@ def worker_for(profile: str, task: str | None = None, session: str | None = None
 
 
 def live_workers(profile: str) -> list[dict]:
-    return [w for w in workers(profile) if w.get("state") in ("running", "waiting")]
+    return [w for w in workers(profile) if w.get("state") in ("starting", "running", "waiting")]
 
 
 # ---- events --------------------------------------------------------------------------
@@ -215,12 +235,55 @@ def _events(profile: str) -> list[dict]:
     return out
 
 
+def _clean(value):
+    if isinstance(value, str):
+        return "".join(" " if ord(c) < 32 or ord(c) == 127 else c for c in value[:200])
+    if value is None or isinstance(value, (bool, int, float)):
+        return value
+    raise ValueError(f"event value {value!r} must be a str, int, float, bool or None")
+
+
+def _atomic_text(path: Path, text: str) -> None:
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".tmp-")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        os.replace(tmp, path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp)
+        raise
+
+
 def emit(profile: str, kind: str, task: str | None = None, session: str | None = None, **data) -> int:
-    """Append one event; returns its id. Callers hold `locked(profile)`."""
-    events = _events(profile)
-    rec = {"id": (events[-1]["id"] + 1) if events else 1, "ts": now(), "kind": kind, "task": task, "session": session, **data}
-    with open(profile_dir(profile) / "events.jsonl", "a", encoding="utf-8") as fh:
-        fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    """Append one event; returns its id. Callers hold `locked(profile)`. A kind outside EVENT_KINDS, a task or session
+    that does not match TASK or SESSION, or a value that is not a scalar is refused with ValueError. The next id
+    comes from `events.seq` (rebuilt from the log when missing), so the log is never parsed here."""
+    if kind not in EVENT_KINDS:
+        raise ValueError(f"event kind {kind!r} must be one of {EVENT_KINDS}")
+    if task is not None and not (isinstance(task, str) and TASK.match(task)):
+        raise ValueError(f"task ID {task!r} must look like RM-12")
+    if session is not None and not (isinstance(session, str) and SESSION.match(session)):
+        raise ValueError(f"session {session!r} must match {SESSION.pattern}")
+    if any(not isinstance(k, str) or not KEY.match(k) for k in data):
+        raise ValueError("event keys must be lower-case words")
+    data = {k: _clean(v) for k, v in data.items()}
+    d = profile_dir(profile)
+    log, seq = d / "events.jsonl", d / "events.seq"
+    try:
+        last = int(seq.read_text().strip())
+    except (OSError, ValueError):
+        last = max([e["id"] for e in _events(profile)] or [0])
+    rec = {"id": last + 1, "ts": now(), "kind": kind, "task": task, "session": session, **data}
+    _atomic_text(seq, f"{rec['id']}\n")  # before the append: a kill in between leaves a gap, never a reused id
+    try:
+        with open(log, "rb") as fh:
+            fh.seek(-1, os.SEEK_END)
+            torn = fh.read(1) != b"\n"
+    except OSError:
+        torn = False
+    with open(log, "a", encoding="utf-8") as fh:
+        fh.write(("\n" if torn else "") + json.dumps(rec, ensure_ascii=False) + "\n")
     return rec["id"]
 
 
@@ -238,7 +301,33 @@ def events_since(profile: str, after: int | None = None) -> list[dict]:
 
 def advance(profile: str, last_id: int) -> None:
     if last_id > cursor(profile):
-        (profile_dir(profile) / "cursor").write_text(f"{last_id}\n")
+        _atomic_text(profile_dir(profile) / "cursor", f"{last_id}\n")
+
+
+def landed(profile: str, task: str, hub_dir) -> bool:
+    """True when a `landed` event exists for the task, or the hub has refs/archive/task/<ID> and the default branch
+    log carries `Archive: refs/archive/task/<ID>`."""
+    if not TASK.match(task):
+        raise ValueError(f"task ID {task!r} must look like RM-12")
+    if any(e.get("kind") == "landed" and e.get("task") == task for e in _events(profile)):
+        return True
+    ref = f"refs/archive/task/{task}"
+    git = ["git", "-C", str(hub_dir)]
+    if subprocess.run(git + ["rev-parse", "--verify", "--quiet", ref], capture_output=True).returncode != 0:
+        return False
+    head = subprocess.run(git + ["symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD"],
+                          capture_output=True, text=True)
+    branch = head.stdout.strip() if head.returncode == 0 and head.stdout.strip() else None
+    if branch is None:
+        for cand in ("main", "master"):
+            if subprocess.run(git + ["rev-parse", "--verify", "--quiet", cand], capture_output=True).returncode == 0:
+                branch = cand
+                break
+    if branch is None:
+        return False
+    log = subprocess.run(git + ["log", branch, "--format=%B", "--fixed-strings", f"--grep=Archive: {ref}"],
+                         capture_output=True, text=True)
+    return log.returncode == 0 and f"Archive: {ref}" in log.stdout
 
 
 # ---- the owner's queue and a worker's inbox --------------------------------------------

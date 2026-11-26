@@ -60,22 +60,33 @@ write_status() {
     echo "transcript=$(printf '%s' "${INPUT}" | jq -r '.transcript_path // ""' | ascii)"
     echo "mode=$(printf '%s' "${INPUT}" | jq -r '.permission_mode // ""' | ascii)"
   } > "${tmp}"; } 2>/dev/null && mv -f "${tmp}" "${MARKER}.status" 2>/dev/null || rm -f "${tmp}"
+  sup_signal "$1"
   notify_owner "$1" "${text}"
-  sup_signal "$1" "${text}"
 }
 
-# sup_signal <kind> <text>: for a supervised session (AGENTS_SUPERVISOR set) the same stop as an event in the
-# supervisor's log (lib/sup_event.py). Bounded, and a failure is ignored: the stop is never held up by it.
+# sup_event <args...>: lib/sup_event.py for a supervised session (AGENTS_SUPERVISOR set). Exit 0 only when the
+# event was written and the worker's registry row found (and, for `waiting`, the request is open); stdout "watcher"
+# says the profile's watcher is alive. Bounded: `timeout` when there is one, else the 4 s lock wait inside python.
+# The caller never lets a failure here change the stop.
+sup_event() {
+  local lib="$(dirname "${BASH_SOURCE[0]}")/../lib/sup_event.py" t=()
+  [ -n "${AGENTS_SUPERVISOR:-}" ] || return 1
+  command -v timeout >/dev/null && t=(timeout 5)
+  "${t[@]}" python3 "${lib}" "$@" --session "${SESSION}" 2>/dev/null
+}
+
+# sup_signal <kind>: the same stop as an event in the supervisor's log. SUP_HANDLED=1 when it was written and the
+# supervisor's watcher is alive: the tick decides, so notify_owner stays quiet.
+SUP_HANDLED=""
 sup_signal() {
-  local what=() lib="$(dirname "${BASH_SOURCE[0]}")/../lib/sup_event.py"
-  [ -n "${AGENTS_SUPERVISOR:-}" ] || return 0
+  local what=() out
   case "$1" in
     DONE) what=(done) ;;
     BLOCKED|GAVE_UP|EMPTY) what=(stopped "status=$1") ;;
-    WAITING) case "$2" in supervisor:*) what=(waiting "resource=$(printf '%s' "$2" | sed -E 's/^supervisor:[[:space:]]*//' | cut -d' ' -f1 | cut -c1-60)") ;; esac ;;
+    *) return 0 ;;
   esac
-  [ ${#what[@]} -gt 0 ] || return 0
-  timeout 5 python3 "${lib}" "${what[0]}" --session "${SESSION}" "${what[@]:1}" >/dev/null 2>&1 || true
+  out=$(sup_event "${what[@]}") && [ "${out}" = watcher ] && SUP_HANDLED=1
+  return 0
 }
 
 # notify_owner <kind> <text>: tells the owner about a stop that needs them or a run that ended, through
@@ -85,6 +96,7 @@ sup_signal() {
 notify_owner() {
   local at ids title key cwd
   case "$1" in BLOCKED|GAVE_UP|EMPTY|DONE) ;; *) return 0 ;; esac
+  [ -z "${SUP_HANDLED}" ] || return 0
   at="$(cd "$(dirname "${BASH_SOURCE[0]}")/../bin" 2>/dev/null && pwd)/at"
   cwd=$(printf '%s' "${INPUT}" | jq -r '.cwd // ""')  # the harness's cwd, never the marker's (session-writable)
   [ -x "${at}" ] || return 0
@@ -119,23 +131,36 @@ fi
 
 MESSAGE=$(printf '%s' "${INPUT}" | jq -r '.last_assistant_message // ""')
 DECLARED=$(printf '%s\n' "${MESSAGE}" | grep -E '^[[:space:]>*_`-]*Run:[*_`]*[[:space:]]*(WAITING|BLOCKED)[*_`]*[[:space:]:-]+[^[:space:]]' | head -1)
-SUPWAIT=""  # a supervised worker parks on the supervisor's answer, with or without the `Run:` prefix
-[ -n "${AGENTS_SUPERVISOR:-}" ] && SUPWAIT=$(printf '%s\n' "${MESSAGE}" | grep -E '^[[:space:]>*_`-]*(Run:[*_`]*[[:space:]]*)?WAITING[*_`]*[[:space:]]+supervisor:[[:space:]]*[^[:space:]]' | tail -1)
+# A supervised worker parks on the supervisor's answer with `WAITING supervisor: <id>` as the last non-empty line
+# (optional `Run: `, optional surrounding * _ `), when no `Run: BLOCKED|GAVE_UP` is declared and sup_event.py
+# accepts the id (an open request of a registered worker). Anything else falls through to the normal guard.
+supervisor_park_id() {
+  local id
+  [ -n "${AGENTS_SUPERVISOR:-}" ] || return 1
+  printf '%s\n' "${MESSAGE}" | grep -qE '^[[:space:]>*_`-]*Run:[*_`]*[[:space:]]*(BLOCKED|GAVE_UP)' && return 1
+  id=$(printf '%s\n' "${MESSAGE}" | grep -v '^[[:space:]]*$' | tail -1 \
+    | sed -nE 's/^[[:space:]*`_]*(Run:[*`_[:space:]]*)?WAITING[*`_[:space:]]*supervisor:[[:space:]]*([A-Za-z0-9-]{1,60})[*`_[:space:]]*$/\2/p')
+  printf '%s' "${id}" | grep -qE '^(Q[0-9]+|[a-z0-9][a-z0-9-]*)$' || return 1
+  sup_event waiting "resource=${id}" >/dev/null || return 1
+  PARK_ID="${id}"
+}
 if [ -z "${MESSAGE}" ]; then
   rm -f "${COUNT_FILE}"
   write_status EMPTY "the last message was empty"
   echo '{}'
   exit 0
-elif [ -n "${SUPWAIT}" ]; then
+elif supervisor_park_id; then
   rm -f "${COUNT_FILE}"
-  write_status WAITING "$(printf '%s' "${SUPWAIT}" | sed -E 's/^.*WAITING[*_`]*[[:space:]]+(supervisor:.*)$/\1/')"
+  write_status WAITING "supervisor: ${PARK_ID}"
   echo '{}'
   exit 0
 elif [ -n "${DECLARED}" ]; then
   rm -f "${COUNT_FILE}"
   # the kind is the keyword right after `Run:`, not any word of the line
-  write_status "$(printf '%s' "${DECLARED}" | sed -E 's/^[^R]*Run:[*_`]*[[:space:]]*(WAITING|BLOCKED).*/\1/')" \
-    "$(printf '%s' "${DECLARED}" | sed -E 's/^[^R]*Run:[*_`]*[[:space:]]*(WAITING|BLOCKED)[*_`]*[[:space:]:-]+//')"
+  DECL_TEXT=$(printf '%s' "${DECLARED}" | sed -E 's/^[^R]*Run:[*_`]*[[:space:]]*(WAITING|BLOCKED)[*_`]*[[:space:]:-]+//')
+  # a park the supervisor refused is an ordinary WAITING: the watchdog must not take it for a parked session
+  [ -n "${AGENTS_SUPERVISOR:-}" ] && case "${DECL_TEXT}" in supervisor:*) DECL_TEXT="not parked: ${DECL_TEXT}" ;; esac
+  write_status "$(printf '%s' "${DECLARED}" | sed -E 's/^[^R]*Run:[*_`]*[[:space:]]*(WAITING|BLOCKED).*/\1/')" "${DECL_TEXT}"
   echo '{}'
   exit 0
 fi

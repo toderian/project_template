@@ -963,35 +963,100 @@ note_setup sess-n; chmod 500 "${AGENTS_RUN_GUARD_DIR}"
 check "guard: a read-only guard dir prints no shell error" $'{}\nexit=0' "$(note_hook sess-n 'Run: BLOCKED ro' '')"
 chmod 700 "${AGENTS_RUN_GUARD_DIR}"
 
-# supervised sessions (AGENTS_SUPERVISOR set): the stop is also an event, and `WAITING supervisor:` parks the session
-SUP_DIR="${WORKDIR}/sup"; SUP_EVENTS="${SUP_DIR}/p1/events.jsonl"
-sup_hook() { guard_payload "$1" "$2" | AGENTS_SUPERVISOR="${SUPV-p1}" AGENTS_SUP_DIR="${SUP_DIR}" AGENTS_SUP_TASK=GRD-001 "${BASH_BIN}" "${GUARD_HOOK}" >/dev/null 2>&1; echo $?; }
-sup_row() { AGENTS_SUP_DIR="${SUP_DIR}" python3 -c 'import sys; sys.path.insert(0, sys.argv[1]); import sup_state as s; s.set_worker("p1", "sess-s", **dict(a.split("=") for a in sys.argv[2:]))' "${HOOKS_DIR}/../lib" "$@"; }
+# supervised sessions (AGENTS_SUPERVISOR set): the stop is also an event, and `WAITING supervisor: <id>` parks the
+# session, but only as the last line, with an open request of a registered worker, and when the event was written
+SUP_DIR="${WORKDIR}/sup"; SUP_EVENTS="${SUP_DIR}/p1/events.jsonl"; SS=sess-sup-01
+sup_hook() { guard_payload "$SS" "$1" | AGENTS_SUPERVISOR="${SUPV-p1}" AGENTS_SUP_DIR="${SUP_DIR}" AGENTS_SUP_TASK=GRD-001 \
+  AGENTS_NOTIFY_CMD="${NOTE_CMD}" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 "${BASH_BIN}" "${GUARD_HOOK}" >/dev/null 2>&1; echo $?; }
+sup_py() { AGENTS_SUP_DIR="${SUP_DIR}" python3 -c 'import sys; sys.path.insert(0, sys.argv[1]); import sup_state as s; import lease; exec(sys.argv[2])' "${HOOKS_DIR}/../lib" "$1"; }
 sup_kinds() { jq -r '.kind + ":" + (.status // "")' "${SUP_EVENTS}" 2>/dev/null | tr '\n' ' '; }
-note_setup sess-s; sup_row task=GRD-001
-check "guard: a bare WAITING supervisor line without AGENTS_SUPERVISOR is sent back as before" 2 "$(SUPV= sup_hook sess-s $'Parked.\nWAITING supervisor: Q1')"
-check "guard: no event without AGENTS_SUPERVISOR" "" "$(sup_kinds)"
-note_setup sess-s
-check "guard: a WAITING supervisor line is allowed to stop" 0 "$(sup_hook sess-s $'Parked.\nWAITING supervisor: Q1')"
-check "guard: it is recorded as WAITING supervisor" "WAITING supervisor: Q1" "$(status_of sess-s kind) $(status_of sess-s text)"
-check "guard: it emits waiting" "waiting: " "$(sup_kinds)"
-check "guard: the registry row is waiting for the resource" "waiting Q1" "$(jq -r '.[0] | .state + " " + .waiting_for' "${SUP_DIR}/p1/workers.json")"
-note_setup sess-s; rm -rf "${SUP_DIR}/p1/events.jsonl"
-check "guard: the Run: prefix form is allowed too" 0 "$(sup_hook sess-s $'x\n**Run: WAITING** supervisor: need-db')"
-note_setup sess-s; rm -rf "${SUP_DIR}/p1/events.jsonl"
-check "guard: Run: WAITING supervisor without the variable stops as an ordinary WAITING, with no event" "0 WAITING supervisor: need-db [] " \
-  "$(SUPV= sup_hook sess-s 'Run: WAITING supervisor: need-db') $(status_of sess-s kind) $(status_of sess-s text) [$(sup_kinds)] "
-note_setup sess-s; rm -rf "${SUP_DIR}/p1/events.jsonl"
-check "guard: BLOCKED stops and emits stopped" "0 stopped:BLOCKED " "$(sup_hook sess-s 'Run: BLOCKED pick a name') $(sup_kinds)"
-rm -rf "${SUP_DIR}/p1/events.jsonl"; : > "${GUARD_REPO}/docs/tasks_manager/_todos/GRD-001-F_guarded.md"; note_setup sess-s
-for _ in 1 2 3 4 5; do sup_hook sess-s 'summary' >/dev/null; done; rm -rf "${SUP_DIR}/p1/events.jsonl"
-check "guard: GAVE_UP emits stopped" "0 stopped:GAVE_UP " "$(sup_hook sess-s 'summary') $(sup_kinds)"
-note_setup sess-s; rm -rf "${SUP_DIR}/p1/events.jsonl"; rm -f "${GUARD_REPO}/docs/tasks_manager/_todos/GRD-001-F_guarded.md"
-check "guard: DONE emits done and sets the row" "0 done:  done" "$(sup_hook sess-s 'bye') $(sup_kinds) $(jq -r '.[0].state' "${SUP_DIR}/p1/workers.json")"
+sup_row_state() { jq -r '.[0] | .state + " " + (.waiting_for // "-")' "${SUP_DIR}/p1/workers.json"; }
+# sup_fresh: a clean profile with a running worker row, an open question Q1 of GRD-001 and a fresh marker
+sup_fresh() { chmod -R u+rwx "${SUP_DIR}" 2>/dev/null; rm -rf "${SUP_DIR}/p1"
+  sup_py "s.set_worker('p1', '${SS}', task='GRD-001'); s.queue_add('p1', 'GRD-001', 'which branch?')"; note_setup "${SS}"; : > "${NOTE_LOG}"; }
 : > "${GUARD_REPO}/docs/tasks_manager/_todos/GRD-001-F_guarded.md"
-note_setup sess-s; chmod 000 "${SUP_DIR}/p1"
-check "guard: an unwritable supervisor state never changes the stop" 0 "$(sup_hook sess-s 'Run: BLOCKED x')"
+sup_fresh
+check "guard: a bare WAITING supervisor line without AGENTS_SUPERVISOR is sent back as before" 2 "$(SUPV= sup_hook $'Parked.\nWAITING supervisor: Q1')"
+check "guard: no event without AGENTS_SUPERVISOR" "" "$(sup_kinds)"
+sup_fresh
+check "guard: a WAITING supervisor line is allowed to stop" 0 "$(sup_hook $'Parked.\nWAITING supervisor: Q1')"
+check "guard: it is recorded as WAITING supervisor" "WAITING supervisor: Q1" "$(status_of "${SS}" kind) $(status_of "${SS}" text)"
+check "guard: it emits waiting" "waiting: " "$(sup_kinds)"
+check "guard: the registry row is waiting for the resource" "waiting Q1" "$(sup_row_state)"
+sup_fresh
+check "guard: the Run: prefix form parks too, with the event and the row" "0 need: waiting:  waiting need-db" \
+  "$(sup_py "s.queue_close('p1', 'Q1', 'x', 'sup'); s.emit('p1', 'need', task='GRD-001', resource='need-db', minutes=5)"; sup_hook $'x\n**Run: WAITING** supervisor: need-db') $(sup_kinds) $(sup_row_state)"
+sup_fresh
+check "guard: markup around the line is stripped from the id" "0 Q1 waiting Q1" \
+  "$(sup_hook $'x\n**WAITING supervisor: Q1**') $(status_of "${SS}" text | sed 's/^supervisor: //') $(sup_row_state)"
+sup_fresh
+check "guard: Run: WAITING supervisor without the variable stops as an ordinary WAITING, with no event" "0 WAITING supervisor: Q1 [] " \
+  "$(SUPV= sup_hook 'Run: WAITING supervisor: Q1') $(status_of "${SS}" kind) $(status_of "${SS}" text) [$(sup_kinds)] "
+# the park needs the marker as the LAST line, an open request, an id of the right shape, and no BLOCKED
+sup_fresh
+check "guard: a marker line followed by more text is sent back" "2 []" "$(sup_hook $'WAITING supervisor: Q1\nI will now continue with phase 2') [$(sup_kinds)]"
+check "guard: a bullet is not the marker" 2 "$(sup_hook '- WAITING supervisor: Q1')"
+check "guard: the phrase inside a line is not the marker" 2 "$(sup_hook 'I think WAITING supervisor: Q1 is next')"
+check "guard: a marker with trailing words is not the marker" 2 "$(sup_hook 'WAITING supervisor: Q1 and then more')"
+check "guard: a marker in a code block that the message goes on after is sent back" 2 "$(sup_hook $'```\nWAITING supervisor: Q1\n```\nnow phase 2')"
+check "guard: none of these wrote an event or a status" "[] []" "[$(sup_kinds)] [$(status_of "${SS}" kind | grep WAITING)]"
+sup_fresh
+check "guard: no open request for the id: sent back, nothing written" "2 []" "$(sup_hook 'WAITING supervisor: nothing-asked') [$(sup_kinds)]"
+sup_fresh
+check "guard: a closed question is no open request" 2 "$(sup_py "s.queue_close('p1', 'Q1', 'x', 'sup')"; sup_hook 'WAITING supervisor: Q1')"
+sup_fresh
+check "guard: a path as the id is sent back, nothing written" "2 [] ok" \
+  "$(sup_hook 'WAITING supervisor: ../v/package') [$(sup_kinds)] $(grep -q '/' "${SUP_DIR}/p1/workers.json" && echo bad || echo ok)"
+sup_fresh
+check "guard: a quoted old marker then a real BLOCKED is BLOCKED, with its event" "0 BLOCKED stopped:BLOCKED " \
+  "$(sup_hook $'> WAITING supervisor: Q1\nRun: BLOCKED owner must pick the name') $(status_of "${SS}" kind) $(sup_kinds)"
+sup_fresh
+check "guard: a BLOCKED declared before the marker line wins" "0 BLOCKED" \
+  "$(sup_hook $'Run: BLOCKED owner must pick\nWAITING supervisor: Q1') $(status_of "${SS}" kind)"
+sup_fresh
+check "guard: BLOCKED stops and emits stopped" "0 stopped:BLOCKED " "$(sup_hook 'Run: BLOCKED pick a name') $(sup_kinds)"
+sup_fresh
+check "guard: an empty message emits stopped EMPTY" "0 stopped:EMPTY " "$(sup_hook '') $(sup_kinds)"
+# a failed event never parks the stop: the normal guard decides
+sup_fresh; chmod 000 "${SUP_DIR}/p1"
+check "guard: an unwritable supervisor state never changes a BLOCKED stop" 0 "$(sup_hook 'Run: BLOCKED x')"
+check "guard: an unwritable supervisor state does not park: sent back" 2 "$(sup_hook 'WAITING supervisor: Q1')"
+check "guard: a Run: WAITING supervisor that could not park is an ordinary WAITING (the watchdog may restart it)" "0 WAITING not parked: supervisor: Q1" \
+  "$(sup_hook 'Run: WAITING supervisor: Q1') $(status_of "${SS}" kind) $(status_of "${SS}" text)"
 chmod 700 "${SUP_DIR}/p1"
+sup_fresh
+( sup_py "
+import fcntl, time
+with open(str(s.profile_dir('p1') / 'lock'), 'a+') as fh:
+    fcntl.flock(fh, fcntl.LOCK_EX); time.sleep(7)" ) & HOLDER=$!
+sleep 0.7; T0=$(date +%s)
+check "guard: a held profile lock does not park the stop" "2 [] running -" "$(sup_hook 'WAITING supervisor: Q1') [$(sup_kinds)] $(sup_row_state)"
+check "guard: the wait for a held lock is bounded" 1 "$([ $(( $(date +%s) - T0 )) -le 6 ] && echo 1 || echo 0)"
+wait "${HOLDER}"
+# no `timeout` on PATH (stock macOS): the event is still written, bounded inside python
+NOTIMEOUT="${WORKDIR}/no-timeout-bin"; rm -rf "${NOTIMEOUT}"; mkdir -p "${NOTIMEOUT}"
+for f in /usr/bin/* /bin/*; do [ "${f##*/}" = timeout ] || ln -sf "${f}" "${NOTIMEOUT}/${f##*/}" 2>/dev/null; done
+sup_fresh
+check "guard: without timeout on PATH the park still writes its event" "0 waiting: " \
+  "$(PATH="${NOTIMEOUT}" sup_hook 'WAITING supervisor: Q1') $(sup_kinds)"
+rm -rf "${SUP_DIR}/p1/events.jsonl" "${SUP_DIR}/p1/events.seq"
+sup_fresh; rm -f "${GUARD_REPO}/docs/tasks_manager/_todos/GRD-001-F_guarded.md"
+check "guard: DONE emits done and sets the row" "0 done:  done -" "$(sup_hook 'bye') $(sup_kinds) $(sup_row_state)"
+: > "${GUARD_REPO}/docs/tasks_manager/_todos/GRD-001-F_guarded.md"
+sup_fresh; rm -rf "${SUP_DIR}/p1/events.jsonl" "${SUP_DIR}/p1/events.seq"
+for _ in 1 2 3 4 5; do sup_hook 'summary' >/dev/null; done
+check "guard: GAVE_UP emits stopped" "0 stopped:GAVE_UP " "$(sup_hook 'summary') $(sup_kinds)"
+# the owner is told directly unless the supervisor's watcher is alive (then the tick decides)
+sup_fresh
+sup_hook 'Run: BLOCKED pick a name' >/dev/null
+check "guard: a supervised BLOCKED with no watcher notifies the owner" 1 "$(note_count '^Run BLOCKED' 1)"
+sup_fresh; sup_py "open(str(s.profile_dir('p1') / 'watch.pid'), 'w').write('$$ ' + str(lease.start_time($$)) + '\n')"
+sup_hook 'Run: BLOCKED pick a name' >/dev/null
+check "guard: with the watcher alive the event is written and the owner is not notified by the hook" "stopped:BLOCKED  0" \
+  "$(sup_kinds) $(note_count '^Run BLOCKED' 1)"
+sup_fresh; sup_py "open(str(s.profile_dir('p1') / 'watch.pid'), 'w').write('$$ 1\n')"
+sup_hook 'Run: BLOCKED pick a name' >/dev/null
+check "guard: a watch.pid with a reused pid is no watcher: the owner is notified" 1 "$(note_count '^Run BLOCKED' 1)"
 
 # ---------------------------------------------------------------------------
 # run-guard-remind.sh

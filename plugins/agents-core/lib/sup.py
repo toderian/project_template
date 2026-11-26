@@ -8,6 +8,10 @@ AGENTS_SUPERVISOR; set by `at sup init`), else the git toplevel of the current d
 `land` writes the archive ref after the squash commit (a failed landing leaves no ref), and a rerun
 after a failure past the commit skips the squash and only cleans up.
 Not built here: the permission preflight of `ready` (plan D9).
+
+`land` refuses under AGENTS_SUP_TASK (a worker session), emits `landed` when a profile is known (--profile or
+AGENTS_SUPERVISOR), and refuses a branch whose diff against the landing branch touches `.claude/` or `.mcp.json`
+unless `--allow-claude-files` is given, which only the owner may do (refused when CLAUDE_CODE_SESSION_ID is set).
 """
 from __future__ import annotations
 
@@ -189,7 +193,25 @@ def state_dir() -> Path:
     return Path(base) / "_host"
 
 
+def _claude_file(path: str) -> bool:
+    parts = path.split("/")
+    return ".claude" in parts[:-1] or parts[-1] == ".mcp.json"
+
+
+def _emit_landed(tid: str, profile: str | None) -> None:
+    """The `landed` event of the profile (--profile, else AGENTS_SUPERVISOR); no profile, no event."""
+    import sup_state
+    name = sup_state.current_profile(profile)
+    if name:
+        with sup_state.locked(name):
+            sup_state.emit(name, "landed", task=tid)
+
+
 def cmd_land(args) -> int:
+    if os.environ.get("AGENTS_SUP_TASK"):
+        raise Refuse("a worker session may not land")
+    if args.allow_claude_files and os.environ.get("CLAUDE_CODE_SESSION_ID"):
+        raise Refuse("--allow-claude-files is for the owner's shell, not a Claude session")
     main, tid = main_worktree(args.repo), args.task_id
     branch, ref = f"task/{tid}", f"refs/archive/task/{tid}"
     if git(main, "rev-parse", "--verify", "-q", f"refs/heads/{branch}").returncode:
@@ -209,6 +231,9 @@ def cmd_land(args) -> int:
         raise Refuse(f"landing checkout {main} is on a detached HEAD, not {default}")
     if head.stdout.strip() != default:
         raise Refuse(f"landing checkout {main} is on {head.stdout.strip()}, not {default}")
+    touched = [f for f in git_z(main, "diff", "--name-only", f"{default}...refs/heads/{branch}") if _claude_file(f)]
+    if touched and not args.allow_claude_files:
+        raise Refuse(f"{branch} changes {', '.join(touched[:3])}: files the supervisor's sessions load; the owner lands it with --allow-claude-files")
     old = git(main, "rev-parse", "--verify", "-q", ref).stdout.strip()
     if old and old != tip:
         raise Refuse(f"{ref} already exists at another commit")
@@ -238,6 +263,7 @@ def cmd_land(args) -> int:
             print(f"kept ignored files: {kept}")
         git_out(main, "worktree", "remove", str(wt))
     git_out(main, "branch", "-D", branch)
+    _emit_landed(tid, args.profile)
     print(f"landed {tid}: {git_out(main, 'rev-parse', '--short', default)}")
     return 0
 
@@ -348,6 +374,8 @@ def add_parser(sub) -> argparse.ArgumentParser:
     ln = leaf("land", help="squash-merge a closed-out task into the default branch")
     ln.add_argument("task_id", type=_task_id)
     ln.add_argument("--dry-run", action="store_true")
+    ln.add_argument("--allow-claude-files", action="store_true",
+                    help="owner only: land a branch that changes .claude/ or .mcp.json")
     ln.add_argument("--into", help="branch to land on (default: the default branch); the landing checkout must be on it")
     ln.set_defaults(sup_func=cmd_land)
     r = leaf("ready", help="check a task file is ready to dispatch (the permission preflight is not built)")
@@ -357,9 +385,41 @@ def add_parser(sub) -> argparse.ArgumentParser:
     for name in PARTS:  # each part adds its own subcommands; a part that is not installed is skipped
         try:
             __import__(name).register(ss)
-        except ImportError:
-            pass
+        except ModuleNotFoundError as e:
+            if e.name != name:
+                print(f"at: sup: part {name} failed to load: {e}", file=sys.stderr)
+        except ImportError as e:
+            print(f"at: sup: part {name} failed to load: {e}", file=sys.stderr)
+    _top_level_flags(ss)
     return p
+
+
+def _top_level_flags(ss) -> None:
+    """Make `at sup --profile P --hub H <part command>` work for every part: each leaf accepts both flags, and a flag the
+    leaf did not see keeps the value given before the subcommand (default SUPPRESS). `--hub` also fills args.hub."""
+    for q in ss.choices.values():
+        for sub in (a for a in q._actions if isinstance(a, argparse._SubParsersAction)):
+            _top_level_flags(sub)  # `at sup watch status`: the leaves under a part's own subcommand
+        for a in q._actions:
+            if {"--profile", "--hub", "--repo"} & set(a.option_strings):
+                a.default = argparse.SUPPRESS
+        have = {o for a in q._actions for o in a.option_strings}
+        if "--profile" not in have:
+            q.add_argument("--profile", default=argparse.SUPPRESS)
+        if not {"--hub", "--repo"} & have:
+            q.add_argument("--hub", "--repo", dest="repo", type=Path, default=argparse.SUPPRESS)
+        f = q.get_default("func")
+        if f is not None and f is not run:
+            q.set_defaults(func=_with_hub(f))
+
+
+def _with_hub(f):
+    def call(args):
+        hub = getattr(args, "hub", None) or getattr(args, "repo", None)
+        args.hub = str(hub) if hub is not None else None
+        args.profile = getattr(args, "profile", None)
+        return f(args)
+    return call
 
 
 def run(args) -> int:

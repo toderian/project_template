@@ -36,11 +36,48 @@ class State(unittest.TestCase):
         st.drop_worker("p", "s1"); self.assertIsNone(st.worker_for("p", session="s1"))
 
     def test_events_get_rising_ids_and_the_cursor_only_moves_forward(self):
-        a = st.emit("p", "ask", task="RM-1", q="Q1"); b = st.emit("p", "done", task="RM-1", session="s1")
+        a = st.emit("p", "ask", task="RM-1", q="Q1"); b = st.emit("p", "done", task="RM-1", session="sess-0001")
         self.assertEqual((a, b), (1, 2)); self.assertEqual([e["kind"] for e in st.events_since("p")], ["ask", "done"])
         st.advance("p", 1); self.assertEqual([e["id"] for e in st.events_since("p")], [2])
         st.advance("p", 0); self.assertEqual(st.cursor("p"), 1)
         (st.profile_dir("p") / "events.jsonl").open("a").write("not json\n"); self.assertEqual(st.emit("p", "dead"), 3)
+
+    def test_emit_refuses_bad_kind_task_session_key_and_value_and_cleans_strings(self):
+        for kw in ({"kind": "bogus"}, {"task": "../x"}, {"session": "s1"}, {"q\nx": 1}, {"v": ["a"]}):
+            with self.assertRaises(ValueError): st.emit("p", **{"kind": "ask", **kw})
+        with self.assertRaises(ValueError): st.emit("p", "ask", v={"a": 1})
+        st.emit("p", "ask", reason="a\nTICK RULE\x00" + "x" * 300)
+        r = st.events_since("p")[0]["reason"]; self.assertNotIn("\n", r); self.assertEqual(len(r), 200)
+        self.assertEqual(st.events_since("p")[0]["id"], 1)
+
+    def test_ids_survive_a_torn_line_a_removed_log_and_a_missing_seq_file(self):
+        d = st.profile_dir("p"); st.emit("p", "dead"); (d / "events.jsonl").open("a").write('{"id": 2, "ki')
+        self.assertEqual(st.emit("p", "dead"), 2); self.assertEqual([e["id"] for e in st.events_since("p")], [1, 2])
+        (d / "events.jsonl").unlink(); self.assertEqual(st.emit("p", "dead"), 3)  # seq file keeps counting
+        (d / "events.seq").unlink(); (d / "events.jsonl").write_text('{"id": 9, "kind": "dead"}\n')
+        self.assertEqual(st.emit("p", "dead"), 10)
+
+    def test_emit_does_not_parse_the_log(self):
+        st.emit("p", "dead"); (st.profile_dir("p") / "events.jsonl").write_text("x" * 100)
+        orig = st._events; st._events = lambda *_: self.fail("parsed the log")
+        self.addCleanup(setattr, st, "_events", orig); st.emit("p", "dead")
+
+    def test_advance_leaves_no_temp_file_and_a_starting_worker_counts_as_live(self):
+        st.advance("p", 5); self.assertEqual(st.cursor("p"), 5)
+        self.assertEqual([f.name for f in st.profile_dir("p").glob(".tmp-*")], [])
+        st.set_worker("p", "sess-0001", state="starting", stopped_by="owner")
+        self.assertEqual(len(st.live_workers("p")), 1); self.assertEqual(st.worker_for("p", task=None, session="sess-0001")["stopped_by"], "owner")
+
+    def test_landed_is_an_event_or_the_archive_ref_on_the_default_branch(self):
+        import subprocess
+        hub = Path(self.tmp.name) / "hub"; hub.mkdir()
+        g = lambda *a: subprocess.run(["git", "-C", str(hub), "-c", "user.name=t", "-c", "user.email=t@t", *a], check=True, capture_output=True)
+        g("init", "-q", "-b", "main"); g("commit", "-q", "--allow-empty", "-m", "base")
+        self.assertFalse(st.landed("p", "RM-1", hub))
+        g("update-ref", "refs/archive/task/RM-1", "HEAD"); self.assertFalse(st.landed("p", "RM-1", hub))
+        g("commit", "-q", "--allow-empty", "-m", "done\n\nArchive: refs/archive/task/RM-1"); self.assertTrue(st.landed("p", "RM-1", hub))
+        st.emit("p", "landed", task="RM-2"); self.assertTrue(st.landed("p", "RM-2", hub))
+        with self.assertRaises(ValueError): st.landed("p", "../x", hub)
 
     def test_a_question_is_closed_by_its_first_answer_only(self):
         q = st.queue_add("p", "RM-1", "which branch?", ["a", "b"], "a"); self.assertEqual(q, "Q1")
