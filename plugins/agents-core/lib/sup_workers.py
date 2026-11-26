@@ -17,9 +17,14 @@ before every `at` or `claude` subprocess. The helpers below never take it and ne
   is_alive(row, agents) -> bool|None         bg: a row with the sessionId and a non-null pid (None: `agents` failed, cannot
                                              tell); headless: the row's pid exists (a waiting headless worker has no process)
   wake_due(profile, row) -> (text, key)|None what to say when waking the row now, None when it must not be woken
-  wake(profile, session, text) -> bool       `claude stop` (or already stopped), then `claude --bg --resume` (headless:
-                                             `claude -p --resume`) in the row's cwd with AGENTS_SUPERVISOR and AGENTS_SUP_TASK;
-                                             True only when the resume says it woke that session
+  wake(profile, session, text) -> bool|int   `claude stop` (or already stopped), then `claude --bg --resume` (headless:
+                                             `claude -p --resume <id> <session_flags> --output-format json`, its own
+                                             logs/<task>.wake-<n>.json) in the row's cwd with AGENTS_SUPERVISOR and
+                                             AGENTS_SUP_TASK; bg: True only when the resume says it woke that session;
+                                             headless: the Popen pid (store it in the row); False on failure
+  session_flags() -> list[str]               the permission mode (and model) of a start and of a headless wake, in one place
+  slots_used(profile) -> int                 live rows plus stopped rows claimed by a wake (`waking`, fresh); counts against the cap
+  age(stamp) -> float                        seconds since a sup_state.now() stamp (0.0 when unreadable)
   next_tasks(profile) -> list[str]           tasks that may start now: pack running, no worker row, not landed, under the
                                              cap (live rows and rows due for a wake count); a serial pack offers its first
                                              open task, and only when the previous one is landed
@@ -39,6 +44,7 @@ import subprocess
 import sys
 import time
 import uuid
+from datetime import datetime
 from pathlib import Path
 
 import sup_state as st
@@ -49,7 +55,8 @@ WORKER_PROMPT = (
     "--minutes <n>` (--minutes is required) and `at sup release <resource>` as soon as you are done with it. Then end "
     "your turn with the line `WAITING supervisor: <id>`. When you are woken, read your answers with `at sup inbox` and "
     "acknowledge each one with `at sup inbox --ack <id>`. Never ask the user. Close the task out with "
-    "agents-tasks:complete-task. Do not push and do not merge."
+    "agents-tasks:complete-task. Arm the run guard first (`at run-guard arm {task}`) and never disarm it. "
+    "Do not push and do not merge."
 )
 CAP_RANGE = range(1, 9)
 WAKE_TRIES = 3
@@ -81,6 +88,26 @@ def clean_env(**extra) -> dict:
     return env
 
 
+def session_flags() -> list[str]:
+    return ["--permission-mode", "auto"]
+
+
+def age(stamp) -> float:
+    try:
+        return time.time() - datetime.strptime(stamp, "%Y-%m-%dT%H:%M:%S%z").timestamp()
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _waking(row: dict) -> bool:
+    """True while a wake has claimed the row (watcher mid-wake); the claim expires after STARTING_TTL and never drops the row."""
+    return bool(row.get("waking")) and age(row["waking"]) <= STARTING_TTL
+
+
+def slots_used(profile: str) -> int:
+    return len(st.live_workers(profile)) + sum(1 for w in st.workers(profile) if w.get("state") == "stopped" and _waking(w))
+
+
 def _run(argv: list[str], **kw) -> subprocess.CompletedProcess:
     return subprocess.run(argv, capture_output=True, text=True, timeout=kw.pop("timeout", 60), stdin=subprocess.DEVNULL, **kw)
 
@@ -98,6 +125,11 @@ def agents() -> list[dict] | None:
 def _pid_exists(pid) -> bool:
     if not isinstance(pid, int) or not 0 < pid < 2**31:
         return False
+    try:
+        if os.waitpid(pid, os.WNOHANG)[0] == pid:
+            return False  # our own child, now reaped: a zombie answers kill(pid, 0) as alive
+    except ChildProcessError:
+        pass
     try:
         os.kill(pid, 0)
     except ProcessLookupError:
@@ -126,26 +158,34 @@ def _pack_blocked(profile: str, task: str) -> bool:
 
 def wake_due(profile: str, row: dict):
     """(text, key) when the watcher should wake this row now: an unread answer or a pending restart, and the row is not
-    owner-stopped, its pack is not paused or closed, and the failures for this cause are under WAKE_TRIES."""
+    owner-stopped, not claimed by a wake, its pack is not paused or closed, the answer was not already woken for
+    (`woken` holds the last inbox id woken), a final `dead` (`dead_key`) is not for this same answer, and the failures
+    for this cause are under WAKE_TRIES."""
     task = row.get("task")
-    if row.get("state") not in ("stopped", "waiting") or not task or row.get("stopped_by") == "owner":
+    if row.get("state") not in ("stopped", "waiting") or not task or row.get("stopped_by") == "owner" or _waking(row):
         return None
     unread = st.inbox(profile, task, unread_only=True)
-    if not unread and not row.get("restart_pending"):
+    pending = bool(row.get("restart_pending"))
+    if not unread and not pending:
         return None
     if _pack_blocked(profile, task):
         return None
-    key = unread[-1]["id"] if unread else "restart"
+    last = unread[-1]["id"] if unread else None
+    key = f"restart{row.get('restarts', 0)}" if pending else last
+    if not pending and row.get("woken") == last:
+        return None
+    if row.get("dead_key") is not None and key == row["dead_key"]:
+        return None
     if row.get("wake_key") == key and row.get("wake_fail", 0) >= WAKE_TRIES:
         return None
-    return (ANSWER_TEXT if unread else RESTART_TEXT).format(task=task), key
+    return (RESTART_TEXT if pending else ANSWER_TEXT).format(task=task), key
 
 
 def _session_ok(session) -> bool:
     return isinstance(session, str) and bool(st.SESSION.match(session))
 
 
-def wake(profile: str, session: str, text: str) -> bool:
+def wake(profile: str, session: str, text: str) -> bool | int:
     row = st.worker_for(profile, session=session)
     if row is None or not _session_ok(session) or not row.get("task"):
         return False
@@ -159,10 +199,12 @@ def wake(profile: str, session: str, text: str) -> bool:
                 return False  # still running: nothing to resume
             logs = st.profile_dir(profile) / "logs"
             logs.mkdir(exist_ok=True)
-            with open(logs / f"{row['task']}.json", "a", encoding="utf-8") as out:
-                subprocess.Popen([_claude(), "-p", "--resume", session, text], cwd=cwd, env=env, stdin=subprocess.DEVNULL,
-                                 stdout=out, stderr=subprocess.STDOUT, start_new_session=True)
-            return True
+            n = len(list(logs.glob(f"{row['task']}.wake-*.json"))) + 1
+            with open(logs / f"{row['task']}.wake-{n}.json", "w", encoding="utf-8") as out:
+                proc = subprocess.Popen([_claude(), "-p", "--resume", session, *session_flags(), "--output-format", "json", text],
+                                        cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT,
+                                        start_new_session=True)
+            return proc.pid
         if _run([_claude(), "stop", session[:8]], env=env, cwd=cwd).returncode != 0:
             found = agents()
             if found is None or any(r.get("sessionId") == session and r.get("pid") is not None for r in found):
@@ -190,7 +232,7 @@ def next_tasks(profile: str) -> list[str]:
     rows = st.workers(profile)
     hub = _hub_or_none(profile)
     waking = sum(1 for w in rows if w.get("state") == "stopped" and wake_due(profile, w))
-    free = st.config(profile)["cap"] - len(st.live_workers(profile)) - waking
+    free = st.config(profile)["cap"] - slots_used(profile) - waking
     out: list[str] = []
     for pack in st.list_packs(profile):
         if pack.get("state") != "running":
@@ -341,11 +383,10 @@ def _refusal(profile: str, task: str) -> str | None:
         return f"{task} is in no pack"
     if pack.get("state") != "running":
         return f"pack {pack['name']!r} is {pack.get('state')}, not running"
-    live = st.live_workers(profile)
-    if any(w.get("task") == task for w in live):
+    if any(w.get("task") == task for w in st.live_workers(profile)):
         return f"{task} already has a live worker"
     cap = st.config(profile)["cap"]
-    if len(live) >= cap:
+    if slots_used(profile) >= cap:
         return f"session cap {cap} reached"
     return None
 
@@ -402,7 +443,7 @@ def _stop_session(session: str) -> None:
 def _bg_session(profile: str, task: str, session: str, cwd: str, env: dict, prompt: str) -> int | None:
     name = f"{profile}-{task}"
     try:
-        proc = subprocess.run([_claude(), "--bg", "--session-id", session, "--name", name, "--permission-mode", "auto", prompt],
+        proc = subprocess.run([_claude(), "--bg", "--session-id", session, "--name", name, *session_flags(), prompt],
                               cwd=cwd, env=env, capture_output=True, text=True, timeout=120, start_new_session=True,
                               stdin=subprocess.DEVNULL)
     except (OSError, subprocess.SubprocessError) as e:
@@ -426,7 +467,7 @@ def _headless_session(profile: str, task: str, session: str, cwd: str, env: dict
     logs.mkdir(exist_ok=True)
     try:
         with open(logs / f"{task}.json", "w", encoding="utf-8") as out:
-            proc = subprocess.Popen([_claude(), "-p", "--session-id", session, "--permission-mode", "auto",
+            proc = subprocess.Popen([_claude(), "-p", "--session-id", session, *session_flags(),
                                      "--output-format", "json", prompt],
                                     cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT,
                                     start_new_session=True)
@@ -440,7 +481,8 @@ def cmd_start_worker(profile: str, args) -> int:
     """Under the lock: check and write a `starting` row (it counts against the cap, so a second start cannot pass).
     Outside it: `at` and `claude`. Under it again: `running` and the `started` event. A failed start removes the row."""
     task, session = args.task, str(uuid.uuid4())
-    mode = "headless" if args.headless else "bg"
+    headless = args.headless or st.config(profile).get("worker_mode") == "headless"
+    mode = "headless" if headless else "bg"
     with st.locked(profile):
         why = _refusal(profile, task)
         if why:
@@ -460,7 +502,7 @@ def cmd_start_worker(profile: str, args) -> int:
         cwd = _worktree(task, hub, profile)
         env = clean_env(AGENTS_SUPERVISOR=profile, AGENTS_SUP_TASK=task)
         prompt = WORKER_PROMPT.format(task=task, profile=profile)
-        pid = (_headless_session if args.headless else _bg_session)(profile, task, session, cwd, env, prompt)
+        pid = (_headless_session if headless else _bg_session)(profile, task, session, cwd, env, prompt)
         with st.locked(profile):
             st.set_worker(profile, session, cwd=cwd, state="running", **({"pid": pid} if pid else {}))
             st.emit(profile, "started", task=task, session=session, mode=mode)

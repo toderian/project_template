@@ -11,7 +11,10 @@ liveness, leases, answers, free resources, starts, landing, notices, tick. Every
 `sup_state.locked` briefly; external programs (`at`, `sup_workers`) run outside it, because they lock themselves.
 Policy: a dead worker is woken with a restart text up to sup_workers.DEAD_RESTARTS times before `dead` is final; a bad
 `claude agents` answer never declares anyone dead; paused and closed packs get no start, wake or landing; an owner-stopped
-row is never woken; a refused start is retried only when the owner touches or the pack file changes, a refused landing only
+row is never woken; a refused start is retried only when the owner touches or the pack or task file changes (a start that
+failed inside `claude` also after 5, then 15 minutes), a bg start refused as "Workspace not trusted" switches config
+`worker_mode` to headless and retries at once; a dead session whose task is archived on its branch is `done` (inferred); a
+landed task's row is settled to `done` and its watcher queue entries closed; a refused landing only
 when task/<ID> has a new tip or the owner touches; `dead`, `start_refused`, `land_refused`, `owed`, `overdue`,
 `ticks_paused` and a BLOCKED or GAVE_UP stop add a non-blocking queue entry (source `watcher`) and run `at notify`.
 `sup_workers` (is_alive, wake, next_tasks) is imported inside the functions. `at` is $AGENTS_AT_BIN. Every `at`
@@ -21,6 +24,7 @@ Exit codes: 0 ok, 2 usage, 3 refused. stdlib only.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import signal
@@ -28,7 +32,6 @@ import subprocess
 import sys
 import time
 import traceback
-from datetime import datetime
 from pathlib import Path
 
 import lease
@@ -105,10 +108,27 @@ def _owner_touches(profile: str) -> int:
 
 
 def _age(stamp: str) -> float:
+    return _workers().age(stamp)
+
+
+def _worker_session() -> bool:
+    """True (and says so) in a worker session: these commands are for the supervisor and the owner (an honest-mistake check)."""
+    if os.environ.get("AGENTS_SUP_TASK"):
+        print("at: sup: this command is for the supervisor and the owner, not for a worker session", file=sys.stderr)
+        return True
+    return False
+
+
+def _closed_out(profile: str, task: str) -> bool:
+    """The task file is archived on task/<ID> (sup_digest.closed_out); any trouble reading it is "no"."""
+    hub = _cwd(profile)
+    if hub is None or not task or not sup_state.TASK.match(task):
+        return False
     try:
-        return time.time() - datetime.strptime(stamp, "%Y-%m-%dT%H:%M:%S%z").timestamp()
-    except (TypeError, ValueError):
-        return 0.0
+        import sup_digest
+        return sup_digest.closed_out(Path(hub), task)
+    except Exception:
+        return False
 
 
 # ---- the pass --------------------------------------------------------------------------
@@ -127,12 +147,20 @@ def _liveness(profile: str, mem: dict, acts: list[str]) -> None:
             continue
         if w.is_alive(row, found) is not False:  # None: `claude agents` failed, so nobody is declared dead
             continue
+        if _closed_out(profile, task):  # the worker finished but never armed the run guard: no `done` was emitted
+            with sup_state.locked(profile):
+                sup_state.set_worker(profile, session, state="done")
+                sup_state.emit(profile, "done", task, session, inferred=True)
+            acts.append(f"done {task} (inferred)")
+            continue
         restarts = row.get("restarts", 0)
         with sup_state.locked(profile):
             if restarts < w.DEAD_RESTARTS:
                 sup_state.set_worker(profile, session, state="stopped", restarts=restarts + 1, restart_pending=True)
             else:
-                sup_state.set_worker(profile, session, state="stopped")
+                unread = sup_state.inbox(profile, task, unread_only=True)
+                sup_state.set_worker(profile, session, state="stopped", dead_key=unread[-1]["id"] if unread else "",
+                                     dead_touches=_owner_touches(profile))
                 sup_state.emit(profile, "dead", task, session)
         if restarts < w.DEAD_RESTARTS:
             acts.append(f"dead {task}, restart {restarts + 1}")
@@ -148,33 +176,49 @@ def _leases(profile: str, mem: dict, acts: list[str]) -> None:
         if state not in ("overdue", "owed") or rec is None:
             continue
         if _once(mem, "leases", f"{res}:{state}:{rec.get('pid')}:{rec.get('start')}"):
-            _emit(profile, state, rec.get("task"), rec.get("session"), resource=res)
+            task, session = rec.get("task"), rec.get("session")  # a lease may carry free text; emit refuses it
+            _emit(profile, state, task if isinstance(task, str) and sup_state.TASK.match(task) else None,
+                  session if isinstance(session, str) and sup_state.SESSION.match(session) else None, resource=res)
             acts.append(f"{state} {res}")
+
+
+def _revive(profile: str, row: dict) -> dict:
+    """An owner touch since a final `dead` gives the row its restarts back."""
+    if row.get("dead_key") is not None and _owner_touches(profile) > row.get("dead_touches", 0):
+        with sup_state.locked(profile):
+            return sup_state.set_worker(profile, row["session"], dead_key=None, dead_touches=None, restarts=0, woken=None,
+                                        wake_fail=0, wake_key=None)
+    return row
 
 
 def _answers(profile: str, mem: dict, acts: list[str]) -> None:
     w = _workers()
     for row in sup_state.workers(profile):
+        row = _revive(profile, row)
         due = w.wake_due(profile, row)
         if due is None:
             continue
         (text, key), task, session = due, row["task"], row["session"]
-        with sup_state.locked(profile):  # claim a slot first: a wake never takes a slot a start has filled
+        with sup_state.locked(profile):  # claim a slot first (`waking`, not `starting`: it expires without dropping the row)
             cur = sup_state.worker_for(profile, session=session)
             others = [x for x in sup_state.live_workers(profile) if x["session"] != session]
+            others += [x for x in sup_state.workers(profile) if x["session"] != session and x.get("state") == "stopped"
+                       and w._waking(x)]
             if cur is None or cur.get("state") not in ("stopped", "waiting") or len(others) >= sup_state.config(profile)["cap"]:
                 continue
-            sup_state.set_worker(profile, session, state="starting", started=sup_state.now())
+            sup_state.set_worker(profile, session, waking=sup_state.now())
+            unread = sup_state.inbox(profile, task, unread_only=True)
         ok = w.wake(profile, session, text)
         with sup_state.locked(profile):
             if ok:
-                sup_state.set_worker(profile, session, state="running", waiting_for=None, restart_pending=False,
-                                     wake_fail=0, wake_key=None)
+                pid = {"pid": ok} if type(ok) is int else {}
+                sup_state.set_worker(profile, session, state="running", waiting_for=None, restart_pending=False, waking=None,
+                                     wake_fail=0, wake_key=None, woken=unread[-1]["id"] if unread else None,
+                                     dead_key=None, dead_touches=None, **pid)
                 sup_state.emit(profile, "restarted", task, session)
             else:
-                fails = (row.get("wake_fail", 0) if row.get("wake_key") == key else 0) + 1
-                sup_state.set_worker(profile, session, state=cur["state"], started=cur.get("started"), wake_fail=fails,
-                                     wake_key=key)
+                fails = (cur.get("wake_fail", 0) if cur.get("wake_key") == key else 0) + 1
+                sup_state.set_worker(profile, session, waking=None, wake_fail=fails, wake_key=key)
                 if fails >= w.WAKE_TRIES:
                     sup_state.emit(profile, "dead", task, session, reason=f"wake failed {fails} times")
         if ok:
@@ -207,19 +251,53 @@ def _free(profile: str, mem: dict, acts: list[str]) -> None:
             acts.append(f"free {res} for {task}")
 
 
+BACKOFF = {1: 300.0, 2: 900.0}  # seconds before the next try after the 1st and 2nd failure inside `claude`; then never
+
+
+def _task_hash(profile: str, task: str) -> str:
+    hub = _cwd(profile)
+    files = sorted(Path(hub).glob(f"docs/tasks_manager/_todos/{task}-*.md")) if hub else []
+    h = hashlib.sha1()
+    for f in files:
+        try:
+            h.update(f.read_bytes())
+        except OSError:
+            pass
+    return h.hexdigest()
+
+
+def _start(profile: str, task: str) -> tuple[int, str]:
+    """`at sup start-worker`; when a bg start dies on "Workspace not trusted", switch the profile to headless and retry once."""
+    headless = sup_state.config(profile).get("worker_mode") == "headless"
+    rc, reason = _run_at(profile, ["sup", "start-worker", task, *(["--headless"] if headless else [])])
+    if rc != 0 and not headless and "Workspace not trusted" in reason:
+        sup_state.set_config(profile, worker_mode="headless")
+        _log(profile, f"start-worker {task}: {reason}; worker_mode is now headless")
+        rc, reason = _run_at(profile, ["sup", "start-worker", task, "--headless"])
+    return rc, reason
+
+
 def _starts(profile: str, mem: dict, acts: list[str]) -> None:
-    """A refused start is tried again only when the owner touches or the pack file changes."""
-    tried = mem.setdefault("start_tried", {})
+    """A refused start is tried again when the owner touches, the pack file or the task file changes; a start that failed
+    inside `claude` also after BACKOFF (5 minutes, then 15, then only on a change)."""
+    tried, backoff = mem.setdefault("start_tried", {}), mem.setdefault("start_backoff", {})
     for task in _workers().next_tasks(profile):
-        key = [_owner_touches(profile), json.dumps(sup_state.pack_of(profile, task), sort_keys=True)]
+        key = [_owner_touches(profile), json.dumps(sup_state.pack_of(profile, task), sort_keys=True), _task_hash(profile, task)]
         if tried.get(task) == key:
-            continue
-        rc, reason = _run_at(profile, ["sup", "start-worker", task])
+            bo = backoff.get(task)
+            if not bo or time.time() - bo["at"] < BACKOFF.get(bo["n"], float("inf")):
+                continue
+        else:
+            backoff.pop(task, None)
+        rc, reason = _start(profile, task)
         if rc == 0:
             tried.pop(task, None)
+            backoff.pop(task, None)
             acts.append(f"started {task}")
             continue
         tried[task] = key
+        if "claude" in reason:
+            backoff[task] = {"n": backoff.get(task, {"n": 0})["n"] + 1, "at": time.time()}
         _log(profile, f"start-worker {task} refused: {reason}")
         if _once(mem, "start_refused", f"{task}:{reason}"):
             _emit(profile, "start_refused", task, reason=reason)
@@ -252,6 +330,8 @@ def _landing(profile: str, mem: dict, acts: list[str]) -> None:
         pack = sup_state.pack_of(profile, task)
         if pack and pack.get("state") in ("paused", "closed"):
             continue
+        if _workers()._landed(profile, task, _hub(profile)):
+            continue  # landed by hand (`at sup land`): _settle closes the row
         key = [_tip(profile, task), _owner_touches(profile)]
         if tried.get(task) == key:
             continue
@@ -267,6 +347,32 @@ def _landing(profile: str, mem: dict, acts: list[str]) -> None:
             _emit(profile, "land_refused", task, row.get("session"), reason=reason)
             acts.append(f"land_refused {task}")
         _remember(profile, mem)
+
+
+def _hub(profile: str):
+    hub = _cwd(profile)
+    return Path(hub) if hub else None
+
+
+def _settle(profile: str, mem: dict, acts: list[str]) -> None:
+    """A landed task's idle row becomes `done` and the watcher's own open queue entries of that task are closed."""
+    w = _workers()
+    live = {r["session"] for r in sup_state.live_workers(profile)}
+    for row in sup_state.workers(profile):
+        task = row.get("task")
+        if row["session"] in live or not task or not sup_state.TASK.match(task):
+            continue
+        open_ = [q for q in sup_state.queue(profile) if q.get("task") == task and q.get("source") == "watcher"]
+        if row.get("state") != "stopped" and not open_:
+            continue
+        if not w._landed(profile, task, _hub(profile)):
+            continue
+        with sup_state.locked(profile):
+            if row.get("state") == "stopped":
+                sup_state.set_worker(profile, row["session"], state="done")
+            for q in open_:
+                sup_state.queue_close(profile, q["id"], "landed", "watcher")
+        acts.append(f"settled {task}")
 
 
 NOTIFY = ("dead", "start_refused", "land_refused", "owed", "overdue", "ticks_paused")
@@ -339,8 +445,11 @@ def step(profile: str, hub=None, tick: bool = True) -> list[str]:
     mem, acts = _memory(profile), []
     saved = json.dumps(mem, sort_keys=True)
     try:
-        for part in (_liveness, _leases, _answers, _free, _starts, _landing, _notices) + ((_tick,) if tick else ()):
-            part(profile, mem, acts)
+        for part in (_liveness, _leases, _answers, _free, _starts, _landing, _settle, _notices) + ((_tick,) if tick else ()):
+            try:
+                part(profile, mem, acts)
+            except Exception:
+                _log(profile, f"pass failed in {part.__name__}:\n" + traceback.format_exc())
             now = json.dumps(mem, sort_keys=True)
             if now != saved:
                 _remember(profile, mem)
@@ -429,7 +538,7 @@ def _chat_only() -> bool:
 
 
 def cmd_start(args) -> int:
-    if not _chat_only():
+    if _worker_session() or not _chat_only():
         return 3
     profile = _profile(args)
     if profile is None:
@@ -456,7 +565,7 @@ def cmd_start(args) -> int:
 
 
 def cmd_stop(args) -> int:
-    if not _chat_only():
+    if _worker_session() or not _chat_only():
         return 3
     profile = _profile(args)
     if profile is None:
@@ -478,6 +587,8 @@ def cmd_stop(args) -> int:
 
 
 def cmd_status(args) -> int:
+    if _worker_session():
+        return 3
     profile = _profile(args)
     if profile is None:
         return 2
@@ -487,6 +598,8 @@ def cmd_status(args) -> int:
 
 
 def cmd_once(args) -> int:
+    if _worker_session():
+        return 3
     profile = _profile(args)
     if profile is None:
         return 2

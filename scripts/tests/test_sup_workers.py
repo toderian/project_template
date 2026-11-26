@@ -17,6 +17,8 @@ with open(d + "/claude.log", "a") as f:
                         "path": os.environ.get("PATH"), "gitcfg": sorted(k for k in os.environ if k.startswith("GIT_CONFIG"))}) + "\\n")
 def has(n): return os.path.exists(d + "/" + n)
 def lines(n): return open(d + "/" + n).read().split() if has(n) else []
+if has("hold") and a[0] == "-p":
+    import time; time.sleep(float(open(d + "/hold").read()))
 if "--resume" in a:
     sid = a[a.index("--resume") + 1]
     if has("resume.copy"): print("started a copy as e8ad3784")
@@ -26,7 +28,7 @@ if "--resume" in a:
     sys.exit(int(os.environ.get("FAKE_RESUME_RC", "0")))
 if a[0] == "--bg":
     if has("bg.fail"):
-        sys.stderr.write("Workspace not trusted\\n"); sys.exit(1)
+        sys.stderr.write((open(d + "/bg.fail").read().strip() or "Workspace not trusted") + "\\n"); sys.exit(1)
     sid = a[a.index("--session-id") + 1]
     open(d + "/sessions", "a").write(sid + "\\n")
     print("backgrounded \\u00b7 " + sid[:8] + " \\u00b7 " + a[a.index("--name") + 1])
@@ -233,11 +235,39 @@ class Workers(unittest.TestCase):
 
     def test_headless_wake_resumes_with_claude_p(self):
         st.set_worker("p", SID % 1, task="RM-1", mode="headless", state="waiting", cwd=str(self.t / "wt"), pid=999999999)
-        self.assertTrue(sw.wake("p", SID % 1, "go"))
+        pid = sw.wake("p", SID % 1, "go")
+        self.assertGreater(pid, 1)  # the Popen pid, for the row
         for _ in range(100):
             if self.log(): break
             time.sleep(0.05)
-        self.assertEqual(self.log()[0]["argv"], ["-p", "--resume", SID % 1, "go"])
+        self.assertEqual(self.log()[0]["argv"], ["-p", "--resume", SID % 1, "--permission-mode", "auto", "--output-format", "json", "go"])
+        self.assertEqual(sw.wake("p", SID % 1, "go2") > 1, True)
+        time.sleep(0.3)  # each wake has its own log file, so each stays JSON
+        logs = sorted(p.name for p in (st.profile_dir("p") / "logs").iterdir())
+        self.assertEqual(logs, ["RM-1.wake-1.json", "RM-1.wake-2.json"])
+
+    def test_a_headless_start_follows_worker_mode_and_the_prompt_says_arm_and_never_disarm(self):
+        self.running_pack(); st.set_config("p", worker_mode="headless")
+        self.assertEqual(self.cli("start-worker", "RM-1")[0], 0)
+        self.assertEqual(st.worker_for("p", task="RM-1")["mode"], "headless")
+        for _ in range(100):
+            if self.log(): break
+            time.sleep(0.05)
+        self.assertIn("Arm the run guard first", self.log()[0]["argv"][-1]); self.assertIn("never disarm", self.log()[0]["argv"][-1])
+
+    def test_wake_due_wakes_once_per_inbox_id_and_never_on_a_final_dead_or_a_fresh_claim(self):
+        row = lambda **kw: {"session": SID % 1, "task": "RM-1", "state": "stopped", **kw}
+        st.inbox_add("p", "RM-1", "go")
+        self.assertIsNotNone(sw.wake_due("p", row()))
+        self.assertIsNone(sw.wake_due("p", row(woken="A1")))  # already woken for A1
+        self.assertIsNone(sw.wake_due("p", row(dead_key="A1")))
+        self.assertIsNone(sw.wake_due("p", row(waking=st.now())))
+        self.assertIsNotNone(sw.wake_due("p", row(waking="2020-01-01T00:00:00+0000")))  # an old claim expires
+        self.assertIsNotNone(sw.wake_due("p", row(woken="A1", restart_pending=True, restarts=1)))
+        st.inbox_add("p", "RM-1", "more")
+        self.assertIsNotNone(sw.wake_due("p", row(woken="A1", dead_key="A1")))  # a new entry
+        st.set_worker("p", SID % 2, task="RM-2", state="stopped", waking=st.now())
+        self.assertEqual(sw.slots_used("p"), 1)  # a claim counts against the cap
 
     def test_is_alive_checks_the_agents_pid_and_a_failing_call_is_unknown(self):
         self.live_row(1); (self.t / "dead").write_text(SID % 2 + "\n"); self.add_session(SID % 2)

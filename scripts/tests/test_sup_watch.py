@@ -153,6 +153,74 @@ class Watch(unittest.TestCase):
         sw.step(P, None, tick=False)
         self.assertEqual(len([c for c in self.claude() if "--resume" in c["argv"]]), 4)
 
+    def test_a_headless_wake_stores_the_pid_so_the_next_pass_sees_a_live_row(self):
+        (self.fake / "hold").write_text("4"); self.row(state="stopped", mode="headless", pid=999999999, restarts=2)
+        st.inbox_add(P, "RM-1", "go")
+        self.assertEqual(sw.step(P, None, tick=False), ["restarted RM-1"])
+        pid = st.worker_for(P, session=sid(1))["pid"]; self.assertNotEqual(pid, 999999999)
+        for _ in range(3): self.assertEqual(sw.step(P, None, tick=False), [])  # alive: no `dead`, no second resume
+        time.sleep(0.5); self.assertEqual(len([c for c in self.claude() if "--resume" in c["argv"]]), 1)
+        self.assertEqual(self.kinds(), ["restarted"]); os.kill(pid, 9)
+
+    def test_an_unacked_answer_wakes_once_and_a_final_dead_is_not_woken_or_declared_again(self):
+        st.set_config(P, land="manual"); self.row(state="stopped"); st.inbox_add(P, "RM-1", "go")
+        resumes = lambda: len([c for c in self.claude() if "--resume" in c["argv"]])
+        sw.step(P, None, tick=False)
+        for _ in range(3):
+            st.set_worker(P, sid(1), state="waiting", waiting_for=None)  # parked again, answer still unacked
+            self.assertEqual(sw.step(P, None, tick=False), [])
+        self.assertEqual(resumes(), 1)
+        self.kill(1); st.set_worker(P, sid(1), state="running", restarts=2)
+        self.assertEqual(sw.step(P, None, tick=False), ["dead RM-1", "notified dead RM-1"])
+        for _ in range(3): self.assertEqual(sw.step(P, None, tick=False), [])
+        self.assertEqual((resumes(), self.kinds().count("dead")), (1, 1))
+        st.inbox_add(P, "RM-1", "new"); self.assertEqual(sw.step(P, None, tick=False), ["restarted RM-1"])  # a new entry
+        self.assertEqual(resumes(), 2)
+
+    def test_an_owner_touch_gives_a_final_dead_row_its_restarts_back(self):
+        st.set_config(P, land="manual"); self.row(restarts=2, alive=False); st.inbox_add(P, "RM-1", "go"); sw.step(P, None, tick=False)
+        st.touch(P, "answered Q1"); sw.step(P, None, tick=False)
+        self.assertEqual(self.state(), "running")
+
+    def test_a_lease_whose_task_is_free_text_still_gives_overdue_and_the_pass_goes_on(self):
+        with lease.locked() as d:
+            lease.write(d, "lab", {"pid": os.getpid(), "pid_start": lease.start_time(os.getpid()), "session": "x",
+                                   "task": "nightly build", "start": time.time() - 7200, "ttl": 1})
+        self.assertEqual(sw.step(P, None, tick=False)[0], "overdue lab")
+        self.assertEqual(st.events_since(P, 0)[0]["resource"], "lab")
+
+    def test_a_part_that_raises_is_logged_and_the_next_part_still_runs(self):
+        old = sw._leases; self.addCleanup(setattr, sw, "_leases", old)
+        def boom(*a): raise RuntimeError("kaput")
+        sw._leases = boom
+        st.set_worker(P, sid(2), task="RM-2", state="starting", started="2020-01-01T00:00:00+0000")
+        self.assertEqual(sw.step(P, None, tick=False), ["start abandoned RM-2"])
+        self.assertIn("kaput", (st.profile_dir(P) / "watch.log").read_text())
+
+    def test_a_dead_row_whose_task_is_archived_on_its_branch_is_done_not_dead(self):
+        st.set_config(P, land="manual")
+        (self.hub / "docs/tasks_manager/_todos_archived").mkdir(parents=True)
+        (self.hub / "docs/tasks_manager/_todos_archived/RM-1-F_x.md").write_text("x")
+        git(self.hub, "add", "-A"); git(self.hub, "commit", "-q", "-m", "archive")
+        self.row(alive=False)
+        self.assertEqual(sw.step(P, None, tick=False), ["done RM-1 (inferred)"])
+        self.assertEqual((self.state(), self.kinds()), ("done", ["done"])); self.assertTrue(st.events_since(P, 0)[0]["inferred"])
+        self.assertEqual([c for c in self.claude() if "--resume" in c["argv"]], [])
+
+    def test_a_landed_task_settles_its_row_and_closes_the_watchers_queue_entries(self):
+        self.row(state="stopped", restarts=2); st.set_config(P, land="manual")
+        st.queue_add(P, "RM-1", "dead RM-1", source="watcher", blocking=False)
+        st.queue_add(P, "RM-1", "worker question", source="worker")
+        self.assertEqual(sw.step(P, None, tick=False), [])
+        with st.locked(P): st.emit(P, "landed", "RM-1", sid(1))
+        self.assertEqual(sw.step(P, None, tick=False), ["settled RM-1"])
+        self.assertEqual(self.state(), "done"); self.assertEqual([q["source"] for q in st.queue(P)], ["worker"])
+
+    def test_the_commands_but_run_refuse_in_a_worker_session(self):
+        os.environ["AGENTS_SUP_TASK"] = "RM-1"; a = argparse.Namespace(profile=P, interval=1.0, no_tick=True)
+        self.assertEqual([sw.cmd_once(a), sw.cmd_status(a), sw.cmd_start(a), sw.cmd_stop(a)], [3, 3, 3, 3])
+        self.assertEqual(self.argv(), [])
+
     def test_free_resource_adds_an_inbox_entry_once_and_the_next_pass_wakes(self):
         self.row(state="waiting", waiting_for="full-suite")
         with st.locked(P): st.emit(P, "need", "RM-1", sid(1), resource="full-suite", minutes=20)
@@ -193,13 +261,37 @@ class Watch(unittest.TestCase):
         self.assertEqual([a for a in sw.step(P, None, tick=False) if a.startswith("started")], ["started RM-1", "started RM-2", "started RM-3"])
 
     def test_a_failed_claude_start_leaves_no_row_and_the_retry_after_a_touch_starts_the_worker(self):
-        self.pack("RM-1"); (self.fake / "bg.fail").write_text("")
+        self.pack("RM-1"); (self.fake / "bg.fail").write_text("no network")
         self.assertEqual(sw.step(P, None, tick=False), ["start_refused RM-1", "notified start_refused RM-1"])
-        self.assertEqual(st.workers(P), []); self.assertIn("Workspace not trusted", st.events_since(P, 0)[0]["reason"])
+        self.assertEqual(st.workers(P), []); self.assertIn("no network", st.events_since(P, 0)[0]["reason"])
         (self.fake / "bg.fail").unlink(); self.assertEqual(sw.step(P, None, tick=False), [])
         st.touch(P, "answered Q1")
         self.assertEqual(sw.step(P, None, tick=False), ["started RM-1"])
         self.assertEqual((st.worker_for(P, task="RM-1")["state"], self.kinds()), ("running", ["start_refused", "started"]))
+
+    def test_an_untrusted_workspace_switches_the_profile_to_headless_and_retries_in_the_same_pass(self):
+        self.pack("RM-1"); (self.fake / "bg.fail").write_text("")
+        self.assertEqual(sw.step(P, None, tick=False), ["started RM-1"])
+        self.assertEqual((st.config(P)["worker_mode"], st.worker_for(P, task="RM-1")["mode"]), ("headless", "headless"))
+        self.assertIn("worker_mode is now headless", (st.profile_dir(P) / "watch.log").read_text())
+        self.pack("RM-1", "RM-2")
+        self.assertEqual(sw.step(P, None, tick=False), ["started RM-2"])
+        self.assertIn(f"sup start-worker RM-2 --headless --profile {P}", self.argv())  # the config key is passed on
+
+    def test_a_claude_start_failure_is_retried_after_5_then_15_minutes_and_a_task_file_edit_retries_at_once(self):
+        self.pack("RM-1"); (self.fake / "bg.fail").write_text("no network")
+        todo = self.hub / "docs/tasks_manager/_todos"; todo.mkdir(parents=True); (todo / "RM-1-F_x.md").write_text("a")
+        starts = lambda: [l for l in self.argv() if l.startswith("sup start-worker")]
+        def age(sec):
+            m = json.loads((st.profile_dir(P) / "watch.json").read_text()); m["start_backoff"]["RM-1"]["at"] -= sec
+            (st.profile_dir(P) / "watch.json").write_text(json.dumps(m))
+        sw.step(P, None, tick=False); sw.step(P, None, tick=False); self.assertEqual(len(starts()), 1)
+        age(301); sw.step(P, None, tick=False); self.assertEqual(len(starts()), 2)
+        age(301); sw.step(P, None, tick=False); self.assertEqual(len(starts()), 2)  # the second wait is 15 minutes
+        age(900); sw.step(P, None, tick=False); self.assertEqual(len(starts()), 3)
+        age(10 ** 6); sw.step(P, None, tick=False); self.assertEqual(len(starts()), 3)  # then only on a key change
+        (todo / "RM-1-F_x.md").write_text("b"); sw.step(P, None, tick=False); self.assertEqual(len(starts()), 4)
+        self.assertEqual(self.kinds().count("start_refused"), 1)  # the owner is told once
 
     def test_a_session_not_yet_in_agents_is_waited_for_and_one_that_never_shows_is_not_orphaned(self):
         self.pack("RM-1"); (self.fake / "agents.skip").write_text("2")
@@ -242,12 +334,13 @@ class Watch(unittest.TestCase):
         sw.step(P, None, tick=False); self.assertEqual(len(lands()), 2)
         st.touch(P, "answered Q1"); sw.step(P, None, tick=False); self.assertEqual(len(lands()), 3)
         (self.fake / "rc-sup-land").unlink()
-        st.touch(P, "again"); self.assertEqual(sw.step(P, None, tick=False), ["landed RM-1"])
+        st.touch(P, "again"); self.assertEqual(sw.step(P, None, tick=False), ["landed RM-1", "settled RM-1"])  # the open land_refused entry is closed
         self.assertEqual(self.kinds().count("landed"), 1); self.assertEqual(sw.step(P, None, tick=False), [])
 
     def test_landing_of_a_done_or_dead_final_worker_when_land_is_auto_and_land_manual_skips(self):
         self.row(state="done"); self.row(2, "RM-2"); self.row(3, "RM-3", restarts=2, alive=False)
-        self.assertEqual(sw.step(P, None, tick=False), ["dead RM-3", "landed RM-1", "landed RM-3", "notified dead RM-3"])
+        self.assertEqual(sw.step(P, None, tick=False), ["dead RM-3", "landed RM-1", "landed RM-3", "settled RM-3", "notified dead RM-3"])
+        self.assertEqual(sw.step(P, None, tick=False), ["settled RM-3"])  # the notice added after the settle is closed next pass
         self.assertEqual(sw.step(P, None, tick=False), []); self.assertEqual(self.kinds().count("landed"), 2)
         self.row(4, "RM-4", state="done"); st.set_config(P, land="manual")
         self.assertEqual(sw.step(P, None, tick=False), [])
