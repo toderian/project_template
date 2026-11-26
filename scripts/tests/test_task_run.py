@@ -332,7 +332,7 @@ class Marks(unittest.TestCase):
         self.assertEqual(p.returncode, 1, p.stdout + p.stderr); self.assertIn("git stash failed", p.stderr); self.assertIn("`git stash` failed", state(tmp))
     def test_a_dispatch_timeout_sets_the_row_aside_like_a_blocked_one_and_independent_phases_still_run(self):  # 8
         tmp = repo(); edit_task(tmp, lambda t: mark_unattended()(after(("2: Implementation", "After: none"), ("3: Hardening", "After: 1"))(t)))
-        p = run_ids(tmp, ["TST-003"], "--timeout", "1", WRAP_HANG_PHASE="1"); self.assertEqual(p.returncode, 4, p.stdout + p.stderr); self.assertIn("no reply within 1s", p.stderr)
+        p = run_ids(tmp, ["TST-003"], "--timeout", "5", WRAP_HANG_PHASE="1"); self.assertEqual(p.returncode, 4, p.stdout + p.stderr); self.assertIn("no reply within 5s", p.stderr)  # 5s, not 1s: phase 2 must answer in time while the suite's steps run side by side
         self.assertEqual(rows(tmp), ["parked", "committed", "parked"], state(tmp)); self.assertEqual(git(tmp, "status", "--porcelain").strip(), "")
         self.assertIn("implementer dispatch failed; see docs/tasks_manager/_runs/TST-003/driver.log", state(tmp)); self.assertNotIn("no reply within", state(tmp))  # 4
     def test_chain_runs_in_order_skips_a_task_whose_blocker_is_not_done_and_counts_only_fully_committed_tasks(self):

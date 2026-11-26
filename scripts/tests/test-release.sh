@@ -114,6 +114,7 @@ if [[ "$FULL" != "0" ]]; then
   unset AT_EXPECT_CODEX_VERSION
   REAL_OUT="$(AT_RELEASE_TEST=1 bash scripts/release.sh "$NEW_VERSION" 2>&1)"; REAL_RC=$?
   assert_eq "$REAL_RC" "0" "release exits 0: $REAL_OUT"
+  if grep -q "run-all: ok (release test: build check only)" <<<"$REAL_OUT"; then pass; else fail "a nested release runs the build check, not the whole suite"; fi
   assert_eq "$(versions)" "$EXPECT_NEW" "all four manifests and both marketplaces show $NEW_VERSION"
   assert_eq "$(git tag -l "v$NEW_VERSION")" "v$NEW_VERSION" "the annotated tag exists"
   assert_eq "$(git cat-file -t "v$NEW_VERSION")" "tag" "the tag is annotated"
@@ -124,13 +125,10 @@ if [[ "$FULL" != "0" ]]; then
   assert_eq "$RC" "1" "release refuses an existing tag"
 
   # a failing COMMIT (the stage past `git add -A`) must leave neither the worktree
-  # nor the index bumped. The migrate cases of test-at.sh are stubbed out for this
-  # run only: the point here is the commit stage, not a third full pass over them.
+  # nor the index bumped.
   printf '#!/bin/sh\nexit 1\n' > .git/hooks/pre-commit
   chmod +x .git/hooks/pre-commit
-  OUT="$(AT_RELEASE_TEST=1 AT_TEST_LIGHT_SRC=/nonexistent AT_TEST_HEAVY_SRC=/nonexistent \
-         AT_TEST_FOREIGN_SRC=/nonexistent AT_TEST_WRITING_SRC=/nonexistent \
-         bash scripts/release.sh "$FOLLOWUP1_VERSION" 2>&1)"; RC=$?
+  OUT="$(AT_RELEASE_TEST=1 bash scripts/release.sh "$FOLLOWUP1_VERSION" 2>&1)"; RC=$?
   rm -f .git/hooks/pre-commit
   if [[ "$RC" -ne 0 ]]; then pass; else fail "release fails when the commit fails"; fi
   assert_eq "$(versions)" "$EXPECT_NEW" "a failed commit restores the manifests"
