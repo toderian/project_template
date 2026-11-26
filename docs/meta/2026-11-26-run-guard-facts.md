@@ -157,7 +157,8 @@ Not covered by this run: two lanes through `agents-core:execute-parallel` (the o
 Follow-ups:
 
 - `agents-core:unattended-run`: add an explicit step after the mark, "load `agents-core:execute-plan`
-  and run through it", so the guard is armed and the run state is written by its rules.
+  and run through it", so the guard is armed and the run state is written by its rules. Done in 1.15.1
+  (e4006c5); not yet proven in a real run.
 - `at task report`: the "Commits" section is empty when the commits are in another repository's
   checkout.
 - Closing a task removed the run folder with uncommitted review files in it (four Codex review files

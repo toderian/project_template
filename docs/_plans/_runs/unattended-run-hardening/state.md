@@ -146,3 +146,5 @@ Note: owner said 2026-11-26 "we should release first": release 1.15.0 (minor: ne
 Note: released 1.15.0 (be9b294, tag v1.15.0) on 2026-11-26; test-release 32 passed, run-all ok; not pushed. Open: scenario E9 with the heartbeat half of E6
 Note: pushed master (be9b294) and tag v1.15.0 to origin on the owner's word, 2026-11-26
 Note: E9 run by the owner 2026-11-26 in a downstream repo (two tasks, one lane): readiness check, recorded answers, one Decision, owner-only limits and the report held; the session never loaded agents-core:execute-plan, so the run guard was not armed and the heartbeat half of E6 was not exercised; follow-ups in docs/meta/2026-11-26-run-guard-facts.md
+Note: E9 found that agents-core:unattended-run had no hand-off; fixed in e4006c5 (independent review FAIL 0/2/3, all five applied), released as 1.15.1 (6d69038, tag v1.15.1), pushed on the owner's word 2026-11-26
+Note: run closed 2026-11-26 on the owner's word without a repeat of E9. Open follow-up, not done: one real unattended run on 1.15.1 with two lanes, one parked decision and the run guard armed (also covers the heartbeat half of E6)

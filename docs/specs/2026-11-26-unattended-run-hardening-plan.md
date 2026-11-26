@@ -431,3 +431,6 @@ The end-to-end suite E1–E8 passes from a clean checkout, and E9 was run once w
   loading `agents-core:execute-plan`, so the run guard was never armed, the run state held a status
   the checker rejects, and no heartbeat was scheduled. Follow-up: an explicit hand-off step in
   `agents-core:unattended-run`. Evidence in `docs/meta/2026-11-26-run-guard-facts.md`.
+- 2026-11-26: The hand-off was added (e4006c5), released as 1.15.1 and pushed. The owner closed the
+  run without a repeat of E9. Open follow-up: one real unattended run on 1.15.1 with two lanes, one
+  parked decision and the run guard armed; it also covers the heartbeat half of E6.
