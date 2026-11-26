@@ -33,6 +33,15 @@ class Event(unittest.TestCase):
         self.assertEqual((events[0]["task"], events[0]["session"], events[0]["resource"], events[1]["status"]),
                          ("RM-1", self.S, "Q1", "BLOCKED"))
 
+    def test_done_with_close_questions_closes_only_this_workers_own_open_questions(self):
+        st.set_worker("p1", self.S, task="RM-1")
+        mine = st.queue_add("p1", "RM-1", "which?"); other = st.queue_add("p1", "RM-2", "what?")
+        note = st.queue_add("p1", "RM-1", "worker died", source="watcher", blocking=False)
+        p = self.run_event("done", "--session", self.S, "close_questions=moot"); self.assertEqual((p.returncode, p.stderr), (0, ""))
+        rows = {q["id"]: q for q in st.queue("p1", open_only=False)}
+        self.assertEqual((rows[mine]["answer"], rows[mine]["by"]), ("moot", "sup"))
+        self.assertIsNone(rows[other]["answer"]); self.assertIsNone(rows[note]["answer"])
+
     def test_the_row_is_found_by_the_task_when_the_session_id_is_not_the_registry_key(self):
         st.set_worker("p1", "headless-123", task="RM-1")
         self.assertEqual(self.run_event("stopped", "--session", self.S, "status=GAVE_UP").returncode, 0)

@@ -2,7 +2,8 @@
 
 Profile from AGENTS_SUPERVISOR, default task from AGENTS_SUP_TASK. Emits one event under `sup_state.locked` (the lock
 wait is bounded to 4 seconds) and sets the registry row of the worker (found by --session, else by the task):
-stopped, done and waiting set that state, restarted sets `running` with waiting_for cleared.
+stopped, done and waiting set that state, restarted sets `running` with waiting_for cleared. `done` with
+`close_questions=moot` also closes the worker's own open questions.
 Exit code: 0 only when the row was found (else nothing is written) AND, for `waiting`, the id in `resource=` is
 an open queue question (Q<n>) of this task or a resource whose last `need` of this task is newer than its last
 granted, denied or released. Anything else prints one line to
@@ -65,6 +66,10 @@ def run(argv: list[str]) -> None:
         if kind == "waiting" and not _open_request(profile, data["resource"], row.get("task")):
             raise LookupError(f"{data['resource']} is not an open request of this worker; nothing written")
         sup_state.emit(profile, kind, task=task, session=session, **data)
+        if kind == "done" and data.get("close_questions") == "moot":  # a finished worker's own questions need no answer
+            for q in sup_state.queue(profile):
+                if q.get("task") == row.get("task") and q.get("source", "worker") == "worker":
+                    sup_state.queue_close(profile, q["id"], "moot", "sup")
         if kind in ROW_STATES:
             extra = {"waiting_for": data.get("resource") if kind == "waiting" else None}
             sup_state.set_worker(profile, row["session"], state=ROW_STATES[kind], **extra)
