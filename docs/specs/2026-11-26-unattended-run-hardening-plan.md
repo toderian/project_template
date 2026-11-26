@@ -79,13 +79,13 @@ Each scenario is its own file `scripts/tests/live/eN-<name>.sh`, so no phase edi
 
 After: none
 
-- [ ] A throwaway script and a real Claude Code session answer facts 1–9; each answer is one line
+- [x] A throwaway script and a real Claude Code session answer facts 1–9; each answer is one line
       with the evidence (payload dump, command, exit code) in `docs/meta/2026-11-26-run-guard-facts.md`.
       Fact 8: the Stop hook payload carries the permission mode. Fact 9: whether a `claude -p`
       session keeps a scheduler wakeup or a background job alive after its turn ends.
-- [ ] Each "no" names the phase it changes and how. A "no" on fact 9 moves E6 to an interactive
+- [x] Each "no" names the phase it changes and how. A "no" on fact 9 moves E6 to an interactive
       session driven through a pty, or, if that cannot be scripted, to the manual run with E9.
-- [ ] The end-to-end harness skeleton (§"End-to-end tests") with scenario E1, which exercises the
+- [x] The end-to-end harness skeleton (§"End-to-end tests") with scenario E1, which exercises the
       guard that already exists.
 
 Checks: the facts file exists and has nine answered lines.
@@ -345,3 +345,11 @@ The end-to-end suite E1–E8 passes from a clean checkout, and E9 was run once w
   live suite run by hand only, one file per scenario; watchdog budget is a total, re-checks the
   task mark, refuses bypass mode without a flag; parked notes survive closeout; facts 8–9 added.
   Choices the reviews forced that the owner did not make are `Decision:` lines in `state.md`.
+- 2026-11-26: Phase 0 done. Nine facts answered in `docs/meta/2026-11-26-run-guard-facts.md`
+  (1-4, 6-8 yes; 5 and 9 partly: a scheduled prompt fires only in an interactive session, never
+  under `-p`; `-p` stays alive for a background job but not for a scheduler wakeup). Live harness
+  `scripts/tests/test-unattended-live.sh` with E1 and its negatives passes on the real CLI.
+  Reviews: spec FAIL, quality FAIL (1 critical: a setup failure could start a session in the
+  caller's repo), fix round 1, re-review PASS 0/0/3; minors A and B fixed by the orchestrator, C ruled.
+  Size: +406 lines, all test harness and docs; flagged: none. See
+  `docs/_plans/_runs/unattended-run-hardening/phase-0/`.
