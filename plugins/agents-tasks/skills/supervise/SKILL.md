@@ -33,7 +33,11 @@ them run in parallel. Do not use it for one task: run `agents-core:execute-plan`
    (`DEFAULT_MAIN` in `sup_guard.py`), which the file cannot override.
 4. `at sup pack <name> <TASK>... [--parallel]` for each pack, `at sup ready <TASK>` for each task, then
    `at sup start-pack <name>`.
-5. `at sup watch start --profile <p>` (the owner's shell): the watcher starts ready tasks in a running pack, grants
+5. Worker mode (config key `worker_mode`): `bg` (workers as background sessions) needs the hub opened once
+   interactively with `claude` so the workspace is trusted; `headless` (`claude -p`) needs nothing. A worker must
+   arm the run guard (`at run-guard arm`, as `agents-core:execute-plan` does when it opens a run): without it its
+   stops, parks and DONE never reach the supervisor.
+   Then `at sup watch start --profile <p>` (the owner's shell): the watcher starts ready tasks in a running pack, grants
    `auto` resources, and starts a tick (`at sup tick`) on an event that needs judgement. It tells the owner by itself
    (a queue entry and `at notify`) about a dead worker, a refused start or landing, an owed or overdue lease, paused
    ticks and a worker that stops BLOCKED or GAVE_UP, with or without ticks.

@@ -1075,6 +1075,8 @@ check "guard: without timeout on PATH the park still writes its event" "0 waitin
 rm -rf "${SUP_DIR}/p1/events.jsonl" "${SUP_DIR}/p1/events.seq"
 sup_fresh; rm -f "${GUARD_REPO}/docs/tasks_manager/_todos/GRD-001-F_guarded.md"
 check "guard: DONE emits done and sets the row" "0 done:  done -" "$(sup_hook 'bye') $(sup_kinds) $(sup_row_state)"
+check "guard: the DONE event asks the registry to close the session's open questions as moot" "moot" \
+  "$(jq -r 'select(.kind == "done") | .close_questions' "${SUP_EVENTS}")"
 : > "${GUARD_REPO}/docs/tasks_manager/_todos/GRD-001-F_guarded.md"
 sup_fresh; rm -rf "${SUP_DIR}/p1/events.jsonl" "${SUP_DIR}/p1/events.seq"
 for _ in 1 2 3 4 5; do sup_hook 'summary' >/dev/null; done

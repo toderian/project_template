@@ -9,8 +9,10 @@ Trust model: a worker session runs under the same uid as the state directory, so
 worker. This guard, the chat token and `require_chat` stop only the guarded supervisor (a tick or the chat
 session) and honest mistakes.
 
-Tables: {"programs": [absolute paths], "<agent_type>": [rule, ...]}. The main session (no agent_type in the
-hook input) uses the built-in DEFAULT_MAIN and the tools in DEFAULT_TOOLS; the tables file may not define
+Tables: {"programs": [absolute paths], "<agent_type>": [rule, ...]}. The main session uses the built-in
+DEFAULT_MAIN and the tools in DEFAULT_TOOLS. Its hook input has no agent_type, or, when it was started with
+`--agent <profile>-supervisor` (the launcher does), agent_type equal to `<AGENTS_SUPERVISOR>-supervisor`; both mean
+the main table. `<profile>-adviser` and `<profile>-operator` use their own tables; the tables file may not define
 "main" or "tools". An agent type without a table is denied; main, programs and tools are reserved and never
 valid agent types. The file (env AGENTS_SUP_GUARD_TABLES, JSON) must be a regular file owned by the uid and not
 group/world-writable; an unreadable or invalid file denies everything. Any tool outside DEFAULT_TOOLS is denied.
@@ -90,6 +92,7 @@ DEFAULT_MAIN = [
     _r("at sup queue", {**PROFILE, "--json": None, "--all": None}),
     _r("at sup instructions", PROFILE), _r("at sup packs", PROFILE),
     _r("at sup ready", PROFILE, ["task-id"]),
+    _r("at sup task", PROFILE, ["task-id"]),
     _r("at sup answer", PROFILE, ["q-id", "any+"]),
     _r("at sup grant", PROFILE, ["task-id", "name"]),
     _r("at sup deny", PROFILE, ["task-id", "name", "any"]),
@@ -244,7 +247,8 @@ def decide(command, agent_type, tables, session_id=None):
         return False, "program path not listed"
     if agent_type in RESERVED:
         return False, "reserved agent_type"
-    key = agent_type or "main"
+    sup = os.environ.get("AGENTS_SUPERVISOR")
+    key = "main" if not agent_type or (sup and agent_type == f"{sup}-supervisor") else agent_type
     rules = tables.get(key)
     if not isinstance(rules, list):
         return False, f"no table for {key}"
@@ -325,11 +329,12 @@ def deny_exit(reason):
 
 
 def main():
-    session, agent, command, allowed, reason = "", "main", "", False, "internal error"
+    session, agent, command, allowed, reason = "", "main", "", False, "internal error"  # agent: the name both kinds of call log
     try:
         data = json.load(sys.stdin)
         session = data.get("session_id", "")
         raw_agent, tool = data.get("agent_type"), data.get("tool_name")
+        agent = raw_agent if isinstance(raw_agent, str) and raw_agent else "main"
         tables = load_tables()
         if raw_agent is not None and (not isinstance(raw_agent, str) or not raw_agent):
             reason = "bad agent_type"
@@ -340,7 +345,6 @@ def main():
         elif tool != "Bash":
             allowed, reason = True, "tool allowed"
         else:
-            agent = raw_agent or "main"
             command = data["tool_input"]["command"]
             allowed, reason = decide(command, raw_agent, tables, session)
     except Exception as e:

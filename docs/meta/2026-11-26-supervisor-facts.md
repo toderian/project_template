@@ -13,12 +13,13 @@ means for the plan. Test sessions and worktrees were removed afterwards.
 | 3 | A stopped worker can be woken by a process | yes: `claude stop`, then `claude --bg --resume` |
 | 4 | Plugin hooks fire in a `--bg` session in a worktree, with `CLAUDE_PID` and the session id | yes |
 | 5 | A `hooks` entry in a custom agent file runs for a session started with `--agent` | **no**; the tool list applies |
-| 6 | A subagent runs under the hook in its own agent file | **no**; the settings hook sees its calls with `agent_type` |
+| 6 | A subagent runs under the hook in its own agent file | **no**; the settings hook sees its calls with `agent_type`; a main session with `--agent X` has `agent_type: X` too |
 | 7 | A headless session can use the Agent tool, in bounded time | yes, 10 seconds |
 | 8 | A denied or waiting worker can be told apart in `claude agents --json` | **no** |
 | 9 | A headless session reports cost | yes, `total_cost_usd` and `usage` |
 | 10 | A PreToolUse denial holds in `bypassPermissions` | yes, from a settings hook |
 | 11 | `auto` mode works in a `--bg` session a process starts | yes; no classifier block was produced |
+| 12 | `--setting-sources user` hides `.claude/agents/` of the cwd; `--agents <json>` supplies them | yes |
 | + | A `--bg` session needs a trusted workspace | new |
 | + | `git worktree remove` deletes ignored files without refusing | confirmed |
 
@@ -63,9 +64,11 @@ cannot live in the agent file. It is a `hooks` entry in a settings file passed w
 
 **6. Subagent hooks.** `.claude/agents/op.md` with its own `hooks: PreToolUse` entry; the main
 session called it through the Agent tool. The agent-file hook never ran. The hook from `--settings`
-ran for the subagent's Bash calls, and its input carried `agent_type: "op"` and an `agent_id`; for
-the main session's calls those fields were absent. Meaning: one settings hook guards the supervisor
-and its operators, with one command table per `agent_type`.
+ran for the subagent's Bash calls, and its input carried `agent_type: "op"` and an `agent_id`. For the
+main session's calls the fields were absent only when it was started without `--agent`; a session started
+with `--agent X` sends `agent_type: X` on its own Bash calls (seen in the first trial, claude 2.1.332).
+Meaning: one settings hook guards the supervisor and its operators, with one command table per
+`agent_type`, and the main table answers to `<profile>-supervisor` as well as to no type.
 
 **7. Agent tool in a headless session.** The run of entry 6 took 10.4 seconds and reported
 `total_cost_usd` 0.003 for a main session plus one subagent on `haiku`.
@@ -87,6 +90,15 @@ not retry. Only the headless form was tested; the interactive form was not.
 **11. `auto` mode.** `--permission-mode auto` was accepted by a `--bg` session started from a
 detached process. An `rm -rf` of a scratch directory outside the working directory ran without a
 block. No classifier block was produced, so how one looks from outside is still unknown.
+
+**12. `--agents` with `--setting-sources user`.** In the first trial `claude -p --agent trial-supervisor
+--setting-sources user` in a directory with `.claude/agents/trial-supervisor.md` exited 1 (agent not found);
+without the flag it worked. Run: `claude -p --model haiku --setting-sources user --agent tt-supervisor
+--agents '{"tt-supervisor":{"description":"probe","prompt":"...","tools":["Bash","Read","Glob"],
+"model":"inherit"}}' --permission-mode bypassPermissions "say ok"` in a new empty directory under `$HOME`.
+Output: `ok`, exit 0. Meaning: the tick and the chat pass the agents inline (`--agents` takes inline JSON, or
+with `--print` a file path), keep `--setting-sources user`, and write the agent files only as the readable
+source.
 
 **Trust.** `claude --bg` in a new directory exits 1 with `Workspace not trusted. Run 'claude' in
 <dir> once and accept the trust prompt, then retry.` The same happened in a subdirectory of a

@@ -19,6 +19,13 @@ with open(os.environ["FAKE_LOG"], "a") as f:
 if os.environ.get("FAKE_CHILD"):
     open(os.environ["FAKE_CHILD"], "w").write(str(subprocess.Popen(["sleep", "60"]).pid))
 time.sleep(float(os.environ.get("FAKE_SLEEP", "0")))
+if os.environ.get("FAKE_ACT"):  # what the supervisor would do through `at sup`: python run against the state
+    sys.path.insert(0, os.environ["FAKE_LIB"])
+    import sup_state as st
+    with st.locked("rm"):
+        exec(os.environ["FAKE_ACT"])
+if os.environ.get("FAKE_ERR"):
+    print(os.environ["FAKE_ERR"], file=sys.stderr)
 print(os.environ.get("FAKE_OUT", ""))
 sys.exit(int(os.environ.get("FAKE_RC", "0")))
 """
@@ -45,7 +52,7 @@ class Sup(unittest.TestCase):
         os.environ.update(AGENTS_SUP_DIR=str(t / "sup"), AGENTS_LEASE_DIR=str(t / "lease"), AGENTS_CLAUDE_BIN=str(fake),
                           FAKE_LOG=str(self.log), AGENTS_SUP_TICK_TIMEOUT="20")
         for k in ("AGENTS_SUPERVISOR", "FAKE_OUT", "FAKE_RC", "FAKE_SLEEP", "CLAUDE_CODE_SESSION_ID", "AGENTS_SUP_CHAT_TOKEN",
-                  "AGENTS_SUP_GUARD_TABLES", "AGENTS_SUP_TASK", "FAKE_HELP", "FAKE_CHILD"):
+                  "AGENTS_SUP_GUARD_TABLES", "AGENTS_SUP_TASK", "FAKE_HELP", "FAKE_CHILD", "FAKE_ACT", "FAKE_ERR"):
             os.environ.pop(k, None)
         spec = t / "p.json"
         spec.write_text(json.dumps({"repos": ["/r"], "resources": [{"name": "lab", "minutes": 60, "auto": False,
@@ -67,6 +74,12 @@ class Sup(unittest.TestCase):
     @property
     def conf(self):
         return st.profile_dir("rm") / "conf"
+
+    def act(self, code):
+        os.environ.update(FAKE_ACT=code, FAKE_LIB=str(ROOT / "plugins/agents-core/lib"))
+
+    def escalates(self):
+        self.act("st.queue_add('rm', 'RM-1', 'help', source='sup')")
 
     def result(self, text, rc=0):
         os.environ["FAKE_OUT"] = json.dumps({"result": text, "total_cost_usd": 0.02, "session_id": "s"})
@@ -149,9 +162,12 @@ class Sup(unittest.TestCase):
     def test_tick_runs_a_session_and_advances_only_on_tick_done(self):
         self.init(); st.emit("rm", "need", "RM-1", resource="lab", minutes=30); st.emit("rm", "started", "RM-2")
         self.result("handled it\nTICK done: 1 handled, 0 left for the owner")
+        self.act("st.emit('rm', 'granted', 'RM-1', resource='lab', minutes=30)")
         self.assertEqual(self.run_cmd("tick", "--profile", "rm"), 0)
         self.assertEqual(st.cursor("rm"), 2)
         c = self.calls()[0]; argv = c["argv"]
+        agents = json.loads(argv[argv.index("--agents") + 1])  # the agent files travel inline (see test_the_agents_...)
+        self.assertEqual(set(agents), {"rm-supervisor", "rm-adviser", "rm-operator"})
         self.assertEqual(argv[argv.index("--agent") + 1], "rm-supervisor")
         self.assertEqual(argv[argv.index("--settings") + 1], str(self.conf / "settings.json"))
         self.assertIn("bypassPermissions", argv); self.assertEqual(Path(c["cwd"]).resolve(), self.conf.resolve())  # not the hub
@@ -163,9 +179,42 @@ class Sup(unittest.TestCase):
         row = json.loads((st.profile_dir("rm") / "ticks.jsonl").read_text().splitlines()[-1])
         self.assertEqual((row["ok"], row["cost"], row["events"]), (True, 0.02, 1))
 
+    def test_the_agents_json_is_built_from_the_three_agent_files_and_the_tick_fails_with_the_stderr_tail(self):
+        self.init(); a = json.loads(tk._agents_json("rm"))
+        self.assertEqual(set(a), {"rm-supervisor", "rm-adviser", "rm-operator"})
+        sup = a["rm-supervisor"]
+        self.assertEqual(sup["tools"], frontmatter(self.conf / ".claude/agents/rm-supervisor.md")["tools"])
+        self.assertIn("You supervise worker sessions for the profile `rm`", sup["prompt"]); self.assertNotIn("---", sup["prompt"][:5])
+        self.assertTrue(sup["description"].startswith("Supervisor of the rm"))
+        st.emit("rm", "dead", "RM-1"); self.result("", rc=1); os.environ["FAKE_ERR"] = "first\nError: agent 'rm-supervisor' not found" + "x" * 300 + "\n\n"
+        import io, contextlib
+        buf = io.StringIO()
+        with contextlib.redirect_stderr(buf):
+            self.assertEqual(self.run_cmd("tick", "--profile", "rm"), 3)
+        self.assertIn("exit 1, no `TICK done:` line: Error: agent 'rm-supervisor' not found", buf.getvalue())
+        self.assertNotIn("first", buf.getvalue()); self.assertLess(len(buf.getvalue()), 400)
+
+    def test_the_cursor_stops_before_an_unhandled_event_and_a_twice_unhandled_event_is_escalated_by_the_tick(self):
+        self.init(); st.queue_add("rm", "RM-1", "which branch?")
+        st.emit("rm", "ask", "RM-1", q="Q1"); st.emit("rm", "need", "RM-2", resource="lab", minutes=5); st.emit("rm", "dead", "RM-3")
+        self.result("TICK done: 3 handled, 0 left for the owner")
+        self.act("st.queue_close('rm', 'Q1', 'x', 'sup'); st.emit('rm', 'answered', 'RM-3')")  # events 2 is left alone
+        self.assertEqual(self.run_cmd("tick", "--profile", "rm"), 3)
+        self.assertEqual(st.cursor("rm"), 1)  # the ask is handled, the need is not: stop before it
+        self.assertEqual([q["id"] for q in st.queue("rm")], [])
+        self.assertEqual(self.run_cmd("tick", "--profile", "rm"), 0)  # 2nd failure: the tick escalates and moves on
+        self.assertEqual(st.cursor("rm"), 4)
+        esc = [q for q in st.queue("rm") if q["source"] == "tick"]
+        self.assertEqual(len(esc), 1); self.assertEqual(esc[0]["task"], "RM-2"); self.assertIn("event 2 (need)", esc[0]["question"])
+
+    def test_a_denied_command_run_does_not_move_the_cursor_over_events_needing_judgement(self):
+        self.init(); st.emit("rm", "need", "RM-1", resource="lab", minutes=5)
+        self.result("every command was denied\nTICK done: 0 handled, 1 left for the owner")
+        self.assertEqual(self.run_cmd("tick", "--profile", "rm"), 3); self.assertEqual(st.cursor("rm"), 0)
+
     def test_tick_and_chat_pass_setting_sources_user_when_claude_lists_it(self):
         self.init(); st.emit("rm", "dead", "RM-1"); os.environ["FAKE_HELP"] = "  --setting-sources <sources>"
-        self.result("TICK done: 1 handled, 0 left for the owner")
+        self.result("TICK done: 1 handled, 0 left for the owner"); self.escalates()
         self.assertEqual(self.run_cmd("tick", "--profile", "rm"), 0)
         a = self.calls()[0]["argv"]; self.assertEqual(a[a.index("--setting-sources") + 1], "user")
         import io, contextlib
@@ -181,7 +230,7 @@ class Sup(unittest.TestCase):
                   "resource": "lab\nforged", "q": "Q9", "status": "BLOCKED", "reason": "x" * 400}
         with open(st.profile_dir("rm") / "events.jsonl", "a") as f:
             f.write(json.dumps(forged) + "\n" + json.dumps({**forged, "id": 4, "kind": "dead", "task": "RM-2\nforged"}) + "\n")
-        self.result("TICK done: 3 handled, 0 left for the owner")
+        self.result("TICK done: 3 handled, 0 left for the owner"); self.escalates()
         self.assertEqual(self.run_cmd("tick", "--profile", "rm"), 0)
         prompt = self.calls()[0]["argv"][-1]
         events = prompt.split("Unhandled events")[1].split("Rules for this tick")[0].strip().splitlines()[1:]
@@ -222,7 +271,7 @@ class Sup(unittest.TestCase):
         self.init(); st.emit("rm", "dead", "RM-1")
         (st.profile_dir("rm") / "tick.pid").write_text(f"{os.getpid()}\n")
         self.assertEqual(self.run_cmd("tick", "--profile", "rm"), 3); self.assertEqual(self.calls(), [])
-        (st.profile_dir("rm") / "tick.pid").write_text("999999999\n"); self.result("TICK done: 1 handled, 0 left for the owner")
+        (st.profile_dir("rm") / "tick.pid").write_text("999999999\n"); self.result("TICK done: 1 handled, 0 left for the owner"); self.escalates()
         self.assertEqual(self.run_cmd("tick", "--profile", "rm"), 0)
 
     def test_chat_print_command_shows_token_and_argv_and_the_token_file_is_private(self):
@@ -293,6 +342,9 @@ class Sup(unittest.TestCase):
         for cmd in owner_shell:  # and the template tells the owner's-shell-only commands apart
             self.assertFalse(g.decide(cmd, None, tables)[0], cmd)
         self.assertNotIn("at sup --help", text); self.assertNotIn("(source:", text)
+        body = text.split("\n---\n", 1)[1]
+        self.assertNotIn("Glob", body); self.assertNotIn("Grep", body)
+        self.assertIn("at sup task", body); self.assertIn("at sup escalate", body); self.assertIn("`Authorised`", body)
 
     def test_templates_parse_and_the_supervisor_cannot_edit(self):
         want = {"supervisor": {"Bash", "Agent", "AskUserQuestion", "Read", "Glob", "Grep"}, "adviser": {"Read", "Glob", "Grep"},

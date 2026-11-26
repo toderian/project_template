@@ -81,7 +81,7 @@ SUP_HANDLED=""
 sup_signal() {
   local what=() out
   case "$1" in
-    DONE) what=(done) ;;
+    DONE) what=(done close_questions=moot) ;;  # the registry side closes this session's open questions as moot
     BLOCKED|GAVE_UP|EMPTY) what=(stopped "status=$1") ;;
     *) return 0 ;;
   esac

@@ -24,7 +24,7 @@ ALLOWED = [
     "at sup grant RM-1 lab", "at sup deny RM-1 lab 'not now'", "at sup done alpha", "at sup packs --profile rm",
     "at sup measure --json --since 2026-11-01", "at sup watch status", "at sup instructions", "at sup queue --all",
     "at sup escalate nothing", "at sup escalate 'needs a schema choice' --task RM-1 --blocking",
-    "at lease list --json", "at lease list",
+    "at lease list --json", "at lease list", "at sup task RM-4", "at sup task RM-4 --profile rm",
 ]
 DENIED = [
     "at sup status; rm -rf x", "at sup status && x", "at sup status | x", "at sup status > f",
@@ -48,6 +48,7 @@ DENIED = [
     "at sup status --profile=other", "at sup --help", "at lease --help", "at sup help",
     'at sup answer RM-1 "double quoted"', "at sup answer Q3 'no'", "at sup  status", "at sup escalate",
     "at sup escalate x --task rm-1", "at sup escalate x --bogus",
+    "at sup task", "at sup task rm-4", "at sup task RM-4 RM-5", "at sup task RM-4 --profile other",
     "at sup instruct x", "at sup answer Q1 x --owner", "at sup start-pack alpha", "at sup cap 3",
     "at sup pack alpha RM-1", "at sup close-pack alpha", "at sup status " + "a" * 9000,
 ]
@@ -175,6 +176,16 @@ class AgentTypes(unittest.TestCase):
         for reserved in ("main", "programs", "tools"):
             self.assertFalse(g.decide("at sup status", reserved, tables)[0], reserved)
 
+    def test_the_main_session_started_with_agent_uses_the_main_table(self):
+        tables = {"main": g.DEFAULT_MAIN, "programs": [], "rm-operator": [g._r("at lease list")],
+                  "rm-adviser": []}
+        self.assertTrue(g.decide("at sup status", "rm-supervisor", tables)[0])  # AGENTS_SUPERVISOR is rm
+        self.assertFalse(g.decide("at sup status", "other-supervisor", tables)[0])
+        self.assertFalse(g.decide("at sup status", "rm-operator", tables)[0])
+        self.assertFalse(g.decide("at sup status", "rm-adviser", tables)[0])
+        self.assertTrue(g.decide("at lease list", "rm-operator", tables)[0])
+        self.assertFalse(g.decide("at lease list", "rm-supervisor-x", tables)[0])
+
 
 class EndToEnd(unittest.TestCase):
     def run_hook(self, stdin, **env):
@@ -206,6 +217,18 @@ class EndToEnd(unittest.TestCase):
     def test_non_bash_allowed(self):
         p, _ = self.run_hook(json.dumps({"tool_name": "Agent", "tool_input": {}}))
         self.assertEqual(p.returncode, 0)
+
+    def test_a_main_session_started_with_agent_is_allowed_and_logged_under_one_name_for_every_tool(self):
+        env = {"AGENTS_SUPERVISOR": "rm"}
+        p, log = self.run_hook(self.call("at sup status", agent_type="rm-supervisor"), **env)
+        self.assertEqual((p.returncode, p.stderr), (0, ""))
+        self.assertIn("\trm-supervisor\tallow\tmatched at sup status", log)
+        p, log = self.run_hook(json.dumps({"session_id": "s1", "tool_name": "Read", "tool_input": {},
+                                           "agent_type": "rm-supervisor"}), **env)
+        self.assertEqual(p.returncode, 0)
+        self.assertIn("\ts1\trm-supervisor\tallow\ttool allowed", log)
+        p, _ = self.run_hook(self.call("at sup status", agent_type="other-supervisor"), **env)
+        self.assertEqual(p.returncode, 2)
 
     def test_malformed_input_denied(self):
         for stdin in ("not json", "", "[]", "{}", json.dumps({"tool_name": "Bash"}),
