@@ -14,6 +14,8 @@ Subcommands:
                turn mid-run; `--watch` adds a detached watchdog that restarts the session if its process dies
   notify       `<title> [--event KEY --session ID]`: send title + stdin body through the owner's notify command
   lease        `take <res> --ttl MIN [--for ID] [--restore]` | `release` | `list [--json]` | `clear <res> --restored` | `run <res> -- CMD`: host-wide single-holder leases
+  sup          `worktree|land|ready <TASK_ID>` and the supervisor commands (`at sup --help`): one worktree per task, a squash
+               landing on the default branch, the readiness check, packs, workers, questions, the watcher
   addon        `list` | `status` | `enable <name>...` | `disable <name>...`: optional tools per repo
   reserve      wrapper: reserve an inbox idea or task filename
   repos-check  wrapper: validate `.config/repos.project.md`
@@ -1741,6 +1743,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_lease = sub.add_parser("lease", help="take|release|list|clear|run: host-wide single-holder leases on shared resources")
     p_lease.add_argument("rest", nargs=argparse.REMAINDER)
     p_lease.set_defaults(func=cmd_lease)
+
+    import sup  # lib/sup.py: `at sup …`, the supervisor commands
+    sup.add_parser(sub)
 
     p_notify = sub.add_parser("notify", help="<title> [--event KEY --session ID]: send title + stdin to the owner's "
                               "notify command (git config agents.notifyCommand or AGENTS_NOTIFY_CMD)")
