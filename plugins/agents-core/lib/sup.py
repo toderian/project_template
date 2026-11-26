@@ -43,8 +43,13 @@ class Refuse(Exception):
     pass
 
 
+def _git_env() -> dict:
+    """The environment without GIT_CONFIG_*: the launcher's core.hooksPath=/dev/null must not skip the hub's hooks."""
+    return {k: v for k, v in os.environ.items() if not k.startswith("GIT_CONFIG_")}
+
+
 def git(cwd: Path, *args: str) -> subprocess.CompletedProcess:
-    return subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, text=True)
+    return subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, text=True, env=_git_env())
 
 
 def git_out(cwd: Path, *args: str) -> str:
@@ -156,7 +161,7 @@ def ledger_script(main: Path) -> Path | None:
 def ledger_sync(main: Path) -> None:
     script = ledger_script(main)
     for extra in ([], ["--check"]) if script else ():
-        p = subprocess.run([sys.executable, str(script), "--root", str(main), *extra], capture_output=True, text=True)
+        p = subprocess.run([sys.executable, str(script), "--root", str(main), *extra], capture_output=True, text=True, env=_git_env())
         if p.returncode:
             last = ((p.stderr + p.stdout).strip().splitlines() or ["no output"])[-1]
             raise Refuse(f"ledger {'check' if extra else 'sync'} failed: {last}")
@@ -231,7 +236,7 @@ def cmd_land(args) -> int:
         raise Refuse(f"landing checkout {main} is on a detached HEAD, not {default}")
     if head.stdout.strip() != default:
         raise Refuse(f"landing checkout {main} is on {head.stdout.strip()}, not {default}")
-    touched = [f for f in git_z(main, "diff", "--name-only", f"{default}...refs/heads/{branch}") if _claude_file(f)]
+    touched = [f for f in git_z(main, "diff", "--name-only", "--no-renames", f"{default}...refs/heads/{branch}") if _claude_file(f)]
     if touched and not args.allow_claude_files:
         raise Refuse(f"{branch} changes {', '.join(touched[:3])}: files the supervisor's sessions load; the owner lands it with --allow-claude-files")
     old = git(main, "rev-parse", "--verify", "-q", ref).stdout.strip()
@@ -289,6 +294,20 @@ def unattended(path: Path, depth: int = 0) -> list[str]:
     return []
 
 
+def _files_problem(task, n: int) -> str:
+    """Why the lane planner reads no fence in phase `n`: no `Files:` line, or an entry that is not a plain path."""
+    try:
+        import task_lanes as tl
+    except ImportError:
+        return "no `Files:` line"
+    body = "\n".join(task.phases[n - 1].body)
+    items = [x.strip().strip("`").rstrip("/") for m in tl.FILES_RE.findall(body) for x in m.split(",")]
+    bad = next((i for i in items if not (tl.PATH_RE.fullmatch(i) and ".." not in i.split("/"))), None)
+    if bad is None:
+        return "no `Files:` line"
+    return f"every `Files:` entry must be a plain relative path (comma-separated, no prose); not a plain path: {bad[:60]!r}"
+
+
 def readiness(tid: str, path: Path) -> list[str]:
     scripts = tasks_root() / "skills" / "task-ledger" / "scripts"
     sys.path.insert(0, str(scripts))
@@ -310,7 +329,7 @@ def readiness(tid: str, path: Path) -> list[str]:
     related_ok = bool(related) and "".join(related).upper() != "N/A"
     for n, p in phases:
         if not fence(task, n):
-            missing.append(f"{p.heading}: no `Files:` line")
+            missing.append(f"{p.heading}: {_files_problem(task, n)}")
         if not related_ok and not re.search(r"^\s*(?:[-*]\s*)?\**checks?\**\s*:\s*\S", "\n".join(p.body), re.I | re.M):
             missing.append(f"{p.heading}: names no check (`Checks:` line, or a `### Related tests` section)")
     if not any(re.match(r"\s*[-*] \[[ xX]\]", ln) for ln in task.sections.get("acceptance criteria", [])):

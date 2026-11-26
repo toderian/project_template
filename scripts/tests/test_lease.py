@@ -111,6 +111,15 @@ class Lease(Base):
         self.assertEqual(self.at("take", "web", "--ttl", "5", env={**shared, "CLAUDE_CODE_SESSION_ID": "a"}).returncode, 0)  # renew
         self.assertEqual(self.at("release", "web", env={**shared, "CLAUDE_CODE_SESSION_ID": "a"}).returncode, 0)
 
+    def test_two_runs_of_one_session_exclude_each_other(self):
+        env = {"CLAUDE_CODE_SESSION_ID": "same"}
+        a = subprocess.Popen([AT, "lease", "run", "lab", "--", "sleep", "30"], env={**self.env, **env}); self.addCleanup(lambda: (a.kill(), a.wait()))
+        for _ in range(50):
+            if "lab" in self.states(): break
+            time.sleep(0.1)
+        p = self.at("run", "lab", "--", "true", env=env); self.assertEqual(p.returncode, 3, p.stderr)
+        self.assertIn("lab", self.states())
+
     def test_run_releases_on_sigterm(self):
         p = subprocess.Popen([AT, "lease", "run", "sig", "--", "sleep", "30"], env=self.env)
         self.addCleanup(p.wait)

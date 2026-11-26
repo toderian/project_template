@@ -187,6 +187,17 @@ class Land(Base):
                 del self.env["CLAUDE_CODE_SESSION_ID"]
                 p = self.sup("land", tid, "--allow-claude-files"); self.assertEqual(p.returncode, 0, p.stderr)
 
+    def test_a_renamed_claude_file_needs_the_owner_flag(self):
+        self.task("TST-001", files={".claude/settings.json": "{}\n"}); self.assertEqual(self.sup("land", "TST-001", "--allow-claude-files").returncode, 0)
+        wt = self.task("TST-002", files={"x.txt": "1\n"}); g(wt, "mv", ".claude/settings.json", "docs-old-settings.json")
+        g(wt, "commit", "-q", "-m", "mv"); before = self.snapshot(); p = self.sup("land", "TST-002")
+        self.assertEqual(p.returncode, 3, p.stdout); self.assertIn("--allow-claude-files", p.stderr); self.assertEqual(self.snapshot(), before)
+
+    def test_land_runs_the_hub_hooks_despite_the_launchers_git_config(self):
+        self.task("TST-001"); hook = self.hub / ".git/hooks/pre-commit"; write(hook, "#!/bin/sh\necho no >&2\nexit 1\n"); hook.chmod(0o755)
+        self.env.update(GIT_CONFIG_COUNT="1", GIT_CONFIG_KEY_0="core.hooksPath", GIT_CONFIG_VALUE_0="/dev/null")
+        p = self.sup("land", "TST-001"); self.assertEqual(p.returncode, 3, p.stdout + p.stderr); self.assertIn("commit failed", p.stderr)
+
     def ledger_hub(self):
         shutil.copytree(FIX, self.hub, dirs_exist_ok=True); g(self.hub, "add", "-A"); g(self.hub, "commit", "-q", "-m", "ledger")
 
@@ -223,7 +234,7 @@ class Parser(Base):
         sys.path.insert(0, str(SUP.parent)); import sup
         ap = argparse.ArgumentParser(); sup.add_parser(ap.add_subparsers(dest="cmd"))
         names = set(ap._subparsers._group_actions[0].choices["sup"]._subparsers._group_actions[0].choices)
-        want = {"worktree", "land", "ready", "status", "done", "measure", "ask", "need", "release", "inbox", "answer", "grant",
+        want = {"worktree", "land", "ready", "status", "done", "task", "measure", "ask", "need", "release", "inbox", "answer", "grant",
                 "deny", "queue", "escalate", "instruct", "instructions"}
         self.assertEqual(want - names, set())
 
@@ -278,6 +289,11 @@ class Ready(Base):
         for name, old, new, expect in cases:
             with self.subTest(name):
                 p = self.check(READY.replace(old, new, 1)); self.assertEqual(p.returncode, 3, p.stdout); self.assertIn(expect, p.stdout)
+
+    def test_prose_in_files_names_the_entry(self):
+        p = self.check(READY.replace("Files: `src/a.py`", "Files: all of the sources", 1))
+        self.assertEqual(p.returncode, 3); self.assertIn("plain relative path", p.stdout); self.assertIn("all of the sources", p.stdout)
+        self.assertNotIn("no `Files:` line", p.stdout)
 
     def test_related_tests_section_counts_as_a_check(self):
         text = READY.replace("- Checks: `python3 -m unittest`\n", "").replace("### Unattended", "### Related tests\n\n- `tests/test_a.py`\n\n### Unattended")

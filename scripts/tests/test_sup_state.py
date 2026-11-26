@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Tests for plugins/agents-core/lib/sup_state.py: the state of one supervisor profile."""
-import os, sys, tempfile, unittest
+import json, os, sys, tempfile, unittest
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "plugins/agents-core/lib"))
@@ -56,6 +56,21 @@ class State(unittest.TestCase):
         (d / "events.jsonl").unlink(); self.assertEqual(st.emit("p", "dead"), 3)  # seq file keeps counting
         (d / "events.seq").unlink(); (d / "events.jsonl").write_text('{"id": 9, "kind": "dead"}\n')
         self.assertEqual(st.emit("p", "dead"), 10)
+
+    def test_a_stale_seq_does_not_win_over_the_log_and_the_tail_is_enough(self):
+        d = st.profile_dir("p"); (d / "events.seq").write_text("3\n")
+        (d / "events.jsonl").write_text("".join(json.dumps({"id": i, "kind": "dead"}) + "\n" for i in range(1, 9)))
+        self.assertEqual(st.emit("p", "dead"), 9)
+        (d / "events.jsonl").write_text(json.dumps({"id": 1, "kind": "dead", "pad": "x" * 200000}) + "\n" + json.dumps({"id": 2, "kind": "dead"}) + "\n")
+        (d / "events.seq").write_text("1\n"); self.assertEqual(st.emit("p", "dead"), 3)
+
+    def test_need_open_is_the_newest_need_after_the_last_grant_denial_or_release(self):
+        self.assertFalse(st.need_open("p", "RM-1", "lab"))
+        st.emit("p", "need", task="RM-1", resource="lab"); self.assertTrue(st.need_open("p", "RM-1", "lab"))
+        self.assertFalse(st.need_open("p", "RM-2", "lab")); self.assertFalse(st.need_open("p", "RM-1", "web"))
+        for kind in ("granted", "denied", "released"):
+            st.emit("p", kind, task="RM-1", resource="lab"); self.assertFalse(st.need_open("p", "RM-1", "lab"), kind)
+            st.emit("p", "need", task="RM-1", resource="lab"); self.assertTrue(st.need_open("p", "RM-1", "lab"), kind)
 
     def test_emit_does_not_parse_the_log(self):
         st.emit("p", "dead"); (st.profile_dir("p") / "events.jsonl").write_text("x" * 100)

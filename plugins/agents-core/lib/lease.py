@@ -72,6 +72,8 @@ def me(own_pid: bool = False) -> dict:
 
 def is_holder(rec: dict, own_pid: bool = False) -> bool:
     m = me(own_pid)
+    if own_pid:  # `run`: this process is the holder; a shared session id says nothing about two commands of one session
+        return m["pid"] == rec.get("pid") and m["pid_start"] == rec.get("pid_start")
     if m["session"] and rec.get("session"):
         return m["session"] == rec["session"]  # sessions may share a CLAUDE_PID: ids alone decide
     if rec.get("session"):

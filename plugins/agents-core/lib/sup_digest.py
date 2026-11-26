@@ -155,8 +155,10 @@ def done_check(profile: str, pack_name: str, hub: Path) -> list[str]:
             bad.append(f"{t}: cannot check the archived file: {e}")
     bad += [f"{w['task']}: live worker {w['session']} ({w['state']})"
             for w in sup_state.live_workers(profile) if w.get("task") in tasks]
-    bad += [f"{q['id']}: open blocking question for {q['task']}"
-            for q in sup_state.queue(profile) if q.get("task") in tasks and q.get("blocking")]
+    # an open entry of a pack task blocks done, blocking or not; the watcher closes its own entries of a landed task
+    bad += [f"{q['id']}: open {'blocking question' if q.get('blocking') else 'entry (' + _word(q.get('source')) + ')'} for {_ptask(q['task'])}"
+            for q in sup_state.queue(profile)
+            if q.get("task") in tasks and not (q.get("source") == "watcher" and states.get(q["task"]) == "landed")]
     bad += [f"lease {r['resource']} {r['state']} by {r['task']}" for r in _leases() if r["task"] in tasks]
     bad += [f"branch {b} of {repo} does not exist" for repo, b in (pack.get("branches") or {}).items()
             if not _branch_exists(hub, repo, b)]
@@ -192,6 +194,19 @@ def _task(v) -> str:
     return v if isinstance(v, str) and sup_state.TASK.match(v) else "?"
 
 
+def _res(v) -> str:
+    """A resource or question id as the prompt shows it: only a name that matches RES or QID, else a fixed placeholder."""
+    return v if isinstance(v, str) and (sup_state.RES.match(v) or sup_state.QID.match(v)) else "(other)"
+
+
+def _word(v, pat=r"[A-Za-z0-9][A-Za-z0-9._-]{0,39}\Z") -> str:
+    return v if isinstance(v, str) and re.match(pat, v) else "(other)"
+
+
+def _ptask(v) -> str:
+    return v if isinstance(v, str) and sup_state.TASK.match(v) else "(other)"
+
+
 def digest(profile: str, hub: Path | None = None, for_prompt: bool = False) -> str:
     """`for_prompt=True` (the tick's prompt): question ids, tasks and the blocking mark only, no worker text.
     In every mode an event shows its kind only when it is in EVENT_KINDS and its task only when it matches TASK."""
@@ -199,6 +214,10 @@ def digest(profile: str, hub: Path | None = None, for_prompt: bool = False) -> s
     now = time.time()
     events = sup_state.events_since(profile, 0)
     out = [f"supervisor {profile}  {sup_state.now()}"]
+    # for the prompt every value that a worker or a lease holder can write is shown only when it has the shape of its field
+    T = _ptask if for_prompt else (lambda v: v or "-")
+    R = _res if for_prompt else (lambda v: v or "-")
+    W = _word if for_prompt else (lambda v: v)
 
     qrows = sorted(sup_state.queue(profile), key=lambda q: not q.get("blocking"))
     qs = []
@@ -212,8 +231,8 @@ def digest(profile: str, hub: Path | None = None, for_prompt: bool = False) -> s
     rows = []
     for p in sup_state.list_packs(profile):
         st = task_states(profile, p, hub, events)
-        rows.append(f"  {p['name']} [{p.get('state')}]")
-        rows += textwrap.wrap(", ".join(f"{t} {s}" for t, s in st.items()), 118,
+        rows.append(f"  {W(p['name'])} [{W(p.get('state'))}]")
+        rows += textwrap.wrap(", ".join(f"{T(t)} {W(s)}" for t, s in st.items()), 118,
                               initial_indent="    ", subsequent_indent="    ")
     out += [f"PACKS ({len(sup_state.list_packs(profile))})"] + _capped(rows, 18)
 
@@ -221,11 +240,11 @@ def digest(profile: str, hub: Path | None = None, for_prompt: bool = False) -> s
     rows_w = sorted((w for w in sup_state.workers(profile) if w.get("state") != "done"),
                     key=lambda w: order.get(w.get("state"), 3))
     ndone = sum(1 for w in sup_state.workers(profile) if w.get("state") == "done")
-    ws = [f"  {w.get('task')} {str(w.get('session'))[:8]} {w.get('state')} {w.get('waiting_for') or '-'} {_age(w.get('started'), now)}"
+    ws = [f"  {T(w.get('task'))} {W(str(w.get('session'))[:8])} {W(w.get('state'))} {R(w.get('waiting_for'))} {_age(w.get('started'), now)}"
           for w in rows_w]
     out += [f"WORKERS ({len(ws)}, {ndone} done hidden)  task session state waiting_for age"] + _capped(ws, 6)
 
-    ls = [f"  {r['resource']} {r['task'] or '-'} {r['state']}" for r in _leases()]
+    ls = [f"  {R(r['resource'])} {T(r['task'])} {W(r['state'])}" for r in _leases()]
     out += [f"LEASES ({len(ls)})  resource holder state"] + _capped(ls, 4)
 
     new = sup_state.events_since(profile)
@@ -386,16 +405,51 @@ def cmd_measure(args) -> int:
     return 0
 
 
+def task_text(profile: str, hub: Path, tid: str) -> tuple[str, str]:
+    """(path, text) of the task's file: on its branch when the profile has a worker row for it, else on the default
+    branch. The path comes from `git ls-tree`, never from the argument."""
+    sup = _sup()
+    ref = sup.default_branch(hub)
+    if sup_state.worker_for(profile, task=tid) and not sup.git(hub, "rev-parse", "--verify", "-q", f"refs/heads/task/{tid}").returncode:
+        ref = f"task/{tid}"
+    names = sup.git_z(hub, "ls-tree", "-r", "--name-only", f"refs/heads/{ref}", "--", f"{sup.TODOS}/", f"{sup.ARCHIVED}/")
+    path = next((n for n in names if n.rpartition("/")[2].startswith(f"{tid}-") and n.endswith(".md")), "")
+    if not path:
+        raise sup.Refuse(f"no task file for {tid} on {ref}")
+    return path, sup.git_out(hub, "show", f"refs/heads/{ref}:{path}")
+
+
+def cmd_task(args) -> int:
+    profile = _profile(args)
+    if profile is None:
+        return 2
+    if not sup_state.TASK.match(args.task_id):
+        print("at: sup: task ID must look like RM-12", file=sys.stderr)
+        return 2
+    try:
+        path, text = task_text(profile, sup_state.hub(profile, args.hub), args.task_id)
+    except (ValueError, _sup().Refuse) as e:
+        print(f"at: sup: {e}", file=sys.stderr)
+        return 3
+    print(path)
+    for ln in text.splitlines():
+        print(f"task text: {ln}")
+    return 0
+
+
 def register(sup_sub) -> None:
     for name, func, help_ in (("status", cmd_status, "print the digest"),
                               ("done", cmd_done, "check that a pack is done"),
+                              ("task", cmd_task, "print a task's file, each line prefixed `task text: `"),
                               ("measure", cmd_measure, "print the trial numbers")):
         p = sup_sub.add_parser(name, help=help_)
         p.add_argument("--profile")
-        if name != "measure":
+        if name not in ("measure",):
             p.add_argument("--hub", help="hub checkout (default: the profile's hub, else the cwd's git toplevel)")
         if name == "done":
             p.add_argument("pack")
+        elif name == "task":
+            p.add_argument("task_id")
         else:
             p.add_argument("--json", action="store_true")
         if name == "measure":

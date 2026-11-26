@@ -61,8 +61,12 @@ def require_chat() -> bool:
     Every chat-only command of `at sup` calls this, from any part. Refused under AGENTS_SUP_TASK (a worker session) and
     in a process with AGENTS_SUPERVISOR but no session id. Not a fence against a worker: see the module docstring."""
     session = os.environ.get("CLAUDE_CODE_SESSION_ID")
-    if os.environ.get("AGENTS_SUP_TASK") or (session is None and os.environ.get("AGENTS_SUPERVISOR")):
+    if os.environ.get("AGENTS_SUP_TASK"):
         print(REFUSED, file=sys.stderr)
+        return False
+    if session is None and os.environ.get("AGENTS_SUPERVISOR"):
+        print(f"{REFUSED}; this shell has AGENTS_SUPERVISOR set: run `unset AGENTS_SUPERVISOR` or use the owner's chat",
+              file=sys.stderr)
         return False
     if session is None:
         return True

@@ -235,6 +235,38 @@ def _events(profile: str) -> list[dict]:
     return out
 
 
+def _tail(profile: str, nbytes: int = 65536) -> list[dict]:
+    """The events in the last `nbytes` of the log (a cut first line is dropped, a torn last line is skipped)."""
+    try:
+        with open(profile_dir(profile) / "events.jsonl", "rb") as fh:
+            size = fh.seek(0, os.SEEK_END)
+            fh.seek(max(0, size - nbytes))
+            lines = fh.read().decode("utf-8", "replace").splitlines()
+            if size > nbytes:
+                lines = lines[1:]
+    except OSError:
+        return []
+    out = []
+    for line in lines:
+        with contextlib.suppress(ValueError):
+            rec = json.loads(line)
+            if isinstance(rec, dict) and isinstance(rec.get("id"), int):
+                out.append(rec)
+    return out
+
+
+def need_open(profile: str, task: str, resource: str) -> bool:
+    """True when the newest `need` of this task for the resource is newer than its last granted, denied or released
+    (bounded: reads the tail of the log only)."""
+    for e in reversed(_tail(profile)):
+        if e.get("task") == task and e.get("resource") == resource:
+            if e.get("kind") == "need":
+                return True
+            if e.get("kind") in ("granted", "denied", "released"):
+                return False
+    return False
+
+
 def _clean(value):
     if isinstance(value, str):
         return "".join(" " if ord(c) < 32 or ord(c) == 127 else c for c in value[:200])
@@ -273,7 +305,8 @@ def emit(profile: str, kind: str, task: str | None = None, session: str | None =
     try:
         last = int(seq.read_text().strip())
     except (OSError, ValueError):
-        last = max([e["id"] for e in _events(profile)] or [0])
+        last = 0
+    last = max([last] + [e["id"] for e in _tail(profile)])  # a stale seq must not fall below the log
     rec = {"id": last + 1, "ts": now(), "kind": kind, "task": task, "session": session, **data}
     _atomic_text(seq, f"{rec['id']}\n")  # before the append: a kill in between leaves a gap, never a reused id
     try:

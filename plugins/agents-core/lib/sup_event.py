@@ -3,8 +3,9 @@
 Profile from AGENTS_SUPERVISOR, default task from AGENTS_SUP_TASK. Emits one event under `sup_state.locked` (the lock
 wait is bounded to 4 seconds) and sets the registry row of the worker (found by --session, else by the task):
 stopped, done and waiting set that state, restarted sets `running` with waiting_for cleared.
-Exit code: 0 only when the event was written AND the row was found AND, for `waiting`, the id in `resource=` is
-an open queue question (Q<n>) or a resource this task has a `need` event for. Anything else prints one line to
+Exit code: 0 only when the row was found (else nothing is written) AND, for `waiting`, the id in `resource=` is
+an open queue question (Q<n>) of this task or a resource whose last `need` of this task is newer than its last
+granted, denied or released. Anything else prints one line to
 stderr and exits 1: the caller (hooks/run-guard.sh, lib/run_watch.py) then does not treat the stop as handed
 to the supervisor. On success it prints `watcher` when the profile's watcher is alive (the tick then decides, so
 the hook does not notify the owner itself). A bad kind, task, session, key or resource is refused before anything is written.
@@ -22,11 +23,11 @@ ROW_STATES = {"stopped": "stopped", "done": "done", "waiting": "waiting", "resta
 
 
 def _open_request(profile: str, ident: str, task: str | None) -> bool:
+    if not task:
+        return False
     if sup_state.QID.match(ident):
-        return any(q.get("id") == ident and (task is None or q.get("task") in (None, task))
-                   for q in sup_state.queue(profile))
-    return any(e.get("kind") == "need" and e.get("resource") == ident and (task is None or e.get("task") == task)
-               for e in sup_state.events_since(profile, 0))
+        return any(q.get("id") == ident and q.get("task") == task for q in sup_state.queue(profile))
+    return sup_state.need_open(profile, task, ident)
 
 
 def _watcher_alive(profile: str) -> bool:
@@ -59,11 +60,11 @@ def run(argv: list[str]) -> None:
         raise ValueError(f"profile {profile!r} has no state here")
     with sup_state.locked(profile, wait=4):
         row = (session and sup_state.worker_for(profile, session=session)) or (task and sup_state.worker_for(profile, task=task))
-        if kind == "waiting" and not (row and _open_request(profile, data["resource"], task)):
-            raise LookupError(f"{data['resource']} is not an open request of a registered worker; nothing written")
-        sup_state.emit(profile, kind, task=task, session=session, **data)
         if not row:
-            raise LookupError("event written, but no registry row for this worker")
+            raise LookupError("no registry row for this worker; nothing written")
+        if kind == "waiting" and not _open_request(profile, data["resource"], row.get("task")):
+            raise LookupError(f"{data['resource']} is not an open request of this worker; nothing written")
+        sup_state.emit(profile, kind, task=task, session=session, **data)
         if kind in ROW_STATES:
             extra = {"waiting_for": data.get("resource") if kind == "waiting" else None}
             sup_state.set_worker(profile, row["session"], state=ROW_STATES[kind], **extra)

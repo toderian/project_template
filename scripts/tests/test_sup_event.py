@@ -38,10 +38,19 @@ class Event(unittest.TestCase):
         self.assertEqual(self.run_event("stopped", "--session", self.S, "status=GAVE_UP").returncode, 0)
         self.assertEqual(st.worker_for("p1", task="RM-1")["state"], "stopped")
 
-    def test_no_row_writes_the_event_but_exits_1_and_the_task_flag_wins(self):
+    def test_no_row_writes_nothing_and_exits_1(self):
         st.profile_dir("p1"); p = self.run_event("done", "--task", "RM-9", "--session", "nobody-0001")
         self.assertEqual((p.returncode, len(p.stderr.strip().splitlines())), (1, 1))
-        self.assertEqual((st.events_since("p1", 0)[0]["task"], st.workers("p1")), ("RM-9", []))
+        self.assertEqual((st.events_since("p1", 0), st.workers("p1")), ([], []))
+
+    def test_a_park_needs_a_question_of_this_task_and_a_need_newer_than_the_last_answer(self):
+        st.set_worker("p1", self.S, task="RM-1"); st.queue_add("p1", None, "escalated")
+        self.assertEqual(self.run_event("waiting", "--session", self.S, "resource=Q1").returncode, 1)
+        with st.locked("p1"):
+            st.emit("p1", "need", task="RM-1", resource="lab", minutes=5); st.emit("p1", "granted", task="RM-1", resource="lab")
+        self.assertEqual(self.run_event("waiting", "--session", self.S, "resource=lab").returncode, 1)
+        with st.locked("p1"): st.emit("p1", "need", task="RM-1", resource="lab", minutes=5)
+        self.assertEqual(self.run_event("waiting", "--session", self.S, "resource=lab").returncode, 0)
 
     def test_waiting_needs_an_open_request_of_this_task_and_writes_nothing_otherwise(self):
         st.set_worker("p1", self.S, task="RM-1"); st.queue_add("p1", "RM-1", "q")

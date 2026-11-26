@@ -162,6 +162,10 @@ class Ask(unittest.TestCase):
         self.assertEqual(len(st.queue(P)), 1); self.assertEqual(st.inbox(P, "RM-1"), []); self.assertIsNone(st.config(P).get("grants"))
         self.assertEqual(self.at("answer", "Q1", "pg")[0], 0)  # the supervisor
 
+    def test_a_shell_with_agents_supervisor_is_told_what_to_do(self):
+        code, _, err = self.at("answer", "Q1", "pg", "--owner", env={"AGENTS_SUPERVISOR": P}, worker=False)
+        self.assertEqual(code, 3); self.assertIn("unset AGENTS_SUPERVISOR", err); self.assertIn(sup_ask.REFUSED, err)
+
     def test_chat_only_commands_need_the_token(self):
         self.at("ask", "Which db?")
         code, _, err = self.at("answer", "Q1", "pg", "--owner", env={"CLAUDE_CODE_SESSION_ID": CS})
