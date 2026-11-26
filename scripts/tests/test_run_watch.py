@@ -480,6 +480,28 @@ class Watch(unittest.TestCase):
         self.assertEqual(self.lines(self.notes), ["Run finished: TST-001",
                                                   "Morning report not written: run `at task report TST-001`"])
 
+    def sup_env(self):
+        return dict(AGENTS_SUPERVISOR="p1", AGENTS_SUP_DIR=str(self.tmp / "sup"), AGENTS_SUP_TASK="TST-001")
+
+    def test_a_session_waiting_on_the_supervisor_is_not_restarted_and_resumes_when_the_status_changes(self):
+        self.marker(self.dead_pid(), "kind=WAITING\ntext=supervisor: Q1\nmode=acceptEdits\n")
+        p = subprocess.Popen([str(AT), "run-guard", "watch", "--session", "s1", "--interval", "0.1", "--pause", "0"],
+                             cwd=self.repo, env=dict(self.env, FAKE_FINISH="1", **self.sup_env()),
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        self.assertTrue(wait_for(lambda: "waiting on supervisor" in self.log()))
+        time.sleep(0.6)
+        self.assertEqual((self.argv(), self.log().count("waiting on supervisor")), ([], 1))
+        self.assertEqual(self.record()["used"], 0)
+        (self.guard / "s1.status").write_text("kind=GAVE_UP\nmode=acceptEdits\n")  # the supervisor's watcher woke it, it stopped again
+        p.wait(timeout=20); self.assertEqual(p.returncode, 0); self.assertEqual(len(self.argv()), 1)
+        events = [json.loads(x) for x in (self.tmp / "sup/p1/events.jsonl").read_text().splitlines()]
+        self.assertEqual([(e["kind"], e["session"], e["task"]) for e in events], [("restarted", "s1", "TST-001")])
+
+    def test_without_a_supervisor_the_same_status_is_restarted_as_before(self):
+        self.marker(self.dead_pid(), "kind=WAITING\ntext=supervisor: Q1\nmode=acceptEdits\n")
+        self.assertEqual(self.watch(FAKE_FINISH="1").returncode, 0); self.assertEqual(len(self.argv()), 1)
+        self.assertNotIn("waiting on supervisor", self.log()); self.assertFalse((self.tmp / "sup").exists())
+
     def test_until_hh_mm_is_the_next_such_time(self):
         now = time.mktime((2026, 11, 26, 10, 0, 0, 0, 0, -1))
         self.assertEqual(run_watch.deadline("10:30", now) - now, 1800)

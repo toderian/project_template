@@ -18,10 +18,10 @@ TABLES = {"main": g.DEFAULT_MAIN, "programs": []}
 
 ALLOWED = [
     "at sup status", "at sup status --json", "at sup board", "at sup queue --json",
-    "at sup inbox RM-1", "at sup ready RM-1", "at sup answer RM-1 yes go ahead",
-    "at sup answer RM-1 'use the second one?'", "at sup start-worker RM-1",
-    "at sup stop-worker RM-1 --stuck", "at sup pack alpha RM-1 RM-2", "at sup land RM-1 --dry-run",
-    "at sup worktree RM-1", "at sup op deploy now", "at sup measure alpha",
+    "at sup ready RM-1", "at sup answer Q1 yes go ahead", "at sup answer Q12 'use the second one?' --profile rm",
+    "at sup start-worker RM-1", "at sup stop-worker RM-1", "at sup land RM-1 --dry-run",
+    "at sup grant RM-1 lab", "at sup deny RM-1 lab 'not now'", "at sup done alpha", "at sup packs --profile rm",
+    "at sup measure --json --since 2026-11-01", "at sup watch status", "at sup instructions", "at sup queue --all",
     "at lease take lab --ttl 30", "at lease take lab --ttl=30 --for RM-1 --reason waiting --restore",
     "at lease release lab", "at lease list --json", "at run-guard status --all",
     "claude agents --json", "claude agents --json --all",
@@ -45,12 +45,17 @@ DENIED = [
     "at sup status\nrm x", "at sup status\rx", "at sup status 'unterminated", "", "   ",
     'at sup answer RM-1 "text with $(x)"', "at sup answer rm-1 x", "at sup answer RM-1",
     "at lease take lab", "at lease take lab --ttl x", "at sup status --json --json",
-    "at sup status --bogus", "at sup status --", "at sup status extra", "at sup inbox -x",
+    "at sup status --bogus", "at sup status --", "at sup status extra", "at sup ready -x",
+    "at sup inbox RM-1", "at sup answer RM-1 yes", "at sup stop-worker RM-1 --stuck", "at sup op deploy now",
+    "at sup measure alpha", "at sup worktree RM-1", "at sup status --hub /tmp", "at sup land RM-1 --into x",
+    "at sup init --hub /tmp", "at sup tick", "at sup chat", "at sup watch once", "at sup watch start",
+    "at sup ask 'q'", "at sup need lab --minutes 5", "at sup release lab", "at sup status --profile Bad",
     "git log [-]-output=x", "at sup answer T-1 [-]-owner yes", "git log *", "git log ?", "git log ~",
     "git log a#b", "git log ^a", "git log !a", 'at sup answer RM-1 "double quoted"',
     "at sup  status", "git log " + "a" * 9000, "gh pr view https://x/pull/1", "git log /etc/passwd",
     "git log HEAD:.env", "git log ~x", "git log .hidden", "git log --format=%G?", "git log --format=%H%GG",
-    "at sup instruct x", "at sup answer RM-1 x --owner", "at sup start-pack alpha", "at sup cap 3",
+    "at sup instruct x", "at sup answer Q1 x --owner", "at sup start-pack alpha", "at sup cap 3",
+    "at sup pack alpha RM-1", "at sup watch stop", "at sup close-pack alpha",
 ]
 
 
@@ -94,8 +99,9 @@ class ChatToken(unittest.TestCase):
         os.environ["AGENTS_SUP_CHAT_TOKEN"] = tok
 
     def test_chat_commands(self):
-        cmds = ["at sup instruct x", "at sup answer RM-1 x --owner", "at sup start-pack alpha",
-                "at sup pause-pack alpha", "at sup order alpha RM-1", "at sup cap 3"]
+        cmds = ["at sup instruct x", "at sup answer Q1 x --owner", "at sup start-pack alpha",
+                "at sup pause-pack alpha", "at sup close-pack alpha", "at sup order alpha RM-1", "at sup cap 3",
+                "at sup pack alpha RM-1 RM-2 --parallel", "at sup watch start --no-tick", "at sup watch stop"]
         for cmd in cmds:  # no token set
             self.assertEqual(g.decide(cmd, None, TABLES, "chat1"), (False, "chat only"), cmd)
         os.environ["AGENTS_SUP_CHAT_TOKEN"] = "a1b2c3d4e5f60718"  # token set, file missing
@@ -131,6 +137,22 @@ class ChatToken(unittest.TestCase):
 
 
 class LauncherEnv(unittest.TestCase):
+    def test_path_keeps_the_tools_and_drops_hub_directories(self):
+        import shutil, tempfile
+        with tempfile.TemporaryDirectory() as t:
+            hub, other = os.path.join(t, "hub"), os.path.join(t, "bin")
+            for d in (hub + "/bin", other):
+                os.makedirs(d)
+            for d in (hub + "/bin", other):
+                open(d + "/at", "w").close(); os.chmod(d + "/at", 0o755)
+            base = {"PATH": ":".join([hub + "/bin", other, "relative", "/usr/bin"])}
+            path = g.launcher_env(base, deny_under=[hub])["PATH"].split(":")
+            self.assertEqual(path[0], other); self.assertNotIn(hub + "/bin", path); self.assertEqual(path[-2:], ["/usr/bin", "/bin"])
+            self.assertTrue(all(os.path.isabs(p) for p in path))
+            self.assertIn(hub + "/bin", g.launcher_env(base)["PATH"])
+        if shutil.which("claude"):
+            self.assertIn(os.path.dirname(shutil.which("claude")), g.launcher_env(os.environ)["PATH"].split(":"))
+
     def test_launcher_env(self):
         env = g.launcher_env({"HOME": "/h", "GIT_DIR": "x", "GH_REPO": "y", "GH_HOST": "z",
                               "GIT_EXTERNAL_DIFF": "e", "PYTHONPATH": "p", "PATH": "/evil"})

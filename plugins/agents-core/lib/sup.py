@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """`at sup worktree|land|ready`: one hub worktree per task, landing it, and the readiness check.
 
-The hub is the git repository of the current directory (`--repo` overrides). Exit codes: 0 ok,
+The hub is `--hub <path>` (alias `--repo`) when given, else config key `hub` of the profile (`--profile` or
+AGENTS_SUPERVISOR; set by `at sup init`), else the git toplevel of the current directory. Exit codes: 0 ok,
 2 usage, 3 refused (one line on stderr saying why). Standalone: `python3 sup.py worktree ...`.
 
 `land` writes the archive ref after the squash commit (a failed landing leaves no ref), and a rerun
@@ -329,12 +330,16 @@ def _task_id(value: str) -> str:
 
 def add_parser(sub) -> argparse.ArgumentParser:
     p = sub.add_parser("sup", help="supervisor tools: worktree | land | ready")
-    p.add_argument("--repo", type=Path, default=Path.cwd(), help="hub repository (default: current directory)")
+    p.add_argument("--repo", "--hub", dest="repo", type=Path, default=None,
+                   help="hub repository (default: the profile's hub, else the git toplevel of the cwd)")
+    p.add_argument("--profile", default=None)
     ss = p.add_subparsers(dest="sup_cmd", required=True)
 
     def leaf(name, **kw):
         q = ss.add_parser(name, **kw)
-        q.add_argument("--repo", type=Path, default=argparse.SUPPRESS, help="hub repository (also accepted before the subcommand)")
+        q.add_argument("--repo", "--hub", dest="repo", type=Path, default=argparse.SUPPRESS,
+                       help="hub repository (also accepted before the subcommand)")
+        q.add_argument("--profile", default=argparse.SUPPRESS)
         return q
     w = leaf("worktree", help="create the task's hub worktree and branch")
     w.add_argument("task_id", type=_task_id)
@@ -358,7 +363,12 @@ def add_parser(sub) -> argparse.ArgumentParser:
 
 
 def run(args) -> int:
-    args.repo = Path(args.repo).resolve()
+    try:
+        import sup_state
+        args.repo = Path(sup_state.hub(sup_state.current_profile(args.profile), args.repo)).resolve()
+    except ValueError as e:
+        print(f"sup: {e}", file=sys.stderr)
+        return 2
     try:
         return args.sup_func(args)
     except (Refuse, OSError) as e:

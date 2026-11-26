@@ -88,6 +88,7 @@ at task report AUTH-001               # morning report of a run: commits, decisi
 at run-guard status                   # what this session must finish before its turn may end (disarm: at run-guard disarm)
 at run-guard arm --watch --budget-usd 4 AUTH-001   # plus a watchdog that restarts the session if its process dies
 at lease run full-suite -- make test  # one holder per shared resource on this host (take|release|list|clear; exit 3 = refused)
+at sup status                        # supervisor: packs, workers, questions, leases (setup: agents-tasks:supervise)
 at notify "title" < body.txt         # run your notify command (git config agents.notifyCommand "<cmd>", or AGENTS_NOTIFY_CMD); the run guard uses it
 at peer enable codex          # opt in, this checkout only: large reviews also ask the other agent CLI
 at addon enable browser       # opt in, this repo: UI skills plus a browser the agent can look through

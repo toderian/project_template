@@ -22,25 +22,28 @@ Rule: {"argv": [...], "flags": {...}, "args": [...], "required": [...], "chat": 
             "+" = one or more (a "*"/"+" class takes all remaining positionals).
             Default: no positionals. Positionals and flag values may not start with "-".
   required  flags that must be present.
-  chat      only with a valid chat token. at sup instruct|start-pack|pause-pack|order|cap and
-            any "at sup answer ... --owner" need it whatever the table says.
-Classes: any (free text), task-id [A-Z][A-Z0-9]*-[0-9]+, name [a-z0-9][a-z0-9-]*, int [0-9]+,
+  chat      only with a valid chat token. Every command in CHAT_PREFIXES and any
+            "at sup answer ... --owner" need it whatever the table says.
+Classes: any (free text), task-id [A-Z][A-Z0-9]*-[0-9]+, q-id Q[0-9]+, name [a-z0-9][a-z0-9-]*, int [0-9]+,
 pr-ref (digits, or a ref with no ":" and no leading "~", "/" or "."), format (any without %G).
 
 The command must equal shlex.join of its own parse: single quotes only, one space between
 tokens, so bash sees no glob, tilde, history or other parse differential. Max 8 KB.
 
 Chat token: file <sup dir>/_tokens/<AGENTS_SUP_CHAT_TOKEN>, mode 0600 in a 0700 directory, owned
-by the uid, JSON {"session_id": ..., "expires": epoch}; check_chat_token(session_id) checks it.
+by the uid, JSON {"session_id": ..., "expires": epoch}; check_chat_token(session_id) checks it. `at sup chat`
+writes it and starts claude with `--session-id <that id>`; sup_ask.require_chat uses the same check.
 
 The launcher must start the session with launcher_env(os.environ): GIT_CONFIG_COUNT overrides
 (core.fsmonitor=false, log.showSignature=false, gpg.program=/bin/false, core.hooksPath=/dev/null),
-GIT_CONFIG_NOSYSTEM=1, GIT_DIR, GIT_EXTERNAL_DIFF, GH_HOST, GH_REPO and PYTHONPATH removed, PATH pinned.
+GIT_CONFIG_NOSYSTEM=1, GIT_DIR, GIT_EXTERNAL_DIFF, GH_HOST, GH_REPO and PYTHONPATH removed, PATH rebuilt from the directories of at, claude, git, gh, python3
+and jq plus /usr/bin:/bin, minus any directory under `deny_under` (the hub and its worktrees).
 """
 import json
 import os
 import re
 import shlex
+import shutil
 import stat
 import sys
 import time
@@ -49,13 +52,17 @@ CLASSES = {
     "any": re.compile(r".+", re.S),
     "task-id": re.compile(r"[A-Z][A-Z0-9]*-[0-9]+"),
     "name": re.compile(r"[a-z0-9][a-z0-9-]*"),
+    "q-id": re.compile(r"Q[0-9]+"),
     "int": re.compile(r"[0-9]+"),
     "pr-ref": re.compile(r"[0-9]+|[A-Za-z0-9_@%+,=^][A-Za-z0-9_@%+,=^~./-]*"),
     "format": re.compile(r"(?!.*%G).+", re.S),
 }
 DEFAULT_TOOLS = ["Bash", "Agent", "AskUserQuestion", "Read", "Glob", "Grep"]
 RESERVED = {"main", "programs", "tools"}
-CHAT_PREFIXES = [f"at sup {c}".split() for c in ("instruct", "start-pack", "pause-pack", "order", "cap")]
+# Commands only the owner's chat may run (`answer --owner` is checked in decide). `at sup` calls require_chat for the same list.
+CHAT_COMMANDS = ("instruct", "pack", "start-pack", "pause-pack", "close-pack", "order", "cap", "watch start",
+                 "watch stop", "init")
+CHAT_PREFIXES = [f"at sup {c}".split() for c in CHAT_COMMANDS]
 INTERPRETERS = re.compile(
     r"(sh|bash|dash|zsh|ksh|fish|csh|tcsh|env|xargs|sudo|doas|nice|nohup|timeout|time|exec|command|"
     r"busybox|awk|gawk|sed|perl|ruby|node|php|lua|expect|find|su|setsid|stdbuf|strace|watch|script|"
@@ -71,17 +78,22 @@ def _r(argv, flags=None, args=(), required=(), chat=False):
             "required": list(required), "chat": chat}
 
 
+PROFILE = {"--profile": "name"}  # the hub is never a flag here: it comes from the profile's config
+
 DEFAULT_MAIN = [
-    _r("at sup status", {"--json": None}), _r("at sup board"),
-    _r("at sup queue", {"--json": None}),
-    _r("at sup inbox", args=["task-id"]), _r("at sup ready", args=["task-id"]),
-    _r("at sup answer", args=["task-id", "any+"]),
-    _r("at sup start-worker", args=["task-id"]),
-    _r("at sup stop-worker", {"--stuck": None}, ["task-id"]),
-    _r("at sup pack", args=["name", "task-id+"]),
-    _r("at sup land", {"--dry-run": None}, ["task-id"]),
-    _r("at sup worktree", args=["task-id"]),
-    _r("at sup op", args=["name", "any+"]), _r("at sup measure", args=["name"]),
+    _r("at sup status", {**PROFILE, "--json": None}), _r("at sup board", PROFILE),
+    _r("at sup queue", {**PROFILE, "--json": None, "--all": None}),
+    _r("at sup instructions", PROFILE), _r("at sup packs", PROFILE),
+    _r("at sup ready", PROFILE, ["task-id"]),
+    _r("at sup answer", PROFILE, ["q-id", "any+"]),
+    _r("at sup grant", PROFILE, ["task-id", "name"]),
+    _r("at sup deny", PROFILE, ["task-id", "name", "any"]),
+    _r("at sup start-worker", PROFILE, ["task-id"]),
+    _r("at sup stop-worker", PROFILE, ["task-id"]),
+    _r("at sup land", {**PROFILE, "--dry-run": None}, ["task-id"]),
+    _r("at sup done", PROFILE, ["name"]),
+    _r("at sup measure", {**PROFILE, "--json": None, "--since": "any"}),
+    _r("at sup watch status", PROFILE),
     _r("at lease take", {"--ttl": "int", "--for": "task-id", "--reason": "any", "--restore": None},
        ["name"], required=["--ttl"]),
     _r("at lease release", args=["name"]), _r("at lease list", {"--json": None}),
@@ -96,12 +108,18 @@ DEFAULT_MAIN = [
     _r("gh pr view", {"--json": "any"}, ["pr-ref"]),
     _r("gh pr list", {"--json": "any", "--state": "name", "--limit": "int"}),
     _r("gh pr checks", args=["pr-ref"]),
-    # chat only: a tick has no token
-    _r("at sup instruct", args=["any+"], chat=True),
-    _r("at sup answer", {"--owner": None}, ["task-id", "any+"], chat=True),
-    _r("at sup start-pack", args=["name"], chat=True),
-    _r("at sup pause-pack", args=["name"], chat=True),
-    _r("at sup order", args=["name", "task-id+"], chat=True), _r("at sup cap", args=["int"], chat=True),
+    # chat only: a tick has no token. `init`, `tick`, `chat`, `watch once` and the worker-side ask|need|release|inbox
+    # are in no table: the supervisor never runs them.
+    _r("at sup instruct", PROFILE, ["any+"], chat=True),
+    _r("at sup answer", {**PROFILE, "--owner": None}, ["q-id", "any+"], chat=True),
+    _r("at sup pack", {**PROFILE, "--parallel": None}, ["name", "task-id+"], chat=True),
+    _r("at sup start-pack", PROFILE, ["name"], chat=True),
+    _r("at sup pause-pack", PROFILE, ["name"], chat=True),
+    _r("at sup close-pack", PROFILE, ["name"], chat=True),
+    _r("at sup order", PROFILE, ["name", "task-id+"], chat=True),
+    _r("at sup cap", PROFILE, ["int"], chat=True),
+    _r("at sup watch start", {**PROFILE, "--no-tick": None, "--interval": "int"}, chat=True),
+    _r("at sup watch stop", PROFILE, chat=True),
 ]
 
 
@@ -131,13 +149,30 @@ def check_chat_token(session_id):
         return False
 
 
-def launcher_env(base):
+TOOL_NAMES = ("at", "claude", "git", "gh", "python3", "jq")
+
+
+def _safe_path(base, deny_under):
+    """PATH for a supervisor session: the absolute directories of the tools it needs, then /usr/bin:/bin.
+    A directory under `deny_under` is skipped before the lookup, so a later real tool still wins."""
+    denied = [os.path.realpath(d) for d in deny_under or []]
+    allowed = [d for d in base.get("PATH", "").split(os.pathsep) if os.path.isabs(d)
+               and not any(os.path.realpath(d) == x or os.path.realpath(d).startswith(x + os.sep) for x in denied)]
+    dirs = []
+    for name in TOOL_NAMES:
+        found = shutil.which(name, path=os.pathsep.join(allowed))
+        if found and os.path.dirname(found) not in dirs:
+            dirs.append(os.path.dirname(found))
+    return ":".join([*dirs, *(d for d in ("/usr/bin", "/bin") if d not in dirs)])
+
+
+def launcher_env(base, deny_under=None):
     """Environment the launcher gives a supervisor session so allowed git/gh commands run no code."""
     env = {k: v for k, v in base.items() if k not in
            ("GIT_DIR", "GIT_EXTERNAL_DIFF", "GH_HOST", "GH_REPO", "PYTHONPATH")}
     conf = [("core.fsmonitor", "false"), ("log.showSignature", "false"),
             ("gpg.program", "/bin/false"), ("core.hooksPath", "/dev/null")]
-    env.update(GIT_CONFIG_COUNT=str(len(conf)), GIT_CONFIG_NOSYSTEM="1", PATH="/usr/local/bin:/usr/bin:/bin")
+    env.update(GIT_CONFIG_COUNT=str(len(conf)), GIT_CONFIG_NOSYSTEM="1", PATH=_safe_path(base, deny_under))
     for i, (k, v) in enumerate(conf):
         env[f"GIT_CONFIG_KEY_{i}"], env[f"GIT_CONFIG_VALUE_{i}"] = k, v
     return env
@@ -216,7 +251,7 @@ def decide(command, agent_type, tables, session_id=None):
         return False, f"no table for {key}"
     for rule in rules:
         if argv[:len(rule["argv"])] == rule["argv"] and match(rule, argv):
-            chat = (rule.get("chat") or argv[:3] in CHAT_PREFIXES
+            chat = (rule.get("chat") or any(argv[:len(p)] == p for p in CHAT_PREFIXES)
                     or (argv[:3] == ["at", "sup", "answer"] and "--owner" in argv))
             if chat and not check_chat_token(session_id):
                 return False, "chat only"

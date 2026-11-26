@@ -61,6 +61,21 @@ write_status() {
     echo "mode=$(printf '%s' "${INPUT}" | jq -r '.permission_mode // ""' | ascii)"
   } > "${tmp}"; } 2>/dev/null && mv -f "${tmp}" "${MARKER}.status" 2>/dev/null || rm -f "${tmp}"
   notify_owner "$1" "${text}"
+  sup_signal "$1" "${text}"
+}
+
+# sup_signal <kind> <text>: for a supervised session (AGENTS_SUPERVISOR set) the same stop as an event in the
+# supervisor's log (lib/sup_event.py). Bounded, and a failure is ignored: the stop is never held up by it.
+sup_signal() {
+  local what=() lib="$(dirname "${BASH_SOURCE[0]}")/../lib/sup_event.py"
+  [ -n "${AGENTS_SUPERVISOR:-}" ] || return 0
+  case "$1" in
+    DONE) what=(done) ;;
+    BLOCKED|GAVE_UP|EMPTY) what=(stopped "status=$1") ;;
+    WAITING) case "$2" in supervisor:*) what=(waiting "resource=$(printf '%s' "$2" | sed -E 's/^supervisor:[[:space:]]*//' | cut -d' ' -f1 | cut -c1-60)") ;; esac ;;
+  esac
+  [ ${#what[@]} -gt 0 ] || return 0
+  timeout 5 python3 "${lib}" "${what[0]}" --session "${SESSION}" "${what[@]:1}" >/dev/null 2>&1 || true
 }
 
 # notify_owner <kind> <text>: tells the owner about a stop that needs them or a run that ended, through
@@ -104,9 +119,16 @@ fi
 
 MESSAGE=$(printf '%s' "${INPUT}" | jq -r '.last_assistant_message // ""')
 DECLARED=$(printf '%s\n' "${MESSAGE}" | grep -E '^[[:space:]>*_`-]*Run:[*_`]*[[:space:]]*(WAITING|BLOCKED)[*_`]*[[:space:]:-]+[^[:space:]]' | head -1)
+SUPWAIT=""  # a supervised worker parks on the supervisor's answer, with or without the `Run:` prefix
+[ -n "${AGENTS_SUPERVISOR:-}" ] && SUPWAIT=$(printf '%s\n' "${MESSAGE}" | grep -E '^[[:space:]>*_`-]*(Run:[*_`]*[[:space:]]*)?WAITING[*_`]*[[:space:]]+supervisor:[[:space:]]*[^[:space:]]' | tail -1)
 if [ -z "${MESSAGE}" ]; then
   rm -f "${COUNT_FILE}"
   write_status EMPTY "the last message was empty"
+  echo '{}'
+  exit 0
+elif [ -n "${SUPWAIT}" ]; then
+  rm -f "${COUNT_FILE}"
+  write_status WAITING "$(printf '%s' "${SUPWAIT}" | sed -E 's/^.*WAITING[*_`]*[[:space:]]+(supervisor:.*)$/\1/')"
   echo '{}'
   exit 0
 elif [ -n "${DECLARED}" ]; then

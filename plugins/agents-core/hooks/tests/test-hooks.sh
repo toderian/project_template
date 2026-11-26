@@ -963,6 +963,36 @@ note_setup sess-n; chmod 500 "${AGENTS_RUN_GUARD_DIR}"
 check "guard: a read-only guard dir prints no shell error" $'{}\nexit=0' "$(note_hook sess-n 'Run: BLOCKED ro' '')"
 chmod 700 "${AGENTS_RUN_GUARD_DIR}"
 
+# supervised sessions (AGENTS_SUPERVISOR set): the stop is also an event, and `WAITING supervisor:` parks the session
+SUP_DIR="${WORKDIR}/sup"; SUP_EVENTS="${SUP_DIR}/p1/events.jsonl"
+sup_hook() { guard_payload "$1" "$2" | AGENTS_SUPERVISOR="${SUPV-p1}" AGENTS_SUP_DIR="${SUP_DIR}" AGENTS_SUP_TASK=GRD-001 "${BASH_BIN}" "${GUARD_HOOK}" >/dev/null 2>&1; echo $?; }
+sup_row() { AGENTS_SUP_DIR="${SUP_DIR}" python3 -c 'import sys; sys.path.insert(0, sys.argv[1]); import sup_state as s; s.set_worker("p1", "sess-s", **dict(a.split("=") for a in sys.argv[2:]))' "${HOOKS_DIR}/../lib" "$@"; }
+sup_kinds() { jq -r '.kind + ":" + (.status // "")' "${SUP_EVENTS}" 2>/dev/null | tr '\n' ' '; }
+note_setup sess-s; sup_row task=GRD-001
+check "guard: a bare WAITING supervisor line without AGENTS_SUPERVISOR is sent back as before" 2 "$(SUPV= sup_hook sess-s $'Parked.\nWAITING supervisor: Q1')"
+check "guard: no event without AGENTS_SUPERVISOR" "" "$(sup_kinds)"
+note_setup sess-s
+check "guard: a WAITING supervisor line is allowed to stop" 0 "$(sup_hook sess-s $'Parked.\nWAITING supervisor: Q1')"
+check "guard: it is recorded as WAITING supervisor" "WAITING supervisor: Q1" "$(status_of sess-s kind) $(status_of sess-s text)"
+check "guard: it emits waiting" "waiting: " "$(sup_kinds)"
+check "guard: the registry row is waiting for the resource" "waiting Q1" "$(jq -r '.[0] | .state + " " + .waiting_for' "${SUP_DIR}/p1/workers.json")"
+note_setup sess-s; rm -rf "${SUP_DIR}/p1/events.jsonl"
+check "guard: the Run: prefix form is allowed too" 0 "$(sup_hook sess-s $'x\n**Run: WAITING** supervisor: need-db')"
+note_setup sess-s; rm -rf "${SUP_DIR}/p1/events.jsonl"
+check "guard: Run: WAITING supervisor without the variable stops as an ordinary WAITING, with no event" "0 WAITING supervisor: need-db [] " \
+  "$(SUPV= sup_hook sess-s 'Run: WAITING supervisor: need-db') $(status_of sess-s kind) $(status_of sess-s text) [$(sup_kinds)] "
+note_setup sess-s; rm -rf "${SUP_DIR}/p1/events.jsonl"
+check "guard: BLOCKED stops and emits stopped" "0 stopped:BLOCKED " "$(sup_hook sess-s 'Run: BLOCKED pick a name') $(sup_kinds)"
+rm -rf "${SUP_DIR}/p1/events.jsonl"; : > "${GUARD_REPO}/docs/tasks_manager/_todos/GRD-001-F_guarded.md"; note_setup sess-s
+for _ in 1 2 3 4 5; do sup_hook sess-s 'summary' >/dev/null; done; rm -rf "${SUP_DIR}/p1/events.jsonl"
+check "guard: GAVE_UP emits stopped" "0 stopped:GAVE_UP " "$(sup_hook sess-s 'summary') $(sup_kinds)"
+note_setup sess-s; rm -rf "${SUP_DIR}/p1/events.jsonl"; rm -f "${GUARD_REPO}/docs/tasks_manager/_todos/GRD-001-F_guarded.md"
+check "guard: DONE emits done and sets the row" "0 done:  done" "$(sup_hook sess-s 'bye') $(sup_kinds) $(jq -r '.[0].state' "${SUP_DIR}/p1/workers.json")"
+: > "${GUARD_REPO}/docs/tasks_manager/_todos/GRD-001-F_guarded.md"
+note_setup sess-s; chmod 000 "${SUP_DIR}/p1"
+check "guard: an unwritable supervisor state never changes the stop" 0 "$(sup_hook sess-s 'Run: BLOCKED x')"
+chmod 700 "${SUP_DIR}/p1"
+
 # ---------------------------------------------------------------------------
 # run-guard-remind.sh
 # ---------------------------------------------------------------------------

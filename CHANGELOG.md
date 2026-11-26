@@ -11,6 +11,27 @@ Notable changes to agents-template. All four plugins share the version of the re
   holder alive), `owed` (holder gone, restore flag set) or free; a reused pid counts as a dead holder.
   `clear` is for the owner's own shell.
 
+- **`at sup`: a supervisor for several task sessions on one host.** One profile per scope, state under
+  `~/.local/state/agents-template/sup/<profile>/`. The parts are code, not prompts:
+  - `worktree|land|ready <ID>`: one hub worktree and branch per task, a squash landing on the default
+    branch under the `hub-ledger` lease (the branch tip stays at `refs/archive/task/<ID>`, ignored
+    files are kept), and the readiness check of a task file.
+  - `pack`, `start-pack`, `pause-pack`, `close-pack`, `order`, `cap`, `start-worker`, `stop-worker`:
+    packs of tasks and one background worker session per task, under a session cap.
+  - `ask`, `need`, `release`, `inbox` for a worker; `answer`, `grant`, `deny`, `queue`, `instruct` for
+    the supervisor and the owner. A worker that asks ends its turn with `WAITING supervisor: <id>`;
+    the run guard lets it stop and the watchdog does not restart it.
+  - `watch start|stop|status|once`: a detached watcher with no model in it. It finds dead workers and
+    overdue leases, wakes a worker that has an answer, starts the next task, lands a closed-out task
+    and starts a tick when events need judgement. `--no-tick` runs without the model.
+  - `init`, `tick`, `chat`, `board`: the supervisor session itself. A tick is one fresh headless turn
+    over the unhandled events; the chat is the owner's interactive session. Both run under
+    `hooks/sup-guard.sh`, a PreToolUse guard with exact argv tables and a tool allow-list, because the
+    supervisor runs with permissions bypassed. Commands that only the owner may give need the chat's
+    token or the owner's own shell.
+  - `status`, `done <pack>`, `measure`: the digest, the done check and the trial numbers.
+- **`agents-tasks:supervise`**: sets a profile up in a hub and names what the supervisor may decide.
+
 ### Fixed
 
 - `at reserve` keeps a host-wide high-water mark per repo (git common dir) and prefix, so two worktrees

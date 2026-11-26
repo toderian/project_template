@@ -63,6 +63,22 @@ class State(unittest.TestCase):
         (st.profile_dir("p") / "workers.json").write_text("{broken"); (st.profile_dir("p") / "queue.json").write_text("{}")
         self.assertEqual(st.workers("p"), []); self.assertEqual(st.queue("p"), [])
 
+    def test_hub_is_the_flag_then_the_profile_config_then_the_git_toplevel(self):
+        flag, cfg = Path(self.tmp.name) / "flag", Path(self.tmp.name) / "cfg"
+        flag.mkdir(); cfg.mkdir()
+        here = os.getcwd()
+        self.addCleanup(os.chdir, here)
+        self.assertEqual(st.hub("p"), Path(__file__).resolve().parents[2])  # this repository: the cwd's toplevel
+        st.set_config("p", hub=str(cfg)); self.assertEqual(st.hub("p"), cfg)
+        self.assertEqual(st.hub("p", str(flag)), flag.resolve())
+        os.chdir(self.tmp.name); st.set_config("q", cap=1)
+        with self.assertRaises(ValueError): st.hub("q")  # no flag, no config, not a git checkout
+
+    def test_a_part_keeps_its_own_file_with_read_json_and_write_json(self):
+        f = st.profile_dir("p") / "mine.json"
+        self.assertEqual(st.read_json(f, {}), {}); st.write_json(f, {"a": 1})
+        self.assertEqual(st.read_json(f, {}), {"a": 1}); self.assertEqual(st.read_json(f, []), [])  # another type: the default
+
 
 if __name__ == "__main__":
     unittest.main()

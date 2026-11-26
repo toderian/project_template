@@ -346,6 +346,7 @@ class Watcher:
         self.interval, self.pause, self.idle = own["interval"], own["pause"], own["idle"]
         self.until = own["until"] if own["until"] is not None else math.inf
         self.rec, self.proc, self.pause_until, self.cwd = {}, None, None, None
+        self.supervised, self.waited = bool(os.environ.get("AGENTS_SUPERVISOR")), None
         self.floor = time.time()  # idle counts from the later of this and the last target change
 
     def log(self, message: str) -> None:
@@ -451,10 +452,16 @@ class Watcher:
             self.report(id_list)
             side(self.marker, ".watch.state").unlink(missing_ok=True)
             return 0
+        stop = stop_time(side(self.marker, ".status"), status)  # `.status` is written only at a stop the hook allows
+        stale = any(p.stat().st_mtime >= stop + 1 for p in found["paths"] if p.is_file())
+        if self.supervised and kind == "WAITING" and status.get("text", "").startswith("supervisor") and not stale:
+            if self.waited != stop:  # parked on the supervisor: not dead, no restart, no budget; said once per wait
+                self.waited = stop
+                self.log("waiting on supervisor")
+            return None
         pid = to_pid(marker["meta"].get("pid", ""))
         alive = self.restart_alive() or pid is None or is_claude(pid)
-        stop = stop_time(side(self.marker, ".status"), status)  # `.status` is written only at a stop the hook allows
-        if kind == "BLOCKED" and not any(p.stat().st_mtime >= stop + 1 for p in found["paths"] if p.is_file()):
+        if kind == "BLOCKED" and not stale:
             text = _ascii(status.get("text", ""), 300)
             self.send(hook_key("BLOCKED", text), f"Run BLOCKED: {ids} {text}", text, ids, True)
             return None if alive else 0
@@ -499,6 +506,13 @@ class Watcher:
         self.rec["child"] = self.proc.pid
         self.save()
         self.log(f"restart {n}/{self.rec['max_resumes']}: pid {self.proc.pid}, mode {mode}, budget {budget} USD")
+        if self.supervised:  # the supervisor's event log; sup_event.py never fails and is bounded here
+            task = [] if os.environ.get("AGENTS_SUP_TASK") else ["--task", *list(tasks)[:1]]
+            try:
+                subprocess.run([sys.executable, str(Path(__file__).with_name("sup_event.py")), "restarted", "--session",
+                                self.session, *task], timeout=5, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            except (OSError, subprocess.SubprocessError):
+                pass
         self.send(f"restarted-{n}", f"Run restarted ({n}/{self.rec['max_resumes']}): {ids}",
                   f"the session process was dead; restarted headless with a {budget} USD cap", ids)
         return None

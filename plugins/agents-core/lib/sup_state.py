@@ -15,9 +15,16 @@ Directory: ${AGENTS_SUP_DIR:-${XDG_STATE_HOME:-~/.local/state}/agents-template/s
   instructions.md    the owner's standing instructions, one dated bullet each
   touch.log          one line per owner action through `at sup` (the trial counts them)
 
-Event kinds: stopped (data: status BLOCKED|GAVE_UP|EMPTY), done, ask (q), need (resource, minutes), granted
-(resource), released (resource), overdue (resource), owed (resource), dead, idle, restarted, tick_failed, landed,
-started. Every change happens under `locked(profile)`; files are replaced atomically. stdlib only.
+Event kinds (every kind a part emits):
+  worker:   started, stopped (status BLOCKED|GAVE_UP|EMPTY), done, waiting, idle, dead, restarted
+  asks:     ask (q), need (resource, minutes), granted (resource), denied (resource), released (resource),
+            answered (q, by), overdue (resource), owed (resource)
+  refusals: start_refused (reason), land_refused (reason)
+  watcher:  landed, tick_failed (reason), ticks_paused (reason)
+NO_JUDGEMENT lists the kinds a tick advances over without a session; every other kind needs one.
+Every change happens under `locked(profile)`, held only around state reads and writes, never across a `claude` or
+`at` subprocess; files are replaced atomically. A part that keeps its own small file in the profile directory uses
+`read_json(path, default)` and `write_json(path, data)`. stdlib only.
 """
 from __future__ import annotations
 
@@ -26,6 +33,7 @@ import fcntl
 import json
 import os
 import re
+import subprocess
 import tempfile
 import time
 from pathlib import Path
@@ -34,6 +42,8 @@ NAME = re.compile(r"[a-z0-9][a-z0-9-]*\Z")
 TASK = re.compile(r"[A-Z][A-Z0-9]*-[0-9]+\Z")
 WORKER_STATES = ("running", "waiting", "stopped", "done")
 PACK_STATES = ("new", "running", "paused", "closed")
+NO_JUDGEMENT = ("started", "restarted", "landed", "released", "granted", "answered", "denied", "waiting",
+                "tick_failed", "ticks_paused")
 
 
 def now() -> str:
@@ -77,7 +87,8 @@ def locked(profile: str):
             fcntl.flock(fh, fcntl.LOCK_UN)
 
 
-def _load(path: Path, default):
+def read_json(path: Path, default):
+    """The JSON in `path`, or `default` when the file is missing, broken or of another type."""
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -85,7 +96,8 @@ def _load(path: Path, default):
     return data if isinstance(data, type(default)) else default
 
 
-def _save(path: Path, data) -> None:
+def write_json(path: Path, data) -> None:
+    """Replace `path` atomically; the caller holds `locked(profile)` for a file other parts read."""
     fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".tmp-")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
@@ -98,17 +110,31 @@ def _save(path: Path, data) -> None:
         raise
 
 
+def hub(profile: str | None, explicit=None) -> Path:
+    """The hub every `at sup` command works in: `--hub` when given, else config key `hub` (set by `at sup init`),
+    else the git toplevel of the cwd."""
+    if explicit:
+        return Path(explicit).resolve()
+    configured = config(profile).get("hub") if profile else None
+    if configured:
+        return Path(configured)
+    p = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True)
+    if p.returncode != 0:
+        raise ValueError("no hub: pass --hub, run `at sup init`, or work inside the hub checkout")
+    return Path(p.stdout.strip())
+
+
 def config(profile: str) -> dict:
     cfg = {"cap": 3, "auto": ["full-suite"], "land": "auto"}
-    cfg.update(_load(profile_dir(profile) / "config.json", {}))
+    cfg.update(read_json(profile_dir(profile) / "config.json", {}))
     return cfg
 
 
 def set_config(profile: str, **changes) -> dict:
     d = profile_dir(profile)
-    cfg = _load(d / "config.json", {})
+    cfg = read_json(d / "config.json", {})
     cfg.update(changes)
-    _save(d / "config.json", cfg)
+    write_json(d / "config.json", cfg)
     return config(profile)
 
 
@@ -117,7 +143,7 @@ def set_config(profile: str, **changes) -> dict:
 def read_pack(profile: str, name: str) -> dict | None:
     if not NAME.match(name):
         raise ValueError(f"pack name {name!r} must match [a-z0-9][a-z0-9-]*")
-    pack = _load(profile_dir(profile) / "packs" / f"{name}.json", {})
+    pack = read_json(profile_dir(profile) / "packs" / f"{name}.json", {})
     return pack or None
 
 
@@ -127,12 +153,12 @@ def write_pack(profile: str, pack: dict) -> None:
     if not pack.get("tasks") or not all(TASK.match(t) for t in pack["tasks"]):
         raise ValueError("a pack needs task IDs like RM-12")
     pack = {"state": "new", "parallel": False, "branches": {}, "prs": {}, **pack}
-    _save(profile_dir(profile) / "packs" / f"{pack['name']}.json", pack)
+    write_json(profile_dir(profile) / "packs" / f"{pack['name']}.json", pack)
 
 
 def list_packs(profile: str) -> list[dict]:
     d = profile_dir(profile) / "packs"
-    return [p for p in (_load(f, {}) for f in sorted(d.glob("*.json"))) if p]
+    return [p for p in (read_json(f, {}) for f in sorted(d.glob("*.json"))) if p]
 
 
 def pack_of(profile: str, task: str) -> dict | None:
@@ -142,7 +168,7 @@ def pack_of(profile: str, task: str) -> dict | None:
 # ---- workers -------------------------------------------------------------------------
 
 def workers(profile: str) -> list[dict]:
-    return _load(profile_dir(profile) / "workers.json", [])
+    return read_json(profile_dir(profile) / "workers.json", [])
 
 
 def set_worker(profile: str, session: str, **fields) -> dict:
@@ -156,12 +182,12 @@ def set_worker(profile: str, session: str, **fields) -> dict:
                "started": now(), "state": "running", "waiting_for": None}
         rows.append(row)
     row.update(fields)
-    _save(profile_dir(profile) / "workers.json", rows)
+    write_json(profile_dir(profile) / "workers.json", rows)
     return row
 
 
 def drop_worker(profile: str, session: str) -> None:
-    _save(profile_dir(profile) / "workers.json", [w for w in workers(profile) if w.get("session") != session])
+    write_json(profile_dir(profile) / "workers.json", [w for w in workers(profile) if w.get("session") != session])
 
 
 def worker_for(profile: str, task: str | None = None, session: str | None = None) -> dict | None:
@@ -222,7 +248,7 @@ def _next_id(rows: list[dict], letter: str) -> str:
 
 
 def queue(profile: str, open_only: bool = True) -> list[dict]:
-    rows = _load(profile_dir(profile) / "queue.json", [])
+    rows = read_json(profile_dir(profile) / "queue.json", [])
     return [r for r in rows if r.get("answer") is None] if open_only else rows
 
 
@@ -232,7 +258,7 @@ def queue_add(profile: str, task: str | None, question: str, options: list[str] 
     qid = _next_id(rows, "Q")
     rows.append({"id": qid, "ts": now(), "task": task, "question": question, "options": options or [],
                  "recommendation": recommendation, "source": source, "blocking": blocking, "answer": None, "by": None})
-    _save(profile_dir(profile) / "queue.json", rows)
+    write_json(profile_dir(profile) / "queue.json", rows)
     return qid
 
 
@@ -243,7 +269,7 @@ def queue_close(profile: str, qid: str, answer: str, by: str) -> bool:
     if row is None or row.get("answer") is not None:
         return False
     row.update(answer=answer, by=by, answered=now())
-    _save(profile_dir(profile) / "queue.json", rows)
+    write_json(profile_dir(profile) / "queue.json", rows)
     return True
 
 
@@ -254,7 +280,7 @@ def _inbox_path(profile: str, task: str) -> Path:
 
 
 def inbox(profile: str, task: str, unread_only: bool = False) -> list[dict]:
-    rows = _load(_inbox_path(profile, task), [])
+    rows = read_json(_inbox_path(profile, task), [])
     return [r for r in rows if not r.get("ack")] if unread_only else rows
 
 
@@ -264,7 +290,7 @@ def inbox_add(profile: str, task: str, text: str, by: str = "sup", q: str | None
     rows = inbox(profile, task)
     aid = _next_id(rows, "A")
     rows.append({"id": aid, "ts": now(), "text": text, "by": by, "q": q, "ack": False})
-    _save(_inbox_path(profile, task), rows)
+    write_json(_inbox_path(profile, task), rows)
     return aid
 
 
@@ -274,7 +300,7 @@ def inbox_ack(profile: str, task: str, aid: str) -> bool:
     if row is None:
         return False
     row["ack"] = True
-    _save(_inbox_path(profile, task), rows)
+    write_json(_inbox_path(profile, task), rows)
     return True
 
 

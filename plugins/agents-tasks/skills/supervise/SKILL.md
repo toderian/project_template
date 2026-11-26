@@ -1,0 +1,75 @@
+---
+name: supervise
+description: "Set up and run a supervisor for a hub's worker sessions: a profile, packs of tasks, a watcher, and an interactive chat that answers worker questions inside the recorded authorisation. Use when a human wants several task sessions run in parallel from one repo with their questions and lab-resource requests handled, or asks to start, stop, trial or clean up a supervisor."
+disable-model-invocation: true
+metadata:
+  pack: task-management
+---
+
+# Supervise
+
+## Purpose
+
+A supervisor runs worker sessions (one per task, each in its own worktree) and handles what stops them: questions,
+resource requests, finished tasks. It writes no code. Stdlib code does the scheduling; a short LLM session (a tick)
+judges only events that need it; the owner talks to the same agent in a chat. All state lives on the host under
+`at sup`, so a tick can be killed and a chat cleared without loss. Task format: `agents-tasks:task-ledger`.
+
+Use this when tasks are prepared (readiness checked, `Authorised` and `Defaults` lines written) and the owner wants
+them run in parallel. Do not use it for one task: run `agents-core:execute-plan`.
+
+## Set up, in this order
+
+1. Copy `assets/profile.json` and fill it: repos, resources (`name`, default `minutes`, `auto`), session `cap`,
+   `land` mode, and the lab wrapper scripts as absolute paths.
+2. `at sup init --profile <p> --hub <hub> --from <profile.json>` (the owner's shell or chat; a worker or tick is
+   refused). It records the hub in the profile's config, so later commands need no `--hub`, and writes into the hub
+   `.claude/agents/<p>-supervisor.md`, `-adviser.md`, `-operator.md` and `.claude/supervisor/<p>.json`,
+   `<p>.settings.json`, `<p>.tables.json`. Existing files are refused without `--force`.
+3. Review the generated files. Check that the supervisor's tool list has no Edit or Write and that
+   `<p>.tables.json` (mode 0600) lists only your operator scripts: the supervisor's own commands are the guard's
+   built-in table (`DEFAULT_MAIN` in `sup_guard.py`), which the file does not override.
+4. `at sup pack <name> <TASK>... [--parallel]` for each pack, `at sup ready <TASK>` for each task, then
+   `at sup start-pack <name>`.
+5. `at sup watch start --profile <p>`: the watcher starts ready tasks in a running pack, grants `auto` resources,
+   and starts a tick (`at sup tick`) on an event that needs judgement.
+6. `at sup chat --profile <p>`: the owner's interactive session; its opening message is the digest.
+
+## The owner's commands
+
+- In chat: "status" (the digest, the queue first), answers to the queue (`at sup answer <Q-id> '<text>' --owner`),
+  standing instructions (recorded at once with `at sup instruct`), `pack`, `start-pack`, `pause-pack`,
+  `close-pack`, `order`, `cap`, `watch start|stop`. Only the chat session (its token) runs these from a supervisor.
+- `at sup board` writes and prints `board.md`: digest plus the whole queue.
+- Agent view: watch a worker or approve a permission prompt; no supervisor can.
+- Owner's shell only: `at sup init|tick|chat`, `at sup watch once`, `at lease clear`, and any `git push`. No LLM pushes.
+- When a pack is finished: `at sup done <pack>` (exit 0 when every task is landed and nothing is live), then
+  `at sup close-pack <pack>`.
+
+## What the supervisor may decide
+
+- Answer a worker only when the answer follows from the task file, the owner's standing instructions or a recorded
+  decision; each answer is a `Decision: [sup-<n>]` line naming its source. Never above the repo's `Autonomy max`.
+- Grant or deny a resource request (`at sup grant <TASK> <resource>`, `at sup deny <TASK> <resource> '<reason>'`); land a task that passed the done check; start the next ready task.
+- It may not edit files, push, clear a lease, change instructions or pack controls from a tick, or run any command
+  outside the guard's tables. Everything else stays in the owner's queue.
+
+## Trial arms
+
+- Arm A, no LLM: `at sup watch start --no-tick`. The owner works from `at sup status`, the queue and the agent view.
+- Arm B: `at sup watch start` with ticks, same kind of packs. Compare per event with `at sup measure`: owner
+  touches, time to the worker's next step, cost (`ticks.jsonl` has each tick's cost), share of questions answered.
+  Read every `Decision: [sup-` line afterwards and overrule what is wrong.
+
+## Stop and clean up
+
+- `at sup watch stop --profile <p>`. A tick in flight can be killed: the cursor moves only when it ends with
+  `TICK done:`, so the next tick repeats the events.
+- Remove a profile by deleting the generated hub files and `${AGENTS_SUP_DIR:-~/.local/state/agents-template/sup}/<p>/`
+  after `at sup close-pack` on each pack. Chat tokens expire after 12 hours.
+
+## Completion criteria
+
+- `at sup init` wrote every file and `at sup chat --print-command` shows the settings file and the agent.
+- A tick on a test event ends with `TICK done:` and moves the cursor; a failing tick leaves it.
+- The owner can read each answer the supervisor gave in the queue or the inbox and overrule it.
