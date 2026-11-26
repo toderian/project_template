@@ -22,7 +22,7 @@ updated: 2026-11-26T00:00:00
 | 4 | committed | 3 | PASS | PASS | PASS | 0 | a82668b | — |
 | 5 | committed | 4 | PASS | PASS | PASS | 0 | 52e97e9 | — |
 | 6 | committed | 3 | PASS | PASS | PASS | 0 | f1971f5 | — |
-| 7 | reviewing | 1 | PASS | PASS | n/a | 0 | — | — |
+| 7 | committed | 1 | PASS | PASS | n/a | 0 | bac94d4 | — |
 
 Phase 0: BASE 54e23a5
 Phase 5: BASE 54e23a5 (lane B)
@@ -130,3 +130,14 @@ Note: live E5 logs `report LIV-005: exited 2`: its fixture state.md is a three-c
 Phase 7: review of the text: FAIL 0/3/6
 Ruling: phase 7 review findings 1-9 (recovery order and row state in run-state.md, `--harness codex` without `--phase`, six wording errors) — all nine fixed by the orchestrator in the text, each against the code line the reviewer cited; no re-review of this round, the final review reads the same text — cost if wrong: a wrong recovery step in run-state.md survives until the final review
 Note: phase 7 is committed without two of its items, which wait for the owner: scenario E9 (with the heartbeat half of E6) and `scripts/release.sh`
+Note: PR size +6665 / −235, 141 files; code net +1660 (9 files), test net +2222, docs net +2548 (113 files, mostly run files); split candidate: no, the phases are already separate commits and the release is one version
+Note: Flagged at the final size: run_watch.py (ceiling raised by Decision), task_lanes.py (plan Shape: one new module for lanes), task_run.py, task_report.py, run-guard.sh, code net +1660 (seven phases; each phase's own size.md has its reason)
+Final review: simplicity PASS 0/0/8; reviewer 1 FAIL 1/3/2; reviewer 2 (unanchored) FAIL 1/3/2; peer codex FAIL 3/0/0 — one fix wave of 12 items (final-findings.md), two implementers on disjoint files
+Final review: re-review of the fix wave PASS 0/0/5; all 12 items closed
+Ruling: peer findings 1-3 rated critical by the peer — treated as important (W4, W5, D6): none loses data, the report can be rebuilt by hand and a ledger traceback also fails the pre-commit gate — fixed in the wave — cost if wrong: none, they are fixed
+Ruling: reviewer 1 finding 5 (bac94d4 typed `docs:` with a behaviour change) — accepted as-is, history is not rewritten; the correction is in the `fix:` commit of this wave — cost if wrong: a misleading commit type
+Ruling: re-review finding 2 (abort note kept at its old position) — fixed by the orchestrator: the note is moved to the end — cost if wrong: none
+Ruling: re-review findings 1, 3, 4, 5 (report skipped for a marker cwd below the repository root; ledger-sync failure leaves a wave open instead of undoing it; two guards without a failing test; a past `last_stop` makes a fresh BLOCKED stale) — accepted as follow-ups: `arm` records the session's cwd, which is the repository root in a normal run; the open wave has a documented recovery; the last one stays inside the restart caps and the accepted trust model (Decision: caps guard accidental loops) — cost if wrong: a missing report in a run armed from a subdirectory, and a hand recovery after a ledger crash
+Ruling: simplicity findings 1, 3, 4, 5, 6, 7, 8 (one-caller helper, repeated id regex, doubled floor check, python twin of the open scan, test overlap, live-scenario heredocs) — accepted as follow-ups, finding 2 fixed as D7 — cost if wrong: about 80 avoidable lines stay
+Decision: run_watch.py ceiling 400 code lines (was 380) — why: the final fix wave added five guards (stale BLOCKED, report cwd, report only with run state, rowless state, failed report notified) — cost if wrong: the module is 100 lines over the plan's Shape
+Final review: live E3 E4 E5 E7 E8 PASS on the fixed code (E4 on its second attempt; E5 after the failed-report notification was renamed so it does not read as a second "Run finished")

@@ -236,7 +236,7 @@ def after(*pairs):  # (phase title, "After: ...") lines under the phase headings
 def driver(tmp, ids, *args, **env):  # (argv, env) of an `at task run` on the wrapped fake harness
     drv = tmp.parent / (tmp.name + "-wrap"); drv.write_text(WRAP); drv.chmod(0o755)
     os.symlink(FAKE, str(drv) + ".fake") if not os.path.exists(str(drv) + ".fake") else None
-    e = dict(os.environ, AT_TASKS_ROOT=str(ROOT / "plugins/agents-tasks"), FAKE_SCENARIO="pass", FAKE_CALLS=str(tmp.parent / (tmp.name + ".calls")), **env)
+    e = dict(dict(os.environ, AT_TASKS_ROOT=str(ROOT / "plugins/agents-tasks"), FAKE_SCENARIO="pass", FAKE_CALLS=str(tmp.parent / (tmp.name + ".calls"))), **env)
     return [str(AT), "task", "run", *ids, "--harness", "claude", "--driver-cmd", str(drv), *args], e
 def run_ids(tmp, ids, *args, **env):
     argv, e = driver(tmp, ids, *args, **env)
@@ -510,4 +510,33 @@ class Lanes(unittest.TestCase):
         tmp = repo()
         for a in (("--lanes", "4"), ("--lanes", "0"), ("--lanes", "2", "--no-commit")):
             p = run_ids(tmp, ["TST-003"], *a); self.assertEqual(p.returncode, 2, p.stderr)
+def ledger_tools(tmp, body):  # a copy of agents-tasks whose sync_todo_ledgers.py gets `body` after its __future__ import (task_brief imports it); returns the AT_TASKS_ROOT to use
+    dst = tmp.parent / (tmp.name + "-tasks"); shutil.copytree(ROOT / "plugins/agents-tasks", dst)
+    f = dst / "skills/task-ledger/scripts/sync_todo_ledgers.py"; fut = "from __future__ import annotations\n"; f.write_text(f.read_text().replace(fut, fut + body, 1)); return str(dst)
+class FixWave(unittest.TestCase):
+    def test_a_reviewing_row_satisfies_after_only_under_no_commit(self):  # D1
+        tmp = repo(); edit_task(tmp, lambda t: mark_unattended()(after(("2: Implementation", "After: 1\nFiles: src/phase2.py"), ("3: Hardening", "After: 2\nFiles: src/phase3.py"))(t)))
+        run_ids(tmp, ["TST-003"], "--phase", "1"); (tmp / STATE).write_text(state(tmp).replace("| 2 | pending |", "| 2 | reviewing |"))
+        p = lanes(tmp, "--dry-run"); self.assertEqual(p.returncode, 0, p.stdout + p.stderr); self.assertNotIn("in lanes", p.stdout)
+        p = run_ids(tmp, ["TST-003"], "--no-commit", "--retry-blocked"); self.assertNotIn("waits on phase 2", state(tmp), p.stdout + p.stderr)  # phase 2's reviewing row opens phase 3 (it then stops on the dirty tree)
+    def test_an_aborted_run_leaves_one_note_and_the_report_lists_the_open_rows(self):  # D3
+        tmp = repo()
+        for _ in range(2): p = run_ids(tmp, ["TST-003"], "--check", "false"); self.assertEqual(p.returncode, 1, p.stdout + p.stderr)
+        self.assertEqual(state(tmp).count("Note: run aborted: baseline check failed before phase 1: false"), 1, state(tmp))
+        p = subprocess.run([str(AT), "task", "report", "TST-003"], cwd=str(tmp), capture_output=True, text=True); self.assertEqual(p.returncode, 0, p.stderr)
+        rep = (tmp / p.stdout.strip()).read_text(); needs = rep.split("## Needs you")[1].split("## Task")[0]
+        self.assertIn("- Phase 1 is pending", needs); self.assertIn("Note: run aborted: baseline check failed", needs); self.assertNotIn("Nothing open", needs)
+        # D4: the untracked report does not make the next run refuse the tree
+        p = run_ids(tmp, ["TST-003"], "--phase", "1"); self.assertEqual(p.returncode, 0, p.stdout + p.stderr); self.assertEqual(rows(tmp)[0], "committed")
+        tracked = subprocess.run(["git", "ls-files", "docs/tasks_manager/_reports"], cwd=str(tmp), capture_output=True, text=True).stdout
+        self.assertEqual(tracked, "", "the report rode into the phase commit"); self.assertTrue((tmp / "docs/tasks_manager/_reports").is_dir())
+    def test_a_ledger_script_that_dies_with_a_traceback_stops_the_run(self):  # D6
+        for only in ("--check", "sync"):
+            tmp = repo(); body = "import sys\nif __name__ == '__main__' and %s: raise RuntimeError('ledger boom')\n" % ("'--check' in sys.argv" if only == "--check" else "'--check' not in sys.argv")
+            p = run_ids(tmp, ["TST-003"], AT_TASKS_ROOT=ledger_tools(tmp, body)); self.assertEqual(p.returncode, 1, (only, p.stdout + p.stderr))
+            self.assertIn("ledger boom", p.stdout + p.stderr + state(tmp), only); self.assertNotEqual(rows(tmp), ["committed"] * 3)
+    def test_a_lane_adds_only_its_own_log_entries_to_the_run_log(self):  # D5
+        tmp = repo(); edit_task(tmp, lane_task()); run_ids(tmp, ["TST-003"], "--phase", "1"); p = lanes(tmp); self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        calls = (tmp.parent / (tmp.name + ".calls")).read_text().splitlines()
+        self.assertEqual((tmp / "docs/tasks_manager/_runs/TST-003/driver.log").read_text().count(" rc="), len(calls))
 if __name__ == "__main__": unittest.main()

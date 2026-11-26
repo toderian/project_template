@@ -127,8 +127,11 @@ read or is out of range counts as damaged and leaves no restarts.
 
 Each tick it reads the marker and `.status`. "Finished" needs evidence: the marker holds a target and
 every target could be read; then `DONE` or nothing open notifies "finished" (the hook's event key, so
-the owner gets one message), runs `at task report`, and exits. An unreadable target is looked at again,
-and notified as "idle" after the idle limit. `BLOCKED`: it notifies and never restarts. A live session
+the owner gets one message), runs `at task report` for every task whose run state still exists (a
+closed-out run keeps its committed report; a failed report is notified), and exits. An unreadable
+target, or a state file without a row, is looked at again and notified as "idle" after the idle limit.
+`BLOCKED`: it notifies and never restarts, while no guarded file changed after that stop; once one
+did, the status is stale and the session counts as working. A live session
 (the `meta pid` is a running claude process), or a restart still running, is never restarted: after
 `GAVE_UP`, `EMPTY` or `--idle` minutes without a target change it notifies "idle" once, and the
 in-session heartbeat owns the waking. A dead session with work open is restarted with `claude --resume
@@ -219,7 +222,7 @@ dirty until the next phase's commit sweeps it in and committing the last one as
   review file, never by its text. A fix round whose implementer returns `BLOCKED`, `NEEDS_CONTEXT`
   or no status blocks the row and commits nothing.
 - `After:` lines (`agents-tasks:task-ledger`, todo-convention) order the phases: a phase runs once
-  every phase it names is committed, a phase without the line waits for the previous one. An `After:`
+  every phase it names is committed (`reviewing` counts only under `--no-commit`), a phase without the line waits for the previous one. An `After:`
   naming a phase that does not exist, or a cycle, is an error before any phase runs (exit `2`). A row
   that ends `blocked`, including after a dispatch timeout or failure, no longer stops the run: its
   edits go to `git stash` (`at task run: <ID> phase N not finished`, named in the row's `Note:`; a
@@ -317,4 +320,7 @@ you" is what is open now: `parked` and `blocked` rows with their ledger lines, a
 lines (`Note: parked: <question>` and the driver's `Note: parked phase N: ...`) while a row is not
 `committed`; afterwards they sit under "Parked during the run". `--since <rev>` adds the commits
 `rev..HEAD`. A task with no run state is read from its archived `## Completion summary` (dated by its
-`Base:` line or `--since`); one with neither is an error. `at ledger check` accepts `_reports/`.
+`Base:` line or `--since`); one with neither is an error. "Needs you" also lists every row of an
+unarchived task that is not `committed`, the driver's `Note: blocked phase N: ...` lines and its last
+`Note: run aborted: <reason>` line. `at ledger check` accepts `_reports/`, and `at task run` neither
+refuses a tree for an uncommitted report nor stages or stashes one.

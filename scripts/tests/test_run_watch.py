@@ -131,7 +131,8 @@ class Watch(unittest.TestCase):
         calls = self.lines(self.calls); self.assertEqual(len(calls), 1, calls)
         self.assertTrue(calls[0].split("|", 1)[1].startswith(f"{self.repo}|none|--resume s1 -p --permission-mode acceptEdits "
                                                              "--max-budget-usd 1.00 -- Run guard watchdog:"), calls[0])
-        self.assertEqual([n.split(":")[0] for n in self.lines(self.notes)], ["Run restarted (1/4)", "Run finished"])
+        self.assertEqual([n.split(":")[0] for n in self.lines(self.notes)], ["Run restarted (1/4)", "Run finished",
+                                                                            "Morning report not written"])  # the fixture state is no real run
         self.assertFalse((self.guard / "s1.watch").exists()); self.assertFalse((self.guard / "s1.watch.state").exists())
         self.assertIn("report TST-001: exited", self.log())
 
@@ -176,7 +177,8 @@ class Watch(unittest.TestCase):
         self.marker(self.dead_pid(), "kind=DONE\n")
         key = subprocess.run(["cksum"], input=b"DONE nothing is open", capture_output=True).stdout.split()[0].decode()
         (self.guard / "s1.sent").mkdir(); (self.guard / f"s1.sent/done-{key}").touch()
-        self.assertEqual(self.watch().returncode, 0); self.assertEqual(self.lines(self.notes), [])
+        self.assertEqual(self.watch().returncode, 0)  # only the report failure (the fixture state is no real run)
+        self.assertEqual([n.split(":")[0] for n in self.lines(self.notes)], ["Morning report not written"])
         self.assertEqual(run_watch.hook_key("DONE", "nothing is open"), f"done-{key}")
 
     def test_the_resume_cap_holds_and_the_budget_is_divided_and_floored(self):
@@ -427,6 +429,56 @@ class Watch(unittest.TestCase):
             self.assertEqual(p.returncode, 2, (args, p.stderr)); self.assertIn("cksum", p.stderr)
             self.assertFalse((self.guard / "s1.watch").exists())
         self.assertFalse((self.guard / "s1").exists())
+
+    def test_w1_a_stale_blocked_does_not_switch_the_watchdog_off(self):
+        self.marker(self.dead_pid(), "kind=BLOCKED\ntext=pick a name\n")
+        later = time.time() + 30  # the owner answered and the session worked on: a guarded file changed after the stop
+        os.utime(self.repo / "docs/tasks_manager/_runs/TST-001/state.md", (later, later))
+        self.assertEqual(self.watch(FAKE_FINISH="1").returncode, 0); self.assertEqual(len(self.argv()), 1)
+        self.assertNotIn("Run BLOCKED: TST-001 pick a name", self.lines(self.notes))  # a fresh one still says so (above)
+
+    def test_w2_only_the_report_runs_in_the_markers_cwd(self):
+        self.marker(self.dead_pid(), cwd=self.tmp / "gone")  # missing: notify must still be delivered
+        self.assertEqual(self.watch().returncode, 0)
+        self.assertEqual(self.lines(self.notes), ["Run not restarted: TST-001"])
+        other, evil = self.tmp / "other", self.tmp / "evil"
+        subprocess.run(["git", "init", "-q", str(other)], check=True)
+        subprocess.run(["git", "config", "agents.notifyCommand", str(self.tmp / "notify.sh")], cwd=self.repo, check=True)
+        subprocess.run(["git", "config", "agents.notifyCommand", f"touch {evil} #"], cwd=other, check=True)
+        self.reset(); self.marker(self.dead_pid(), cwd=other); self.env.pop("AGENTS_NOTIFY_CMD")
+        self.assertEqual(self.watch().returncode, 0)
+        self.assertEqual(self.lines(self.notes), ["Run not restarted: TST-001"]); self.assertFalse(evil.exists())
+
+    def test_w3_a_closed_out_run_keeps_its_committed_report(self):
+        self.marker(self.dead_pid())
+        reports = self.repo / "docs/tasks_manager/_reports"; reports.mkdir()
+        (reports / "2026-11-26-TST-001.md").write_text("the committed morning report\n")
+        (self.repo / "docs/tasks_manager/_todos/TST-001-F_x.md").rename(self.repo / "docs/tasks_manager/_todos_archived/TST-001-F_x.md")
+        shutil.rmtree(self.repo / "docs/tasks_manager/_runs/TST-001")  # closeout
+        git = ["git", "-c", "user.name=t", "-c", "user.email=t@t"]
+        subprocess.run([*git, "add", "-A"], cwd=self.repo, check=True)
+        subprocess.run([*git, "commit", "-qm", "closeout"], cwd=self.repo, check=True)
+        self.assertEqual(self.watch().returncode, 0); self.assertEqual(self.lines(self.notes), ["Run finished: TST-001"])
+        self.assertEqual((reports / "2026-11-26-TST-001.md").read_text(), "the committed morning report\n")
+        self.assertEqual(subprocess.run(["git", "status", "--porcelain"], cwd=self.repo, capture_output=True, text=True).stdout, "")
+        self.assertNotIn("report", self.log().replace("morning report", ""))
+
+    def test_w4_a_truncated_state_file_is_not_finished(self):
+        state = self.repo / "docs/tasks_manager/_runs/TST-001/state.md"
+        for text in ("", "| Phase | Status |\n|---|---|\n"):
+            with self.subTest(text=text):
+                state.write_text(text); self.reset()
+                self.marker(self.live().pid, "kind=WAITING\n", task=False, extra=[f"state\t{state}"])
+                self.assertEqual(self.watch("--until", "+0.5").returncode, 0); self.assertEqual(self.lines(self.notes), [])
+        self.assertFalse(run_watch.scan({"tasks": [], "states": [str(state)], "meta": {}})["complete"])
+
+    def test_w5_a_failed_report_is_notified(self):
+        self.marker(self.dead_pid())
+        (self.repo / "docs/tasks_manager/_reports").write_text("a file, so no report can be written there\n")
+        (self.repo / "docs/tasks_manager/_todos/TST-001-F_x.md").rename(self.repo / "docs/tasks_manager/_todos_archived/TST-001-F_x.md")
+        self.assertEqual(self.watch().returncode, 0)
+        self.assertEqual(self.lines(self.notes), ["Run finished: TST-001",
+                                                  "Morning report not written: run `at task report TST-001`"])
 
     def test_until_hh_mm_is_the_next_such_time(self):
         now = time.mktime((2026, 11, 26, 10, 0, 0, 0, 0, -1))

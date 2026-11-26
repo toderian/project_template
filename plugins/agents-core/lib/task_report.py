@@ -9,8 +9,10 @@ neither, exit 2). No clock, no absolute paths, git config neutralised: a rerun i
 Exit 0 on success, 2 on usage, input or filesystem errors. Imported by lib/at.py.
 
 "Needs you" is what is open now: rows that are `parked` or `blocked`, each with its ledger lines
-(`Phase N: ...`, `Note: parked phase N: ...`), and `Note: parked: <question>` lines while some row is
-not `committed`. Once every row is committed, or the task is archived, parked notes are history
+(`Phase N: ...`, `Note: parked phase N: ...` or, in a run not marked unattended, `Note: blocked phase N: ...`,
+with the reason and the kept worktree path), and `Note: parked: <question>` lines while some row is
+not `committed`. In a task that is not archived, every other row that is not `committed` (a run that aborted
+before or during the phase) is listed with its status and the last `Note: run aborted: <reason>` line. Once every row is committed, or the task is archived, parked notes are history
 ("Parked during the run"). `Decision:`, `Ruling:` and parked notes are copied verbatim.
 """
 from __future__ import annotations
@@ -29,7 +31,7 @@ TASKS = "docs/tasks_manager"
 REPORTS = f"{TASKS}/_reports"
 ID_RE = re.compile(r"[A-Z][A-Z0-9]*-[0-9]+")
 HEX_RE = re.compile(r"[0-9a-f]{4,40}")
-KEPT = re.compile(r"(Decision|Ruling):|Note: parked")
+KEPT = re.compile(r"(Decision|Ruling):|Note: (parked|blocked)")
 USAGE = "usage: at task report <TASK-ID>... [--since <rev>]"
 # user config must not change the output
 GIT = ["git", "-c", "core.quotePath=false", "-c", "i18n.logOutputEncoding=UTF-8", "-c", "log.showSignature=false"]
@@ -105,12 +107,16 @@ def build(repo: Path, taskid: str, since_arg: str | None) -> tuple[str, str]:
     for r in rows:
         if r[1] in ("parked", "blocked"):
             needs.append(f"- Phase {r[0]} is {r[1]}")
-            why = [x for x in ledger if re.match(rf"(Phase {r[0]}:|Note: parked phase {r[0]}\b)", x)]
+            why = [x for x in ledger if re.match(rf"(Phase {r[0]}:|Note: (parked|blocked) phase {r[0]}\b)", x)]
             needs += [f"  - {x}" for x in why]
             explained.update(why)
+    stuck = [r for r in rows if open_ and r[1] not in ("committed", "parked", "blocked")]  # no row note says why
+    if stuck:
+        needs += [f"- Phase {r[0]} is {r[1]}" for r in stuck]
+        needs += [f"  - {x}" for x in ledger[::-1] if x.startswith("Note: run aborted")][:1]
     for x in dict.fromkeys(x for x in ledger + summary if KEPT.match(x)):
-        if x.startswith("Note: parked"):
-            pm = re.match(r"Note: parked phase (\d+)\b", x)
+        if KEPT.match(x).group(2):
+            pm = re.match(r"Note: (?:parked|blocked) phase (\d+)\b", x)
             live = open_ and not (pm and status.get(pm.group(1)) == "committed")
             if x not in explained:
                 (needs if live else hist).append(f"- {x}")

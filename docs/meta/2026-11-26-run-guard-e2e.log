@@ -62,3 +62,15 @@ E6: killed job pid 559920
 E6: only the dead-job half ran (row 1 parked); the heartbeat half is manual (runs 1 and 2 in this file's header) and is NOT verified here
 PASS E6
 test-unattended-live: ok (E6)
+
+=== after the final fix wave: E3 E4 E5 E7 E8 (E4 passed on its second attempt: the session did not commit phase 1 in the first), then E5 again after a notification title changed
+PASS E3
+FAIL: the session did not commit phase 1
+PASS E4 (after a retry: attempt 2 of 2; see the failed attempt above)
+FAIL: expected one 'Run finished' line: Run restarted (1/2): LIV-005
+FAIL: expected one 'Run finished' line: Run restarted (1/2): LIV-005
+FAIL E5
+PASS E7
+PASS E8
+test-unattended-live: FAILED: E5
+PASS E5

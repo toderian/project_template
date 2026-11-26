@@ -410,3 +410,14 @@ The end-to-end suite E1–E8 passes from a clean checkout, and E9 was run once w
   without `--phase`), fixed by the orchestrator. A probe of the seam between phases 3 and 4 found
   that a watcher started outside the run's repository wrote no report; fixed with a test. Open and
   waiting for the owner: scenario E9, the heartbeat half of E6, and `scripts/release.sh`.
+- 2026-11-26: Final whole-task review. Simplicity PASS 0/0/8; reviewer 1 FAIL 1/3/2, reviewer 2
+  (no plan given) FAIL 1/3/2, peer codex FAIL 3/0/0. One fix wave of 12 items: a stale `BLOCKED`
+  status no longer switches the watchdog off; the watcher writes a report only while the run state
+  exists, runs only the report in the marker's cwd, and notifies a failed report; a rowless state
+  file is never "finished"; `reviewing` satisfies `After:` only under `--no-commit`; the report
+  lists blocked notes, aborted runs and every open row; an uncommitted report neither blocks nor
+  rides into a driver run; a ledger traceback stops the run. Re-review PASS 0/0/5. Checks:
+  test_run_watch 36, test_task_run 63, test_task_report 22, run-all ok, live E3 E4 E5 E7 E8 PASS.
+  Size: +6665 / -235 before the wave, code net +1660; run_watch.py 398 code lines (ceiling 400 by
+  Decision). Follow-ups are the `Ruling:` lines "accepted as follow-ups" in the run state.
+

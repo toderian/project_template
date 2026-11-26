@@ -26,7 +26,6 @@ from __future__ import annotations
 import os
 import re
 import shutil
-import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -67,7 +66,7 @@ def plan_wave(task, ready: list[int], lanes: int) -> list[int]:
 
 def planned_waves(r, state: State, todo: list[int]) -> list[str]:
     """--dry-run: the waves the run would plan if every phase committed."""
-    done = {n for n in range(1, len(state.rows) + 1) if state.row(n)[1] in task_run.DONE}
+    done = {n for n in range(1, len(state.rows) + 1) if state.row(n)[1] in r.done_rows}
     pending, out, k = list(todo), [], next_wave(state)
     while ready := [n for n in pending if r.args.phase or set(task_run.phase_deps(r.task, n)) <= done]:
         wave = plan_wave(r.task, ready, r.lanes)
@@ -152,8 +151,7 @@ def leftovers(r, state: State, todo: list[int]) -> set[int]:
 
 # ---- one wave ---------------------------------------------------------------------------------
 
-def last_line(proc) -> str:
-    return ((proc.stderr or proc.stdout).strip().splitlines() or ["no output"])[-1][:300]
+last_line = task_run.last_output_line
 
 
 def lane_job(lr, ls: State, n: int) -> bool:
@@ -239,6 +237,7 @@ def run_wave(r, state: State, wave: list[int]) -> bool:
     r.commit_run_dir(f"chore: {r.task.taskid} run state")  # the base holds the state: `git reset --hard <base>` loses nothing earlier
     base = r.git("rev-parse", "HEAD").stdout.strip()
     k = next_wave(state)
+    log_at = {}  # phase -> size of the lane's driver.log as checked out (the committed copy)
     lanes = []  # (n, path, branch, lane runner, lane state, notes already in its state)
     for n in wave:
         path, branch = lane_names(r, n)
@@ -251,9 +250,10 @@ def run_wave(r, state: State, wave: list[int]) -> bool:
         state.note(f"Note: lane phase {n}: worktree {path}, branch {branch}")
         state.save(current_phase=str(wave[0]))
         lr = type(r)(r.args, path, r.core_root, r.tasks_scripts)
-        lr.lane, lr.mode, lr.unattended, lr.cap_continue = branch, r.mode, r.unattended, r.cap_continue
+        lr.lane, lr.mode = branch, r.mode
         shutil.copyfile(state.path, lr.runs / "state.md")
         ls = State(lr.runs / "state.md")
+        log_at[n] = (lr.runs / "driver.log").stat().st_size if (lr.runs / "driver.log").exists() else 0
         lanes.append((n, path, branch, lr, ls, len(ls.ledger)))
     r.say(f"wave {k}: phases {', '.join(str(l[0]) for l in lanes) or 'none'} in lanes")
     done = []
@@ -266,7 +266,7 @@ def run_wave(r, state: State, wave: list[int]) -> bool:
             shutil.copytree(src, r.runs / f"phase-{n}", dirs_exist_ok=True, symlinks=True)  # a link an implementer planted stays a link
         if (log := lr.runs / "driver.log").exists():
             with r.harness.log.open("a", encoding="utf-8") as fh:
-                fh.write(f"\n### lane phase {n}\n" + log.read_text(encoding="utf-8", errors="replace"))
+                fh.write(f"\n### lane phase {n}\n" + log.read_bytes()[log_at[n]:].decode("utf-8", "replace"))  # only what the lane added to the committed copy
         r.harness.cost_usd += lr.harness.cost_usd
         state.ledger += ls.ledger[seen:]
         state.rows[n - 1] = list(ls.row(n))
@@ -307,8 +307,7 @@ def run_wave(r, state: State, wave: list[int]) -> bool:
     before = state.path.read_text(encoding="utf-8")
     for n, (_, _, _, lr) in merged.items():
         task_run.tick_phase(r.task.path, n, lr.lane_entry)
-    if r.ledger_script.exists():
-        sh([sys.executable, str(r.ledger_script), "--root", str(r.repo)], r.repo)
+    r.sync_ledgers()
     for n, (sha, _, branch, _) in merged.items():
         state.set(n, status="committed", commit=sha[:7])
         state.note(f"Phase {n}: lane merged ({sha[:7]}, branch {branch})")

@@ -36,7 +36,7 @@ FINDING_RE = re.compile(r"^\s*\d+\.\s*(?:\*\*)?\[(C|I|M|P[123])\](?:\*\*)?\s*(.+
 P_SEVERITY = {"P1": "C", "P2": "I", "P3": "M"}
 # `## Findings: 5 (C:3 I:2 M:0)`
 FINDINGS_HEADER_RE = re.compile(r"^\s*#+\s*Findings:\s*(\d+)(?:\s*\(([^)]*)\))?(.*)$", re.M)
-DONE = ("committed", "reviewing")  # reviewing: --no-commit left it reviewed and uncommitted
+DONE = ("committed",)  # `--no-commit` also counts `reviewing` (Runner.done_rows): the only run whose rows stay reviewed, uncommitted
 CARD_ROLES = ("implementer", "reviewer", "security-auditor")
 STATUS_REMINDER = ("Your previous reply was missing the report block. Finish with, last and exactly:\n"
                    "## Status: DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED\n## Summary: <one line>\n\n")
@@ -87,6 +87,10 @@ def now_iso() -> str:
 
 def sh(args: list[str], cwd: Path, **kw) -> subprocess.CompletedProcess:
     return subprocess.run(args, cwd=str(cwd), capture_output=True, text=True, check=False, **kw)
+
+
+def last_output_line(proc: subprocess.CompletedProcess) -> str:
+    return ((proc.stderr or proc.stdout).strip().splitlines() or ["no output"])[-1][:300]
 
 
 def card_body(core_root: Path, role: str) -> str:
@@ -491,6 +495,11 @@ class Runner:
                                args.check, effort=args.effort, strong_effort=args.strong_effort)
         self.project = args.project or f"{repo.name}; checks: {', '.join(args.check) or 'none configured'}"
         self.lock = self.runs / "lock"
+        self.done_rows = DONE + (("reviewing",) if args.no_commit else ())  # what satisfies an `After:` line
+        # The cap rule comes only from the command line: the task file is writable by the implementers this driver dispatches.
+        self.unattended = "unattended" in [v.strip().lower() for v in self.task.meta.get("Execution", "").split(",")]
+        self.cap_continue = self.unattended and args.at_review_cap == "continue"
+        self.reports_rel = f"{self.runs.parent.parent.relative_to(repo).as_posix()}/_reports"  # `at task report` writes here
         self.ledger_script = tasks_scripts / "sync_todo_ledgers.py"
         self.done = False  # set when the run ends with every row committed
         self.tasks_scripts = tasks_scripts
@@ -553,9 +562,10 @@ class Runner:
         return State(path)
 
     def dirty(self, where: Path | None = None) -> list[str]:
-        """`git status --porcelain` lines outside the run directory (the driver's own files), in checkout `where`."""
+        """`git status --porcelain` lines outside the run directory (the driver's own files) and the morning reports
+        (`at task report` leaves them untracked), in checkout `where`."""
         return [l for l in sh(["git", "status", "--porcelain"], where or self.repo).stdout.splitlines()
-                if not l[3:].startswith(self.runs_rel)]
+                if not l[3:].startswith((self.runs_rel, self.reports_rel + "/"))]
 
     def require_clean_tree(self) -> None:
         if dirty := self.dirty():
@@ -566,7 +576,7 @@ class Runner:
     def stage_code(self) -> str:
         """Stage the phase's work (everything outside the run directory; in a lane also outside the task file, which
         is the integration checkout's) and return its tree id: what the reviewers see, and what the commit must carry."""
-        keep_out = [f":(exclude){self.runs_rel}"] + ([f":(exclude){self.task_rel}"] if self.lane else [])
+        keep_out = [f":(exclude){self.runs_rel}", f":(exclude){self.reports_rel}"] + ([f":(exclude){self.task_rel}"] if self.lane else [])
         self.git("add", "-A", "--", ".", *keep_out)
         return self.git("write-tree").stdout.strip()
 
@@ -733,8 +743,7 @@ class Runner:
         # the next phase's commit sweeps it in (the run directory is exempt from the clean-tree gate); the last one is
         # committed by `run()`. Same rule as the skill: no metadata-only commit per phase.
         if not self.lane:
-            if self.ledger_script.exists():  # ticked checkboxes change the generated ledgers; they ride in the commit
-                sh([sys.executable, str(self.ledger_script), "--root", str(self.repo)], self.repo)
+            self.sync_ledgers()  # ticked checkboxes change the generated ledgers; they ride in the commit
             self.git("add", "--", *self.bookkeeping_paths())
         title = self.tb.phase_title(self.task.phases[n - 1])
         msg = (f"feat: {self.task.taskid} phase {n} — {title}\n\nWhat changed:\n- phase {n} of {self.task.title}\n\n"
@@ -752,6 +761,13 @@ class Runner:
         self.say(f"phase {n}: committed {sha}")
         return True if self.lane else self.post_phase_checks(state, n)  # a lane's checks run once, on the merged result
 
+    def sync_ledgers(self) -> None:
+        """Regenerate the ledgers; a script that fails is an error, not a silent no-op."""
+        if self.ledger_script.exists():
+            proc = sh([sys.executable, str(self.ledger_script), "--root", str(self.repo)], self.repo)
+            if proc.returncode != 0:
+                raise RunError(f"ledger sync failed (exit {proc.returncode}): {last_output_line(proc)}")
+
     def post_phase_checks(self, state: State, n: int) -> bool:
         """The same two checks the skill runs after every phase; a failure blocks the next phase."""
         problems: list[str] = []
@@ -760,7 +776,8 @@ class Runner:
         if self.ledger_script.exists():
             proc = sh([sys.executable, str(self.ledger_script), "--check", "--root", str(self.repo)], self.repo)
             if proc.returncode != 0:
-                problems += [l for l in (proc.stdout + proc.stderr).splitlines() if l.startswith("ERROR")]
+                problems += [l for l in (proc.stdout + proc.stderr).splitlines() if l.startswith("ERROR")] \
+                    or [f"ledger check exited {proc.returncode}: {last_output_line(proc)}"]  # a traceback has no ERROR line
         if problems:
             state.note(f"Note: post-phase checks failed after phase {n}; fix before continuing: " + "; ".join(problems[:3]))
             state.save()
@@ -864,7 +881,9 @@ class Runner:
             if n and state.row(n)[1] in ("implementing", "reviewing", "fixing"):
                 state.set(n, status="blocked")
                 state.note(f"Phase {n}: run aborted — {exc}")
-                state.save()
+            note = f"Note: run aborted: {' '.join(str(exc).split())[:300]}"
+            state.ledger = [l for l in state.ledger if l != note] + [note]  # once, and last: the report reads the last one
+            state.save()
             raise
         finally:
             self.release_lock()
@@ -901,14 +920,15 @@ class Runner:
 
     def runnable(self, state: State, pending: list[int]) -> list[int]:
         """Pending phases whose `After:` dependencies are all done, lowest first (`--phase N` waives the gate)."""
-        return [n for n in pending if self.args.phase or all(state.row(d)[1] in DONE for d in phase_deps(self.task, n))]
+        return [n for n in pending if self.args.phase or all(state.row(d)[1] in self.done_rows for d in phase_deps(self.task, n))]
 
     def set_aside(self, state: State, n: int) -> None:
         """One path for a row that ended blocked (verdict, check, implementer or dispatch failure): its edits
         go to a stash so an independent phase starts clean, and an unattended run parks it."""
         name = f"at task run: {self.task.taskid} phase {n} not finished"
         self.git("reset", "-q")  # the size report leaves intent-to-add entries, which make `git stash` refuse
-        proc = self.git("stash", "push", "-u", "-m", name, "--", ".", f":(exclude){self.runs_rel}")
+        proc = self.git("stash", "push", "-u", "-m", name, "--", ".", f":(exclude){self.runs_rel}",
+                        f":(exclude){self.reports_rel}")  # a morning report is the owner's, never a phase's
         if proc.returncode != 0:
             state.note(f"Note: phase {n}: `git stash` failed ({proc.stderr.strip()[-200:]}); its edits are still in the working tree")
             state.save()
@@ -921,9 +941,6 @@ class Runner:
         state.save()
 
     def _run(self, state: State) -> int:
-        # The cap rule comes only from the command line: the task file is writable by the implementers this driver dispatches.
-        self.unattended = "unattended" in [v.strip().lower() for v in self.task.meta.get("Execution", "").split(",")]
-        self.cap_continue = self.unattended and self.args.at_review_cap == "continue"
         import task_lanes  # lib/task_lanes.py, next to this file (imported here: it imports this module)
         if stop := task_lanes.open_wave(self, state):
             print(f"at task run: {stop}", file=sys.stderr)
@@ -978,7 +995,7 @@ class Runner:
                 return 1  # committed, but the post-phase checks failed: stop, as before
             self.set_aside(state, n)
         for n in pending:  # still waiting on a dependency that is blocked, parked or not run
-            waits = ", ".join(str(d) for d in phase_deps(self.task, n) if state.row(d)[1] not in DONE)
+            waits = ", ".join(str(d) for d in phase_deps(self.task, n) if state.row(d)[1] not in self.done_rows)
             if (note := f"Note: parked phase {n}: waits on phase {waits}, which is not committed") not in state.ledger:
                 state.note(note)
             state.set(n, status="parked", agent="waits")  # the row itself records why: a rerun reads it back

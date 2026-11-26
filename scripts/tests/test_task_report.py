@@ -180,6 +180,14 @@ class Report(unittest.TestCase):
         f = self.repo / TM / "_reports/2026-01-05-TST-001.md"
         self.assertEqual(f.stat().st_mode & 0o777, 0o640)
         f.chmod(0o600); self.ok("TST-001"); self.assertEqual(f.stat().st_mode & 0o777, 0o600)
+    def test_a_blocked_note_and_an_aborted_run_are_needs_you_and_a_finished_task_is_not(self):
+        self.state("TST-001", [row(1, "committed", self.sha1), row(2, "blocked")], "Note: blocked phase 2: lane did not merge; work kept in /w/lane2\nNote: run aborted: old\nNote: run aborted: dirty tree")
+        self.ok("TST-001"); n = self.needs(self.rep()); self.assertIn("work kept in /w/lane2", n); self.assertNotIn("Nothing open", n)
+        self.state("TST-001", [row(1, "committed", self.sha1), row(2, "implementing")], "Note: run aborted: old\nNote: run aborted: dirty tree")
+        self.ok("TST-001"); n = self.needs(self.rep()); self.assertIn("- Phase 2 is implementing", n); self.assertIn("run aborted: dirty tree", n); self.assertNotIn("old", n)
+        one = self.reports(); self.ok("TST-001"); self.assertEqual(one, self.reports())
+        self.state("TST-001", [row(1, "committed", self.sha1), row(2, "committed", self.sha2)], "Note: run aborted: dirty tree")
+        self.ok("TST-001"); self.assertIn("Nothing open.", self.needs(self.rep()))
     def test_usage_errors(self):
         self.bad("../x"); self.assertIn("not a revision", self.bad("TST-001", "--since", "-x").stderr)
         self.bad("TST-001", "--since", "nope")

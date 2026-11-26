@@ -6,7 +6,8 @@ Started detached by `at run-guard arm --watch` (or in the foreground by `at run-
   marker gone, `.watch` no longer holds this pid, `--until` passed   exit
   every target read, and DONE or nothing open   notify "finished" (the hook's key), `at task report`,
                                                 drop the record, exit
-  BLOCKED                                       notify (the hook's key); session dead: exit, else watch on
+  BLOCKED, no target changed since the stop     notify (the hook's key); session dead: exit, else watch on
+                                                (a changed target: the BLOCKED is stale, as if absent)
   session or a restart alive, pid unknown, or   never restart; notify "idle" once on GAVE_UP / EMPTY or
   a target that could not be read               no target change for `--idle` minutes
   dead, open, restarts left                     growing pause, authorise, `claude --resume <id> -p <fixed
@@ -39,6 +40,7 @@ import signal
 import subprocess
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 
 from task_run import _pid_alive  # lib/task_run.py, next to this file
@@ -194,6 +196,7 @@ def scan(marker: dict) -> dict:
         try:
             rows = [m for m in map(ROW_RE.match, _lines(state, strict=True)) if m]
             found["open"] += any(m[1].strip() != "committed" for m in rows)
+            found["complete"] &= bool(rows)  # a truncated or empty state file is unknown, never "finished"
         except FileNotFoundError:
             found["missing"] += 1
         except OSError:
@@ -321,6 +324,17 @@ def authorise(marker: dict, tasks: dict[str, Path], mode: str, allow_bypass: boo
     return cwd
 
 
+def stop_time(status_path: Path, status: dict) -> float:
+    """When the session last stopped: the status file's `last_stop` (the hook's local time), else its mtime."""
+    try:
+        return datetime.strptime(status.get("last_stop", ""), "%Y-%m-%dT%H:%M:%S%z").timestamp()
+    except ValueError:
+        try:
+            return status_path.stat().st_mtime
+        except OSError:
+            return 0.0
+
+
 def _ascii(text: str, cap: int) -> str:
     return re.sub(r"[^\x20-\x7e]", " ", text)[:cap]
 
@@ -380,23 +394,34 @@ class Watcher:
         shared events (finished, blocked) pass `--event`."""
         if once and event in self.rec["sent"]:
             return
-        # `at notify` reads the notify command's git config in OUR cwd, never the marker's
+        # `at notify` runs in OUR cwd: it reads the notify command's git config there, and the marker's cwd is
+        # session-written (missing, or a repository with its own notify command)
         extra = ["--event", event, "--session", self.session] if shared else []
         if self.at(f"notify {event} ({title})", ["notify", _ascii(title, 200), *extra],
                    f"tasks: {ids}\nreason: {_ascii(reason, 300)}\n") == 0 and once:
             self.rec["sent"].append(event)
             self.save()
 
-    def at(self, what: str, args: list[str], stdin: str = "") -> int | None:
-        """Run `at <args>` (notify, task report); log what it really returned. It may be missing or fail."""
+    def at(self, what: str, args: list[str], stdin: str = "", cwd: str | None = None) -> int | None:
+        """Run `at <args>` (notify, task report) in `cwd` (default: ours); log what it really returned. It may
+        be missing or fail."""
         try:
             p = subprocess.run([str(self.at_bin), *args], input=stdin, text=True, stdout=subprocess.DEVNULL,
-                               stderr=subprocess.PIPE, timeout=120, cwd=self.cwd)
+                               stderr=subprocess.PIPE, timeout=120, cwd=cwd)
         except (OSError, subprocess.SubprocessError) as err:
             self.log(f"{what}: failed: {err}")
             return None
         self.log(f"{what}: exited {p.returncode}" + (f": {p.stderr.strip()[-200:]}" if p.returncode else ""))
         return p.returncode
+
+    def report(self, id_list: list[str]) -> None:
+        """The morning report of the runs that still have a run directory: a closed-out run's directory is gone and
+        its committed report is richer than anything rebuilt from the archive. A failed report is said."""
+        runs = Path(self.cwd or "/nonexistent") / "docs" / "tasks_manager" / "_runs"
+        ids = [tid for tid in id_list if (runs / tid / "state.md").is_file()]
+        if ids and self.at(f"report {' '.join(ids)}", ["task", "report", *ids], cwd=self.cwd) != 0:
+            text = f"Morning report not written: run `at task report {' '.join(ids)}`"
+            self.send("report-failed", text, text, " ".join(ids), once=False)
 
     def restart_alive(self) -> bool:
         """A restart this watcher (or an earlier one, per the record) started is still running."""
@@ -414,7 +439,7 @@ class Watcher:
             self.log("the marker is gone, another watcher took over, or --until passed; exiting")
             return 0
         marker, status = parse_marker(self.marker), parse_status(side(self.marker, ".status"))
-        self.cwd = marker["meta"].get("cwd") or None  # `at task report` needs the run's repository, not ours
+        self.cwd = marker["meta"].get("cwd") or None  # only `at task report` runs there: it needs the run's repository
         if status.get("mode") and status["mode"] != self.rec["mode"]:
             self.rec["mode"] = _ascii(status["mode"], 40)
             self.save()
@@ -423,12 +448,13 @@ class Watcher:
         if found["complete"] and (kind == "DONE" or found["open"] == 0):
             # the hook's own key for DONE: one "finished" message whichever side sees it first
             self.send(hook_key("DONE", "nothing is open"), f"Run finished: {ids}", "nothing is open", ids, True)
-            self.at(f"report {ids}", ["task", "report", *id_list])
+            self.report(id_list)
             side(self.marker, ".watch.state").unlink(missing_ok=True)
             return 0
         pid = to_pid(marker["meta"].get("pid", ""))
         alive = self.restart_alive() or pid is None or is_claude(pid)
-        if kind == "BLOCKED":
+        stop = stop_time(side(self.marker, ".status"), status)  # `.status` is written only at a stop the hook allows
+        if kind == "BLOCKED" and not any(p.stat().st_mtime >= stop + 1 for p in found["paths"] if p.is_file()):
             text = _ascii(status.get("text", ""), 300)
             self.send(hook_key("BLOCKED", text), f"Run BLOCKED: {ids} {text}", text, ids, True)
             return None if alive else 0
