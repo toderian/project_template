@@ -1360,7 +1360,7 @@ def cmd_reserve(args: argparse.Namespace) -> int:
 
 def cmd_task(args: argparse.Namespace) -> int:
     if not args.rest:
-        die("usage: at task brief <TASK_ID> --phase N | at task run-state init|check <TASK_ID> | at task run <TASK_ID> | at task size <TASK_ID> --phase N|--final", code=2)
+        die("usage: at task brief <TASK_ID> --phase N | at task run-state init|check <TASK_ID> | at task run <TASK_ID>... | at task size <TASK_ID> --phase N|--final", code=2)
     if args.rest[0] == "run":
         import task_run  # lib/task_run.py, next to this file
         scripts = tasks_root() / "skills" / "task-ledger" / "scripts"

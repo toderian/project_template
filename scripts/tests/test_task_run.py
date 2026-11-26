@@ -1,4 +1,4 @@
-import os, subprocess, shutil, tempfile, unittest, pathlib
+import os, re, subprocess, shutil, tempfile, unittest, pathlib
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 AT = ROOT / "plugins/agents-core/bin/at"
 FAKE = ROOT / "scripts/tests/fixtures/fake-harness.py"
@@ -175,4 +175,144 @@ class TaskRun(unittest.TestCase):
         self.assertEqual([s for s, _ in task_run.findings(msg)], ["C", "I", "M", "M"])
         self.assertEqual(task_run.findings_header(msg), (3, {"C": 1, "I": 1, "M": 1}))
         self.assertIsNone(task_run.findings_header("## Findings\n1. [C] a"))
+WRAP = """#!/usr/bin/env python3
+import json, os, sys, glob, time
+# Test driver around the fake harness. WRAP_PHASE/WRAP_SEV: fail that phase's quality review with one finding (WRAP_HEADER replaces its
+# `## Findings:` line). WRAP_FIXBLOCK: a fix-round implementer writes src/half.py and replies BLOCKED. WRAP_EDIT_CAP: an implementer rewrites
+# the task file's cap line. WRAP_LOCK: an implementer leaves .git/index.lock, so `git stash` fails. WRAP_HANG_PHASE: that phase's implementer hangs.
+E, ph = os.environ.get, os.environ.get("AT_TASK_PHASE")
+HDR = "## Findings: 1 (" + " ".join(f"{k}:{int(k == E('WRAP_SEV'))}" for k in "CIM") + ")"
+def reply(text, status=0): print(json.dumps({"type": "result", "result": text, "session_id": "s"})); sys.exit(status)
+if E("AT_TASK_ROLE") == "reviewer" and E("AT_TASK_STAGE") == "quality" and ph == E("WRAP_PHASE"):
+    reply(f"## Status: DONE_WITH_CONCERNS\\n## Verdict: FAIL\\n{E('WRAP_HEADER', HDR)}\\n1. [{E('WRAP_SEV')}] src/x.py:1 - naming\\n## Report: r.md")
+if E("AT_TASK_ROLE") == "implementer":
+    task = glob.glob("docs/tasks_manager/_todos/TST-003-*.md")[0]; t = open(task).read()
+    if E("WRAP_FIXBLOCK") and sys.argv[2].startswith("Fix round"):
+        open("src/half.py", "w").write("x = 1\\n"); reply("## Status: BLOCKED\\n## Summary: stuck")
+    if E("WRAP_EDIT_CAP"): open(task, "w").write(t.replace("At review cap: park", "At review cap: continue"))
+    if E("WRAP_LOCK"): open(".git/index.lock", "w").close()
+    if E("WRAP_COMMIT"): open("sneak.py", "w").write("x = 1\\n"); os.system("git add sneak.py && git commit -qm sneak")
+    if E("WRAP_HANG_PHASE") == ph: time.sleep(5)
+os.execv(sys.argv[0] + ".fake", sys.argv)
+"""
+def edit_task(tmp, fn, tid="TST-003"):
+    f = next((tmp / "docs/tasks_manager/_todos").glob(f"{tid}-*.md")); f.write_text(fn(f.read_text()))
+    subprocess.run(["git", "-C", str(tmp), "commit", "-qam", "edit task"], check=True)
+def mark_unattended(cap=None):
+    def fn(t):
+        t = t.replace("| Blocked by    |", "| Execution     | unattended |\n| Blocked by    |")
+        return t.replace("### Acceptance criteria", f"### Unattended run\n\nChecked: today, READY\n{cap + chr(10) if cap else ''}\n### Acceptance criteria", 1)
+    return fn
+def after(*pairs):  # (phase title, "After: ...") lines under the phase headings
+    def fn(t):
+        for title, line in pairs: t = t.replace(f"#### Phase {title}\n", f"#### Phase {title}\n\n{line}\n", 1)
+        return t
+    return fn
+def run_ids(tmp, ids, *args, **env):
+    drv = tmp.parent / (tmp.name + "-wrap"); drv.write_text(WRAP); drv.chmod(0o755)
+    os.symlink(FAKE, str(drv) + ".fake") if not os.path.exists(str(drv) + ".fake") else None
+    e = dict(os.environ, AT_TASKS_ROOT=str(ROOT / "plugins/agents-tasks"), FAKE_SCENARIO="pass", FAKE_CALLS=str(tmp.parent / (tmp.name + ".calls")), **env)
+    return subprocess.run([str(AT), "task", "run", *ids, "--harness", "claude", "--driver-cmd", str(drv), *args], cwd=str(tmp), capture_output=True, text=True, env=e)
+def rows(tmp): return [l.split("|")[2].strip() for l in (tmp / STATE).read_text().splitlines() if l[:3] in ("| 1", "| 2", "| 3")]
+def git(tmp, *a): return subprocess.run(["git", "-C", str(tmp), *a], capture_output=True, text=True).stdout
+def state(tmp): return (tmp / STATE).read_text()
+class Marks(unittest.TestCase):
+    def test_blocked_row_does_not_end_the_run_dependants_park_and_exit_is_4(self):
+        tmp = repo(); edit_task(tmp, lambda t: mark_unattended()(t.replace("#### Phase 3: Hardening\n", "#### Phase 3: Hardening\n\nAfter: 1\n")))
+        p = run_ids(tmp, ["TST-003"], "--check", "test ! -f src/phase2.py || test -f ok"); self.assertEqual(p.returncode, 4, p.stdout + p.stderr)
+        self.assertEqual(rows(tmp), ["committed", "parked", "committed"], state(tmp)); self.assertEqual(git(tmp, "status", "--porcelain").strip(), "")
+        self.assertIn('as "at task run: TST-003 phase 2 not finished"', state(tmp))  # 7: the stash name is in the row's note
+        self.assertIn("phase 2 not finished", git(tmp, "stash", "list"))
+    def test_without_unattended_the_row_stays_blocked_exit_1_and_serial_dependants_park(self):
+        tmp = repo(); p = run_ids(tmp, ["TST-003"], "--check", "test ! -f src/phase2.py"); self.assertEqual(p.returncode, 1, p.stdout + p.stderr)
+        self.assertEqual(rows(tmp), ["committed", "blocked", "parked"]); self.assertIn("Note: parked phase 3: waits on phase 2", state(tmp))
+        p = run_ids(tmp, ["TST-003"]); self.assertEqual(p.returncode, 1); self.assertIn("--retry-blocked", p.stdout)
+        p = run_ids(tmp, ["TST-003"], "--retry-blocked"); self.assertEqual(p.returncode, 0, p.stdout + p.stderr); self.assertEqual(rows(tmp), ["committed"] * 3)
+    def test_a_dependency_parked_row_runs_once_its_blocker_commits_but_a_row_parked_for_itself_stays(self):  # 6
+        tmp = repo(); run_ids(tmp, ["TST-003"], "--check", "test ! -f src/phase2.py"); self.assertEqual(rows(tmp), ["committed", "blocked", "parked"])
+        (tmp / STATE).write_text(state(tmp).replace("| 2 | blocked |", "| 2 | pending |") + "Note: parked phase 3: it did not finish; see the notes above\n")  # 4: a later note does not hide the row's own reason
+        p = run_ids(tmp, ["TST-003"]); self.assertEqual((p.returncode, rows(tmp)), (0, ["committed"] * 3), p.stdout + p.stderr)
+        tmp = repo(); edit_task(tmp, mark_unattended()); run_ids(tmp, ["TST-003"], "--check", "test ! -f src/phase2.py"); self.assertEqual(rows(tmp), ["committed", "parked", "parked"])
+        old = re.sub(r"(?m)^updated: .*", "updated: 2000-01-01T00:00:00", state(tmp)); (tmp / STATE).write_text(old); git(tmp, "commit", "-qam", "age the state")
+        before = git(tmp, "rev-parse", "HEAD"); p = run_ids(tmp, ["TST-003"]); self.assertEqual((p.returncode, rows(tmp)), (4, ["committed", "parked", "parked"]), p.stdout)
+        self.assertEqual((git(tmp, "rev-parse", "HEAD"), state(tmp)), (before, old))  # 5: a rerun that changes nothing adds no Note: and no commit
+    def test_after_none_and_after_lines(self):
+        import sys; sys.path.insert(0, str(ROOT / "plugins/agents-core/lib")); import task_run
+        ph = lambda *b: type("T", (), {"phases": [type("P", (), {"body": list(x)}) for x in b]})
+        t = ph([], ["After: none"], ["", "After: 1, 2"], [])
+        self.assertEqual([task_run.phase_deps(t, n) for n in (1, 2, 3, 4)], [[], [], [1, 2], [3]]); self.assertEqual(task_run.after_problems(t), [])
+    def test_after_naming_a_missing_phase_or_forming_a_cycle_exits_2_before_any_phase(self):  # 9
+        for fn in (after(("1: Current-state review", "After: 9")), after(("1: Current-state review", "After: 2"), ("2: Implementation", "After: 1")),
+                   after(("2: Implementation", "After: 2"))):
+            tmp = repo(); edit_task(tmp, fn); p = run_ids(tmp, ["TST-003"]); self.assertEqual(p.returncode, 2, p.stdout + p.stderr)
+            self.assertFalse((tmp.parent / (tmp.name + ".calls")).exists()); self.assertFalse((tmp / STATE).exists())
+    def test_a_bad_task_id_anywhere_in_a_chain_exits_2_before_the_first_task_runs(self):  # 10
+        for bad in ("../x", "NOPE-9", "tst-003"):
+            tmp = repo(); p = run_ids(tmp, ["TST-003", bad]); self.assertEqual(p.returncode, 2, p.stdout + p.stderr); self.assertFalse((tmp / STATE).exists())
+    def cap(self, flag="continue", sev="I", line="", edit=None, header=None, **env):
+        tmp = repo(); edit_task(tmp, mark_unattended(line))
+        if edit: edit_task(tmp, edit)
+        env.update(WRAP_PHASE="1", WRAP_SEV=sev, **({"WRAP_HEADER": header} if header else {}))
+        return tmp, run_ids(tmp, ["TST-003"], "--phase", "1", "--max-rounds", "2", *(["--at-review-cap", flag] if flag else []), **env)
+    def test_review_cap_continue_commits_with_a_decision_line_naming_findings_without_their_text(self):  # 11
+        tmp, p = self.cap(); self.assertEqual(p.returncode, 0, p.stdout + p.stderr); self.assertEqual(rows(tmp)[0], "committed")
+        d = "Decision: phase 1 committed at the fix-loop cap with 1 open finding(s), none critical: [I] quality review, docs/tasks_manager/_runs/TST-003/phase-1/re-review-2-quality.md"
+        self.assertIn(d, state(tmp)); self.assertIn(d, git(tmp, "log", "--format=%B")); self.assertNotIn("naming", state(tmp) + git(tmp, "log", "--format=%B"))
+    def test_review_cap_parks_without_the_flag_on_a_critical_or_when_not_unattended_even_if_the_task_file_says_continue(self):  # 1
+        for flag, sev, line, edit, code, status in ((None, "I", "", None, 4, "parked"), ("park", "I", "", None, 4, "parked"), (None, "I", "At review cap: continue", None, 4, "parked"),
+                                                    ("continue", "C", "", None, 4, "parked"), ("continue", "I", "", lambda t: t.replace("| unattended |", "| not unattended |"), 1, "blocked")):
+            tmp, p = self.cap(flag, sev, line, edit); self.assertEqual((p.returncode, rows(tmp)[0]), (code, status), (flag, sev, line, p.stdout + p.stderr))
+    def test_an_implementer_rewriting_the_task_file_to_continue_does_not_change_the_rule(self):  # 1
+        tmp, p = self.cap(None, line="At review cap: park", WRAP_EDIT_CAP="1"); self.assertEqual((p.returncode, rows(tmp)[0]), (4, "parked"), p.stdout + p.stderr)
+    def test_a_chain_applies_the_flag_to_every_task(self):  # 1
+        tmp = repo(); edit_task(tmp, mark_unattended())
+        p = run_ids(tmp, ["TST-003", "TST-003"], "--phase", "1", "--max-rounds", "2", "--at-review-cap", "continue", WRAP_PHASE="1", WRAP_SEV="I")
+        self.assertEqual((p.returncode, rows(tmp)[0]), (0, "committed"), p.stdout + p.stderr)
+    def test_review_header_that_reports_a_critical_or_a_different_count_or_repeats_never_continues(self):  # 3
+        for header in ("## Findings: 2 (C:1 I:1)", "## Findings: 2", "## Findings: 1 (C:1)", "## Findings", "## Findings: 1 (C: 1, I: 0, M: 0)",
+                       "## Findings: 1 (C:0 I:1)", "## Findings: 1", "## Findings: 0/1/0", "## Findings: 1 (C:0 I:1 M:0 C:0)", "## Findings: 1 (x C:0 I:1 M:0)",
+                       "## Findings: 1 (C:0 I:1 M:0)\n## Findings: 1 (C:0 I:1 M:0)"):
+            tmp, p = self.cap(header=header); self.assertEqual((p.returncode, rows(tmp)[0]), (4, "parked"), (header, p.stdout + p.stderr))
+        tmp, p = self.cap(sev="Z", header="## Findings: 0 (C:0 I:0 M:0)"); self.assertEqual((p.returncode, rows(tmp)[0]), (4, "parked"))  # nothing parsed
+        tmp, p = self.cap(header="## Findings: 1 (C: 0, I: 1, M: 0)"); self.assertEqual((p.returncode, rows(tmp)[0]), (0, "committed"), p.stdout + p.stderr)  # spaced form is read
+    def test_an_implementer_that_commits_aborts_the_run_and_a_header_with_trailing_text_parks(self):
+        tmp = repo()
+        p = run_ids(tmp, ["TST-003"], WRAP_COMMIT="1"); self.assertEqual((p.returncode, rows(tmp)[0]), (1, "blocked"), p.stdout + p.stderr)
+        self.assertIn("HEAD moved from ", p.stderr); self.assertIn("git reset --soft", state(tmp)); self.assertEqual(rows(tmp)[1:], ["pending"] * 2)
+        tmp, p = self.cap(header="## Findings: 1 (C:0 I:1 M:0) (C:1)"); self.assertEqual((p.returncode, rows(tmp)[0]), (4, "parked"), p.stdout + p.stderr)
+    def test_a_fix_round_implementer_that_returns_blocked_commits_nothing_even_at_continue(self):  # 1
+        tmp, p = self.cap(WRAP_FIXBLOCK="1"); self.assertEqual((p.returncode, rows(tmp)[0]), (4, "parked"), p.stdout + p.stderr)
+        self.assertNotIn("half.py", git(tmp, "ls-files")); self.assertNotIn("Decision:", state(tmp)); self.assertIn("half.py", git(tmp, "stash", "show", "-u", "--name-only"))
+    def test_the_execution_cell_is_read_value_by_value_and_a_fence_above_it_does_not_matter(self):  # 2
+        row = lambda cell: lambda t: t.replace("| unattended |", f"| {cell} |")
+        for edit, code, status in ((row("orchestrated, unattended"), 0, "committed"), (row("unattended, parallel"), 0, "committed"),
+                                   (row("not unattended"), 1, "blocked"), (row("unattended is forbidden here"), 1, "blocked"),
+                                   (lambda t: t.replace("| Execution", "```\nx\n```\n| Execution", 1), 0, "committed")):
+            tmp, p = self.cap(edit=edit); self.assertEqual((p.returncode, rows(tmp)[0]), (code, status), (edit("| unattended |"), p.stdout + p.stderr))
+    def test_a_failed_post_phase_check_stops_the_run_with_exit_1(self):  # 4
+        import sys, io, contextlib; sys.path.insert(0, str(ROOT / "plugins/agents-core/lib")); import task_run; from unittest import mock
+        tmp = repo(); env = dict(AT_TASKS_ROOT=str(ROOT / "plugins/agents-tasks"), FAKE_SCENARIO="pass", FAKE_CALLS=str(tmp.parent / (tmp.name + ".calls")))
+        with mock.patch.object(task_run.Runner, "post_phase_checks", return_value=False), mock.patch.dict(os.environ, env), contextlib.redirect_stdout(io.StringIO()):
+            code = task_run.main(["TST-003", "--harness", "claude", "--driver-cmd", str(FAKE)], tmp, ROOT / "plugins/agents-core", ROOT / "plugins/agents-tasks/skills/task-ledger/scripts")
+        self.assertEqual((code, rows(tmp)), (1, ["committed", "pending", "pending"]))
+    def test_the_run_state_commit_leaves_the_users_staged_work_alone(self):  # 5
+        tmp = repo(); run_ids(tmp, ["TST-003"], "--check", "test ! -f src/phase2.py"); (tmp / "user.txt").write_text("mine"); git(tmp, "add", "user.txt")
+        p = run_ids(tmp, ["TST-003"]); self.assertEqual(p.returncode, 1, p.stdout + p.stderr)
+        self.assertNotIn("user.txt", git(tmp, "show", "--name-only", "--format=", "HEAD")); self.assertEqual(git(tmp, "diff", "--cached", "--name-only").strip(), "user.txt")
+    def test_a_failing_git_stash_stops_the_run_with_a_message_and_a_note(self):  # 7
+        tmp = repo(); p = run_ids(tmp, ["TST-003"], "--phase", "1", "--check", "test ! -f src/phase1.py", WRAP_LOCK="1")
+        self.assertEqual(p.returncode, 1, p.stdout + p.stderr); self.assertIn("git stash failed", p.stderr); self.assertIn("`git stash` failed", state(tmp))
+    def test_a_dispatch_timeout_sets_the_row_aside_like_a_blocked_one_and_independent_phases_still_run(self):  # 8
+        tmp = repo(); edit_task(tmp, lambda t: mark_unattended()(after(("2: Implementation", "After: none"), ("3: Hardening", "After: 1"))(t)))
+        p = run_ids(tmp, ["TST-003"], "--timeout", "1", WRAP_HANG_PHASE="1"); self.assertEqual(p.returncode, 4, p.stdout + p.stderr); self.assertIn("no reply within 1s", p.stderr)
+        self.assertEqual(rows(tmp), ["parked", "committed", "parked"], state(tmp)); self.assertEqual(git(tmp, "status", "--porcelain").strip(), "")
+        self.assertIn("implementer dispatch failed; see docs/tasks_manager/_runs/TST-003/driver.log", state(tmp)); self.assertNotIn("no reply within", state(tmp))  # 4
+    def test_chain_runs_in_order_skips_a_task_whose_blocker_is_not_done_and_counts_only_fully_committed_tasks(self):
+        tmp = repo(); edit_task(tmp, lambda t: t.replace("| Status   |", "| Blocked by | TST-003 |\n| Status   |"), "TST-001")
+        p = run_ids(tmp, ["TST-001", "TST-003"]); self.assertEqual(p.returncode, 4, p.stdout + p.stderr); self.assertIn("skipping TST-001: Blocked by TST-003", p.stderr)
+        self.assertEqual(rows(tmp), ["committed"] * 3)
+        p = run_ids(tmp, ["TST-003", "TST-001"]); self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        self.assertTrue((tmp / "docs/tasks_manager/_runs/TST-001/state.md").exists())
+        tmp = repo(); edit_task(tmp, lambda t: t.replace("| Status   |", "| Blocked by | TST-003 |\n| Status   |"), "TST-001")  # 12: --phase 1 does not finish TST-003
+        p = run_ids(tmp, ["TST-003", "TST-001"], "--phase", "1"); self.assertEqual(p.returncode, 4, p.stdout + p.stderr); self.assertIn("skipping TST-001", p.stderr)
 if __name__ == "__main__": unittest.main()

@@ -86,6 +86,9 @@ Rules the validator enforces:
   Nothing else. `Ruling:` closes a review finding; `Decision:` records a choice you made where you
   would otherwise have asked the owner (`<question> — <chosen> — why: … — cost if wrong: …`).
 - `Agent` holds a subagent id when the runtime can resume by id (Claude Code); otherwise `—`.
+  The scripted driver writes `waits` there for a row it parked only because a dependency is not
+  committed: such a row reruns by itself once the dependency commits; clear the cell and it needs
+  `--retry-blocked` like a row parked for its own reason.
 
 `Open` is the count of findings not yet fixed or ruled. `Attempt` counts implementer dispatches for
 the phase including fix rounds.
@@ -136,9 +139,9 @@ with the run directory at `docs/_plans/_runs/<slug>/` and write the files by han
 
 ## Scripted driver
 
-`at task run <TASK-ID> [--harness claude|codex] [--mode small|large|auto] [--phase N] [--check CMD]... [--security]
+`at task run <TASK-ID>... [--harness claude|codex] [--mode small|large|auto] [--phase N] [--check CMD]... [--security]
 [--model M] [--strong-model M] [--effort E] [--strong-effort E] [--max-rounds 3] [--timeout 1800] [--budget-usd 5] [--no-commit]
-[--no-final-review] [--retry-blocked] [--force-unlock] [--dry-run]` executes this loop without an orchestrating session: it writes the same files, one
+[--no-final-review] [--retry-blocked] [--at-review-cap park|continue] [--force-unlock] [--dry-run]` executes this loop without an orchestrating session: it writes the same files, one
 process per dispatch, and commits each phase (`feat: <ID> phase N — <title>`), leaving `state.md`
 dirty until the next phase's commit sweeps it in and committing the last one as
 `chore: <ID> run state`. Differences from the skill:
@@ -155,7 +158,39 @@ dirty until the next phase's commit sweeps it in and committing the last one as
   Claude the reviewers may run exactly those commands (`Bash(<cmd>)` allow rules) and nothing else.
 - At the fix-loop cap the row becomes `blocked` with the open findings noted; there is no
   adjudication. Add `Ruling:` lines (or fix by hand) and rerun — with `--retry-blocked` if you leave
-  the row `blocked`, or plainly after setting it back to `pending`.
+  the row `blocked`, or plainly after setting it back to `pending`. In an `Execution: unattended` task
+  (a comma-separated cell: `orchestrated, unattended` counts, `not unattended` does not) pass
+  `--at-review-cap continue` (default `park`; in a chain it applies to every task). The flag is the only
+  source of this rule: the task file is writable by the implementers the driver dispatches, so the
+  driver reads nothing about it from there. `continue` commits only
+  when the loop really reached the cap and every open review is a `FAIL` whose header reads exactly
+  `## Findings: N (C:x I:y M:z)` with x+y+z = N = the numbered findings parsed, no critical anywhere;
+  any doubt parks, so a reply without a counted header (the security auditor's today) always parks. The
+  `Decision:` line in `state.md` and the commit message name each open finding by severity, stage and
+  review file, never by its text. A fix round whose implementer returns `BLOCKED`, `NEEDS_CONTEXT`
+  or no status blocks the row and commits nothing.
+- `After:` lines (`agents-tasks:task-ledger`, todo-convention) order the phases: a phase runs once
+  every phase it names is committed, a phase without the line waits for the previous one. An `After:`
+  naming a phase that does not exist, or a cycle, is an error before any phase runs (exit `2`). A row
+  that ends `blocked`, including after a dispatch timeout or failure, no longer stops the run: its
+  edits go to `git stash` (`at task run: <ID> phase N not finished`, named in the row's `Note:`; a
+  failing `git stash` aborts the run), the phases that do not depend on it still run, and its
+  dependants are set `parked` with a `Note:`. With `Execution: unattended` the failed row itself is
+  `parked` too, since nobody answers a `blocked` one. A rerun skips `blocked` rows and rows parked for
+  their own reason unless `--retry-blocked`; a row the driver parked only because of a dependency is
+  re-evaluated and runs once that dependency is committed. A baseline-check failure, a commit failure
+  and a failed post-phase check still abort the run (exit `1`), and so does an implementer that
+  commits: the driver compares `HEAD` with the phase base after every implementer dispatch. `--phase N` ignores `After:`.
+- Chain: `at task run <ID> <ID>...` first checks every id (`[A-Z][A-Z0-9]*-<n>` with a task file; else
+  exit `2`, nothing runs), then runs the tasks in the order given and skips one whose `Blocked by` task
+  is not `done`. A task this chain ran counts as done only when all its rows are committed (not after
+  `--phase N` or `--no-commit`).
+- Exit codes: `0` every row of every task committed and the final review passed, except that
+  `--phase N` and `--no-commit` also exit `0` with rows not committed; `1` a row is `blocked` (a dispatch failure or timeout is `4` in an unattended run, where the row
+  is parked, and `1` otherwise), the lock is held, the state is invalid, a post-phase check or the
+  final review failed; `2` bad arguments, an invalid task id or `After:` graph, or no harness on
+  `PATH`; `4` the run finished with `parked` rows or a skipped chain task and no `blocked` one. `1`
+  wins over `4`.
 - `--model` / `--effort` apply to implementers; `--strong-model` / `--strong-effort` to reviewers,
   final reviews and the fix round after two failed ones (each defaults to its routine value, and
   that to the harness default). Effort is passed as the harness names it. The execution-log
