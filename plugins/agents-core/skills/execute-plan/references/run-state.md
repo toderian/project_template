@@ -173,3 +173,14 @@ dirty until the next phase's commit sweeps it in and committing the last one as
   `SubagentStop` hook does for subagents, then the row is `blocked`.
 - One run at a time: the `lock` file refuses a second driver while the first is alive.
 - After each commit it runs `at task run-state check` and `at ledger check`; a failure blocks the next phase.
+
+## Morning report
+
+`at task report <TASK-ID>... [--since <rev>]` writes `docs/tasks_manager/_reports/<date>-<TASK-ID>.md`
+(`<date>` = commit date of `base_rev`), a function of the run's ledger: the commits recorded in the
+phase rows, in row order, not of HEAD, so a rerun is byte-identical. Commit it with the run. "Needs
+you" is what is open now: `parked` and `blocked` rows with their ledger lines, and `Note: parked`
+lines (`Note: parked: <question>` and the driver's `Note: parked phase N: ...`) while a row is not
+`committed`; afterwards they sit under "Parked during the run". `--since <rev>` adds the commits
+`rev..HEAD`. A task with no run state is read from its archived `## Completion summary` (dated by its
+`Base:` line or `--since`); one with neither is an error. `at ledger check` accepts `_reports/`.
