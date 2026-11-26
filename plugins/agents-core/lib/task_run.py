@@ -319,10 +319,15 @@ def implementer_prompt(runs_rel: str, n: int, project: str, round_no: int = 0, s
             "Scope fence: only what the brief's phase requires. Do not commit or stage. Do not spawn subagents. "
             "Do not read AGENTS.md, CLAUDE.md, or other skills. Honour the Interface:/Ruling: lines in the brief.\n"
             "Start the report with a ## Test plan before writing code (see the brief's Report contract).\n"
-            "Run the checks named in the brief and record real output in the report.\n"
+            f"{CHECK_SCOPE}\n"
             "Reply with at most 15 lines ending in the ## Status: block (DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED).")
 
 
+# One rung of the test-scope ladder (execute-plan step 9) and the long-command rule. A subagent's foreground command
+# is moved to the background after 180 seconds and it then rarely learns that the command ended; hence two minutes.
+CHECK_SCOPE = ("Run the checks named in the brief and the tests of the files you touched, and record real output in the report. "
+               "Do not run the whole test suite: the orchestrator runs it once, before the commit. "
+               "Do not start a command you expect to run longer than two minutes: name it in your reply and the orchestrator runs it.")
 SIZE_SEVERITY = "An unjustified fixture or test-ratio flag is critical (FAIL), stricter than a code flag: bulk data growth has no logic to review."
 TEST_REDUNDANCY = ("Also flag tests asserting one behaviour at several layers, and fixtures holding derived or copied data; "
                    "every new or changed test must map to a Test plan row.")

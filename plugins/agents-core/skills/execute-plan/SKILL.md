@@ -261,7 +261,9 @@ verdict blocks and the state file; open a report, diff or test log only to adjud
    needs the owner's ruling in chat (`agents-core:subagent-protocol` §"Fix loop"), not yours. If every path forward is a guess, row → `blocked`,
    write what is needed, stop. In small mode a phase that hits the cap escalates the run to large
    instead (step 0).
-9. **Verify and record.** Run the phase checks and related tests yourself and read the output. Tick
+9. **Verify and record.** Run the phase checks and the full suite yourself, once, and read the output;
+   rerun only what a later fix in this phase changed. Subagents run the tests of the files they touched
+   and nothing longer than two minutes; a longer command they name is yours to run. Tick
    the phase checkboxes, update `Updated` and `Last executed`, append a ≤ 10-line execution-log entry
    (what changed, verdicts, rulings, the `Total:`/`Flagged:` lines of `size.md`,
    `see docs/tasks_manager/_runs/<TASK-ID>/phase-N/`). Add any interface later phases depend on as an

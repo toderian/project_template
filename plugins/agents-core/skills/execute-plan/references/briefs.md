@@ -35,7 +35,7 @@ Scope fence: <files/dirs you may touch>. Nothing else. Do not commit or stage. D
 Do not read AGENTS.md, CLAUDE.md, or other skills.
 Interfaces and rulings from earlier phases are in the brief's orchestrator notes; honour them.
 Start the report with a ## Test plan before writing code: one row per behaviour in the phase checklist -> the single lowest layer that proves it -> test name(s); a test outside the plan needs a one-line reason; fixtures listed with expected size, one of 500 lines or more needs a reason.
-Run the checks named in the brief and record real output in the report.
+Run the checks named in the brief and the tests of the files you touched, and record real output in the report. Do not run the whole test suite: the orchestrator runs it once, before the commit. Do not start a command you expect to run longer than two minutes: name it in your reply and the orchestrator runs it.
 Model hint: <default for the implementer card, medium effort | strongest, high effort for round 3>.
 Reply with at most 15 lines ending in the ## Status: block (DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED).
 ```
@@ -117,6 +117,7 @@ Brief and scope fence are unchanged: docs/tasks_manager/_runs/<TASK-ID>/phase-N/
 Report path: docs/tasks_manager/_runs/<TASK-ID>/phase-N/report.md (append a "## Fix round <R>" section).
 Prefer a fix that restructures or deletes over one that adds a flag, ref, effect, lock or retry; if you add one anyway, say in the report why the structure cannot absorb it.
 Do not commit. Do not widen the scope; report NEEDS_CONTEXT if a finding cannot be fixed inside it.
+Run the checks named in the brief and the tests of the files you touched, and record real output in the report. Do not run the whole test suite: the orchestrator runs it once, before the commit. Do not start a command you expect to run longer than two minutes: name it in your reply and the orchestrator runs it.
 Reply with at most 15 lines ending in the ## Status: block.
 ```
 

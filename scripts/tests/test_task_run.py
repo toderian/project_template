@@ -154,6 +154,8 @@ class TaskRun(unittest.TestCase):
             self.assertIn(task_run.SIZE_SEVERITY, text); self.assertIn(task_run.SIZE_SEVERITY, briefs)
         self.assertIn(task_run.TEST_REDUNDANCY, task_run.reviewer_prompt("r", 1, "both", "abc")); self.assertIn(task_run.TEST_REDUNDANCY, briefs)
         self.assertIn("Test plan", task_run.implementer_prompt("r", 1, "p"))
+        for text in (task_run.implementer_prompt("r", 1, "p"), task_run.implementer_prompt("r", 1, "p", round_no=1)): self.assertIn(task_run.CHECK_SCOPE, text)  # the ladder's subagent rung, in the first dispatch and in a fix round
+        self.assertEqual(briefs.count(task_run.CHECK_SCOPE), 2)  # implementer brief and fix-round brief
         self.assertIn("duplicated between phases", task_run.final_prompt("r", 1, "abc", "t.md")); self.assertIn("duplicated between phases", briefs)
         self.assertIn("one behaviour tested at several layers", task_run.SIMPLICITY_SCOPE)
     def test_final_review_carries_the_consequence_checklist_like_the_brief_and_reviewer(self):

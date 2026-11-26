@@ -2,6 +2,22 @@
 
 Notable changes to agents-template. All four plugins share the version of the repository.
 
+## 1.16.0 — 2026-11-26
+
+### Changed
+
+- **Test scope per role in `agents-core:execute-plan`.** An implementer and a fix round run the brief's
+  checks and the tests of the files they touched, never the whole suite. The orchestrator runs the
+  full suite once per phase, before the commit. A usage profile of 16 days counted about five full
+  runs per phase.
+- **Long commands stay out of subagents.** A subagent does not start a command it expects to run
+  longer than two minutes; it names the command and the orchestrator runs it. The harness moves a
+  subagent's foreground command to the background after 180 seconds, and the subagent then rarely
+  learns that it ended.
+- `TaskStop` left the `implementer` agent's tool list; it fails in subagents.
+- The repository's own suite runs its steps side by side, and a release runs it once, not four
+  times: about 2 minutes where a release took about 25.
+
 ## 1.15.1 — 2026-11-26
 
 ### Fixed
