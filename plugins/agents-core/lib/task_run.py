@@ -18,8 +18,10 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
+import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -52,6 +54,27 @@ def _pid_alive(pid: int) -> bool:
 
 class RunError(Exception):
     pass
+
+
+# Every harness process leads its own process group (one process tree per dispatch, so per lane). On SIGINT or
+# SIGTERM the driver starts no new dispatch, terminates every running group, and unwinds; `Runner.run` then
+# releases the lock. The lock is re-entrant because the handler runs on the main thread, which may hold it.
+_LIVE: set[subprocess.Popen] = set()
+_LIVE_LOCK = threading.RLock()
+_STOPPING = threading.Event()
+_SIGNAL: list[int] = []  # the signal that stopped the run: the exit code is 128 + it
+
+
+def stop_harnesses(signum=signal.SIGINT, frame=None) -> None:
+    with _LIVE_LOCK:
+        _STOPPING.set()
+        _SIGNAL.append(signum)
+        for p in _LIVE:
+            try:
+                os.killpg(p.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+    raise KeyboardInterrupt
 
 
 class DispatchError(RunError):
@@ -152,13 +175,30 @@ class Harness:
         self.timeout, self.budget_usd = timeout, budget_usd
         self.cost_usd = 0.0  # running total of what Claude reported (Codex reports nothing)
 
-    def _sh(self, role: str, cmd: list[str], **kw) -> subprocess.CompletedProcess:
+    def _sh(self, role: str, cmd: list[str], *, env: dict[str, str], input: str | None = None,
+            stdin=None) -> subprocess.CompletedProcess:
+        with _LIVE_LOCK:
+            if _STOPPING.is_set():
+                raise DispatchError(f"{role}: not started, the run is being stopped")
+            p = subprocess.Popen(cmd, cwd=str(self.repo), env=env, text=True, start_new_session=True,
+                                 stdin=subprocess.PIPE if input is not None else stdin,
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            _LIVE.add(p)
         try:
-            return sh(cmd, self.repo, timeout=self.timeout, **kw)
+            out, err = p.communicate(input, timeout=self.timeout)
         except subprocess.TimeoutExpired as exc:
+            try:
+                os.killpg(p.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            p.communicate()
             with self.log.open("a", encoding="utf-8") as fh:
                 fh.write(f"\n### {now_iso()} {role} TIMEOUT after {self.timeout}s\n")
             raise DispatchError(f"{role}: no reply within {self.timeout}s (--timeout); process killed") from exc
+        finally:
+            with _LIVE_LOCK:
+                _LIVE.discard(p)
+        return subprocess.CompletedProcess(cmd, p.returncode, out, err)
 
     def run(self, role: str, prompt: str, *, writable: bool, strong: bool = False,
             session: str | None = None, env: dict[str, str] | None = None) -> tuple[str, str | None]:
@@ -453,6 +493,14 @@ class Runner:
         self.lock = self.runs / "lock"
         self.ledger_script = tasks_scripts / "sync_todo_ledgers.py"
         self.done = False  # set when the run ends with every row committed
+        self.tasks_scripts = tasks_scripts
+        tm = self.runs.parent.parent  # docs/tasks_manager; the files sync_todo_ledgers.py generates (its docstring)
+        self.ledger_outputs = [tm / "_active.md", tm / "_done.md", repo / "docs/areas"]
+        # A lane Runner (lib/task_lanes.py) works in its own worktree on branch `self.lane`: it commits code only,
+        # leaves the task file and the bookkeeping to the integration checkout, and hands back its Execution-log
+        # entry and the full SHA of its commit.
+        self.lane, self.lane_entry, self.commit_sha = "", "", ""
+        self.lanes = 1
 
     # -- lock: one driver (or orchestrator) per run directory
     def acquire_lock(self) -> None:
@@ -504,14 +552,42 @@ class Runner:
             raise RunError("state.md is invalid; fix it first:\n  " + "\n  ".join(errors))
         return State(path)
 
+    def dirty(self, where: Path | None = None) -> list[str]:
+        """`git status --porcelain` lines outside the run directory (the driver's own files), in checkout `where`."""
+        return [l for l in sh(["git", "status", "--porcelain"], where or self.repo).stdout.splitlines()
+                if not l[3:].startswith(self.runs_rel)]
+
     def require_clean_tree(self) -> None:
-        dirty = [l for l in self.git("status", "--porcelain").stdout.splitlines()
-                 if not l[3:].startswith(self.runs_rel)]
-        if dirty:
+        if dirty := self.dirty():
             raise RunError("working tree has changes outside the run directory; commit or stash them first:\n  "
                            + "\n  ".join(dirty[:10]))
 
     # -- one phase
+    def stage_code(self) -> str:
+        """Stage the phase's work (everything outside the run directory; in a lane also outside the task file, which
+        is the integration checkout's) and return its tree id: what the reviewers see, and what the commit must carry."""
+        keep_out = [f":(exclude){self.runs_rel}"] + ([f":(exclude){self.task_rel}"] if self.lane else [])
+        self.git("add", "-A", "--", ".", *keep_out)
+        return self.git("write-tree").stdout.strip()
+
+    def tree_changed(self) -> str:
+        """'' when the tree to commit is the one the last review saw, else which paths differ (at most five)."""
+        if (now := self.stage_code()) == self.reviewed_tree:
+            return ""
+        paths = self.git("diff", "--name-only", self.reviewed_tree, now).stdout.split()
+        return f"the tree changed after review ({', '.join(paths[:5]) + (', ...' if len(paths) > 5 else '')})"
+
+    def bookkeeping_paths(self) -> list[str]:
+        """The driver's own files: the run directory (not the lock), the task file, the ledgers the sync writes."""
+        return [self.runs_rel, self.task_rel, *(p.relative_to(self.repo).as_posix() for p in self.ledger_outputs if p.exists()),
+                f":(exclude){self.runs_rel}/lock"]
+
+    def park(self, state: State, n: int, why: str) -> None:
+        """A row that cannot go on: `parked` in an unattended run (nobody answers a blocked row), else `blocked`."""
+        status = "parked" if self.unattended else "blocked"
+        state.set(n, status=status)
+        state.note(f"Note: {status} phase {n}: {why}")
+
     def phase(self, state: State, n: int) -> bool:
         pdir = self.runs / f"phase-{n}"
         pdir.mkdir(exist_ok=True)
@@ -622,6 +698,17 @@ class Runner:
                 (pdir / "check-failure.log").write_text(proc.stdout + proc.stderr, encoding="utf-8")
                 self.say(f"phase {n}: check failed: {cmd}")
                 return False
+        # What is committed is what was reviewed: the tree is taken again and must match the one the last review saw;
+        # in a lane the commit must also land on the lane branch.
+        why = "" if self.args.no_commit else self.tree_changed() or (
+            f"the lane worktree's HEAD is not refs/heads/{self.lane}"
+            if self.lane and self.git("symbolic-ref", "-q", "HEAD").stdout.strip() != f"refs/heads/{self.lane}" else "")
+        if why:
+            state.set(n, status="blocked")
+            state.note(f"Phase {n}: {why}; nothing committed")
+            state.save()
+            self.say(f"phase {n}: {why}; not committed")
+            return False
 
         summary = ", ".join(f"{k} {v['verdict']}" for k, v in verdicts.items())
         size = self.size_line(self.phase_size)
@@ -631,20 +718,24 @@ class Runner:
                  f"**Test results:** {', '.join(self.args.check) or 'no --check command configured'}: pass.\n"
                  f"**Size:** {size}.\n"
                  f"**Outcome:** see `{self.runs_rel}/phase-{n}/` for the brief, report and reviews.")
-        tick_phase(self.task.path, n, entry)
+        if self.lane:
+            self.lane_entry = entry
+        else:
+            tick_phase(self.task.path, n, entry)
 
         if self.args.no_commit:
             state.set(n, status="reviewing")
             state.note(f"Phase {n}: reviews clean; left uncommitted (--no-commit)")
             state.save()
             return True
-        # The phase commit carries the code, the task file and the run directory as reviewed. The
-        # SHA is then written into state.md, which stays dirty until the next phase's commit sweeps
-        # it in (the run directory is exempt from the clean-tree gate); the last one is committed by
-        # `run()`. Same rule as the skill: no metadata-only commit per phase.
-        if self.ledger_script.exists():  # ticked checkboxes change the generated ledgers; they ride in the commit
-            sh([sys.executable, str(self.ledger_script), "--root", str(self.repo)], self.repo)
-        self.git("add", "-A", "--", ".", f":(exclude){self.runs_rel}/lock")
+        # The phase commit carries the reviewed tree (staged above) plus, outside a lane, the driver's own files: the
+        # task file, the ledgers and the run directory. The SHA is then written into state.md, which stays dirty until
+        # the next phase's commit sweeps it in (the run directory is exempt from the clean-tree gate); the last one is
+        # committed by `run()`. Same rule as the skill: no metadata-only commit per phase.
+        if not self.lane:
+            if self.ledger_script.exists():  # ticked checkboxes change the generated ledgers; they ride in the commit
+                sh([sys.executable, str(self.ledger_script), "--root", str(self.repo)], self.repo)
+            self.git("add", "--", *self.bookkeeping_paths())
         title = self.tb.phase_title(self.task.phases[n - 1])
         msg = (f"feat: {self.task.taskid} phase {n} — {title}\n\nWhat changed:\n- phase {n} of {self.task.title}\n\n"
                f"Why:\n- {self.task_rel}\n\nChecks:\n- {', '.join(self.args.check) or 'none configured'}: pass\n"
@@ -652,14 +743,14 @@ class Runner:
         proc = self.git("commit", "-q", "-m", msg)
         if proc.returncode != 0:
             raise RunError(f"commit failed: {proc.stderr.strip()[-400:]}")
-        sha = self.head()
+        sha, self.commit_sha = self.head(), self.git("rev-parse", "HEAD").stdout.strip()
         state.set(n, status="committed", commit=sha, open="0")
         state.note(f"Phase {n}: complete (commit {sha}, {summary})")
         if self.harness.cost_usd:
             state.note(f"Note: phase {n} Claude spend so far ${self.harness.cost_usd:.2f} (run total)")
         state.save()
         self.say(f"phase {n}: committed {sha}")
-        return self.post_phase_checks(state, n)
+        return True if self.lane else self.post_phase_checks(state, n)  # a lane's checks run once, on the merged result
 
     def post_phase_checks(self, state: State, n: int) -> bool:
         """The same two checks the skill runs after every phase; a failure blocks the next phase."""
@@ -686,8 +777,8 @@ class Runner:
         return f"+{report.added}/−{report.deleted}, code net {report.net('code'):+d}, test net {report.net('test'):+d}, fixture net {report.net('fixture'):+d}; flagged: {flagged}"
 
     def review_round(self, state: State, n: int, pdir: Path, base: str, round_no: int) -> dict[str, dict]:
-        self.git("add", "--intent-to-add", "-A", "--", ".", f":(exclude){self.runs_rel}")  # new files show in the diff
-        diff = self.git("diff", base, "--", ".", f":(exclude){self.runs_rel}").stdout
+        self.reviewed_tree = self.stage_code()  # staged, so new files show in the diff
+        diff = self.git("diff", base, self.reviewed_tree, "--", ".", f":(exclude){self.runs_rel}").stdout
         (pdir / "diff.patch").write_text(diff, encoding="utf-8")
         if not diff.strip():
             # Nothing changed this phase — usually an earlier phase already delivered it. Review the
@@ -825,31 +916,40 @@ class Runner:
         if "No local changes" not in proc.stdout:
             state.note(f'Note: phase {n}: its edits are in `git stash` as "{name}" (`git stash list`); pop it to fix by hand')
             self.say(f"phase {n}: its edits are kept in `git stash` ({name})")
-        if self.unattended:  # nobody answers a blocked row in an unattended run
-            state.set(n, status="parked")
-            state.note(f"Note: parked phase {n}: it did not finish; see the notes above and {self.runs_rel}/phase-{n}/")
+        if self.unattended:  # a blocked row stays blocked otherwise; its notes say why
+            self.park(state, n, f"it did not finish; see the notes above and {self.runs_rel}/phase-{n}/")
         state.save()
 
     def _run(self, state: State) -> int:
         # The cap rule comes only from the command line: the task file is writable by the implementers this driver dispatches.
         self.unattended = "unattended" in [v.strip().lower() for v in self.task.meta.get("Execution", "").split(",")]
         self.cap_continue = self.unattended and self.args.at_review_cap == "continue"
+        import task_lanes  # lib/task_lanes.py, next to this file (imported here: it imports this module)
+        if stop := task_lanes.open_wave(self, state):
+            print(f"at task run: {stop}", file=sys.stderr)
+            return 1
         self.decide_mode(state)
+        self.lanes = 1 if self.args.phase else self.args.lanes
         todo = [int(r[0]) for r in state.rows if r[1] != "committed"]
         if self.args.phase:
             todo = [n for n in todo if n == self.args.phase]
         if not todo:
             self.say("every phase is already committed")
         if self.args.dry_run:
+            for line in task_lanes.planned_waves(self, state, todo) if self.lanes > 1 else []:
+                self.say(f"[dry-run] {line}")
             for n in todo:
                 reviews = "one reviewer (Stage: both)" if self.mode == "small" else "reviews spec, quality"
                 self.say(f"[dry-run] phase {n}: implementer ({self.harness.name}) -> {reviews}"
                          + (", security" if self.args.security else "") + f" -> up to {self.args.max_rounds} fix rounds -> commit"
                          + f"  [mode {self.mode}: {state.front.get('mode_reason')}]")
             return 0
+        held = task_lanes.leftovers(self, state, todo)  # phases an earlier lane holds work for: never run again here
         pending = []
         for n in todo:
             status = state.row(n)[1]
+            if n in held:
+                continue
             if status == "parked" and state.row(n)[8] == "waits":
                 state.set(n, status="pending")  # re-evaluated below: it parks again if its dependency is still open
             elif status in ("blocked", "parked") and not self.args.retry_blocked:
@@ -857,6 +957,13 @@ class Runner:
                 continue
             pending.append(n)
         while (ready := self.runnable(state, pending)):
+            if self.lanes > 1 and len(wave := task_lanes.plan_wave(self.task, ready, self.lanes)) > 1:
+                for n in wave:
+                    pending.remove(n)
+                if not task_lanes.run_wave(self, state, wave):  # the wave committed, but the post-phase checks failed
+                    self.commit_run_dir(f"chore: {self.task.taskid} run state")
+                    return 1
+                continue
             n = ready[0]
             pending.remove(n)
             try:
@@ -903,7 +1010,9 @@ class Runner:
         if self.args.no_commit or not dirty:
             return
         self.git("add", "--", self.runs_rel, self.task_rel, f":(exclude){self.runs_rel}/lock")
-        self.git("commit", "-q", "-m", message, "--", self.runs_rel, self.task_rel)  # only these paths: the user's staged work stays staged
+        proc = self.git("commit", "-q", "-m", message, "--", self.runs_rel, self.task_rel)  # only these paths: the user's staged work stays staged
+        if proc.returncode != 0:
+            raise RunError(f"commit `{message.splitlines()[0]}` failed: {(proc.stderr or proc.stdout).strip()[-400:]}")
 
 
 def phase_deps(task, n: int) -> list[int]:
@@ -945,6 +1054,12 @@ def open_findings(v: dict[str, dict]) -> list[tuple[str, str, str]]:
     return out
 
 
+def lanes_arg(v: str) -> int:
+    if not v.isdigit() or not 1 <= int(v) <= 3:
+        raise argparse.ArgumentTypeError("must be 1, 2 or 3")
+    return int(v)
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="at task run", description=__doc__.split("\n\n")[0])
     p.add_argument("task_ids", nargs="+", metavar="TASK_ID",
@@ -968,6 +1083,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-final-review", dest="final_review", action="store_false")
     p.add_argument("--at-review-cap", choices=("park", "continue"), default="park",
                    help="unattended run: commit a phase left with only non-critical findings at the fix-loop cap (default park)")
+    p.add_argument("--lanes", type=lanes_arg, default=1, metavar="N",
+                   help="run up to N phases at once (1-3, default 1) in their own worktrees: phases whose `After:` lines are met "
+                        "and whose `Files:` lines do not overlap; a phase without `Files:` runs alone")
     p.add_argument("--retry-blocked", action="store_true", help="re-run rows marked blocked")
     p.add_argument("--timeout", type=int, default=1800, metavar="SECONDS", help="per-dispatch limit (default 1800)")
     p.add_argument("--budget-usd", type=float, default=5.0, metavar="USD",
@@ -985,10 +1103,26 @@ def main(argv: list[str], repo: Path, core_root: Path, tasks_scripts: Path) -> i
         if not args.harness:
             print("at: neither `claude` nor `codex` is on PATH", file=sys.stderr)
             return 2
+    if args.lanes > 1 and args.no_commit:
+        print("at task run: --lanes needs commits to merge; drop --no-commit", file=sys.stderr)
+        return 2
     problems = preflight(repo, tasks_scripts, args.task_ids)
     if problems:
         print("at task run: " + "\n  ".join(problems), file=sys.stderr)
         return 2  # before any phase runs
+    # Replace refs would let an implementer show reviewers one blob while the commit stores another; every git
+    # process the driver starts (its own calls, task_size's, the harnesses') inherits this.
+    os.environ["GIT_NO_REPLACE_OBJECTS"] = "1"
+    for sig in (signal.SIGINT, signal.SIGTERM):  # both end the lane harnesses too, then the lock is released
+        signal.signal(sig, stop_harnesses)
+    try:
+        return run_chain(args, repo, core_root, tasks_scripts)
+    except KeyboardInterrupt:
+        print("at task run: interrupted; running harnesses terminated, lock released; rerun to resume", file=sys.stderr)
+        return 128 + (_SIGNAL[-1] if _SIGNAL else signal.SIGINT)  # 130 for SIGINT, 143 for SIGTERM
+
+
+def run_chain(args: argparse.Namespace, repo: Path, core_root: Path, tasks_scripts: Path) -> int:
     codes, finished = [], set()
     for tid in args.task_ids:
         args.task_id = tid

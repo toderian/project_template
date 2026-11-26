@@ -141,7 +141,7 @@ with the run directory at `docs/_plans/_runs/<slug>/` and write the files by han
 
 `at task run <TASK-ID>... [--harness claude|codex] [--mode small|large|auto] [--phase N] [--check CMD]... [--security]
 [--model M] [--strong-model M] [--effort E] [--strong-effort E] [--max-rounds 3] [--timeout 1800] [--budget-usd 5] [--no-commit]
-[--no-final-review] [--retry-blocked] [--at-review-cap park|continue] [--force-unlock] [--dry-run]` executes this loop without an orchestrating session: it writes the same files, one
+[--no-final-review] [--lanes N] [--retry-blocked] [--at-review-cap park|continue] [--force-unlock] [--dry-run]` executes this loop without an orchestrating session: it writes the same files, one
 process per dispatch, and commits each phase (`feat: <ID> phase N — <title>`), leaving `state.md`
 dirty until the next phase's commit sweeps it in and committing the last one as
 `chore: <ID> run state`. Differences from the skill:
@@ -181,6 +181,54 @@ dirty until the next phase's commit sweeps it in and committing the last one as
   re-evaluated and runs once that dependency is committed. A baseline-check failure, a commit failure
   and a failed post-phase check still abort the run (exit `1`), and so does an implementer that
   commits: the driver compares `HEAD` with the phase base after every implementer dispatch. `--phase N` ignores `After:`.
+- What is committed is what was reviewed: when a review's diff is packaged the driver stages the phase's work and
+  records its tree (`git write-tree`); just before the commit it takes the tree again, and a different one (a file
+  written after the review, also by a check) blocks the row with `the tree changed after review (<paths>)` instead
+  of committing. The commit adds only the driver's own paths on top: the run directory, the task file and the
+  ledgers `at ledger sync` writes; a failed commit, the run-state one included, aborts the run (exit `1`). Every
+  git process the driver starts runs with `GIT_NO_REPLACE_OBJECTS=1`, so a replace ref cannot show reviewers other
+  content than the commit stores. SIGINT and SIGTERM terminate every running harness (each runs in its own
+  process group), release the lock and exit `130` and `143`.
+- Lanes: `--lanes N` (1-3, default 1; not with `--no-commit`) runs phases at the same time. A phase states its
+  scope fence in `Files:` lines under its heading (comma-separated repo-relative paths, no glob, no `..`; several
+  lines add up; no convention names one elsewhere). A wave is the ready phases whose fences do not overlap, lowest
+  first, at most N; a phase without a valid `Files:` line never shares a wave, and a wave of one runs the ordinary
+  serial loop. `--dry-run` prints the planned waves. Each lane is a worktree beside the repository
+  (`<repo>-lane-<ID>-p<N>`) on branch `at-lane/<ID>-p<N>`, run by its own `Runner` through the same phase loop, one
+  process tree per lane. A lane commits its reviewed tree only, never the task file or run directory, and only on
+  its own branch (`HEAD` must be `refs/heads/at-lane/<ID>-p<N>`); its `state.md` is a private copy. An implementer
+  commit in a lane blocks that lane like any implementer commit. Only the driver thread, under the run lock,
+  writes `state.md`, the task file and the integration branch.
+- A wave is one transaction on the integration branch. The driver commits the run state, then saves `Note: wave K:
+  base <sha>, phases a, b` before the first merge. Lanes merge lowest phase first by the full SHA the lane's
+  `Runner` committed (`git merge --no-ff`; that commit's tree must be the one its last review saw and its only
+  parent the base, so a commit put in its place can differ in its message only), then every `--check` runs. A refused merge (`merge refused: <git's last line>`), a conflict (`git merge
+  --abort`, never resolved) or a red check puts the integration branch back to the SHA before that merge (files a
+  check created are removed with it) and parks
+  the lane (`blocked` when the task is not `unattended`), worktree kept; the rest go on. One `Stage: both` review of
+  `base..HEAD` (`wave-<K>/review.md`) follows; its prompt names each phase's fence and the paths a lane changed
+  outside it. A failing review, or anything dirty in the integration checkout outside the driver's own files (an
+  implementer that wrote outside its lane; those paths are named, edits to tracked files are saved to
+  `wave-<K>/stray.patch`, untracked ones are left in place), undoes the whole wave: the
+  branch goes back to the base, every merged lane is parked or blocked with its worktree and branch kept, and
+  `Note: wave K: undone — <why>` says so. On a pass the driver ticks the task file, syncs the ledgers, sets the rows
+  `committed`, notes `Note: wave K: done` and makes one bookkeeping commit (`chore: <ID> wave K`) of its own paths,
+  then removes the merged lanes. If that commit fails (a pre-commit hook), `state.md` returns to its text before
+  the done lines, nothing stays staged, the run exits `1` and the wave stays open for the recovery below. A wave
+  that merged nothing uses no wave number. "Back to a SHA" means `git reset`
+  to a SHA the driver recorded, with the files outside the run directory restored; the run directory is the
+  driver's record and is saved from memory.
+- Recovery after a kill, at the start of every run (with or without `--lanes`, also `--phase N`): a `Note: wave K:
+  base <sha>` without its `done` or `undone` line stops the run with exit `1` before any dispatch and prints the
+  recovery: `git reset --hard <sha>` (the base holds the run state as it was before the wave), then rerun; the
+  driver resets nothing itself. Then every lane worktree and `at-lane/<ID>-p*` branch of the task is looked at: one
+  that is clean and holds no commit of its own (its tip is on the integration branch's first-parent line) is
+  removed and its phase runs as usual, and so is a clean one whose row is `committed` and whose tip is an ancestor
+  of `HEAD` (a run killed before it removed its merged lanes); one that holds work (uncommitted changes, an unmerged commit, or a merged
+  lane commit) is reported, its row is parked with a `Note:`, nothing is deleted, and that phase is not run,
+  serially or in a lane, so a phase is never implemented twice. Merge or remove it by hand and set the row to
+  `pending`. Harnesses of a run killed with SIGKILL may still write in their worktree; a rerun only removes clean,
+  empty ones.
 - Chain: `at task run <ID> <ID>...` first checks every id (`[A-Z][A-Z0-9]*-<n>` with a task file; else
   exit `2`, nothing runs), then runs the tasks in the order given and skips one whose `Blocked by` task
   is not `done`. A task this chain ran counts as done only when all its rows are committed (not after
