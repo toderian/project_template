@@ -120,7 +120,7 @@ Codex manifests and both marketplace files.
 Why: cut the $TAG release so downstream repos can pin and update to it.
 Checks: python3 scripts/build.py; bash scripts/tests/run-all.sh.
 
-Co-Authored-By: Claude Mythos 5.2 <noreply@anthropic.com>
+Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>
 EOF
   ROLLBACK=0
 fi
