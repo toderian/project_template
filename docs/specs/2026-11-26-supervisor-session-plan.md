@@ -165,7 +165,8 @@ A worker learns it is supervised from the `supervised` line in its marker, writt
 - A resource: `at sup need <resource> --minutes <n>`. If the lease is free the command returns with
   it. If not, the worker ends its turn on `Run: WAITING supervisor: <resource>`, a form the run
   guard accepts only for a supervised marker with an open request. When the lease is granted the
-  watcher wakes the worker with a message, or resumes it.
+  watcher wakes the worker with `claude stop <id>` followed by `claude --bg --resume <session-id>
+  "<text>"`; without the stop the harness starts a copy under a new session id.
 - Answers: the worker reads `at sup inbox <TASK-ID>` when woken, at each phase start and before
   closeout, and records each entry as `Decision: [sup-<profile>] A<n>: <text>` or
   `Decision: [owner] A<n>: <text>`. The worker is the only writer of its `state.md`.
@@ -254,11 +255,13 @@ files to choose what starts next, and proposes changes of priority to the owner 
 
 ### D1 in code
 
-- The supervisor agent is a file in the downstream `.claude/agents/`, written by `at sup init`,
-  because a plugin-shipped agent ignores `permissionMode` and `hooks`.
+- The supervisor agent is a file in the downstream `.claude/agents/`, written by `at sup init`. It
+  carries the tool list, which the harness applies. It carries no hook: a `hooks` entry in an agent
+  file did not run in Phase 0, for a `--agent` session or for a subagent.
 - Tools are a positive list: Bash, Agent (adviser and the profile's operators only) and, in the
   chat, the question tool. No messaging tool, no Edit, Write, NotebookEdit, Read, Skill, MCP or cron.
-- A PreToolUse hook checks every Bash command of a supervisor session without a shell: it splits
+- A PreToolUse hook, set in a settings file that `at sup chat` and the tick launcher pass with
+  `--settings`, checks every Bash command of a supervisor session without a shell: it splits
   the command with `shlex`, refuses any shell metacharacter, substitution, environment prefix or
   newline, and matches the argument list against exact tables: `at sup` subcommands,
   `at lease take|release|list`, `at run-guard status`, `claude agents`, and named read-only `git`
@@ -272,11 +275,12 @@ files to choose what starts next, and proposes changes of priority to the owner 
   force.
 - Owner's shell only: `at sup push` and `at lease clear`. The chat prints the command; the owner
   runs it.
-- Operators run named wrapper scripts from the downstream repo, one per operation; the hook of the
-  operator agent allows those scripts and nothing else. No free-text commands.
+- Operators run named wrapper scripts from the downstream repo, one per operation. The same
+  settings hook sees a subagent's calls with its `agent_type`, and holds one table per agent type:
+  an operator's table lists its scripts and nothing else. No free-text commands.
 - The supervisor runs with `bypassPermissions` (D12), so it never waits on a prompt. Two
-  consequences. The hook and the tool list are then the only fence, so Phase 0 must show that a
-  PreToolUse denial holds in that mode. And the harness holds messages between a bypass session and
+  consequences. The hook and the tool list are then the only fence; Phase 0 showed that a
+  PreToolUse denial from a settings hook holds in that mode (headless). And the harness holds messages between a bypass session and
   a session in another mode, so the supervisor does not message a worker directly: answers go
   through the inbox file and the watcher wakes the worker.
 - Workers start only through `at sup start-worker`, which builds the prompt from the task file and
@@ -307,44 +311,38 @@ result, not the worker's sentence.
 task, phase, state, time since last activity and context size where the harness gives it; leases and
 waiters; the queue; branches ready to push with PR state; cost where the harness gives it.
 
-## Facts to confirm first (Phase 0)
+## Harness facts (Phase 0, done)
 
-Known from the documentation and the installed CLI (2.1.332), so not facts to test: `--bg` starts in
-the shell's directory and makes no worktree inside an existing one; project plugins load in
-worktrees; `claude stop` keeps the conversation and the worktree; messages pass between `default`,
-`auto`, `acceptEdits` and `dontAsk` sessions and are held when either side bypasses permissions;
-`notify_when_idle` gives one notice; `CLAUDE_PID` and `CLAUDE_CODE_SESSION_ID` are set in Bash and
-hook subprocesses; the main-session prompt cache is 5 minutes unless `promptCacheTtl` is set.
+Record: `docs/meta/2026-11-26-supervisor-facts.md` (Claude Code 2.1.332). What the design takes
+from it:
 
-To observe:
+- A `--bg` worker starts from a detached process, runs plugin hooks, and has `CLAUDE_PID` and the
+  session id. It needs a trusted workspace: a git worktree of a trusted repo is trusted, a new
+  directory is not. So a worker starts in its hub worktree and reaches sibling worktrees by path.
+- A stopped worker wakes under the same session id with `claude stop`, then `claude --bg --resume`.
+- `claude agents --json` shows `status: idle`, `state: done` both for a worker that finished and for
+  one that stopped on a question or a denial. The run guard's `.status` and the run state on disk
+  are the source of a worker's state; the JSON only says whether the session is alive.
+- Agent-file hooks do not run. A settings hook does, also under `bypassPermissions`, and it sees
+  subagent calls with their `agent_type`. The agent's tool list is applied.
+- A headless session can use a subagent (10 seconds) and reports `total_cost_usd`. A background
+  session's cost comes from its transcript.
+- `git worktree remove` deletes ignored files without refusing.
 
-| # | Fact | When it fails |
-|---|---|---|
-| 1 | A `--bg` session started by a detached process (the watcher) runs, and `claude agents --json` gives a usable state for it (field names differ between background and interactive rows) | workers are detached headless sessions; state from the marker and its `.status` |
-| 2 | A `--bg` worker started inside an existing worktree does not push or open a draft PR when it finishes (since v2.1.198 it does in its own worktree) | workers are headless sessions |
-| 3 | A stopped or idle worker can be woken by a process: a message, or `claude --resume <id> --bg "<text>"` | the worker is restarted as a fresh session for the same task; run state on disk carries it |
-| 4 | The run guard and plugin hooks fire in a `--bg` session in a hub worktree, with `CLAUDE_PID` and the session id set | headless sessions, where this is already proven |
-| 5 | A custom agent in `.claude/agents/` with a tool list and a `hooks` entry, started headless and interactive with `--agent`, runs that hook on every Bash call and has no other tool | the hook is installed in the profile's settings file passed by the launcher |
-| 6 | A subagent of that session runs under its own hook, and cannot run a command its hook denies | operators are not subagents; the supervisor calls the wrapper scripts through `at sup op <name>` |
-| 7 | A headless tick can use the Agent tool and finishes within a bounded time | the adviser runs as a second headless session |
-| 8 | A worker that hits a permission denial or waits on a question can be told apart from a working one, from `claude agents --json` or the guard's `.status` | the watchdog's `--idle` is the only signal; the digest shows time since last activity |
-| 9 | A headless session reports cost and context size (`total_cost_usd`); a `--bg` session exposes either | the digest shows them for ticks only |
-| 10 | In a `bypassPermissions` session a PreToolUse hook denial still blocks the call, headless and interactive, and the agent's tool list still applies | the supervisor runs in `dontAsk` with the same hook |
-| 11 | An `auto` mode worker, headless or `--bg`: what a classifier block looks like from outside, and whether the mode is available to a session a process starts | workers run in `acceptEdits` with an allow list from the profile and the preflight |
-
-Record: `docs/meta/2026-11-26-supervisor-facts.md`, one entry per fact with the command, the observed
-output and the version.
+Still not observed: whether a `--bg` worker in an existing worktree pushes or opens a draft PR when
+it finishes (it needs a trusted scratch repo with a throwaway remote; until it is tested, the first
+trial runs workers as detached headless sessions, the mode `at task run` already uses); how a block
+by the `auto` classifier looks from outside; the hook denial in an interactive bypass session.
 
 ## Phases
 
 Each phase lists files, a ceiling of new code lines (tests excluded) and checks. Tests are stdlib
-`unittest` files under `scripts/tests/`, run by `run-all.sh`. Phases 1 and 2 need no harness fact.
+`unittest` files under `scripts/tests/`, run by `run-all.sh`. Phases 1 and 2 use no harness feature.
 
-#### Phase 0: Spike the harness facts
+#### Phase 0: Spike the harness facts (done 2026-11-26)
 
 - Files: `docs/meta/2026-11-26-supervisor-facts.md`. No code.
-- Checks: every fact has an observed output or "not available", and the plan is revised where a
-  fallback applies.
+- Left over: the three unobserved facts above, tested at the start of Phase 3.
 
 #### Phase 1: Leases and safe IDs
 
@@ -486,7 +484,7 @@ supervisor's decisions counts as owner touches, and a second round swaps the pac
 ## Risks
 
 - The agent view and background sessions are a research preview. Phases 1 and 2 use none of it, and
-  every Phase 0 fact has a headless fallback.
+  a worker can always run as a detached headless session.
 - The vendor may ship a local coordinator. The code layer (leases, landing, readiness, digest) keeps
   its value under any coordinator.
 - A model change can break supervisor behaviour, as happened to Gas Town. Ticks are short and the
@@ -527,7 +525,6 @@ supervisor's decisions counts as owner touches, and a second round swaps the pac
 
 ## Open questions
 
-- Whether `git worktree remove` deletes ignored files without refusing (to verify in Phase 0).
 - Which plugin holds the `supervise` skill; `agents-core` stays small, `agents-tasks` owns tasks.
 
 ## History
