@@ -119,3 +119,17 @@ out before it removes a worktree, as the plan says.
 - A block by the `auto` mode classifier.
 - Entry 10 in an interactive session.
 - Whether a message from another session reaches a background worker (the plan no longer needs it).
+
+## From the trials (2026-11-26, same version)
+
+- `claude -p --resume <id>` keeps the session id and the transcript, runs the SessionStart and Stop
+  hooks, and does NOT inherit the permission mode: the wake must pass it again.
+- `claude -p --session-id <uuid>` is accepted, and `--output-format json` gives the cost per run.
+- A Stop hook in a `-p` session works as in an interactive one.
+- A background start in an untrusted workspace fails before anything else, so `--bg --session-id`,
+  the `woke session` wording after `claude stop`, and liveness through `claude agents` are still
+  known only from entries 1 and 3, not from a supervised run.
+- The Glob and Grep tools were not available to a `-p --agent` session of this build.
+- `--plugin-dir` may be given twice; a development copy took over from the older installed plugin
+  and its hooks ran once.
+

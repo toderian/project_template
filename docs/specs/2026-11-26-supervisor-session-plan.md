@@ -1,6 +1,6 @@
 # Supervisor: plan
 
-Date: 2026-11-26. Status: draft, version 2. Version 1 passed four architecture review rounds and was
+Date: 2026-11-26. Status: built (Phases 1 to 4) and tried with real sessions in a scratch hub; version 2 plus D18–D25. Version 1 passed four architecture review rounds and was
 then found not ready by a second research round; this version is the reshape the owner agreed to
 (D6–D17). One independent review of version 2 said "revise first"; its findings are applied below
 and the result has not been reviewed again. History is in the last section.
@@ -522,6 +522,31 @@ supervisor's decisions counts as owner touches, and a second round swaps the pac
   worker only inside the task's `Authorised` and `Defaults` lines and the owner's standing
   instructions, never above the repo's `Autonomy max`.
 - D17: the code is built and released in the template repo first; downstream repos get it by update.
+- D18 (after the reviews of the first build, 2026-11-26): the supervisor's settings, command tables
+  and agent files live under the profile's state directory (`conf/`), not in the hub, and the tick
+  and the chat start there. A landed branch can then not replace the guard. `at sup land` refuses a
+  branch that touches `.claude/` or `.mcp.json` without the owner's flag.
+- D19: the supervisor may run only `at sup …` and `at lease list`. The `git`, `gh` and `claude`
+  commands of the first design are gone from its table: a read-only git command still runs filters
+  that a worker can configure. What it needs to know comes from `at sup status|queue|packs|board`.
+- D20: the trust model, stated. A worker has the owner's uid and can write the state directory, so
+  nothing in `at sup` is a fence against a worker. The guard fences the supervisor session only;
+  the chat token separates the owner's chat from a tick. `touch.log` and `by: owner` are records.
+- D21: lab scripts run only through `at sup op <resource> <script>`, which checks the script
+  against the profile and holds the lease in code.
+- D22: a worker parks on `WAITING supervisor: <id>` only when that is its last line, `<id>` names
+  an open question or resource request, and the event was written. Otherwise the run guard treats
+  the stop as any other.
+- D23: the watcher tells the owner about trouble by itself (queue entry and `at notify`): a dead
+  worker after two restarts, a refused start or landing, an owed or overdue lease, paused ticks,
+  a BLOCKED or GAVE_UP stop. A tick is not needed for that.
+- D24: workers run in one of two modes, config key `worker_mode`. `bg` needs a trusted workspace;
+  `headless` (`claude -p` with a known session id, woken with `claude -p --resume`) needs nothing.
+  The watcher switches to `headless` when a background start is refused as untrusted.
+- D25: a tick is for `ask` and `need` only. Every other event kind is handled by code or reported to
+  the owner by the watcher. The cursor moves only over events with a recorded action; an event two
+  ticks could not handle becomes an owner entry. The supervisor reads a task with `at sup task <ID>`,
+  answers only worker questions, and links an escalation to its question with `--q`.
 
 ## Open questions
 
@@ -538,3 +563,20 @@ not bound Bash, that no per-subagent Bash allow-list exists, that plugin agents 
 timer wake slower than the owner is today; a days-long session as the measured anti-pattern; no
 endgame; and a pack model that would have made RM-268's 25 tasks serial and broken four of the hub's
 rules. Version 2 is the reshape. Version 1 was never committed.
+
+Build (2026-11-26): Phases 1 to 4 were built in one day as parallel lanes: `sup.py` and the guard
+first, then six lanes at once over a shared state module, one integration pass, four parallel
+reviews (73 findings, 16 critical) and four parallel fix groups. The reviews changed the design in
+D18 to D23. Code: `plugins/agents-core/lib/sup*.py`, `hooks/sup-guard.sh`,
+`plugins/agents-tasks/skills/supervise/`. The text of "Design" above still describes some things
+as first planned (files in the hub's `.claude/`, read-only git for the supervisor); where it
+differs from D18 to D23, the decisions and the module docstrings hold.
+
+Trials (2026-11-26, real sessions on the cheapest model, scratch hub with no remote): the first
+needed three hand workarounds (untrusted workspace, the tick's agent not found, the guard denying
+the main agent) and gave D24. The second ran end to end with none but turned every `done` into a
+failed tick and escalated one question three times, which gave D25. The third: four tasks, two
+workers at once, landed in 3.0 minutes for $0.07; one tick answered one question from the task's
+`Defaults` line and escalated the other once; one owner answer; no failed tick, no dead worker.
+Not tried: background workers (no trusted scratch workspace), `at sup chat`, leases and `at sup op`,
+a dead worker's restart, a refused landing, serial packs, a real hub with a ledger.

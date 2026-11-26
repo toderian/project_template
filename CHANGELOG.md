@@ -17,18 +17,26 @@ Notable changes to agents-template. All four plugins share the version of the re
     branch under the `hub-ledger` lease (the branch tip stays at `refs/archive/task/<ID>`, ignored
     files are kept), and the readiness check of a task file.
   - `pack`, `start-pack`, `pause-pack`, `close-pack`, `order`, `cap`, `start-worker`, `stop-worker`:
-    packs of tasks and one background worker session per task, under a session cap.
-  - `ask`, `need`, `release`, `inbox` for a worker; `answer`, `grant`, `deny`, `queue`, `instruct` for
-    the supervisor and the owner. A worker that asks ends its turn with `WAITING supervisor: <id>`;
+    packs of tasks and one worker session per task, under a session cap. Config key `worker_mode`:
+    `bg` needs the hub opened once so the workspace is trusted, `headless` needs nothing; the
+    watcher switches to `headless` by itself when a background start is refused for that reason.
+  - `ask`, `need`, `release`, `inbox` for a worker; `answer`, `grant`, `deny`, `escalate`, `queue`,
+    `task`, `instruct` for the supervisor and the owner. The supervisor answers only inside the task's
+    `Authorised` and `Defaults` lines and escalates the rest; the owner is told with `at notify`. A worker that asks ends its turn with `WAITING supervisor: <id>`;
     the run guard lets it stop and the watchdog does not restart it.
   - `watch start|stop|status|once`: a detached watcher with no model in it. It finds dead workers and
     overdue leases, wakes a worker that has an answer, starts the next task, lands a closed-out task
-    and starts a tick when events need judgement. `--no-tick` runs without the model.
+    and starts a tick when a question or a resource request needs judgement. Trouble (a dead worker
+    after two restarts, a refused start or landing, an owed lease) goes to the owner's queue and
+    `at notify` without a tick. `--no-tick` runs without the model.
   - `init`, `tick`, `chat`, `board`: the supervisor session itself. A tick is one fresh headless turn
     over the unhandled events; the chat is the owner's interactive session. Both run under
     `hooks/sup-guard.sh`, a PreToolUse guard with exact argv tables and a tool allow-list, because the
-    supervisor runs with permissions bypassed. Commands that only the owner may give need the chat's
-    token or the owner's own shell.
+    supervisor runs with permissions bypassed. It may run `at sup …` and `at lease list` and nothing
+    else; its settings and agent files live under the profile's state directory, not in the hub.
+    Commands that only the owner may give need the chat's token or the owner's own shell. Workers
+    share the owner's uid, so none of this is a fence against a worker.
+  - `op <resource> <script>`: an operator script from the profile, run under the resource's lease.
   - `status`, `done <pack>`, `measure`: the digest, the done check and the trial numbers.
 - **`agents-tasks:supervise`**: sets a profile up in a hub and names what the supervisor may decide.
 

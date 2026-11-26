@@ -52,8 +52,9 @@ import sup_state as st
 WORKER_PROMPT = (
     "Execute task {task} with agents-core:execute-plan as an unattended run. You are supervised by profile {profile}. "
     "For a decision outside your authority run `at sup ask`. For a shared resource run `at sup need <resource> "
-    "--minutes <n>` (--minutes is required) and `at sup release <resource>` as soon as you are done with it. Then end "
-    "your turn with the line `WAITING supervisor: <id>`. When you are woken, read your answers with `at sup inbox` and "
+    "--minutes <n>` (--minutes is required) and `at sup release <resource>` as soon as you are done with it. Only after "
+    "an `ask` or a `need` that was not granted at once, end your turn with the line `WAITING supervisor: <id>`, where "
+    "<id> is the question id or the resource name that the command printed. When you are woken, read your answers with `at sup inbox` and "
     "acknowledge each one with `at sup inbox --ack <id>`. Never ask the user. Close the task out with "
     "agents-tasks:complete-task. Arm the run guard first (`at run-guard arm {task}`) and never disarm it. "
     "Do not push and do not merge."
