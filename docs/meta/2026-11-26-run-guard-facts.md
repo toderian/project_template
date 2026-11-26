@@ -119,3 +119,47 @@ Other observations for the harness and later phases:
   sometimes does phase 2 unprompted (the guard then has nothing to do). The E1 prompt says "phase 1 only,
   then end your turn; if a Stop hook sends you back, follow it". Over two runs of the final prompt E1 passed,
   once with two sent-backs and once with one.
+
+## Scenario E9 (manual, 2026-11-26, release 1.15.0)
+
+One Claude Code session in a downstream repo, the owner present, two small accessibility tasks marked
+through `agents-core:unattended-run`. The session ran from 15:20 to 17:10; the owner answered the
+readiness questions, then came back only to ask for the pull request and to say it was merged.
+
+What held:
+
+- Readiness check: playback and grilling ran; the session found on its own that an open pull request
+  rewrote both target files and asked where to commit. Both tasks got `Execution: unattended` and an
+  `### Unattended run` section with the four standing answers (`At review cap: park`, `Lanes: 1`,
+  `On refusal:`, `On shared resource:`) and a named gap (no notify command).
+- Decision rule: one `Decision:` line (an existing test file extended instead of the new one the task
+  named) and five `Ruling:` lines across the two tasks, each with a cost-if-wrong clause. All reached the report.
+- Owner-only limits: no push, pull request or task close until the owner asked for each.
+- Report: `at task report` wrote one file per task under `docs/tasks_manager/_reports/`, "Needs you:
+  Nothing open", and it was committed with the run state.
+- Reviews: one independent reviewer subagent per task, plus Codex reviews of the fixes.
+
+What did not hold, all from one cause: after writing the mark the session started the work itself
+and never loaded `agents-core:execute-plan` (the skill names it as "the loop" but has no hand-off step).
+
+- The run guard was never armed: no `at run-guard arm` call, no marker for the session. A turn at
+  15:51 ended on a progress summary with the test suite, two loop cells and the report still open;
+  only a background job's completion brought the session back.
+- The run state was written from memory: mid-run `at task run-state check` failed on status
+  `reviewed` (not an allowed value) and on two commit ids in one cell. The session corrected the
+  status to `committed` before the report; the report's "Commits" section stayed "None recorded".
+- No heartbeat was scheduled, so the heartbeat half of E6 was not exercised.
+
+Not covered by this run: two lanes through `agents-core:execute-parallel` (the owner chose
+`Lanes: 1`), a parked decision (nothing fell outside the authorised scope), the watchdog
+(`Watch: off`).
+
+Follow-ups:
+
+- `agents-core:unattended-run`: add an explicit step after the mark, "load `agents-core:execute-plan`
+  and run through it", so the guard is armed and the run state is written by its rules.
+- `at task report`: the "Commits" section is empty when the commits are in another repository's
+  checkout.
+- Closing a task removed the run folder with uncommitted review files in it (four Codex review files
+  were lost); the closeout should refuse or commit them first.
+- Repeat E9 with two lanes, one parked decision and the guard armed once the hand-off is fixed.

@@ -143,3 +143,6 @@ Decision: run_watch.py ceiling 400 code lines (was 380) — why: the final fix w
 Final review: live E3 E4 E5 E7 E8 PASS on the fixed code (E4 on its second attempt; E5 after the failed-report notification was renamed so it does not read as a second "Run finished")
 Note: owner answered 2026-11-26: E9 first, release only after it passes and on the owner's word; no push
 Note: owner said 2026-11-26 "we should release first": release 1.15.0 (minor: new features) before E9, which stays open; no push
+Note: released 1.15.0 (be9b294, tag v1.15.0) on 2026-11-26; test-release 32 passed, run-all ok; not pushed. Open: scenario E9 with the heartbeat half of E6
+Note: pushed master (be9b294) and tag v1.15.0 to origin on the owner's word, 2026-11-26
+Note: E9 run by the owner 2026-11-26 in a downstream repo (two tasks, one lane): readiness check, recorded answers, one Decision, owner-only limits and the report held; the session never loaded agents-core:execute-plan, so the run guard was not armed and the heartbeat half of E6 was not exercised; follow-ups in docs/meta/2026-11-26-run-guard-facts.md

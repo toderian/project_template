@@ -254,8 +254,10 @@ After: 4, 6
       what to do when another session holds a shared resource (recommend: wait up to N minutes, then
       park).
 - [x] The scripted suite E1–E8 run once from a clean checkout, output saved next to the facts file.
-- [ ] Scenario E9 on one small real task in a downstream repo, with the owner present; its evidence
-      goes into the facts file. It is the one step of this plan that waits for a person.
+- [x] Scenario E9 on one small real task in a downstream repo, with the owner present; its evidence
+      goes into the facts file. It is the one step of this plan that waits for a person. Run once on
+      2026-11-26 (two tasks, one lane); not covered: two lanes, a parked decision, the run guard and
+      the heartbeat half of E6. See "Scenario E9" in the facts file.
 - [x] README, seed `AGENTS.md`, CHANGELOG; `scripts/release.sh`.
 
 Shape: text only, apart from the suite's saved output.
@@ -422,3 +424,10 @@ The end-to-end suite E1–E8 passes from a clean checkout, and E9 was run once w
   Decision). Follow-ups are the `Ruling:` lines "accepted as follow-ups" in the run state.
 - 2026-11-26: Released as 1.15.0 on the owner's word, before E9 (the owner changed the order). E9 and
   the heartbeat half of E6 stay open. Not pushed.
+- 2026-11-26: Pushed master and tag v1.15.0 on the owner's word. E9 run by the owner in a downstream
+  repo on two small tasks: both implemented, reviewed, reported and closed after the owner merged.
+  The readiness check, the recorded answers, one `Decision:` line, the owner-only limits and the
+  report worked. Three gaps found, all one cause: after the mark the session started the work without
+  loading `agents-core:execute-plan`, so the run guard was never armed, the run state held a status
+  the checker rejects, and no heartbeat was scheduled. Follow-up: an explicit hand-off step in
+  `agents-core:unattended-run`. Evidence in `docs/meta/2026-11-26-run-guard-facts.md`.
