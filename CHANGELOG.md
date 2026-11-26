@@ -2,6 +2,15 @@
 
 Notable changes to agents-template. All four plugins share the version of the repository.
 
+## 1.15.1 — 2026-11-26
+
+### Fixed
+
+- **`agents-core:unattended-run` now hands off.** After the mark it loads
+  `agents-core:execute-plan` before any phase starts, and says so at the start of step 5. In the first real
+  run of 1.15.0 the session started the work straight from the readiness check: the run guard was
+  never armed and the run state was written from memory.
+
 ## 1.15.0 — 2026-11-26
 
 ### Added

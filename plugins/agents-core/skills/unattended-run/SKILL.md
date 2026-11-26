@@ -15,8 +15,8 @@ starts, get the answers once, write them where a later session reads them, and d
 what the owner authorised instead of asking. Every decision taken that way is recorded, so the owner
 can audit the run afterwards.
 
-The loop itself is `agents-core:execute-plan`; this skill adds the check before it and the decision
-rule during it.
+This skill is the check before the run and the decision rule during it. It does not execute
+anything: the run itself goes through the skill step 5 hands off to.
 
 ## Process
 
@@ -121,12 +121,23 @@ it, and write it only after they confirm.
    step 3, so no answer lives only in chat. A corrected playback is a plan change: edit the phase
    it corrects.
 
-Done when the section is in the file, confirmed, and committed with the task.
+Done when the section is in the file, confirmed, and committed with the task. If the owner asked
+only for the check, stop here and tell them the task is ready to start. If they asked for the run,
+go on to step 5 in the same turn.
 
-### 5. Decide during the run
+### 5. Start the run, and decide during it
 
-Applies to every task that carries the mark, from the first phase to closeout. At each point where
-you would ask the owner:
+**Hand off first.** Load `agents-core:execute-plan` (unless this session already runs under it) on
+the same task, plan or chain and do every phase through it: right after step 4, and whenever you
+pick up a task that already carries the mark. The one exception is a phase the owner or an
+`On refusal` line sends to `at task run`. Do not implement a phase, dispatch a reviewer or write a
+run state before it is loaded. A run started without it has no valid run state and no run guard,
+and its first turn that ends on a progress summary stops the night. Done when `at run-guard status`
+lists every task of the run (or the plan's `state.md`). Exit 3 means this harness has no guard:
+hold the `Run:` rule by hand.
+
+The rule below applies to every task that carries the mark, from the first phase to closeout. At
+each point where you would ask the owner:
 
 1. **A `Defaults` line answers it:** do that.
 2. **Inside `Authorised`:** take the option you would recommend, act, and add to the run state:
@@ -143,7 +154,7 @@ A failing tool or host is not a decision point: retry twice with a changed appro
 alternative the plan allows, then park.
 
 Never end a turn on a status summary. The turn ends only when everything is committed or parked, or
-on the `Run:` line `agents-core:execute-plan` defines.
+on the `Run:` line the run guard accepts.
 
 ### 6. Report
 
@@ -164,6 +175,8 @@ closeout.
 - Every stop the plan could cause was found before the run, not during it: a decision point met
   during the run that step 3 could have foreseen is a defect of the check.
 - Every answer the owner gave is written in the task file.
+- A run inside a session went through the hand-off in step 5: the run guard was armed before the
+  first phase started.
 - The scope section is the owner's confirmed words and is committed.
 - Each decision taken without the owner has a `Decision:` line; each one not taken has a `parked` row.
 - A parked row stops only what depends on it.
