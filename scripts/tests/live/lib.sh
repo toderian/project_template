@@ -87,6 +87,7 @@ write_state() {
 }
 
 # run_claude <repo> <session-id> <out.jsonl> <prompt>: one headless session, resumable by its id.
+# LIVE_SESSION_FLAG=--resume continues an existing session instead of starting it.
 run_claude() {
   local repo="$1" sid="$2" out="$3" prompt="$4" rc=0
   local plugins=() p
@@ -95,7 +96,7 @@ run_claude() {
   LIVE_LAST_SID="${sid}"; LIVE_LAST_OUT="${out}"
   for p in "${LIVE_ROOT}"/plugins/*/; do plugins+=(--plugin-dir "${p%/}"); done
   ( cd "${repo}" && exec timeout -k 10 "${LIVE_TIMEOUT}" claude -p --model "${LIVE_MODEL}" \
-      --max-budget-usd "${LIVE_BUDGET_USD}" --session-id "${sid}" \
+      --max-budget-usd "${LIVE_BUDGET_USD}" "${LIVE_SESSION_FLAG:---session-id}" "${sid}" \
       --permission-mode acceptEdits \
       "--allowedTools=Bash(git:*)" "--allowedTools=Bash(echo:*)" "--allowedTools=Bash(grep:*)" \
       "--allowedTools=Bash(cat:*)" "--allowedTools=Bash(sed:*)" "--allowedTools=Bash(printf:*)" \

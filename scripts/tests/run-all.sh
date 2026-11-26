@@ -10,6 +10,7 @@ python3 scripts/tests/test_sync_todo_ledgers.py
 python3 scripts/tests/test_task_brief.py
 python3 scripts/tests/test_task_run.py
 python3 scripts/tests/test_task_size.py
+python3 scripts/tests/test_task_report.py
 python3 scripts/tests/test_design_tree.py
 python3 scripts/tests/test_explore.py
 bash scripts/tests/test-at.sh

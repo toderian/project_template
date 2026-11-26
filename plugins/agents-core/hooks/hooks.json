@@ -14,7 +14,9 @@
     ],
     "SessionStart": [
       { "matcher": "startup", "hooks": [
-        { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/session-drift.sh" } ] }
+        { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/session-drift.sh" } ] },
+      { "matcher": "resume|compact", "hooks": [
+        { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/run-guard-remind.sh" } ] }
     ],
     "Stop": [
       { "hooks": [

@@ -36,10 +36,10 @@ assert_contains() { # assert_contains <file> <needle> <desc>
   if grep -qF -- "$2" "$1" 2>/dev/null; then pass; else fail "$3"; fi
 }
 assert_stdout_contains() { # assert_stdout_contains <text> <needle> <desc>
-  if printf '%s\n' "$1" | grep -qF -- "$2"; then pass; else fail "$3"; fi
+  if grep -qF -- "$2" <<<"$1"; then pass; else fail "$3"; fi
 }
 assert_stdout_lacks() { # assert_stdout_lacks <text> <needle> <desc>
-  if printf '%s\n' "$1" | grep -qF -- "$2"; then fail "$3"; else pass; fi
+  if grep -qF -- "$2" <<<"$1"; then fail "$3"; else pass; fi
 }
 assert_eq() { # assert_eq <actual> <expected> <desc>
   if [[ "$1" == "$2" ]]; then pass; else fail "$3 (got '$1', want '$2')"; fi
@@ -180,7 +180,7 @@ DOCTOR_OUT="$(at doctor 2>&1)"
 DOCTOR_RC=$?
 assert_eq "$DOCTOR_RC" "0" "at doctor exits 0 on a fresh seed: $DOCTOR_OUT"
 assert_stdout_contains "$DOCTOR_OUT" "TODO-FILL" "at doctor warns about unfilled project slots"
-if printf '%s\n' "$DOCTOR_OUT" | grep -q '^WARN .*TODO-FILL'; then pass; else fail "TODO-FILL finding is a WARN"; fi
+if grep -q '^WARN .*TODO-FILL' <<<"$DOCTOR_OUT"; then pass; else fail "TODO-FILL finding is a WARN"; fi
 assert_stdout_lacks "$DOCTOR_OUT" "ERROR" "at doctor reports no errors on a fresh seed"
 assert_stdout_contains "$DOCTOR_OUT" "caveman@caveman is enabled in .claude/settings.json" \
   "at doctor checks every plugin the seed enables"
@@ -194,7 +194,7 @@ d["enabledPlugins"].pop("caveman@caveman")
 p.write_text(json.dumps(d, indent=2) + "\n")
 PY
 DOCTOR_NOCAVE="$(at doctor 2>&1)"
-if printf '%s\n' "$DOCTOR_NOCAVE" | grep -qE '^WARN +caveman@caveman is not enabled'; then
+if grep -qE '^WARN +caveman@caveman is not enabled' <<<"$DOCTOR_NOCAVE"; then
   pass
 else
   fail "doctor warns when the companion is not enabled: $DOCTOR_NOCAVE"
@@ -214,7 +214,7 @@ d["permissions"]["deny"].remove("Edit(./.creds/**)")
 p.write_text(json.dumps(d, indent=2) + "\n")
 PY
 DOCTOR_NOASK="$(at doctor 2>&1)"
-if printf '%s\n' "$DOCTOR_NOASK" | grep -qE '^WARN +\.claude/settings\.json is missing 3 seed permission rule'; then
+if grep -qE '^WARN +\.claude/settings\.json is missing 3 seed permission rule' <<<"$DOCTOR_NOASK"; then
   pass
 else
   fail "doctor warns about missing seed permission rules: $DOCTOR_NOASK"
@@ -261,7 +261,7 @@ sed -i 's|^<!-- TODO-FILL.*|Filled in by the test.|' AGENTS.md
 DOCTOR_FILLED="$(at doctor 2>&1)"
 DOCTOR_FILLED_RC=$?
 assert_eq "$DOCTOR_FILLED_RC" "0" "at doctor exits 0 once the project slots are filled"
-if printf '%s\n' "$DOCTOR_FILLED" | grep -qE '^OK +AGENTS\.md project slots are filled'; then
+if grep -qE '^OK +AGENTS\.md project slots are filled' <<<"$DOCTOR_FILLED"; then
   pass
 else
   fail "filled project slots report OK: $DOCTOR_FILLED"
@@ -337,12 +337,12 @@ cp "$REPO/scripts/tests/fixtures/ledger-minimal/docs/tasks_manager/_todos/TST-00
 DOCTOR_LEDGER="$(at doctor 2>&1)"
 DOCTOR_LEDGER_RC=$?
 assert_eq "$DOCTOR_LEDGER_RC" "1" "at doctor exits 1 when the ledger check fails"
-if printf '%s\n' "$DOCTOR_LEDGER" | grep -qE '^WARN +ledger: .*execution log exceeds 200 lines'; then
+if grep -qE '^WARN +ledger: .*execution log exceeds 200 lines' <<<"$DOCTOR_LEDGER"; then
   pass
 else
   fail "ledger warnings stay WARN on a failing check: $DOCTOR_LEDGER"
 fi
-if printf '%s\n' "$DOCTOR_LEDGER" | grep -qE '^ERROR +ledger: '; then pass; else fail "ledger errors are ERROR"; fi
+if grep -qE '^ERROR +ledger: ' <<<"$DOCTOR_LEDGER"; then pass; else fail "ledger errors are ERROR"; fi
 rm docs/tasks_manager/_todos/TST-002-C_oversized-execution-log.md
 
 # doctor collapses a ledger warning repeated across many tasks into one line
@@ -383,16 +383,59 @@ GUARD_OUT="$(AGENTS_RUN_GUARD_DIR="$GUARD_TMP" CLAUDE_CODE_SESSION_ID=sess-t at 
 assert_eq "$?" "0" "at run-guard arm exits 0: $GUARD_OUT"
 assert_contains "$GUARD_TMP/sess-t" "TST-003" "run-guard arm writes the session marker"
 assert_contains "$GUARD_TMP/sess-t" "state.md" "run-guard arm accepts a state file"
+assert_contains "$GUARD_TMP/sess-t" "meta	cwd	" "run-guard arm writes the cwd meta line"
+assert_contains "$GUARD_TMP/sess-t" "meta	armed	" "run-guard arm writes the armed meta line"
+printf 'kind=DONE\n' > "$GUARD_TMP/sess-t.status"; mkdir "$GUARD_TMP/sess-t.sent"; echo 1 > "$GUARD_TMP/sess-t.count"
+GUARD_OUT="$(AGENTS_RUN_GUARD_DIR="$GUARD_TMP" CLAUDE_CODE_SESSION_ID=sess-t CLAUDE_PID=4242 at run-guard arm TST-003 2>&1)"
+assert_missing "$GUARD_TMP/sess-t.status" "a new arm resets the DONE status"
+assert_missing "$GUARD_TMP/sess-t.sent" "a new arm resets the sent events"
+assert_missing "$GUARD_TMP/sess-t.count" "a new arm resets the sent-back count"
+assert_contains "$GUARD_TMP/sess-t" "meta	pid	4242" "run-guard arm stores CLAUDE_PID as the pid meta line"
+assert_eq "$(grep -c '^meta	pid' "$GUARD_TMP/sess-t")" "1" "re-arming keeps one pid line"
+assert_eq "$(AGENTS_RUN_GUARD_DIR="$GUARD_TMP" CLAUDE_CODE_SESSION_ID=sess-np env -u CLAUDE_PID "$REPO/plugins/agents-core/bin/at" run-guard arm TST-003 >/dev/null 2>&1; grep -c '^meta	pid' "$GUARD_TMP/sess-np")" "0" "arm without CLAUDE_PID writes no pid line"
+# prune: every old side file goes, an unrelated directory and fresh files stay, a dangling symlink does not stop arm
+for sfx in "" .status .status.123 .count .watch; do : > "$GUARD_TMP/old$sfx"; done
+mkdir -p "$GUARD_TMP/old.sent" "$GUARD_TMP/unrelated" "$GUARD_TMP/oldsub"; ln -s /nonexistent/x "$GUARD_TMP/dangling"
+touch -d '30 days ago' "$GUARD_TMP"/old* "$GUARD_TMP/unrelated" "$GUARD_TMP/oldsub"
+AGENTS_RUN_GUARD_DIR="$GUARD_TMP" CLAUDE_CODE_SESSION_ID=sess-t at run-guard arm TST-003 >/dev/null 2>&1
+assert_eq "$?" "0" "arm survives a dangling symlink in the guard dir"
+assert_eq "$(ls -A "$GUARD_TMP" | grep -c '^old')" "1" "the 14-day prune removes every old side file (only the old directory that is not ours stays)"
+assert_exists "$GUARD_TMP/unrelated" "the prune keeps a directory that is not a .sent"
+assert_exists "$GUARD_TMP/sess-t" "the prune keeps the live marker"
+GUARD_NEW="$(mktemp -d)/fresh"
+AGENTS_RUN_GUARD_DIR="$GUARD_NEW" CLAUDE_CODE_SESSION_ID=sess-t at run-guard arm TST-003 >/dev/null 2>&1
+assert_eq "$(stat -c %a "$GUARD_NEW")" "700" "the guard dir is created private"
+assert_eq "$(stat -c %a "$GUARD_NEW/sess-t")" "600" "the marker is private"
+chmod 755 "$GUARD_NEW"; AGENTS_RUN_GUARD_DIR="$GUARD_NEW" CLAUDE_CODE_SESSION_ID=sess-t at run-guard arm TST-003 >/dev/null 2>&1
+assert_eq "$(stat -c %a "$GUARD_NEW")" "700" "arm tightens a guard dir that already exists"
+rm -rf "$(dirname "$GUARD_NEW")"
 AGENTS_RUN_GUARD_DIR="$GUARD_TMP" CLAUDE_CODE_SESSION_ID=sess-t at run-guard arm NOPE-999 >/dev/null 2>&1
 assert_eq "$?" "1" "run-guard arm refuses an unknown task"
 AGENTS_RUN_GUARD_DIR="$GUARD_TMP" CLAUDE_CODE_SESSION_ID= at run-guard arm TST-003 >/dev/null 2>&1
 assert_eq "$?" "3" "run-guard arm without a session id exits 3"
+printf 'kind=WAITING\n' > "$GUARD_TMP/sess-t.status"; mkdir "$GUARD_TMP/sess-t.sent"; : > "$GUARD_TMP/sess-t.watch"
+GUARD_OUT="$(AGENTS_RUN_GUARD_DIR="$GUARD_TMP" CLAUDE_CODE_SESSION_ID=sess-t at run-guard status 2>&1)"
+printf 'kind=WAITING\ntext=caf\xc3 \xe2\x80\xa8kind=DONE\n' > "$GUARD_TMP/sess-t.status"; echo 3 > "$GUARD_TMP/sess-t.count"; : > "$GUARD_TMP/sess-t.sent/stalled"
+GUARD_OUT="$(AGENTS_RUN_GUARD_DIR="$GUARD_TMP" CLAUDE_CODE_SESSION_ID=sess-t at run-guard status 2>&1)"
+assert_eq "$?" "0" "run-guard status survives invalid UTF-8 in .status"
+assert_stdout_lacks "$GUARD_OUT" "| kind=DONE" "a Unicode line separator in .status does not forge a line"
+assert_stdout_contains "$GUARD_OUT" "sent back 3 time(s)" "run-guard status shows the sent-back count"
+assert_stdout_contains "$GUARD_OUT" "notified stalled" "run-guard status shows the notified events"
+assert_stdout_contains "$GUARD_OUT" "watcher" "run-guard status shows a watcher"
+printf 'kind=WAITING\n' > "$GUARD_TMP/sess-t.status"
+touch "$GUARD_TMP/sess-t.status.99"
+GUARD_OUT="$(AGENTS_RUN_GUARD_DIR="$GUARD_TMP" CLAUDE_CODE_SESSION_ID=sess-t at run-guard status 2>&1)"
+assert_stdout_contains "$GUARD_OUT" "kind=WAITING" "run-guard status shows the status file"
 AGENTS_RUN_GUARD_DIR="$GUARD_TMP" CLAUDE_CODE_SESSION_ID=sess-t at run-guard disarm >/dev/null 2>&1
 assert_missing "$GUARD_TMP/sess-t" "run-guard disarm removes the marker"
+assert_missing "$GUARD_TMP/sess-t.status" "run-guard disarm removes the status"
+assert_missing "$GUARD_TMP/sess-t.sent" "run-guard disarm removes the sent events"
+assert_missing "$GUARD_TMP/sess-t.watch" "run-guard disarm removes the watch file"
+assert_missing "$GUARD_TMP/sess-t.status.99" "run-guard disarm removes a leftover status temp file"
 rm -rf "$GUARD_TMP"
 TASK_RUN_DRY="$(at task run TST-003 --harness claude --dry-run 2>&1)"
 assert_eq "$?" "0" "at task run --dry-run exits 0: $TASK_RUN_DRY"
-if printf '%s\n' "$TASK_RUN_DRY" | grep -q '\[dry-run\] phase 3'; then pass; else fail "at task run --dry-run lists every phase: $TASK_RUN_DRY"; fi
+if grep -q '\[dry-run\] phase 3' <<<"$TASK_RUN_DRY"; then pass; else fail "at task run --dry-run lists every phase: $TASK_RUN_DRY"; fi
 rm -rf docs/tasks_manager/_runs/TST-003 docs/tasks_manager/_todos/TST-003-F_brief-source.md
 at ledger sync >/dev/null 2>&1
 
@@ -868,7 +911,7 @@ peer_doctor() { ( cd "$PEER_REPO" && PATH="$PEER_PATH" at doctor 2>&1 ); }
 assert_stdout_contains "$(peer_doctor)" "peer check: codex is on PATH" "at doctor confirms a listed peer CLI"
 rm "$PEER_BIN/codex"
 PEER_DOCTOR="$(peer_doctor)"
-if printf '%s\n' "$PEER_DOCTOR" | grep -qE '^WARN +peer check: agents\.peers lists codex, which is not on PATH'; then pass
+if grep -qE '^WARN +peer check: agents\.peers lists codex, which is not on PATH' <<<"$PEER_DOCTOR"; then pass
 else fail "at doctor warns about a listed peer CLI that is not installed: $PEER_DOCTOR"; fi
 assert_stdout_contains "$(peer_doctor)" "peer check: claude is on PATH" "the other listed CLI is still reported ok"
 PEER_OUT="$(peer 1 ok status)"; PEER_RC=$?
@@ -914,7 +957,7 @@ assert_eq "$(cat "$ADDON_REPO/.mcp.json" "$ADDON_REPO/.claude/settings.json")" "
 # With Codex installed the same server goes into the checkout's git-ignored Codex config.
 printf '#!/bin/sh\nexit 0\n' > "$ADDON_BIN/codex"; chmod +x "$ADDON_BIN/codex"
 ADDON_DOCTOR="$(addon_doctor)"  # captured first: `grep -q` on a pipe trips pipefail
-if printf '%s\n' "$ADDON_DOCTOR" | grep -qE '^WARN +addon browser: enabled, but not registered for Codex in this checkout; run: at addon enable browser'; then pass
+if grep -qE '^WARN +addon browser: enabled, but not registered for Codex in this checkout; run: at addon enable browser' <<<"$ADDON_DOCTOR"; then pass
 else fail "at doctor tells a Codex user to register an add-on the repo enabled: $ADDON_DOCTOR"; fi
 printf '[features]\nfoo = true\n' > "$ADDON_REPO/.codex-own"; mkdir -p "$ADDON_REPO/.codex"; mv "$ADDON_REPO/.codex-own" "$ADDON_REPO/.codex/config.toml"
 assert_stdout_contains "$(addon enable browser)" ".codex/config.toml is not git-ignored here" "an unignored Codex config is flagged"
@@ -927,7 +970,7 @@ assert_eq "$(python3 -c "import tomllib;d=tomllib.load(open('$ADDON_REPO/.codex/
 addon enable browser >/dev/null
 assert_eq "$(grep -c 'mcp_servers.chrome-devtools' "$ADDON_REPO/.codex/config.toml")" "1" "a repeated enable does not duplicate the Codex block"
 ADDON_DOCTOR="$(addon_doctor)"
-if printf '%s\n' "$ADDON_DOCTOR" | grep -qE '^OK +addon browser: enabled$'; then pass
+if grep -qE '^OK +addon browser: enabled$' <<<"$ADDON_DOCTOR"; then pass
 else fail "at doctor is satisfied once Codex is registered: $ADDON_DOCTOR"; fi
 
 ADDON_OUT="$(addon enable shadcn)"

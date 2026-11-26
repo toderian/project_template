@@ -98,8 +98,8 @@ jq -e '
   (.hooks.PostToolUse | length) == 1 and
   (.hooks.SubagentStop | length) == 1 and
   (.hooks.Stop | length) == 1 and
-  (.hooks.SessionStart | length) == 1 and
-  ([.hooks[][]?.hooks[]?.command] | length) == 8
+  (.hooks.SessionStart | length) == 2 and
+  ([.hooks[][]?.hooks[]?.command] | length) == 9
 ' "$CORE_CACHE/hooks/hooks.codex.json" >/dev/null || fail "installed Codex hook manifest is malformed"
 
 SAFE_PAYLOAD="$(jq -nc --arg command 'git status --short' '{tool_input: {command: $command}}')"

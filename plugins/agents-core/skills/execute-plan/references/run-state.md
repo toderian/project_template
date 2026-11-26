@@ -96,11 +96,17 @@ the phase including fix rounds.
 ## Run guard
 
 `at run-guard arm <TASK-ID|state.md>...` writes a marker for this session outside the repo
-(`~/.local/state/agents-template/run-guard/<session id>`). While a guarded task is still in `_todos/`,
-or a guarded `state.md` has a row that is not `committed`, the plugin's Stop hook (`run-guard.sh`)
-ends a turn only on a `Run: WAITING …` or `Run: BLOCKED …` line. It never touches another session,
-removes itself when nothing is open, and lets the stop through after five sent-backs in a row.
-`at run-guard status` shows the targets; `at run-guard disarm` switches it off.
+(`~/.local/state/agents-template/run-guard/<session id>`): the targets, plus `meta` lines (`pid`,
+`cwd`, `armed`). While a guarded task is still in `_todos/`, or a guarded `state.md` has a row that is
+not `committed`, the plugin's Stop hook (`run-guard.sh`) ends a turn only on a `Run: WAITING …` or
+`Run: BLOCKED …` line. It never touches another session and lets the stop through after five
+sent-backs in a row, or when all that is left open is a state file that no longer exists
+(`kind=GAVE_UP`). At every stop it lets through it writes `<session id>.status` (`last_stop`,
+`kind` = WAITING, BLOCKED, GAVE_UP, EMPTY or DONE, `text`, `transcript`, `mode`); when nothing is open
+it writes `kind=DONE` and the marker is inactive until a new `arm`. After a compaction or a resume,
+the `run-guard-remind.sh` SessionStart hook prints the open tasks and the first open row, so the run
+is picked up from `state.md`. `at run-guard status` shows the targets and the status; `at run-guard
+disarm` removes all of the session's files, and so does the 14-day prune.
 
 ## Resume
 
@@ -250,3 +256,14 @@ dirty until the next phase's commit sweeps it in and committing the last one as
   `SubagentStop` hook does for subagents, then the row is `blocked`.
 - One run at a time: the `lock` file refuses a second driver while the first is alive.
 - After each commit it runs `at task run-state check` and `at ledger check`; a failure blocks the next phase.
+
+## Morning report
+
+`at task report <TASK-ID>... [--since <rev>]` writes `docs/tasks_manager/_reports/<date>-<TASK-ID>.md`
+(`<date>` = commit date of `base_rev`), a function of the run's ledger: the commits recorded in the
+phase rows, in row order, not of HEAD, so a rerun is byte-identical. Commit it with the run. "Needs
+you" is what is open now: `parked` and `blocked` rows with their ledger lines, and `Note: parked`
+lines (`Note: parked: <question>` and the driver's `Note: parked phase N: ...`) while a row is not
+`committed`; afterwards they sit under "Parked during the run". `--since <rev>` adds the commits
+`rev..HEAD`. A task with no run state is read from its archived `## Completion summary` (dated by its
+`Base:` line or `--since`); one with neither is an error. `at ledger check` accepts `_reports/`.

@@ -122,9 +122,17 @@ on the `Run:` line `agents-core:execute-plan` defines.
 
 ### 6. Report
 
-When nothing can proceed: what finished (commits), what is parked, and the path of each run state.
-Put the parked questions to the owner through `agents-core:ask`, all at once. List the `Decision:`
-lines taken; they are copied into each task's completion summary at closeout.
+When nothing can proceed, before closeout, run `at task report <TASK-ID>...` for every tracked task
+of the run (an id like `ABC-12`). It writes `docs/tasks_manager/_reports/<date>-<TASK-ID>.md` from the
+run state, the task file and the recorded commits: each phase, every `Decision:`, `Ruling:` and
+`Note: parked` line (both `Note: parked: <question>` and the driver's `Note: parked phase N: ...`),
+and what is open now first under "needs you". Commit the report with the run; a rerun gives the
+same file. Do not compose the summary by hand. A plan-only run has no task id: list the same lines
+by hand from its `state.md`.
+
+Put the parked questions from the report to the owner through `agents-core:ask`, all at once. The
+`Decision:`, `Ruling:` and `Note: parked` lines are copied into each task's completion summary at
+closeout.
 
 ## Quality bar
 
