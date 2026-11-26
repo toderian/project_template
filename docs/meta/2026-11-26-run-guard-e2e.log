@@ -1,0 +1,64 @@
+=== E1: e1-guard-holds.sh
+E1 main: ok (Stop exit codes: 2 0)
+E1 negative 1 (unarmed session next to an armed one stops freely): ok
+E1 negative 2 (disarm): ok
+E1 negative 3 (five sent-backs): ok
+PASS E1
+=== E2: e2-compaction.sh
+E2: ok (Stop exit codes: 0 0)
+PASS E2
+=== E3: e3-notify.sh
+E3: ok (Run BLOCKED: the owner must choose the release name)
+PASS E3
+=== E4: e4-report.sh
+E4: ok (docs/tasks_manager/_reports/2026-11-26-E4-001.md)
+PASS E4
+=== E5: e5-watchdog.sh
+E5: killed session pid 525767; watcher pid 525802
+E5: ok (Run restarted (1/2): LIV-005;Run finished: LIV-005;)
+E5 watcher log:
+  2026-11-26T13:17:33+0000 watching (pid 525802); record: {"max_resumes": 2, "budget_usd": 1.0, "allow_bypass": false, "used": 0, "child": null, "mode": "", "sent": []}
+  2026-11-26T13:17:55+0000 session 525767 is dead with work open; restart 1 after a pause of 1 s
+  2026-11-26T13:17:56+0000 restart 1/2: pid 528135, mode acceptEdits, budget 0.50 USD
+  2026-11-26T13:17:57+0000 notify restarted-1 (Run restarted (1/2): LIV-005): exited 0
+  2026-11-26T13:18:09+0000 notify done-2541658028 (Run finished: LIV-005): exited 0
+  2026-11-26T13:18:09+0000 report LIV-005: exited 2
+  2026-11-26T13:18:09+0000 exiting; restart pid 528135 is still running
+PASS E5
+=== E7: e7-driver-marks.sh
+==> /tmp/at-live.JC38Dw/run.out <==
+at task run: phase 2: check failed: test ! -f two.txt
+at task run: phase 2: its edits are kept in `git stash` (at task run: T-001 phase 2 not finished)
+at task run: phase 3: implementer
+at task run: phase 3: reviews (both)
+at task run: phase 3: committed e090bb7
+
+==> /tmp/at-live.JC38Dw/run.err <==
+E7: ok (exit 4; rows: committed parked committed )
+PASS E7
+=== E8: e8-driver-lanes.sh
+==> /tmp/at-live.VZ8g2b/main.out <==
+at task run: phase 1: committed bbf2739
+at task run: phase 2: committed 49aeee1
+at task run: phase 1: lane merged, wave review pending
+at task run: phase 2: lane merged, wave review pending
+
+==> /tmp/at-live.VZ8g2b/main.err <==
+E8 main: ok
+==> /tmp/at-live.VZ8g2b/clash.out <==
+at task run: phase 1: committed 8309912
+at task run: phase 2: committed 335ee17
+at task run: phase 1: lane merged, wave review pending
+at task run: phase 2: lane its merge conflicts (merge aborted); worktree kept
+
+==> /tmp/at-live.VZ8g2b/clash.err <==
+E8 variant: ok
+PASS E8
+test-unattended-live: ok (E1 E2 E3 E4 E5 E7 E8)
+
+=== second invocation: E6_PART=dead-job
+=== E6: e6-heartbeat.sh
+E6: killed job pid 559920
+E6: only the dead-job half ran (row 1 parked); the heartbeat half is manual (runs 1 and 2 in this file's header) and is NOT verified here
+PASS E6
+test-unattended-live: ok (E6)

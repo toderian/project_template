@@ -58,6 +58,15 @@ down each point where you would have to choose or be allowed:
   delete and recreate, switch modes, hold a lock, spend money or quota; which branches it may commit
   to; what it may do to another session's work; what always waits for the owner.
 
+- **Asked every time, each through `agents-core:ask` with its recommended default:**
+  1. At the review cap (a phase still failing review after the fix rounds): park the phase, or
+     continue with the open findings recorded (never with a critical one, and only in a task marked
+     `Execution: unattended`). Recommend park: never self-rule a critical finding.
+  2. Lane cap for the night, for a plan with independent phases (`at task run --lanes N`). Recommend 2.
+  3. The model refuses, or a safety classifier stops a step. Recommend running that one phase on the
+     other harness (`at task run <TASK-ID> --phase N --harness codex --retry-blocked`), else park it.
+  4. Another session holds a shared resource. Recommend waiting up to N minutes (name N), then park.
+
 Then make sure you would build what the owner expects, not only what the text allows:
 
 1. **Play it back.** Per phase, tell the owner in two or three sentences what you will build and what
@@ -92,7 +101,15 @@ it, and write it only after they confirm.
    Defaults: <one line per pre-answered decision: "if X, do Y">
    Watch: <on | off>
    Watch budget: <total USD for all restarts>, at most <N> restarts
+   At review cap: <park | continue>
+   Lanes: <N, the lane cap for the night>
+   On refusal: <what to do when the model refuses or a safety classifier stops a step>
+   On shared resource: <wait up to N minutes, then park | other>
    ```
+
+   Whoever starts `at task run` passes `At review cap:` as `--at-review-cap park|continue` and
+   `Lanes:` as `--lanes N`; the driver reads neither from the file. In a run inside a session these
+   four lines count as `Defaults` lines in step 5, so `At review cap: park` parks the phase.
 
    Restarting a dead session is an authorisation, given per task: ask for it in step 3. `Watch: on`
    lets a watchdog outside the session restart it headless, within that budget, if its process dies;

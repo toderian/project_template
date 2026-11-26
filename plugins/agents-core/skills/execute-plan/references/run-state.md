@@ -264,7 +264,15 @@ dirty until the next phase's commit sweeps it in and committing the last one as
   `committed`, notes `Note: wave K: done` and makes one bookkeeping commit (`chore: <ID> wave K`) of its own paths,
   then removes the merged lanes. If that commit fails (a pre-commit hook), `state.md` returns to its text before
   the done lines, nothing stays staged, the run exits `1` and the wave stays open for the recovery below. A wave
-  that merged nothing uses no wave number. "Back to a SHA" means `git reset`
+  that merged nothing uses no wave number. Recovery after that exit `1` (the pre-commit gate rejected the wave
+  commit), in this order. (1) Rerun `at task run`: it dispatches nothing and prints `git reset --hard <wave base>`;
+  run that. It drops the lane merges and the wave's notes; every lane keeps its reviewed commit on its branch.
+  (2) Only now fix what the gate rejected (a fix made before the reset is lost): in the lane's branch when it is
+  lane code, otherwise as its own commit. (3) Rerun: each kept lane is reported and its row parked. Per lane,
+  either merge it by hand (`git merge --no-ff at-lane/<ID>-p<N>`, then the checks), set its row `committed` with
+  the merge SHA in `state.md`, tick the phase in the task file and commit both, after which the next run removes
+  the lane; or remove its worktree and branch and set the row back to `pending` to build the phase again
+  (`--retry-blocked` does the same for every blocked or parked row of the task). "Back to a SHA" means `git reset`
   to a SHA the driver recorded, with the files outside the run directory restored; the run directory is the
   driver's record and is saved from memory.
 - Recovery after a kill, at the start of every run (with or without `--lanes`, also `--phase N`): a `Note: wave K:

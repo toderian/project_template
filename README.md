@@ -100,6 +100,25 @@ stdin. Put pipes, redirects or `curl` calls in a script and name the script.
 The body holds task ids and a one-line reason, no file contents. That text leaves
 this machine through whatever command you configured. Nothing is sent when none is set.
 
+Unattended runs (`agents-core:unattended-run`, then `agents-core:execute-plan` or `at task run`), in
+short; `plugins/agents-core/skills/execute-plan/references/run-state.md` has the detail:
+
+- The run guard writes a status file per session (`<session id>.status`: the kind of the last
+  let-through stop, `at run-guard status` shows it) and, after a compaction or a resume, reminds the
+  session of its open tasks and first open row.
+- `at run-guard arm --watch` adds a watchdog that restarts a dead session with `claude --resume`,
+  only for a task marked `Watch: on`, within recorded caps (`--max-resumes`, `--budget-usd`; bypass
+  mode only with `--allow-bypass`). Those caps and the restarts used live in one record per run;
+  `--until` and `--idle` (when to report a silent run) belong to one watcher and are not recorded.
+- `at task report <TASK-ID>` writes the morning report to `docs/tasks_manager/_reports/`: phases,
+  commits, `Decision:` / `Ruling:` lines, and what needs you first.
+- `at task run` honours `After:` lines: a phase that fails is set aside and only its dependants are
+  parked; the rest run. `--at-review-cap park|continue` says what happens at the review cap (default
+  `park`; `continue` only in an unattended task and never with a critical finding), and exit code 4 means the run finished with parked rows. `--lanes N` (1-3) runs phases whose
+  `Files:` fences do not overlap in parallel worktrees, merged wave by wave.
+- Live check against the real CLI, by hand (it spends tokens, so it is not in `run-all.sh`, the
+  pre-commit hook or CI): `bash scripts/tests/test-unattended-live.sh [E1 ...]`.
+
 `at init` never overwrites a file you own; re-running it is safe. Flags: `--with-tasks`,
 `--with-artifacts`, `--with-workbooks`, `--with-repos`, `--all`. Install `jq` before using the
 bundled safety hooks. In Codex, open `/hooks` after installation or an update and review/trust the

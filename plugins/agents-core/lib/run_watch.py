@@ -331,7 +331,7 @@ class Watcher:
         own = {**DEFAULTS, **caps}  # this watcher's own timing, never the record's
         self.interval, self.pause, self.idle = own["interval"], own["pause"], own["idle"]
         self.until = own["until"] if own["until"] is not None else math.inf
-        self.rec, self.proc, self.pause_until = {}, None, None
+        self.rec, self.proc, self.pause_until, self.cwd = {}, None, None, None
         self.floor = time.time()  # idle counts from the later of this and the last target change
 
     def log(self, message: str) -> None:
@@ -390,13 +390,13 @@ class Watcher:
     def at(self, what: str, args: list[str], stdin: str = "") -> int | None:
         """Run `at <args>` (notify, task report); log what it really returned. It may be missing or fail."""
         try:
-            rc = subprocess.run([str(self.at_bin), *args], input=stdin, text=True, stdout=subprocess.DEVNULL,
-                                stderr=subprocess.DEVNULL, timeout=120).returncode
+            p = subprocess.run([str(self.at_bin), *args], input=stdin, text=True, stdout=subprocess.DEVNULL,
+                               stderr=subprocess.PIPE, timeout=120, cwd=self.cwd)
         except (OSError, subprocess.SubprocessError) as err:
             self.log(f"{what}: failed: {err}")
             return None
-        self.log(f"{what}: exited {rc}")
-        return rc
+        self.log(f"{what}: exited {p.returncode}" + (f": {p.stderr.strip()[-200:]}" if p.returncode else ""))
+        return p.returncode
 
     def restart_alive(self) -> bool:
         """A restart this watcher (or an earlier one, per the record) started is still running."""
@@ -414,6 +414,7 @@ class Watcher:
             self.log("the marker is gone, another watcher took over, or --until passed; exiting")
             return 0
         marker, status = parse_marker(self.marker), parse_status(side(self.marker, ".status"))
+        self.cwd = marker["meta"].get("cwd") or None  # `at task report` needs the run's repository, not ours
         if status.get("mode") and status["mode"] != self.rec["mode"]:
             self.rec["mode"] = _ascii(status["mode"], 40)
             self.save()

@@ -135,6 +135,25 @@ class Watch(unittest.TestCase):
         self.assertFalse((self.guard / "s1.watch").exists()); self.assertFalse((self.guard / "s1.watch.state").exists())
         self.assertIn("report TST-001: exited", self.log())
 
+    def test_the_report_is_written_in_the_runs_repository_wherever_the_watcher_started(self):
+        self.marker(self.dead_pid())
+        state = self.repo / "docs/tasks_manager/_runs/TST-001/state.md"
+        state.unlink()
+        todo = self.repo / "docs/tasks_manager/_todos/TST-001-F_x.md"
+        todo.write_text(todo.read_text() + "\n#### Phase 1: one\n\n- [x] done\n")
+        subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "base", "--allow-empty"],
+                       cwd=self.repo, check=True)
+        p = subprocess.run([str(AT), "task", "run-state", "init", "TST-001", "--base", "HEAD", "--branch", "main",
+                            "--work-mode", "default-branch", "--autonomy", "L1"], cwd=self.repo, env=self.env,
+                           capture_output=True, text=True)
+        self.assertEqual(p.returncode, 0, p.stderr)
+        state.write_text(state.read_text().replace("| pending | 0 |", "| committed | 1 |"))
+        todo.rename(self.repo / "docs/tasks_manager/_todos_archived" / todo.name)  # the run is done
+        p = subprocess.run([str(AT), "run-guard", "watch", "--session", "s1", "--interval", "0.1"], cwd=self.tmp,
+                           env=self.env, capture_output=True, text=True, timeout=20)
+        self.assertEqual(p.returncode, 0, p.stderr); self.assertIn("report TST-001: exited 0", self.log())
+        self.assertEqual(len(list((self.repo / "docs/tasks_manager/_reports").glob("*-TST-001.md"))), 1)
+
     def test_a_reused_pid_counts_as_dead(self):
         self.marker(self.live("sleeper").pid)
         self.assertEqual(self.watch(FAKE_FINISH="1").returncode, 0); self.assertEqual(len(self.argv()), 1)

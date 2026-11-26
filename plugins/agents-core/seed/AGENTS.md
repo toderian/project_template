@@ -58,6 +58,11 @@ you can describe in one sentence skips Frame and Critique — never Test.
   dangerous shell. A block is a guardrail: ask, do not
   route around it. Task-file conventions are reminders only; `at ledger check` is the gate. A role
   subagent that finishes without its `## Status:` block is sent back once to add it.
+- In a tracked run, a turn ends only on `Run: WAITING <job>` or `Run: BLOCKED <decision>` once
+  everything else is committed or parked; the run guard sends a phase summary back. A run marked
+  `Execution: unattended` writes its report with `at task report <TASK-ID>` to
+  `docs/tasks_manager/_reports/`, and a watched run (`Watch: on`) may be restarted with `claude
+  --resume` after its process dies: resume from `state.md`, do not start over.
 - Commit after each coherent, reviewable slice — one task phase, one fix, one docs batch. Stage only
   the files that belong to that slice; never sweep in unrelated dirty changes.
 - Commit message: a `type: summary` line, then a body with `What changed:` / `Why:` / `Checks:`.

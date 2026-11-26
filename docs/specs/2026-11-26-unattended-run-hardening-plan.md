@@ -245,7 +245,7 @@ E2E: E8.
 
 After: 4, 6
 
-- [ ] `agents-core:unattended-run` step 3 asks these every time, with a recommended default:
+- [x] `agents-core:unattended-run` step 3 asks these every time, with a recommended default:
       what to do at the review cap (recommend: park the phase, never self-rule a critical finding;
       step 4 records the answer as the `At review cap:` line, and whoever starts `at task run`
       passes it as `--at-review-cap`);
@@ -253,7 +253,7 @@ After: 4, 6
       classifier stops a step (recommend: route that phase to `at task run --harness codex`, else park);
       what to do when another session holds a shared resource (recommend: wait up to N minutes, then
       park).
-- [ ] The scripted suite E1–E8 run once from a clean checkout, output saved next to the facts file.
+- [x] The scripted suite E1–E8 run once from a clean checkout, output saved next to the facts file.
 - [ ] Scenario E9 on one small real task in a downstream repo, with the owner present; its evidence
       goes into the facts file. It is the one step of this plan that waits for a person.
 - [ ] README, seed `AGENTS.md`, CHANGELOG; `scripts/release.sh`.
@@ -402,3 +402,11 @@ The end-to-end suite E1–E8 passes from a clean checkout, and E9 was run once w
   accidental loops, not a session that disarms and re-arms (stated in run-state.md); module ceiling
   380 code lines instead of ~300. Rulings: 3. Checks: test_run_watch 30 OK, run-all ok, live E1 E5
   PASS; E6 heartbeat half is manual (with E9). See `docs/_plans/_runs/unattended-run-hardening/phase-4/`.
+- 2026-11-26: Phase 7, the part that needs no person (master). Step 3 of `agents-core:unattended-run`
+  asks the four standing questions; README, seed `AGENTS.md`, CHANGELOG and the wave-commit recovery
+  in run-state.md written. Live suite E1-E5, E7, E8 green in one run from a clean checkout of
+  7df6312, E6 dead-job half green; output in `docs/meta/2026-11-26-run-guard-e2e.log`. Review of the
+  text: FAIL 0/3/6 (recovery steps in the wrong order and with the wrong row state; `--harness codex`
+  without `--phase`), fixed by the orchestrator. A probe of the seam between phases 3 and 4 found
+  that a watcher started outside the run's repository wrote no report; fixed with a test. Open and
+  waiting for the owner: scenario E9, the heartbeat half of E6, and `scripts/release.sh`.

@@ -8,7 +8,7 @@ base_rev: da43501
 branch: master
 work_mode: default-branch
 autonomy: L1
-current_phase: 3
+current_phase: 7
 updated: 2026-11-26T00:00:00
 ---
 # Run ledger — unattended-run-hardening
@@ -22,7 +22,7 @@ updated: 2026-11-26T00:00:00
 | 4 | committed | 3 | PASS | PASS | PASS | 0 | a82668b | — |
 | 5 | committed | 4 | PASS | PASS | PASS | 0 | 52e97e9 | — |
 | 6 | committed | 3 | PASS | PASS | PASS | 0 | f1971f5 | — |
-| 7 | pending | 0 | — | — | — | 0 | — | — |
+| 7 | reviewing | 1 | PASS | PASS | n/a | 0 | — | — |
 
 Phase 0: BASE 54e23a5
 Phase 5: BASE 54e23a5 (lane B)
@@ -122,3 +122,11 @@ Phase 4: re-review 2: spec+quality PASS 0/1/1, security PASS 0/0/0
 Ruling: phase 4 re-review-2 finding 1 (`arm --watch` misreported a watcher that refuses the budget floor) — fixed by the orchestrator: `arm` checks the merged caps before it writes anything and exits 2 with the reason; test_item4 asserts it and fails without the check — cost if wrong: none
 Ruling: phase 4 re-review-2 finding 2 (fixed 0.3 s sleep left in the racing-arm test) — accepted — cost if wrong: a rare false failure on a very slow machine
 Note: lanes merged into master: lane-b/driver (which holds lane-c/report) merged after phase 4; one conflict, in the usage text of at.py
+Decision: no separate review of the integrated diff after the lane merge: the merge had one conflict in usage text, the three phase suites and run-all pass on the merged tree, and the final whole-task review (two reviewers, simplicity, peer) reads the same diff — agents-core:execute-parallel asks for an integration review — cost if wrong: a seam defect between phases 3, 4 and 6 is found one step later, at the final review
+Phase 7: BASE 7df6312
+Phase 7: live suite E1 E2 E3 E4 E5 E7 E8 PASS in one run from a clean checkout of 7df6312; E6 dead-job half PASS, heartbeat half manual
+Ruling: seam between phases 3 and 4 (found by the orchestrator's probe, not by a reviewer): a watcher started outside the run's repository wrote no morning report (`at task report` exited 1, "not inside a git repository") and the log hid the reason — fixed by the orchestrator: the watcher runs `at notify` and `at task report` in the marker's recorded cwd and logs the error text of a failed call; test_the_report_is_written_in_the_runs_repository_wherever_the_watcher_started fails without it; run_watch.py is 381 code lines against the ceiling of 380 — cost if wrong: none
+Note: live E5 logs `report LIV-005: exited 2`: its fixture state.md is a three-column table, not a run ledger; the scenario does not assert the report (E4 does)
+Phase 7: review of the text: FAIL 0/3/6
+Ruling: phase 7 review findings 1-9 (recovery order and row state in run-state.md, `--harness codex` without `--phase`, six wording errors) — all nine fixed by the orchestrator in the text, each against the code line the reviewer cited; no re-review of this round, the final review reads the same text — cost if wrong: a wrong recovery step in run-state.md survives until the final review
+Note: phase 7 is committed without two of its items, which wait for the owner: scenario E9 (with the heartbeat half of E6) and `scripts/release.sh`

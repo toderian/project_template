@@ -24,6 +24,34 @@ Notable changes to agents-template. All four plugins share the version of the re
 - `agents-core:ask`: one format for a question to the user (context, options with consequences,
   what it affects, recommendation, what happens with no answer), as an interactive menu where the
   harness has one. Called by the user, it re-asks every open question that way.
+- `at notify <title>`: runs the owner's own program (`git config agents.notifyCommand '<cmd>'` or
+  `AGENTS_NOTIFY_CMD`) without a shell, title as the last argument, body on stdin; with
+  `--event KEY --session ID` once per event.
+  The run guard calls it when a guarded run is blocked, gives up, ends on an empty message or
+  finishes. Nothing is sent when no command is set.
+- Run guard status file and compaction reminder: every let-through stop writes
+  `<session id>.status` (kind, text, permission mode), and a new SessionStart hook
+  (`run-guard-remind.sh`) prints the open tasks and the first open row after a compaction or resume.
+- Morning report: `at task report <TASK-ID>... [--since <rev>]` writes
+  `docs/tasks_manager/_reports/<date>-<TASK-ID>.md` from the run ledger: phases, recorded commits,
+  every `Decision:`, `Ruling:` and `Note: parked` line, and what needs the owner first.
+- Watchdog and heartbeat: `at run-guard arm --watch` starts a detached watcher that restarts a dead
+  session with `claude --resume` within recorded caps (`--max-resumes`, `--budget-usd`), only for a
+  task with `Watch: on`, never in `bypassPermissions` without `--allow-bypass` and an `allow bypass`
+  line. It notifies when it restarts, gives up or finds the run idle (`--idle`), and stops at `--until`.
+  Heartbeat: while `agents-core:execute-plan` waits on a background job in an interactive session it
+  schedules a wakeup every 30 minutes and checks that the job is still alive.
+- Driver marks: `at task run` orders phases by `After:`, sets a failed phase aside and parks only its
+  dependants (the failed row too in an unattended task), takes `--at-review-cap park|continue`
+  (`continue` only in an unattended task, never with a critical finding),
+  commits only the reviewed tree, and exits `4` when it finished with parked rows.
+- Driver lanes: `at task run --lanes N` (1-3) runs phases whose `Files:` fences do not overlap in
+  separate worktrees; each wave is merged by recorded SHA, checked and reviewed as one transaction.
+- Live suite: `bash scripts/tests/test-unattended-live.sh [E1 ...]` runs unattended-run scenarios
+  against the real Claude Code CLI. By hand only: it spends tokens and is not part of `run-all.sh`.
+- `agents-core:unattended-run` step 3 always asks four things, each with a recommended default: the
+  review-cap rule, the lane cap, what to do on a model refusal, and what to do when another session
+  holds a shared resource. Step 4 records them in the `### Unattended run` section.
 - Task convention: `Execution` takes `orchestrated`, `parallel` and `unattended`, comma-separated; a
   phase states `After:` when it does not need the phase before it.
 
