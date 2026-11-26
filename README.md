@@ -85,9 +85,18 @@ at task brief AUTH-001 --phase 2      # one phase of a task as a self-contained 
 at task run-state init AUTH-001       # open the resume map for agents-core:execute-plan
 at task run AUTH-001 --check "make test"   # drive the whole execute-plan loop from a shell
 at run-guard status                   # what this session must finish before its turn may end (disarm: at run-guard disarm)
+at notify "title" < body.txt         # run your notify command (git config agents.notifyCommand "<cmd>", or AGENTS_NOTIFY_CMD); the run guard uses it
 at peer enable codex          # opt in, this checkout only: large reviews also ask the other agent CLI
 at addon enable browser       # opt in, this repo: UI skills plus a browser the agent can look through
 ```
+
+Notifications: when an unattended run stops for you (`BLOCKED`), gives up, ends on an empty last
+message (`EMPTY`), or finishes, the run guard runs your own command (`git config agents.notifyCommand
+'my-sender --flag'`, read in the session's working directory, or `AGENTS_NOTIFY_CMD`). It is a program with
+optional arguments, run without a shell: the title is appended as its last argument and the body comes on
+stdin. Put pipes, redirects or `curl` calls in a script and name the script.
+The body holds task ids and a one-line reason, no file contents. That text leaves
+this machine through whatever command you configured. Nothing is sent when none is set.
 
 `at init` never overwrites a file you own; re-running it is safe. Flags: `--with-tasks`,
 `--with-artifacts`, `--with-workbooks`, `--with-repos`, `--all`. Install `jq` before using the

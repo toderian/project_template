@@ -11,6 +11,7 @@ Subcommands:
   explore      wrapper: exploratory-test ledger (`build` | `next` | `record`) and findings (`fingerprint` | `known`)
   task         `brief <TASK_ID> --phase N` | `run-state init|check <TASK_ID>` | `run <TASK_ID>` (scripted execute-plan) | `size <TASK_ID> --phase N|--final`
   run-guard    `arm <TASK_ID|state.md>...` | `status` | `disarm`: keep this session from ending a turn mid-run
+  notify       `<title> [--event KEY --session ID]`: send title + stdin body through the owner's notify command
   addon        `list` | `status` | `enable <name>...` | `disable <name>...`: optional tools per repo
   reserve      wrapper: reserve an inbox idea or task filename
   repos-check  wrapper: validate `.config/repos.project.md`
@@ -23,9 +24,11 @@ Exit codes: 0 ok, 1 errors, 2 usage. Python 3 stdlib only, no third-party import
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -1467,6 +1470,68 @@ def cmd_run_guard(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_notify(args: argparse.Namespace) -> int:
+    """Send <title> (argv) and stdin (body) to the owner's notify command; never fails the caller.
+
+    The command is AGENTS_NOTIFY_CMD or `git config agents.notifyCommand` read in THIS working directory
+    (the hook starts us in the Stop payload's cwd), split like a shell command line and run WITHOUT a shell, with <title> appended as its last argument.
+    stdin is read to its end: a caller must close it (the hook pipes the body)."""
+    rest = list(args.rest)
+    opts = {}
+    for flag in ("--event", "--session"):
+        if flag in rest and rest.index(flag) + 1 < len(rest):
+            i = rest.index(flag)
+            opts[flag] = rest[i + 1]
+            del rest[i:i + 2]
+    event, session = opts.get("--event", ""), opts.get("--session", "")
+    if len(rest) != 1 or (event and not session):
+        die("usage: at notify <title> [--event KEY --session ID]  (body on stdin)", code=2)
+    command = os.environ.get("AGENTS_NOTIFY_CMD", "")
+    if not command:
+        done = _run_capture(["git", "config", "agents.notifyCommand"])
+        command = done.stdout.strip() if done and done.returncode == 0 else ""
+    try:
+        argv = shlex.split(command)
+    except ValueError:
+        argv = []
+    if not argv or (event and not all(re.fullmatch(r"[A-Za-z0-9._-]+", x) for x in (event, session))):
+        return 0  # nothing configured, or a name that is not a plain name: no key is created
+    fd = None
+    if event:  # the exclusive create is the dedupe: only its creator sends; a failed send removes it again
+        sent = run_guard_dir() / (session + ".sent")
+        with contextlib.suppress(OSError):
+            sent.mkdir(mode=0o700, exist_ok=True)
+        try:
+            fd = os.open(sent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+            os.close(os.open(event, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600, dir_fd=fd))
+        except FileExistsError:
+            return 0
+        except OSError:  # .sent is unusable (read-only, a file, a symlink we do not follow): send, undeduped
+            fd = None
+    try:
+        timeout = float(os.environ.get("AGENTS_NOTIFY_TIMEOUT", ""))  # tests shorten it; anything else is 10 s
+    except ValueError:
+        timeout = 10
+    timeout = timeout if 0.1 <= timeout <= 10 else 10
+    body = "" if sys.stdin.isatty() else sys.stdin.read(4000)
+    sent_ok = False
+    try:  # the owner's program: the title is its last argument and the body its stdin; no shell reads either
+        proc = subprocess.Popen(argv + [rest[0]], stdin=subprocess.PIPE,
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        try:
+            proc.communicate(body.encode(errors="replace"), timeout=timeout)
+            sent_ok = proc.returncode == 0
+        except subprocess.TimeoutExpired:
+            os.killpg(proc.pid, 9)
+            proc.wait()
+    except (OSError, ValueError):
+        pass
+    if fd is not None and not sent_ok:  # it never left: the same event may be sent later
+        with contextlib.suppress(OSError):
+            os.unlink(event, dir_fd=fd)
+    return 0
+
+
 def cmd_migrate(args: argparse.Namespace) -> int:
     import migrate  # lib/migrate.py
     return migrate.cmd_migrate(args, sys.modules[__name__])
@@ -1603,6 +1668,11 @@ def build_parser() -> argparse.ArgumentParser:
                              "session from ending a turn while the armed run is open")
     p_guard.add_argument("rest", nargs=argparse.REMAINDER)
     p_guard.set_defaults(func=cmd_run_guard)
+
+    p_notify = sub.add_parser("notify", help="<title> [--event KEY --session ID]: send title + stdin to the owner's "
+                              "notify command (git config agents.notifyCommand or AGENTS_NOTIFY_CMD)")
+    p_notify.add_argument("rest", nargs=argparse.REMAINDER)
+    p_notify.set_defaults(func=cmd_notify)
 
     p_peer = sub.add_parser("peer", help="enable <cli>[:<model>]... [--required] | disable | status | run --role R --brief F --out F: "
                                          "read-only second opinion from the other agent CLI")

@@ -4,8 +4,9 @@
 # the model. Prints nothing otherwise and always exits 0.
 
 GUARD_DIR="${AGENTS_RUN_GUARD_DIR:-${XDG_STATE_HOME:-${HOME}/.local/state}/agents-template/run-guard}"
+IFS= read -r -d '' INPUT || true  # read first, with a builtin: an unread payload breaks the writer's pipe
 command -v jq >/dev/null 2>&1 || exit 0
-SESSION=$(jq -r '.session_id // ""' 2>/dev/null | tr -cd 'A-Za-z0-9._-')
+SESSION=$(printf '%s' "${INPUT}" | jq -r '.session_id // ""' 2>/dev/null | tr -cd 'A-Za-z0-9._-')
 MARKER="${GUARD_DIR}/${SESSION}"
 [ -n "${SESSION}" ] && [ -f "${MARKER}" ] || exit 0
 

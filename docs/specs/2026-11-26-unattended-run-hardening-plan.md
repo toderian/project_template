@@ -114,18 +114,19 @@ E2E: E2.
 
 After: 1
 
-- [ ] `git config agents.notifyCommand`, read in the marker's `cwd`, or `AGENTS_NOTIFY_CMD`: a
-      command that gets the title as `$1` and the body on stdin. Nothing configured means nothing
+- [x] `git config agents.notifyCommand`, read in the session's working directory (the Stop payload's
+      `cwd`; the marker is writable by the session), or `AGENTS_NOTIFY_CMD`: a program run without a
+      shell that gets the title as its last argument and the body on stdin. Nothing configured means nothing
       is sent. No built-in service, no new dependency.
-- [ ] `at notify <title> [--event <key> --session <id>]` runs it with a 10 s timeout; a failing
+- [x] `at notify <title> [--event <key> --session <id>]` runs it with a 10 s timeout; a failing
       command never fails the caller. The title and body are passed as an argument and on stdin,
       never spliced into a shell string. With `--event`, it sends only if it creates
       `<session>.sent/<key>`.
-- [ ] `run-guard.sh` calls it when it lets a stop through as `BLOCKED` (title: task id and the
+- [x] `run-guard.sh` calls it when it lets a stop through as `BLOCKED` (title: task id and the
       decision text; event key: a hash of the text), `GAVE_UP`, `EMPTY`, or `DONE` ("run finished").
-- [ ] `agents-core:unattended-run` step 2 checks that a notify command is set and that a test
+- [x] `agents-core:unattended-run` step 2 checks that a notify command is set and that a test
       message arrived (the owner confirms it).
-- [ ] The body holds task ids and the one-line reason, never file contents or secrets; the README
+- [x] The body holds task ids and the one-line reason, never file contents or secrets; the README
       says the text leaves the machine through whatever command the owner configured.
 
 Shape: ≤ ~80 new code lines.
@@ -369,3 +370,10 @@ The end-to-end suite E1–E8 passes from a clean checkout, and E9 was run once w
   defect: stderr noise before a send-back makes the harness ignore it. Checks: test-hooks 296/0,
   test-at 348/0, run-all ok, live E1 E2 PASS. Size: net code about 85 lines against ~90.
   See `docs/_plans/_runs/unattended-run-hardening/phase-1/`.
+- 2026-11-26: Phase 2 done. `at notify` runs the owner's own program (no shell, title as last
+  argument, body on stdin, 10 s timeout, once per event); the Stop hook calls it detached on
+  BLOCKED, GAVE_UP, EMPTY and DONE. Reviews: spec and quality FAIL at round 0 (1 critical: a failed
+  send burned its dedupe key), security PASS; one fix round, re-review left 1 important, closed by
+  the orchestrator. Decisions: command read in the payload's cwd, not the marker's; no shell.
+  Rulings: 3. Checks: test-hooks 319/0, test-at 374/0, run-all ok, live E1 E3 PASS. Size: about 90
+  code lines against ~80. See `docs/_plans/_runs/unattended-run-hardening/phase-2/`.

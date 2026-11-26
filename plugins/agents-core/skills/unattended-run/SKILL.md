@@ -40,6 +40,7 @@ Check each line yourself, with a command where one exists. A line you cannot che
 | Shared resources | no other session or job holds what the run needs (a lab, a checkout, a port), or the plan says how to wait for it |
 | Duration | every long step has a timeout and runs in the background with a named way to notice it finished or died |
 | Recovery | the run state is committed per phase, so a session that dies resumes from disk |
+| Notification | `git config agents.notifyCommand` or `AGENTS_NOTIFY_CMD` is set, `at notify "unattended run: test" </dev/null` ran, and the owner confirms the message arrived. Without it a blocked run waits unseen: record that as a named gap |
 
 Done when every line has a result: pass, or a named gap.
 

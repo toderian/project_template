@@ -103,7 +103,10 @@ sent-backs in a row, or when all that is left open is a state file that no longe
 it writes `kind=DONE` and the marker is inactive until a new `arm`. After a compaction or a resume,
 the `run-guard-remind.sh` SessionStart hook prints the open tasks and the first open row, so the run
 is picked up from `state.md`. `at run-guard status` shows the targets and the status; `at run-guard
-disarm` removes all of the session's files, and so does the 14-day prune.
+disarm` removes all of the session's files, and so does the 14-day prune. When it lets a stop through
+as `BLOCKED`, `GAVE_UP`, `EMPTY` or `DONE`, the hook also runs `at notify` (detached, so it never
+delays or changes the stop), which calls the owner's `agents.notifyCommand` / `AGENTS_NOTIFY_CMD`:
+a program run without a shell, the title as its last argument, body on stdin, once per event (`<session id>.sent/<key>`).
 
 ## Resume
 

@@ -8,7 +8,7 @@ base_rev: da43501
 branch: master
 work_mode: default-branch
 autonomy: L1
-current_phase: 2
+current_phase: 3
 updated: 2026-11-26T00:00:00
 ---
 # Run ledger — unattended-run-hardening
@@ -16,12 +16,12 @@ updated: 2026-11-26T00:00:00
 | Phase | Status | Attempt | Spec | Quality | Security | Open | Commit | Agent |
 |---|---|---|---|---|---|---|---|---|
 | 0 | committed | 2 | PASS | PASS | n/a | 0 | 0063376 | — |
-| 1 | reviewing | 2 | PASS | PASS | PASS | 0 | — | — |
-| 2 | pending | 0 | — | — | — | 0 | — | — |
-| 3 | pending | 0 | — | — | — | 0 | — | — |
+| 1 | committed | 2 | PASS | PASS | PASS | 0 | 721558a | — |
+| 2 | reviewing | 2 | PASS | PASS | PASS | 0 | — | — |
+| 3 | implementing | 1 | — | — | — | 0 | — | — |
 | 4 | pending | 0 | — | — | — | 0 | — | — |
 | 5 | committed | 4 | PASS | PASS | PASS | 0 | 52e97e9 | — |
-| 6 | implementing | 1 | — | — | — | 0 | — | — |
+| 6 | fixing | 2 | FAIL | FAIL | FAIL | 14 | — | — |
 | 7 | pending | 0 | — | — | — | 0 | — | — |
 
 Phase 0: BASE 54e23a5
@@ -66,3 +66,19 @@ Phase 1: re-review 1 PASS 0/2/2, findings 1-12 closed. Orchestrator fixed N1-N4 
 Ruling: N1-N4 and the flake fixes were made by the orchestrator after a PASS verdict and not re-reviewed per phase; the final review covers them — cost if wrong: a defect in about 15 changed lines reaches the final review
 Interface: any text a hook prints to stderr before its send-back can make the harness ignore the send-back ("No such file or directory" reads as a missing hook script): hooks keep stderr clean (phase 1, for phases 2-4)
 Interface: .status kind=GAVE_UP also means "only missing state files are left"; kind=DONE is the only sticky inactive state (phase 1, for phases 2-4)
+Phase 2: BASE 721558a
+Phase 2: reviews spec FAIL 0/1/3, quality FAIL 1/4/4, security PASS 0/1/3; fix round 1/3 (10 open)
+Decision: the notify command is read from AGENTS_NOTIFY_CMD or `git config agents.notifyCommand` in the working directory of `at notify`, which the hook sets from the Stop payload's `.cwd`; the plan said "in the marker's cwd", but the marker is writable by the session, which could then choose the command (phase 2 security review) — cost if wrong: a session whose harness cwd is outside the repo that holds the setting sends nothing; set it with `git config --global` or the environment
+Ruling: security 2 (a session can suppress its own notification by pre-creating the dedupe key) — accepted: it can also delete its marker or disarm — cost if wrong: a misbehaving session hides one BLOCKED message; the morning report still lists it
+Ruling: security 4 (no rate cap on notifications) — accepted: one message per let-through stop, each needs a new decision text — cost if wrong: a looping session sends the owner one message per turn
+Note: Phase 2 fix 1: code net +16 (plugins/agents-core/lib/at.py, plugins/agents-core/hooks/run-guard.sh)
+Phase 6: reviews spec FAIL 0/2/3, quality FAIL 2/4/4, security FAIL 1/2/3; fix round 1/3 (14 open), on the strongest model with a decided design
+Decision: a wave in the scripted driver is a transaction: merges by recorded SHA, tick and bookkeeping only after the wave review passes, a failed wave review or stray files reset the integration branch to the wave base and park the lanes; a rerun that finds an unfinished wave stops and prints the recovery command, it resets nothing by itself — cost if wrong: after a kill mid-wave the owner runs one `git reset --hard <sha>` by hand before the rerun
+Decision: the driver commits a phase only when the tree equals the tree that was reviewed (git write-tree at packaging and before the commit), in serial and lane mode — cost if wrong: a check command that legitimately rewrites tracked files after review parks the phase
+Ruling: security 5 (driver git calls honour hooks in the shared .git) — accepted: the repository's pre-commit gate must run on driver commits — cost if wrong: an implementer that can write .git/hooks adds files to a driver commit; the final review diff still shows them
+Phase 3: BASE 721558a (lane C, worktree ../project_template-lane-c, branch lane-c/report)
+Decision: Phase 3 runs in a third worktree while Phase 2 is still in review (the plan said After: 2 because both edit unattended-run/SKILL.md): the owner asked in chat for parallel threads; the fences are disjoint regions (step 2 against step 6) and the orchestrator merges — cost if wrong: one hand-resolved merge conflict in SKILL.md, at.py or run-state.md
+Phase 2: re-review 1 FAIL 0/1/3 (findings 1, 2, 4-10 closed). Orchestrator closed the rest: the notify command is split with shlex and run without a shell, title as the last argument (the `"$@"` suffix from findings-1 broke snippets and switched dedupe off); both hooks read stdin with a builtin (no `cat` on a stripped PATH); the send no longer needs a valid payload cwd; the guard dir is made absolute before the cd. test-hooks 319/0, test-at 374/0, run-all ok, live E1 E3 PASS
+Decision: the owner's notify command is a program with optional arguments run without a shell (title appended as the last argument, body on stdin); shell snippets go in a script — replaces the round-1 design `sh -c '<cmd> "$@"'` — cost if wrong: an owner who wants a one-line curl must write a two-line script
+Ruling: re-review N1-N4 fixed by the orchestrator after the round and not re-reviewed per phase; the final review covers them — cost if wrong: a defect in about 12 changed lines reaches the final review
+Interface: `at notify <title> [--event KEY --session ID]` (body on stdin, always exit 0 unless usage error 2); command from AGENTS_NOTIFY_CMD or `git config agents.notifyCommand` in the caller's cwd; dedupe by exclusive create of `<session>.sent/<KEY>`, key removed when the send fails; AGENTS_NOTIFY_TIMEOUT 0.1-10 s for tests (phase 2, for phase 4)

@@ -783,7 +783,7 @@ printf 'state\t%s\n' "${GUARD_STATE}" > "${AGENTS_RUN_GUARD_DIR}/sess-state"
 
 # guard_payload <session_id> <last_assistant_message>
 guard_payload() {
-  jq -n --arg s "$1" --arg m "$2" '{hook_event_name: "Stop", session_id: $s, last_assistant_message: $m}'
+  jq -n --arg s "$1" --arg m "$2" --arg c "${3-}" '{hook_event_name: "Stop", session_id: $s, last_assistant_message: $m, cwd: $c}'
 }
 
 run_case "guard: a phase summary with open rows is sent back" "${GUARD_HOOK}" \
@@ -887,6 +887,81 @@ SP="${WORKDIR}/with space"; mkdir -p "${SP}/guard"
 printf '| Phase | Status |\n|---|---|\n| 1 | pending |\n' > "${SP}/state.md"
 printf 'state\t%s\n' "${SP}/state.md" > "${SP}/guard/sess-sp"
 check "guard: paths with spaces work" 2 "$(guard_payload sess-sp 'summary' | AGENTS_RUN_GUARD_DIR="${SP}/guard" "${BASH_BIN}" "${GUARD_HOOK}" >/dev/null 2>&1; echo $?)"
+
+# notifications: the hook runs the owner's command through `at notify`, detached, once per event
+NOTE_LOG="${WORKDIR}/notify.log"
+NOTE_CMD="${WORKDIR}/notify.sh"  # a plain program name: it gets the title as $1 and the body on stdin
+printf '#!/bin/sh\n{ echo "$1"; cat; } >> "%s"\n' "${NOTE_LOG}" > "${NOTE_CMD}"; chmod +x "${NOTE_CMD}"
+note_setup() {  # <session> [marker cwd]: a fresh marker with one open task
+  printf 'task\t%s\tGRD-001\nmeta\tcwd\t%s\n' "${GUARD_REPO}" "${2-${WORKDIR}}" > "${AGENTS_RUN_GUARD_DIR}/$1"
+  rm -rf "${AGENTS_RUN_GUARD_DIR}/$1.status" "${AGENTS_RUN_GUARD_DIR}/$1.sent" "${AGENTS_RUN_GUARD_DIR}/$1.count"
+}
+# note_count <pattern> <n>: lines matching after waiting (at most 6 s) for n; then a settle time so a
+# line that should not come has had a chance to
+note_count() {
+  local c; for _ in $(seq 30); do c=$(grep -c -- "$1" "${NOTE_LOG}" 2>/dev/null); [ "${c:-0}" -ge "$2" ] && break; sleep 0.2; done
+  sleep 0.6; grep -c -- "$1" "${NOTE_LOG}" 2>/dev/null
+}
+# note_hook <session> <message> [command] [payload cwd]
+note_hook() {
+  guard_payload "$1" "$2" "${4-${WORKDIR}}" | GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 AGENTS_NOTIFY_CMD="${3-${NOTE_CMD}}" "${BASH_BIN}" "${GUARD_HOOK}" 2>&1; echo "exit=$?"
+}
+rm -f "${NOTE_LOG}" "${WORKDIR}/pwn-note"
+note_setup sess-n
+check "guard: a BLOCKED stop exits 0 and prints only {}" $'{}\nexit=0' "$(note_hook sess-n 'Run: BLOCKED push to origin needs the owner')"
+check "guard: a BLOCKED stop notifies with the task id and the decision" 1 "$(note_count 'Run BLOCKED: GRD-001 push to origin needs the owner' 1)"
+check "guard: the body carries the task id and the reason" 1 "$(note_count 'reason: push to origin needs the owner' 1)"
+note_hook sess-n 'Run: BLOCKED push to origin needs the owner' >/dev/null
+check "guard: the same decision is sent once" 1 "$(note_count '^Run BLOCKED' 2)"
+note_hook sess-n 'Run: BLOCKED a different decision' >/dev/null
+check "guard: another decision is another message" 1 "$(note_count 'Run BLOCKED: GRD-001 a different decision' 1)"
+note_setup sess-n; : > "${NOTE_LOG}"
+note_hook sess-n 'Run: WAITING implementer a12f' >/dev/null; note_hook sess-n 'Run: BLOCKED $(touch pwn-note) `touch pwn-note`' >/dev/null
+check "guard: a WAITING stop sends nothing; model text reached the log as text (title and body)" "2" "$(note_count 'touch pwn-note' 2)"
+check "guard: a WAITING stop sends nothing" 0 "$(grep -c 'WAITING' "${NOTE_LOG}")"
+check "guard: model text is never run as a command" "no" "$([ -e "${WORKDIR}/pwn-note" ] && echo yes || echo no)"
+note_setup sess-n; : > "${NOTE_LOG}"
+note_hook sess-n "Run: BLOCKED $(printf 'long%.0s' $(seq 120))" >/dev/null; note_count '^Run BLOCKED' 1 >/dev/null
+check "guard: the title is capped at 200 characters" 1 "$([ "$(head -1 "${NOTE_LOG}" | wc -c)" -le 201 ] && echo 1 || echo 0)"
+note_setup sess-n; : > "${NOTE_LOG}"
+for _ in 1 2 3 4 5 6; do note_hook sess-n 'secret-model-text, not a declaration' >/dev/null; done
+check "guard: GAVE_UP notifies" 1 "$(note_count '^Run GAVE_UP' 1)"
+check "guard: GAVE_UP never carries the model's message" 0 "$(grep -c 'secret-model-text' "${NOTE_LOG}")"
+note_setup sess-n; : > "${NOTE_LOG}"
+check "guard: no command configured, exit 0 and silent" $'{}\nexit=0' "$(note_hook sess-n 'Run: BLOCKED x needs you' '')"
+check "guard: a failing command never changes the stop" $'{}\nexit=0' "$(note_hook sess-n 'Run: BLOCKED y needs you' 'exit 7')"
+sleep 0.5
+check "guard: a failing or missing command leaves no key, so a later command sends" 0 "$(ls "${AGENTS_RUN_GUARD_DIR}/sess-n.sent" 2>/dev/null | wc -l | tr -d ' ')"
+note_hook sess-n 'Run: BLOCKED y needs you' >/dev/null
+check "guard: the same event is sent once a command works" 1 "$(note_count '^Run BLOCKED' 1)"
+# the command comes from the payload's cwd, never from the marker's cwd (the session can write that)
+mkdir -p "${WORKDIR}/evil" "${WORKDIR}/mine"; rm -f "${WORKDIR}/evil-ran"
+for d in evil mine; do git -C "${WORKDIR}/${d}" init -q; done
+git -C "${WORKDIR}/evil" config agents.notifyCommand "touch ${WORKDIR}/evil-ran; :"
+git -C "${WORKDIR}/mine" config agents.notifyCommand "${NOTE_CMD}"
+note_setup sess-n "${WORKDIR}/evil"; : > "${NOTE_LOG}"
+note_hook sess-n 'Run: BLOCKED z needs you' '' "${WORKDIR}/mine" >/dev/null
+check "guard: the payload cwd's git config command runs" 1 "$(note_count '^Run BLOCKED' 1)"
+check "guard: a marker cwd with its own agents.notifyCommand does not run it" "no" "$([ -e "${WORKDIR}/evil-ran" ] && echo yes || echo no)"
+note_setup sess-n; : > "${NOTE_LOG}"
+note_hook sess-n 'Run: BLOCKED q needs you' '' "${WORKDIR}/not-a-dir" >/dev/null
+check "guard: a payload cwd that is not a directory sends nothing" 0 "$(note_count '^Run' 1)"
+note_setup sess-n; mkdir "${AGENTS_RUN_GUARD_DIR}/sess-n.sent"; chmod 500 "${AGENTS_RUN_GUARD_DIR}/sess-n.sent"
+check "guard: an unwritable .sent still lets the stop through" $'{}\nexit=0' "$(note_hook sess-n 'Run: BLOCKED w needs you')"
+chmod 700 "${AGENTS_RUN_GUARD_DIR}/sess-n.sent"
+note_setup sess-n
+SECONDS=0; printf '#!/bin/sh\nsleep 12\n' > "${WORKDIR}/slow.sh"; chmod +x "${WORKDIR}/slow.sh"; note_hook sess-n 'Run: BLOCKED slow' "${WORKDIR}/slow.sh" >/dev/null
+check "guard: a slow notify command does not delay the hook" 1 "$([ "${SECONDS}" -lt 5 ] && echo 1 || echo 0)"
+note_setup sess-n; : > "${NOTE_LOG}"; rm -f "${GUARD_REPO}/docs/tasks_manager/_todos/GRD-001-F_guarded.md"
+note_hook sess-n 'bye' >/dev/null; note_hook sess-n 'bye' >/dev/null
+check "guard: DONE sends one 'Run finished'" 1 "$(note_count '^Run finished: GRD-001' 1)"
+: > "${GUARD_REPO}/docs/tasks_manager/_todos/GRD-001-F_guarded.md"
+note_setup sess-n; : > "${NOTE_LOG}"; note_hook sess-n '' >/dev/null
+check "guard: an empty last message notifies EMPTY" 1 "$(note_count '^Run EMPTY' 1)"
+# a read-only guard dir: write_status prints nothing (the redirect error must not reach stderr)
+note_setup sess-n; chmod 500 "${AGENTS_RUN_GUARD_DIR}"
+check "guard: a read-only guard dir prints no shell error" $'{}\nexit=0' "$(note_hook sess-n 'Run: BLOCKED ro' '')"
+chmod 700 "${AGENTS_RUN_GUARD_DIR}"
 
 # ---------------------------------------------------------------------------
 # run-guard-remind.sh

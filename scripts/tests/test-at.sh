@@ -433,6 +433,63 @@ assert_missing "$GUARD_TMP/sess-t.sent" "run-guard disarm removes the sent event
 assert_missing "$GUARD_TMP/sess-t.watch" "run-guard disarm removes the watch file"
 assert_missing "$GUARD_TMP/sess-t.status.99" "run-guard disarm removes a leftover status temp file"
 rm -rf "$GUARD_TMP"
+# at notify: title is $1, stdin is the body, the command comes from AGENTS_NOTIFY_CMD or `git config` in the cwd
+NT="$(mktemp -d)"; NLOG="$NT/log"; NAT="$REPO/plugins/agents-core/bin/at"
+printf '#!/bin/sh\n{ echo "$1"; cat; } >> "%s"\n' "$NLOG" > "$NT/send.sh"; chmod +x "$NT/send.sh"
+printf 'body line\n' | env -u AGENTS_NOTIFY_CMD at notify "no command" >/dev/null 2>&1
+assert_eq "$?" "0" "at notify with nothing configured exits 0"
+assert_missing "$NLOG" "at notify with nothing configured sends nothing"
+printf 'body $(touch %s/pwn)\n' "$NT" | AGENTS_NOTIFY_CMD="$NT/send.sh" at notify 'the title; touch '"$NT"'/pwn2' >/dev/null 2>&1
+assert_contains "$NLOG" "the title; touch" "at notify gives a plain program name the title as its argument"
+assert_contains "$NLOG" 'body $(touch' "at notify passes the body on stdin"
+assert_missing "$NT/pwn" "at notify never runs the body as shell"
+assert_missing "$NT/pwn2" "at notify never runs the title as shell"
+: > "$NLOG"; printf '#!/bin/sh\nfor a in "$@"; do echo "arg=$a"; done >> "%s"\n' "$NLOG" > "$NT/args.sh"; chmod +x "$NT/args.sh"
+printf 'b' | AGENTS_NOTIFY_CMD="$NT/args.sh --to 'the owner'" at notify "last title" >/dev/null 2>&1
+assert_eq "$(tr '\n' '|' < "$NLOG")" "arg=--to|arg=the owner|arg=last title|" "at notify: the command's own arguments come first, the title last"
+: > "$NLOG"; (cd "$NT" && printf 'b' | AGENTS_NOTIFY_CMD="$NT/args.sh ; touch pwned > out" at notify "t" >/dev/null 2>&1)
+assert_missing "$NT/pwned" "at notify: the command is not read by a shell"
+assert_missing "$NT/out" "at notify: no redirect is applied"
+printf 'x' | AGENTS_NOTIFY_CMD="exit 9" at notify t >/dev/null 2>&1
+assert_eq "$?" "0" "at notify exits 0 when the command fails"
+mkdir "$NT/repo" "$NT/other" && git -C "$NT/repo" init -q && git -C "$NT/repo" config agents.notifyCommand "$NT/send.sh"
+: > "$NLOG"; (cd "$NT/repo" && printf 'b' | env -u AGENTS_NOTIFY_CMD "$NAT" notify "from git config" >/dev/null 2>&1)
+assert_contains "$NLOG" "from git config" "at notify reads git config agents.notifyCommand in its own cwd"
+# --event: the key is created exclusively, only for a send that worked, and only inside <session>.sent
+GD="$NT/g"; mkdir "$GD"; gnotify() { printf 'b\n' | AGENTS_RUN_GUARD_DIR="$GD" "$NAT" notify "$@" >/dev/null 2>&1; }
+: > "$NLOG"; export AGENTS_NOTIFY_CMD="$NT/send.sh"
+gnotify ev --event k1 --session s1; gnotify ev --event k1 --session s1
+assert_eq "$(grep -c '^ev$' "$NLOG")" "1" "at notify --event sends once"
+gnotify ev2 --event '../x' --session s1; gnotify ev2 --event k --session '../s'
+assert_eq "$(grep -c '^ev2$' "$NLOG")" "0" "at notify refuses an event key or session that is not a plain name: nothing sent"
+assert_missing "$GD/x" "at notify a bad event key creates no file outside .sent"
+assert_missing "$GD/../s.sent" "at notify a bad session creates no directory"
+printf 'b' | "$NAT" notify ev3 --event k3 >/dev/null 2>&1; assert_eq "$?" "2" "at notify --event without --session is a usage error"
+# a send that did not leave frees its key; no command creates no key
+gnotify ev4 --event k4 --session s2; : > "$NLOG"
+printf 'b' | AGENTS_NOTIFY_CMD=false AGENTS_RUN_GUARD_DIR="$GD" "$NAT" notify ev5 --event k5 --session s3 >/dev/null 2>&1
+assert_missing "$GD/s3.sent/k5" "at notify: a failing command leaves no key"
+gnotify ev5 --event k5 --session s3; assert_eq "$(grep -c '^ev5$' "$NLOG")" "1" "at notify: the event is sent once a working command exists"
+printf 'b' | env -u AGENTS_NOTIFY_CMD AGENTS_RUN_GUARD_DIR="$GD" "$NAT" notify ev6 --event k6 --session s4 >/dev/null 2>&1
+assert_missing "$GD/s4.sent/k6" "at notify: no command configured creates no key"
+gnotify ev6 --event k6 --session s4; assert_eq "$(grep -c '^ev6$' "$NLOG")" "1" "at notify: a command configured later sends the same event"
+# a .sent that cannot hold a key: send undeduped; never follow a symlink
+mkdir -p "$NT/g2/s5.sent"; chmod 500 "$NT/g2/s5.sent"
+: > "$NLOG"; GD="$NT/g2"; gnotify ev7 --event k7 --session s5; gnotify ev7 --event k7 --session s5
+assert_eq "$(grep -c '^ev7$' "$NLOG")" "2" "at notify: a read-only .sent sends, undeduped"
+chmod 700 "$NT/g2/s5.sent"
+mkdir "$NT/elsewhere" "$NT/g3"; ln -s "$NT/elsewhere" "$NT/g3/s6.sent"; GD="$NT/g3"; : > "$NLOG"; gnotify ev8 --event k8 --session s6
+assert_eq "$(grep -c '^ev8$' "$NLOG")" "1" "at notify: a symlinked .sent still sends"
+assert_eq "$(ls "$NT/elsewhere" | wc -l | tr -d ' ')" "0" "at notify does not create a key through a symlinked .sent"
+# a hanging command and its child are gone after the timeout, and the caller exits 0
+printf '#!/bin/sh\nsleep 30 &\necho $! > "%s/childpid"\nsleep 30\n' "$NT" > "$NT/hang.sh"; chmod +x "$NT/hang.sh"
+SECONDS=0; printf 'b' | AGENTS_NOTIFY_CMD="$NT/hang.sh" AGENTS_NOTIFY_TIMEOUT=0.5 "$NAT" notify t >/dev/null 2>&1
+assert_eq "$?" "0" "at notify exits 0 after a timeout"
+assert_eq "$([ "$SECONDS" -lt 5 ] && echo fast)" "fast" "at notify returns shortly after AGENTS_NOTIFY_TIMEOUT"
+for _ in $(seq 20); do kill -0 "$(cat "$NT/childpid")" 2>/dev/null || break; sleep 0.1; done
+assert_eq "$(kill -0 "$(cat "$NT/childpid")" 2>/dev/null && echo alive || echo gone)" "gone" "at notify kills the child of a timed-out command"
+unset AGENTS_NOTIFY_CMD
+rm -rf "$NT"
 TASK_RUN_DRY="$(at task run TST-003 --harness claude --dry-run 2>&1)"
 assert_eq "$?" "0" "at task run --dry-run exits 0: $TASK_RUN_DRY"
 if grep -q '\[dry-run\] phase 3' <<<"$TASK_RUN_DRY"; then pass; else fail "at task run --dry-run lists every phase: $TASK_RUN_DRY"; fi

@@ -18,6 +18,8 @@
 # <session_id>.status: key=value lines written at every stop this hook lets through: last_stop,
 #   kind (WAITING | BLOCKED | GAVE_UP | EMPTY | DONE), text (one line, capped), transcript, mode.
 #   kind=DONE makes the marker inactive until a new `at run-guard arm`.
+# <session_id>.sent/<key>: one empty file per owner notification already sent (write_status also
+#   notifies, through `at notify`; see notify_owner).
 #
 # Never traps a session: no marker, no jq, an empty final message, five sent-backs in a row, or
 # nothing open but a state file that no longer exists all let the stop through.
@@ -26,7 +28,7 @@ umask 077  # the guard dir and its files hold message text: private
 GUARD_DIR="${AGENTS_RUN_GUARD_DIR:-${XDG_STATE_HOME:-${HOME}/.local/state}/agents-template/run-guard}"
 MAX_SENT_BACK=5
 
-INPUT=$(cat)  # read first: an early exit that leaves the payload unread breaks the writer's pipe
+IFS= read -r -d '' INPUT || true  # read first, with a builtin: an unread payload breaks the writer's pipe
 [ -d "${GUARD_DIR}" ] || { echo '{}'; exit 0; }
 command -v jq >/dev/null || { echo "run-guard: jq is missing, the guard is off" >&2; echo '{}'; exit 0; }
 
@@ -51,13 +53,36 @@ ascii() { LC_ALL=C tr '\r\t' '  ' | LC_ALL=C tr -cd '\040-\176'; }  # drops newl
 write_status() {
   local text tmp="${MARKER}.status.$$"
   text=$(printf '%s' "$2" | tr '\n' ' ' | ascii | cut -c1-300)
-  {
+  { {
     echo "last_stop=$(date +%Y-%m-%dT%H:%M:%S%z)"
     echo "kind=$1"
     echo "text=${text}"
     echo "transcript=$(printf '%s' "${INPUT}" | jq -r '.transcript_path // ""' | ascii)"
     echo "mode=$(printf '%s' "${INPUT}" | jq -r '.permission_mode // ""' | ascii)"
-  } > "${tmp}" 2>/dev/null && mv -f "${tmp}" "${MARKER}.status" 2>/dev/null || rm -f "${tmp}"
+  } > "${tmp}"; } 2>/dev/null && mv -f "${tmp}" "${MARKER}.status" 2>/dev/null || rm -f "${tmp}"
+  notify_owner "$1" "${text}"
+}
+
+# notify_owner <kind> <text>: tells the owner about a stop that needs them or a run that ended, through
+# `at notify` (the owner's own command). Detached with every fd redirected, so the hook never waits,
+# prints, or changes its exit code; any failure (no python3, no `at`, no command) is silent.
+# The event key is a hash (once per distinct decision; DONE once per arm), never raw text.
+notify_owner() {
+  local at ids title key cwd
+  case "$1" in BLOCKED|GAVE_UP|EMPTY|DONE) ;; *) return 0 ;; esac
+  at="$(cd "$(dirname "${BASH_SOURCE[0]}")/../bin" 2>/dev/null && pwd)/at"
+  cwd=$(printf '%s' "${INPUT}" | jq -r '.cwd // ""')  # the harness's cwd, never the marker's (session-writable)
+  [ -x "${at}" ] || return 0
+  [ "$1" = GAVE_UP ] && set -- GAVE_UP "the guard let a stop through (details: at run-guard status)"  # never relay the message
+  ids=$(awk -F'\t' '$1 == "task" { sub(/\r$/, "", $3); printf "%s ", $3 }' "${MARKER}" 2>/dev/null | ascii | cut -c1-100)
+  title="Run $1: ${ids}${2}"
+  [ "$1" = DONE ] && title="Run finished: ${ids}"
+  key=$(printf '%s' "$1 $2" | cksum | cut -d' ' -f1)
+  ( export AGENTS_RUN_GUARD_DIR="$(cd "${GUARD_DIR}" 2>/dev/null && pwd)"  # absolute before the cd
+    cd "${cwd}" 2>/dev/null  # where `git config agents.notifyCommand` is read; AGENTS_NOTIFY_CMD needs no cwd
+    printf 'tasks: %s\nreason: %s\n' "${ids}" "$2" | "${at}" notify "$(printf '%s' "${title}" | cut -c1-200)" \
+      --event "$(printf '%s' "$1" | tr A-Z a-z)-${key}" --session "${SESSION}" >/dev/null 2>&1 & ) >/dev/null 2>&1
+  return 0
 }
 
 OPEN=$(run_guard_open "${MARKER}")
