@@ -4,7 +4,7 @@ Directory: ${AGENTS_SUP_DIR:-${XDG_STATE_HOME:-~/.local/state}/agents-template/s
 
   config.json        {"cap": 3, "auto": ["full-suite"], "land": "auto"}   (all keys optional)
   packs/<name>.json  {"name", "tasks": [id…], "state": "new|running|paused|closed", "parallel": bool,
-                      "branches": {repo: branch}, "prs": {repo: url}}
+                      "branches": {repo: branch}, "tips": {repo: first tip sha}, "prs": {repo: url}}
   workers.json       [{"session", "task", "pack", "cwd", "mode": "bg|headless", "started",
                        "state": "starting|running|waiting|stopped|done", "waiting_for": resource|null,
                        "stopped_by": null|"owner"}]
@@ -179,7 +179,7 @@ def write_pack(profile: str, pack: dict) -> None:
         raise ValueError("a pack needs a valid name and state")
     if not pack.get("tasks") or not all(TASK.match(t) for t in pack["tasks"]):
         raise ValueError("a pack needs task IDs like RM-12")
-    pack = {"state": "new", "parallel": False, "branches": {}, "prs": {}, **pack}
+    pack = {"state": "new", "parallel": False, "branches": {}, "tips": {}, "prs": {}, **pack}
     write_json(profile_dir(profile) / "packs" / f"{pack['name']}.json", pack)
 
 

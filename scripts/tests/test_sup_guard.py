@@ -100,6 +100,18 @@ class ChatToken(unittest.TestCase):
         os.chmod(path, mode)
         os.environ["AGENTS_SUP_CHAT_TOKEN"] = tok
 
+    def test_pack_branch_takes_slug_equals_branch_repeated_and_refuses_metacharacters(self):
+        self.token()
+        ok = ["at sup pack a RM-1 --branch a-b=feat/x", "at sup pack a RM-1 --branch sib=dev --branch hub=main --parallel",
+              "at sup pack a RM-1 --branch=sib=release-1.2"]
+        bad = ["at sup pack a RM-1 --branch a-b=feat/x;ls", "at sup pack a RM-1 --branch 'a=b c'", "at sup pack a RM-1 --branch a-b",
+               "at sup pack a RM-1 --branch a=-x", "at sup pack a RM-1 --branch A=x", "at sup pack a RM-1 --branch 'a=$(x)'",
+               "at sup pack a RM-1 --parallel --parallel", "at sup start-pack a --branch a=b"]
+        for cmd in ok:
+            self.assertTrue(g.decide(cmd, None, TABLES, "chat1")[0], cmd)
+        for cmd in bad:
+            self.assertFalse(g.decide(cmd, None, TABLES, "chat1")[0], cmd)
+
     def test_chat_commands(self):
         cmds = ["at sup instruct x", "at sup answer Q1 x --owner", "at sup start-pack alpha",
                 "at sup pause-pack alpha", "at sup close-pack alpha", "at sup order alpha RM-1", "at sup cap 3",

@@ -61,9 +61,11 @@ CLASSES = {
     "name": re.compile(r"[a-z0-9][a-z0-9-]*"),
     "q-id": re.compile(r"Q[0-9]+"),
     "int": re.compile(r"[0-9]+"),
+    "slug=branch": re.compile(r"[a-z][a-z0-9-]*=[A-Za-z0-9][A-Za-z0-9._/-]*"),
     "profile": re.compile(r".+"),  # checked against AGENTS_SUPERVISOR in _ok
 }
 DEFAULT_TOOLS = ["Bash", "Agent", "AskUserQuestion", "Read", "Glob", "Grep"]
+REPEATABLE = {"--branch"}  # flags that may appear more than once
 RESERVED = {"main", "programs", "tools"}
 # Commands only the owner's chat (or plain shell) may run; `answer --owner` is checked in decide. `at sup` calls
 # require_chat for the same list. Of these only the first group is in DEFAULT_MAIN: init and watch start|stop are the owner's shell.
@@ -111,7 +113,7 @@ DEFAULT_MAIN = [
     # ask|need|release|inbox are in no table: the supervisor never runs them.
     _r("at sup instruct", PROFILE, ["any+"], chat=True),
     _r("at sup answer", {**PROFILE, "--owner": None}, ["q-id", "any+"], chat=True),
-    _r("at sup pack", {**PROFILE, "--parallel": None}, ["name", "task-id+"], chat=True),
+    _r("at sup pack", {**PROFILE, "--parallel": None, "--branch": "slug=branch"}, ["name", "task-id+"], chat=True),
     _r("at sup start-pack", PROFILE, ["name"], chat=True),
     _r("at sup pause-pack", PROFILE, ["name"], chat=True),
     _r("at sup close-pack", PROFILE, ["name"], chat=True),
@@ -198,7 +200,7 @@ def match(rule, argv):
             pos.append(tok)
             continue
         name, eq, val = tok.partition("=")
-        if name not in flags or name in seen:
+        if name not in flags or (name in seen and name not in REPEATABLE):
             return False
         seen.add(name)
         cls = flags[name]

@@ -133,3 +133,7 @@ out before it removes a worktree, as the plan says.
 - `--plugin-dir` may be given twice; a development copy took over from the older installed plugin
   and its hooks ran once.
 
+- Sibling worktree (supervisor packs plan, phase 1): `claude -p --model haiku --permission-mode auto` started in
+  a hub worktree wrote a file with the Write tool and ran `git add` and `git commit` in a worktree of another
+  repo outside its cwd; `permission_denials` was empty. Meaning: a headless worker reaches a pack worktree by
+  path with no `--add-dir`. Not tried: the same from a `--bg` worker.

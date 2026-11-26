@@ -1,6 +1,6 @@
 # Supervisor packs for umbrella tasks: plan
 
-Date: 2026-11-26. Status: draft, not reviewed, not started. Follows
+Date: 2026-11-26. Status: revised after the architecture review (plan critic and peer, 2026-11-26); in execution, run state in `docs/_plans/_runs/supervisor-packs/`. Follows
 `docs/specs/2026-11-26-supervisor-session-plan.md` (built, released as 1.17.0).
 
 ## Goal
@@ -23,7 +23,7 @@ Two read-only studies on 2026-11-26: the template code, and how the RedMesh hub 
 | Lab runs | `at sup need` / `grant` / `release`: the worker holds the lease and runs the script itself. Readiness demands a `Resources:` line with a duration. | Nothing says so to the worker. `at sup op` cannot return a result to a worker and a tick ends after 540 s, so it is not the tool for a gate. |
 | Preparing a pack | `at sup ready <ID>` per task; `agents-core:unattended-run` writes the unattended section. | No pack-level check (edges, repos, resources). No skill that takes a parent task to a startable pack. `Files:` entries have no way to name a sibling repo. |
 | Local files | `land` keeps ignored files of a removed worktree under `kept/<ID>`. | Evidence and bindings (`.no-commit/`, `.local/`) belong to the pack, not to one task; a new task worktree starts without them. |
-| Generated ledgers | `at sup land` runs under the `hub-ledger` lease. | Parallel task branches that each ran `at ledger sync` conflict in `_active.md`, `_done.md` and the area files. |
+| Generated ledgers | `at sup land` takes the hub's side of `_active.md` and `_done.md` and rebuilds them. | Nothing: a conflict in an area page is hand-written text and stops the landing on purpose. |
 
 Decided against, with the reason:
 
@@ -43,67 +43,105 @@ Decided against, with the reason:
 Tests are stdlib `unittest` under `scripts/tests/`, run by `scripts/tests/run-all.sh`. Each phase
 ends with the touched `test_sup_*.py` files; the full suite runs once per phase before the commit.
 
-#### Phase 1: Sibling repos per pack
+Terms used below. A **pack repo** is a key of the pack's `branches`: a slug from
+`.config/repos.project.md`. Its **checkout** is the path the hub's `.local/repos.map` gives for the
+slug; its **pack worktree** is `<checkout>-<pack>`. A key with no line in the map resolves, as in
+1.17.0, to the directory of that name beside the hub, so a pack written by 1.17.0 (`branches: {}`
+or directory names) keeps working and `test_sup_digest.py` keeps its case. The profile's `repos`
+list (absolute paths the supervisor may read) is not changed and not used for this.
 
-- Files: `plugins/agents-core/lib/sup_workers.py`, `plugins/agents-core/lib/sup.py`,
-  `plugins/agents-core/lib/sup_digest.py`, `plugins/agents-core/lib/sup_watch.py`,
-  `scripts/tests/test_sup_workers.py`, `scripts/tests/test_sup_land.py`,
-  `scripts/tests/test_sup_digest.py`, `scripts/tests/test_sup_flow.py`.
-  Ceiling: 150 code lines plus tests.
-- `at sup pack <name> <ID>... --branch <repo-slug>=<branch>` (repeatable) records `branches`. A
-  replaced pack keeps them unless they are given again. The slug must be a row of
-  `.config/repos.project.md`; the checkout path comes from the hub's `.local/repos.map`.
-- `at sup start-pack` creates, per recorded repo, the branch from that repo's integration branch
-  (or attaches to an existing one) and one worktree `<repo>-<pack>` beside the checkout. It refuses
-  when a path exists and is not that worktree.
+#### Phase 1: Pack branches, pack worktrees and the worker's map
+
+- Files: `plugins/agents-core/lib/sup_workers.py`, `plugins/agents-core/lib/sup_state.py`,
+  `plugins/agents-core/lib/sup_guard.py`, `scripts/tests/test_sup_workers.py`,
+  `scripts/tests/test_sup_guard.py`. Ceiling: 150 code lines.
+- Facts to confirm before any code, with one real headless session in a scratch hub that has a
+  repo registry and one sibling repo: (a) does a worker on `task/<ID>` stop at the default-branch
+  rule of `agents-core:execute-plan`; (b) can it write and commit in a directory outside its cwd
+  under the worker's permission mode with no added directory. If (a) fails, this phase adds the
+  supervised-worktree case to that skill and to the seed `AGENTS.md`. If (b) fails,
+  `session_flags` adds the pack worktrees with `--add-dir`. Both results go to
+  `docs/meta/2026-11-26-supervisor-facts.md`.
+- One reader for the map (`slug=path` lines) and for the registry slugs; a slug not in the
+  registry, or with no path in the map, is refused by name.
+- `at sup pack <name> <ID>... --branch <slug>=<branch>` (repeatable) records `branches`. New
+  behaviour: a pack written again without `--branch` keeps the recorded ones. The guard's main
+  table allows `--branch` with a new value class (`slug=branch`, both from the safe set).
+- `at sup start-pack` creates, per pack repo, the branch from the repo's integration branch (or
+  attaches to an existing one) and the pack worktree. It refuses when the path exists and is not
+  that worktree on that branch. The git work runs before the state lock is taken.
 - `at sup start-worker` writes `.local/repos.map` in the task worktree: each pack repo points at
-  the pack worktree, every other slug at the hub's own entry. The worker prompt gains one
-  sentence: code for a sibling repo goes to the path in the map, one commit per phase, on the
-  branch that is checked out there; no branch is created, nothing is pushed.
-- `next_tasks` never offers two tasks at once whose `Repos` rows share a pack repo.
-- `at sup land` refuses while a pack worktree named by the task's `Repos` row has uncommitted
-  changes, and writes each sibling branch tip into the body of the hub commit. `kept_ignored`
-  skips `.local/`.
-- `at sup done <pack>` prints one line per repo: branch, commits over the integration branch,
-  "ready for PR". `at sup close-pack` removes clean pack worktrees and keeps the branches.
-- Fact to confirm first, with one real session in a scratch hub that has a repo registry: does a
-  worker on `task/<ID>` stop at the default-branch rule of `agents-core:execute-plan` (its
-  "Never create a branch" and work-mode check)? If yes, this phase adds the supervised-worktree
-  case to that skill and to the seed `AGENTS.md`, as the session plan (its line 183) intended.
-- Checks: a pack with one sibling repo runs two tasks in order in the flow test, the second sees
-  the first one's sibling commit, `done` names the branch; two tasks on one repo are never live
-  together; a dirty pack worktree refuses the landing.
+  its pack worktree, every other slug at the hub's entry. It records the tip of each pack repo the
+  task names as `sibling_base` in the worker row. The worker prompt gains one sentence: code for a
+  sibling repo goes to the path in the map, one commit per phase, on the branch checked out there;
+  no branch is created, nothing is pushed.
+- `next_tasks` does not offer a task while another task of the pack that names the same pack repo
+  in its `Repos` row has a worker row and has not landed.
+- Checks: `start-pack` creates branch and worktree and is safe to run twice; the written map
+  resolves; two tasks on one repo are never offered together, and the second is offered after the
+  first landed; the guard accepts `--branch a-b=feat/x` and refuses a value with a metacharacter.
 
-#### Phase 2: `Blocked by` in the supervisor
+#### Phase 2: Landing, `done` and `close-pack` with pack repos
 
-- Files: `plugins/agents-core/lib/sup_workers.py`, `scripts/tests/test_sup_workers.py`. Ceiling: 30
-  code lines.
+- Files: `plugins/agents-core/lib/sup.py`, `plugins/agents-core/lib/sup_digest.py`,
+  `plugins/agents-core/lib/sup_workers.py`, `scripts/tests/test_sup_land.py`,
+  `scripts/tests/test_sup_digest.py`, `scripts/tests/test_sup_flow.py`. Ceiling: 120 code lines.
+- `at sup land` refuses while a pack worktree the task names has uncommitted changes. It writes
+  `<slug> <branch> <base>..<tip>` per pack repo into the body of the hub commit and stores the tip
+  as the repo's `landed_tip` in the pack.
+- `kept_ignored` skips exactly one file, the generated `.local/repos.map`. Every other ignored
+  file, under `.local/` too, still moves to `kept/<ID>`.
+- A task that never lands (refused landing, dead worker, stopped) leaves its commits on the pack
+  branch above `landed_tip`. The next task on that repo is not offered (Phase 1 rule), and
+  `at sup status` names the repo, the task and the count of commits above `landed_tip`. Nothing is
+  reset by the tool; the owner restarts the task or resets the branch.
+- `at sup done <pack>`: per pack repo the branch must exist, `landed_tip` must be its tip, and the
+  pack worktree must be clean; then one line per repo with the branch, the commit count over the
+  integration branch and "ready for PR". `_branch_exists` resolves the key as defined above.
+- `at sup close-pack` removes a pack worktree only when it is clean and at `landed_tip`; it keeps
+  the branch, and names what it left.
+- Checks: in the flow test a pack with one sibling repo runs two tasks in order, the second sees
+  the first one's sibling commit, the hub commits carry the ranges, `done` names the branch; a
+  dirty pack worktree refuses the landing; a commit above `landed_tip` refuses `done`; an ignored
+  file under `.local/` other than the map is in `kept/<ID>` after the landing.
+
+#### Phase 3: `Blocked by` in the supervisor
+
+- Files: `plugins/agents-core/lib/sup_workers.py`, `plugins/agents-core/lib/task_run.py` (the
+  blocker ids as a function of their own, `open_blockers` built on it),
+  `plugins/agents-core/lib/sup_digest.py`, `scripts/tests/test_sup_workers.py`,
+  `scripts/tests/test_sup_digest.py`. Ceiling: 60 code lines.
 - `next_tasks` skips a task whose `Blocked by` names a task that is neither landed in this profile
-  nor archived on the default branch. `at sup pack` refuses a serial pack whose order contradicts
-  an edge, and names the edge. The parsing is `task_run.open_blockers`, with "landed" in place of
-  "status done".
-- A blocker with a phase ("RM-281 Phase 1") counts as the whole task. The readiness check of
-  Phase 3 reports it, so the owner splits the task before the run.
-- Checks: in a parallel pack a blocked task starts in the watcher pass after its blocker landed
-  and not before; a blocker outside the pack that is archived does not block.
+  nor archived on the default branch. A blocker with a phase ("RM-281 Phase 1") counts as the
+  whole task.
+- No silent wait: `at sup pack` and `at sup start-pack` refuse, naming the edge, when a blocker is
+  open and outside the pack, when a serial order contradicts an edge, or when the edges form a
+  cycle. So a blocked task in a started pack always has a blocker that the pack will land.
+  `at sup status` shows `waits for <ID>` on such a task.
+- Checks: in a parallel pack a blocked task is offered after its blocker landed and not before; an
+  archived blocker outside the pack does not block; each of the three refusals has a test.
 
-#### Phase 3: Pack readiness and the preparation skill
+#### Phase 4: Pack readiness and the preparation skill
 
-- Files: `plugins/agents-core/lib/sup.py`, `scripts/tests/test_sup_land.py`,
+- Files: `plugins/agents-core/lib/sup.py`, `plugins/agents-core/lib/task_lanes.py`,
+  `plugins/agents-core/lib/sup_guard.py`, `scripts/tests/test_sup_land.py`,
+  `scripts/tests/test_sup_guard.py`, the test file of `task_lanes.py`,
   `plugins/agents-tasks/skills/prepare-pack/SKILL.md` (new),
   `plugins/agents-tasks/skills/supervise/SKILL.md`,
   `plugins/agents-tasks/skills/task-ledger/references/todo-convention.md`,
   `plugins/agents-core/seed/AGENTS.md` (routing rows for `agents-tasks:prepare-pack` and
-  `agents-tasks:supervise`), `README.md`, counts in `scripts/tests/test-codex-live.sh` and
-  `scripts/tests/test_codex_compat.py`. Ceiling: 60 code lines, 110 skill lines.
-- `Files:` entries may carry a repo slug: `edge-node:extensions/x.py`. An entry without a slug is
-  a hub path. Readiness accepts a slug only when the task's `Repos` row has it.
-- `### Unattended run` and `Resources:` are inherited from the parent task when the child has
-  none (the section already is; the line is new).
-- `at sup ready --pack <name>`: `readiness` for every task, then: every `Blocked by` is in the
-  pack and earlier, or archived; no blocker names a phase; every resource exists in the profile;
-  every slug in a `Repos` row or a `Files:` entry has a pack branch; no two tasks that can run
-  together share a `Files:` path. Prints `ready` or one line per problem, exit 3.
+  `agents-tasks:supervise`), `README.md`, skill counts in `scripts/tests/test-codex-live.sh` and
+  `scripts/tests/test_codex_compat.py`. Ceiling: 80 code lines, 110 skill lines.
+- `Files:` entries may carry a repo slug: `edge-node:extensions/x.py`. `task_lanes.fence` accepts
+  the form and returns it unchanged; an entry without a slug is a path in the task's own checkout,
+  as today. The lane planner of `at task run --lanes` compares entries as strings, so two entries
+  overlap only inside one repo. Readiness accepts a slug only when the task's `Repos` row has it.
+- No new inheritance from the parent task: `Resources:` is written per child by the skill.
+- `at sup ready --pack <name>` (allowed in the guard's main table): `readiness` for every task,
+  then: the three edge rules of Phase 3; no blocker names a phase; every resource exists in the
+  profile; every slug in a `Repos` row or a `Files:` entry is a pack repo; no two tasks that can
+  run together share a `Files:` entry. Prints `ready` or one line per problem, exit 3.
+  `at sup start-pack` runs the same check and refuses on a problem.
 - `agents-tasks:prepare-pack` (model-invocable; it changes task files only): list the parent's
   open children and stated order; split a child whose phases belong to different steps or to
   different code repos (hand-off to `agents-tasks:add-task`); write `Blocked by`, the `Repos` row,
@@ -112,37 +150,47 @@ ends with the touched `test_sup_*.py` files; the full suite runs once per phase 
   `at sup ready --pack`; play the pack back to the owner; commit the task edits on the default
   branch; hand off to `agents-tasks:supervise`. Complete when the pack check prints `ready` and
   the owner confirmed the playback.
-- Checks: `python3 scripts/build.py --check`; the pack check finds each of its five problems in a
-  test; the skill passes the repo's skill validation.
+- Checks: `python3 scripts/build.py --check`; each problem of the pack check has a test; a
+  slug-qualified entry passes `fence` and `../` after a slug is refused; the skill passes the
+  repo's skill validation.
 
-#### Phase 4: Lab runs and pack-local files
+#### Phase 5: Lab runs and linked local paths
 
-- Files: `plugins/agents-core/lib/sup_workers.py` (prompt and `start-worker`),
-  `plugins/agents-core/lib/sup.py`, `plugins/agents-tasks/skills/supervise/SKILL.md`,
+- Files: `plugins/agents-core/lib/sup_workers.py`, `plugins/agents-core/lib/sup.py`,
+  `plugins/agents-core/lib/sup_tick.py` (`init` keeps the new key),
+  `plugins/agents-tasks/skills/supervise/SKILL.md`,
   `plugins/agents-tasks/skills/supervise/assets/profile.json`,
-  `scripts/tests/test_sup_workers.py`, `scripts/tests/test_sup_ask.py`. Ceiling: 50 code lines,
-  25 skill lines.
+  `scripts/tests/test_sup_workers.py`, `scripts/tests/test_sup_land.py`,
+  `scripts/tests/test_sup_tick.py`. Ceiling: 60 code lines, 25 skill lines.
+- Session-plan decisions this touches. D21 (built) is about the supervisor: its lab scripts run
+  only through `at sup op`. It stays. A worker that holds a lease it got with `at sup need` runs
+  commands itself; that is the built behaviour of the session plan's "A resource" paragraph, and
+  D20 says nothing in `at sup` fences a worker. This phase only writes it into the worker prompt.
 - Worker prompt: for a resource, run its script yourself while you hold the lease, then release.
 - Skill text, the contract of a lab script in a hub: absolute path, arguments only, exit 0 means
   pass, its own timeout below the lease minutes, a fresh output directory per attempt, a separate
   restore script, last lines as the summary plus a log path. A gate is the `Checks:` line of the
   step's last phase; a gate that must test landed state is a one-phase task of its own.
-- Profile key `local`: a list of ignored paths in the hub (for example `.local/lab.json`,
-  `.no-commit/<pack>/`). `start-worker` links each into the task worktree, so bindings and evidence
-  live once per hub and survive the worktree. `land` does not move linked paths to `kept/`.
-- Generated ledgers: `at sup land` discards the task branch's changes to the ledger files that
-  `at ledger sync` writes, and runs the sync once on the default branch after the squash. Fact to
-  confirm first: the exact list of generated files, from `sync_todo_ledgers.py`.
-- First real run of the lease path, never tried in the three trials: one worker with `need`, a
-  granted lease, a script, `release`, in a scratch hub.
-- Checks: two parallel tasks that each change a task file land without a ledger conflict; a linked
-  local path is present in the task worktree and still in the hub after the landing.
+- Profile key `local`: a list of relative paths, each ignored by git in the hub (checked with
+  `git check-ignore`), no `..`. Absent in a 1.17.0 profile, which means empty. `start-worker`
+  creates the hub path as a directory when it is missing and its name ends in `/`, then makes a
+  symbolic link at the same relative path in the task worktree. When something that is not that
+  link already exists there, `start-worker` refuses and names it. At landing `kept_ignored` skips
+  an entry only while it still is a symbolic link that resolves to the hub path; anything else at
+  that path (a tool replaced the link with a file) moves to `kept/<ID>` like any ignored file.
+- Generated ledgers: nothing to build. `squash_and_commit` already takes the hub's side of
+  `_active.md` and `_done.md` and rebuilds them (`GENERATED`, tested in `test_sup_land.py`); a
+  conflict in an area page is hand-written text and still stops the landing with the file named.
+- First real run of the lease path: one headless worker with `need`, a granted lease, a script,
+  `release`, in a scratch hub. The result goes to the facts file.
+- Checks: a linked path is present in the task worktree and its content is in the hub after the
+  landing; a real file that replaced a link is in `kept/<ID>`; a pre-existing real directory
+  refuses the start; `init` of a profile with `local` keeps it and one without it loads.
 
 ## Order
 
-Phase 1 first: without it no task with sibling code can run. Phase 2 with it or right after (same
-function). Phase 3 needs the pack fields of Phase 1. Phase 4 is independent of 2 and 3. One
-release after Phases 1 and 2, one after 3 and 4. Each release is followed by one trial with real
+Phases 1 and 2 first: without them no task with sibling code can run. Phase 3 next, Phase 4 needs
+1 and 3, Phase 5 is independent of 3 and 4. One release at the end, after a trial with real
 sessions in a scratch hub that has a repo registry and one sibling repo.
 
 ## Hub work (RedMesh), not part of this repo

@@ -353,6 +353,109 @@ class Workers(unittest.TestCase):
         self.assertNotIn("cap 9", log)
         out = self.cli("packs")[1]; self.assertIn("a running serial RM-1 RM-2", out)
 
+    # pack branches, pack worktrees, the worker's map and the one-task-per-repo rule
+    def repos(self):
+        self.sib = self.t / "sib"; self.sib.mkdir()
+        git(self.sib, "init", "-q", "-b", "dev"); git(self.sib, "config", "user.name", "T"); git(self.sib, "config", "user.email", "t@x.invalid")
+        git(self.sib, "commit", "-q", "--allow-empty", "-m", "sib base")
+        (self.hub / ".config").mkdir(); (self.hub / ".local").mkdir()
+        (self.hub / ".config" / "repos.project.md").write_text(
+            "| Repo | Required | Role | Default branch | Integration branch | Work mode |\n|---|---|---|---|---|---|\n"
+            "| hub | yes | x | main | main | default-branch |\n| sib | no | x | dev | dev | ask |\n| a-b | no | x | unknown | unknown | ask |\n")
+        (self.hub / ".local" / "repos.map").write_text(f"# map\nhub: {self.hub}\nsib: {self.sib}\n")
+        self.wt = self.t / "wt"
+
+    def task_file(self, task, repos, root=None):
+        d = (root or self.hub) / "docs/tasks_manager/_todos"; d.mkdir(parents=True, exist_ok=True)
+        (d / f"{task}-x.md").write_text(f"# x\n\n| Repos | {repos} |\n")
+
+    def test_start_pack_makes_branch_and_worktree_and_is_safe_twice_and_refuses_a_foreign_path(self):
+        self.repos()
+        self.assertEqual(self.cli("pack", "a", "RM-1", "--branch", "sib=feat/x")[0], 0)
+        self.assertEqual(st.read_pack("p", "a")["branches"], {"sib": "feat/x"})
+        self.assertEqual(self.cli("pack", "a", "RM-1", "RM-2")[0], 0)  # written again without --branch: kept
+        self.assertEqual(st.read_pack("p", "a")["branches"], {"sib": "feat/x"})
+        for _ in range(2):
+            self.assertEqual(self.cli("start-pack", "a")[0], 0)
+        pw = self.t / "sib-a"
+        self.assertEqual(git(pw, "symbolic-ref", "--short", "HEAD"), "feat/x")
+        self.assertEqual(git(pw, "rev-parse", "HEAD"), git(self.sib, "rev-parse", "dev"))
+        self.cli("pause-pack", "a"); git(self.sib, "worktree", "remove", str(pw)); pw.mkdir()
+        rc, _, err = self.cli("start-pack", "a")
+        self.assertEqual(rc, 3); self.assertIn("is not a worktree of sib on feat/x", err)
+
+    def test_start_pack_attaches_to_an_existing_branch_and_falls_back_to_the_checked_out_one_for_na(self):
+        self.repos()
+        git(self.sib, "branch", "feat/old"); git(self.sib, "commit", "-q", "--allow-empty", "-m", "later")
+        self.cli("pack", "a", "RM-1", "--branch", "sib=feat/old"); self.assertEqual(self.cli("start-pack", "a")[0], 0)
+        self.assertEqual(git(self.t / "sib-a", "symbolic-ref", "--short", "HEAD"), "feat/old")
+        r = self.hub / ".config" / "repos.project.md"; r.write_text(r.read_text().replace("| dev | dev |", "| dev | N/A |"))
+        git(self.sib, "checkout", "-q", "-b", "elsewhere")
+        self.cli("pack", "b", "RM-2", "--branch", "sib=feat/new")
+        rc, out, _ = self.cli("start-pack", "b")
+        self.assertEqual(rc, 0); self.assertIn("branching from elsewhere", out)
+        self.assertEqual(git(self.t / "sib-b", "rev-parse", "HEAD"), git(self.sib, "rev-parse", "elsewhere"))
+
+    def test_hand_start_refuses_a_task_whose_repo_is_held_and_a_relative_map_path_and_a_linked_map_dir(self):
+        self.repos()
+        for t in ("RM-1", "RM-2"):
+            self.task_file(t, "`sib`")
+        self.cli("pack", "a", "RM-1", "RM-2", "--parallel", "--branch", "sib=feat/x"); self.cli("start-pack", "a")
+        st.set_worker("p", SID % 1, task="RM-1", state="running")
+        rc, _, err = self.cli("start-worker", "RM-2"); self.assertEqual(rc, 3); self.assertIn("RM-1 holds repo 'sib'", err)
+        (self.hub / ".local" / "repos.map").write_text("sib: rel/path\n")
+        rc, _, err = self.cli("pack", "c", "RM-5", "--branch", "sib=f/z"); self.assertEqual(rc, 3); self.assertIn("'sib' is not absolute", err)
+        (self.hub / ".local" / "repos.map").write_text(f"sib: {self.sib}\n")
+        st.drop_worker("p", SID % 1); self.task_file("RM-2", "hub", self.wt)
+        (self.t / "elsewhere").mkdir(); (self.wt / ".local").symlink_to(self.t / "elsewhere")
+        rc, _, err = self.cli("start-worker", "RM-2"); self.assertEqual(rc, 3); self.assertIn("symbolic link", err)
+        self.assertEqual(list((self.t / "elsewhere").iterdir()), [])
+
+    def test_pack_branch_refuses_an_unknown_slug_a_slug_without_a_map_line_and_a_bad_branch(self):
+        self.repos()
+        for argv, word in ((("--branch", "nope=x"), "'nope'"), (("--branch", "a-b=x"), "'a-b' has no path"),
+                           (("--branch", "sib=-x"), "not a usable"), (("--branch", "sib=dev"), "default or integration"),
+                           (("--branch", "sib=f/x", "--branch", "sib=f/y"), "twice"), (("--branch", "sib=a..b"), "not a usable")):
+            rc, _, err = self.cli("pack", "a", "RM-1", *argv)
+            self.assertEqual(rc, 3, argv); self.assertIn(word, err)
+        self.assertIsNone(st.read_pack("p", "a"))
+
+    def test_start_worker_writes_a_map_that_resolves_and_keeps_the_first_tip_in_the_pack(self):
+        self.repos()
+        self.task_file("RM-1", "sib", self.wt)
+        self.cli("pack", "a", "RM-1", "--branch", "sib=feat/x"); self.cli("start-pack", "a")
+        self.assertEqual(self.cli("start-worker", "RM-1")[0], 0)
+        lines = (self.wt / ".local" / "repos.map").read_text().splitlines()
+        self.assertIn(f"sib: {self.t / 'sib-a'}", lines); self.assertIn(f"hub: {self.hub}", lines)
+        row = st.worker_for("p", task="RM-1")
+        tip = git(self.sib, "rev-parse", "dev")
+        self.assertEqual(st.read_pack("p", "a")["tips"], {"sib": tip})
+        git(self.t / "sib-a", "commit", "-q", "--allow-empty", "-m", "phase 1")
+        self.cli("pause-pack", "a"); self.assertEqual(self.cli("start-pack", "a")[0], 0)
+        self.assertEqual(st.read_pack("p", "a")["tips"], {"sib": tip})  # a second start-pack keeps the first tip
+        os.environ["FAKE_READY_RC"] = "1"; self.assertEqual(self.cli("start-worker", "RM-1")[0], 3); os.environ.pop("FAKE_READY_RC")
+        self.assertEqual(st.read_pack("p", "a")["tips"], {"sib": tip})  # and so does a failed worker start
+        self.assertIn("one commit per phase", next(l for l in self.log() if l["argv"][0] == "--bg")["argv"][-1])
+
+    def test_a_pack_without_branches_writes_no_map_and_no_worktree(self):
+        self.repos()
+        self.running_pack(("RM-1",))
+        self.assertEqual(self.cli("start-worker", "RM-1")[0], 0)
+        self.assertFalse((self.wt / ".local").exists()); self.assertFalse((self.t / "sib-a").exists())
+
+    def test_two_tasks_on_one_pack_repo_are_never_offered_together_and_the_second_follows_the_first_landing(self):
+        self.repos()
+        for t, r in (("RM-1", "sib"), ("RM-2", "sib"), ("RM-3", "hub")):
+            self.task_file(t, r)
+        self.cli("pack", "a", "RM-1", "RM-2", "RM-3", "--parallel", "--branch", "sib=feat/x"); self.cli("start-pack", "a")
+        self.assertEqual(sw.next_tasks("p"), ["RM-1", "RM-3"])
+        st.set_worker("p", SID % 1, task="RM-1", state="running")
+        self.assertEqual(sw.next_tasks("p"), ["RM-3"])
+        st.set_worker("p", SID % 1, state="done")
+        self.assertEqual(sw.next_tasks("p"), ["RM-3"])
+        st.emit("p", "landed", task="RM-1")
+        self.assertEqual(sw.next_tasks("p"), ["RM-2", "RM-3"])
+
     def test_no_profile_is_a_usage_error(self):
         with self.assertRaises(SystemExit) as c, redirect_stderr(io.StringIO()):
             self.cli("packs", profile=False)

@@ -1,12 +1,18 @@
 """Packs and worker sessions of `at sup`: pack commands, start-worker, stop-worker, and the helpers other lanes call.
 
 Commands (all take --profile, default $AGENTS_SUPERVISOR; exit 0 ok, 2 usage, 3 refused):
-  pack <name> <TASK-ID>... [--parallel]   create, or replace while the pack is `new`
+  pack <name> <TASK-ID>... [--parallel] [--branch <slug>=<branch>]...   create, or replace while the pack is `new`;
+                                          without --branch a replaced pack keeps its recorded branches
   packs | start-pack | pause-pack | close-pack <name> | order <name> <TASK-ID>... | cap <n>
   start-worker <TASK-ID> [--headless] [--hub <path>] | stop-worker <TASK-ID>
 pack, start-pack, pause-pack, close-pack, order and cap are chat-only (sup_ask.require_chat). Every command except `packs`
 refuses (exit 3) in a worker session (AGENTS_SUP_TASK set): an honest-mistake check, not a fence, because a worker runs
 under the same uid as the state directory.
+
+Pack repos: a key of the pack's `branches` is a slug of .config/repos.project.md with a line in .local/repos.map. start-pack
+creates (or attaches to) the branch off the repo's integration branch and the worktree <checkout>-<pack>; start-worker
+writes .local/repos.map in the task worktree (pack repos at their pack worktree). start-pack records the first tip of each
+pack repo in pack["tips"] (never overwritten). A key with no map line is the directory of that name beside the hub, as in 1.17.0.
 
 Sessions: both modes start with `--session-id <uuid4>`, and the full uuid is the registry key. start-worker writes a row
 in state `starting` under the first lock (it counts against the cap and shuts out a second start of the task), then
@@ -57,8 +63,11 @@ WORKER_PROMPT = (
     "<id> is the question id or the resource name that the command printed. When you are woken, read your answers with `at sup inbox` and "
     "acknowledge each one with `at sup inbox --ack <id>`. Never ask the user. Close the task out with "
     "agents-tasks:complete-task. Arm the run guard first (`at run-guard arm {task}`) and never disarm it. "
-    "Do not push and do not merge."
+    "Do not push and do not merge. You are on task/{task} in a task worktree on purpose: a work mode of default-branch for the hub "
+    "does not apply to you. Code for a sibling repo goes to the path in .local/repos.map, one commit per phase, on the branch "
+    "checked out there; create no branch and push nothing."
 )
+SLUG = re.compile(r"[a-z][a-z0-9-]*")
 CAP_RANGE = range(1, 9)
 WAKE_TRIES = 3
 DEAD_RESTARTS = 2
@@ -229,6 +238,60 @@ def _hub_or_none(profile: str):
         return None
 
 
+def _repos(hub: Path) -> tuple[dict, dict]:
+    """(registry {slug: (default branch, integration branch)}, map {slug: absolute path}) of the hub: the one reader of both
+    files; a missing file is empty; a map path that is not absolute is refused by name."""
+    reg, cols, mp = {}, (3, 4), {}
+    f = hub / ".config" / "repos.project.md"
+    for line in f.read_text(encoding="utf-8").splitlines() if f.is_file() else []:
+        cells = [c.strip().strip("`") for c in line.strip().strip("|").split("|")] if line.lstrip().startswith("|") else []
+        if cells[:1] == ["Repo"] and "Integration branch" in cells and "Default branch" in cells:
+            cols = (cells.index("Default branch"), cells.index("Integration branch"))
+        elif cells and SLUG.fullmatch(cells[0]):
+            reg[cells[0]] = tuple(cells[c] if c < len(cells) else "unknown" for c in cols)
+    f = hub / ".local" / "repos.map"
+    for line in f.read_text(encoding="utf-8").splitlines() if f.is_file() else []:
+        slug, sep, path = line.partition(":")
+        if sep and SLUG.fullmatch(slug.strip()) and path.strip():
+            if not os.path.isabs(path.strip()):
+                raise Refused(f"repos.map: the path of {slug.strip()!r} is not absolute")
+            mp[slug.strip()] = path.strip()
+    return reg, mp
+
+
+def _checkout(hub: Path, slug: str, mp: dict) -> Path:
+    return Path(mp[slug]) if slug in mp else hub.parent / slug
+
+
+def _task_repos(root: Path, task: str) -> set[str]:
+    """The slugs of the `Repos` row of the task file under root (the hub or a task worktree), read with the task parser
+    `sup.readiness` uses; empty when there is no file or row."""
+    import sup  # lazily: sup imports this module through add_parser
+    try:
+        scripts = str(sup.tasks_root() / "skills" / "task-ledger" / "scripts")
+    except sup.Refuse as e:
+        raise Refused(str(e)) from e
+    if scripts not in sys.path:
+        sys.path.insert(0, scripts)
+    import task_brief
+    for f in sorted((root / sup.TODOS).glob(f"{task}-*.md")):
+        cell = task_brief.parse_task(task, f).meta.get("Repos", "")
+        return {r for r in re.split(r"[,\s]+", cell.replace("`", "")) if SLUG.fullmatch(r)}
+    return set()
+
+
+def _pack_repos(pack: dict, hub: Path | None, task: str) -> set[str]:
+    """The pack repos `task` names in its `Repos` row; a pack without branches never reads a task file."""
+    shared = set(pack.get("branches") or {})
+    return _task_repos(hub, task) & shared if shared and hub else set()
+
+
+def _held(profile: str, pack: dict, hub: Path | None, rows: list[dict]) -> dict[str, str]:
+    """Pack repo -> the task that has a worker row and has not landed: nobody else works there until it lands."""
+    started = [t for t in pack["tasks"] if any(w.get("task") == t for w in rows) and not _landed(profile, t, hub)]
+    return {slug: t for t in started for slug in _pack_repos(pack, hub, t)}
+
+
 def next_tasks(profile: str) -> list[str]:
     rows = st.workers(profile)
     hub = _hub_or_none(profile)
@@ -238,13 +301,17 @@ def next_tasks(profile: str) -> list[str]:
     for pack in st.list_packs(profile):
         if pack.get("state") != "running":
             continue
-        for task in pack["tasks"]:
-            if _landed(profile, task, hub):
-                continue
+        busy = _held(profile, pack, hub, rows)
+        open_ = [t for t in pack["tasks"] if not _landed(profile, t, hub)]
+        for task in open_:
             if any(w.get("task") == task for w in rows):
                 if not pack.get("parallel"):
                     break  # the previous task is not landed yet: a serial pack waits
                 continue
+            mine = _pack_repos(pack, hub, task)
+            if mine & set(busy):
+                continue  # another task of the pack works in the same pack repo and has not landed
+            busy.update(dict.fromkeys(mine, task))
             out.append(task)
             if not pack.get("parallel"):
                 break
@@ -302,6 +369,57 @@ def _started_tasks(profile: str) -> set[str]:
     return {w["task"] for w in st.workers(profile)}
 
 
+def _git(path, *args: str) -> subprocess.CompletedProcess:
+    try:
+        return _run(["git", "-C", str(path), *args], env=clean_env())
+    except (OSError, subprocess.SubprocessError) as e:
+        raise Refused(f"git {args[0]} failed: {e}") from None
+
+
+def _valid_branch(branch: str) -> bool:
+    return bool(branch) and not branch.startswith("-") and "@{" not in branch and \
+        _git(".", "check-ref-format", "--branch", branch).returncode == 0
+
+
+def _pack_worktrees(profile: str, pack: dict) -> dict:
+    """Per pack repo: the branch (off the integration branch, or the existing one) and the worktree <checkout>-<pack>.
+    Returns {slug: tip of the worktree}. Safe to run twice; refuses a path that is not that worktree on that branch.
+    Takes no lock."""
+    if not pack.get("branches"):
+        return {}
+    hub = st.hub(profile)
+    reg, mp = _repos(hub)
+    tips = {}
+    for slug, branch in pack["branches"].items():
+        checkout = _checkout(hub, slug, mp)
+        if not checkout.is_dir() or _git(checkout, "rev-parse", "--git-dir").returncode:
+            raise Refused(f"{slug}: {checkout} is not a git repository")
+        wt = checkout.parent / f"{checkout.name}-{pack['name']}"
+        if wt.exists():
+            same = _git(wt, "rev-parse", "--git-common-dir").stdout.strip(), _git(checkout, "rev-parse", "--git-common-dir").stdout.strip()
+            if (_git(wt, "symbolic-ref", "--short", "HEAD").stdout.strip() != branch
+                    or Path(wt, same[0]).resolve() != Path(checkout, same[1]).resolve()):
+                raise Refused(f"{wt} exists and is not a worktree of {slug} on {branch}")
+            tips[slug] = _git(wt, "rev-parse", "HEAD").stdout.strip()
+            continue
+        if _git(checkout, "rev-parse", "--verify", "-q", f"refs/heads/{branch}").returncode == 0:
+            args = ["worktree", "add", str(wt), branch]
+        else:
+            base = reg.get(slug, ("unknown", "unknown"))[1]
+            if base not in ("N/A", "unknown") and not _valid_branch(base):
+                raise Refused(f"{slug}: the integration branch {base!r} in the registry is not a usable branch name")
+            if base in ("N/A", "unknown"):
+                base = _git(checkout, "symbolic-ref", "--short", "HEAD").stdout.strip()
+                print(f"{slug}: no integration branch in the registry; branching from {base or 'HEAD'}, the one checked out")
+            args = ["worktree", "add", "-b", branch, str(wt), base or "HEAD"]
+        made = _git(checkout, *args)
+        if made.returncode:
+            raise Refused(f"{slug}: git worktree add failed: {(made.stderr.strip().splitlines() or ['?'])[-1]}")
+        tips[slug] = _git(wt, "rev-parse", "HEAD").stdout.strip()
+        print(f"{slug}: {wt} on {branch}")
+    return tips
+
+
 @_command(chat=True)
 def cmd_pack(profile: str, args) -> int:
     old = st.read_pack(profile, args.name)
@@ -313,8 +431,27 @@ def cmd_pack(profile: str, args) -> int:
         other = st.pack_of(profile, task)
         if other and other["name"] != args.name:
             raise Refused(f"{task} is already in pack {other['name']!r}")
-    st.write_pack(profile, {"name": args.name, "tasks": args.tasks, "parallel": args.parallel, "state": "new"})
-    st.touch(profile, f"pack {args.name} {' '.join(args.tasks)}{' --parallel' if args.parallel else ''}")
+    branches = (old or {}).get("branches") or {}
+    if args.branch:
+        reg, mp = _repos(st.hub(profile))
+        branches = {}
+        for item in args.branch:
+            slug, _, branch = item.partition("=")
+            if slug in branches:
+                raise Refused(f"repo {slug!r} is given twice in --branch")
+            if slug not in reg:
+                raise Refused(f"repo {slug!r} is not in .config/repos.project.md")
+            if slug not in mp:
+                raise Refused(f"repo {slug!r} has no path in .local/repos.map")
+            if not _valid_branch(branch):
+                raise Refused(f"{branch!r} is not a usable branch name")
+            if branch in reg[slug]:
+                raise Refused(f"{branch!r} is the default or integration branch of {slug!r}; name a feature branch")
+            branches[slug] = branch
+    st.write_pack(profile, {"name": args.name, "tasks": args.tasks, "parallel": args.parallel, "state": "new", "branches": branches,
+                            "tips": (old or {}).get("tips") or {}})
+    st.touch(profile, f"pack {args.name} {' '.join(args.tasks)}{' --parallel' if args.parallel else ''}"
+                      + "".join(f" --branch {s}={b}" for s, b in branches.items()))
     print(f"pack {args.name}: {len(args.tasks)} tasks, {'parallel' if args.parallel else 'serial'}, new")
     return 0
 
@@ -338,9 +475,16 @@ def _set_state(profile: str, name: str, state: str, allowed: tuple[str, ...], ve
     return 0
 
 
-@_command(chat=True)
+@_command(chat=True, lock=False)
 def cmd_start_pack(profile: str, args) -> int:
-    return _set_state(profile, args.name, "running", ("new", "paused", "running"), "start")
+    pack = _get_pack(profile, args.name)
+    tips = _pack_worktrees(profile, pack) if pack.get("state") in ("new", "paused", "running") else {}  # git first, no lock
+    with st.locked(profile):
+        fresh = _get_pack(profile, args.name)
+        if (fresh.get("branches") or {}) != (pack.get("branches") or {}):
+            raise Refused(f"pack {args.name!r} changed its branches during start-pack; run it again")
+        st.write_pack(profile, {**fresh, "tips": {**tips, **(fresh.get("tips") or {})}})  # the first tip of a repo stays
+        return _set_state(profile, args.name, "running", ("new", "paused", "running"), "start")
 
 
 @_command(chat=True)
@@ -389,6 +533,11 @@ def _refusal(profile: str, task: str) -> str | None:
     cap = st.config(profile)["cap"]
     if slots_used(profile) >= cap:
         return f"session cap {cap} reached"
+    hub = _hub_or_none(profile)
+    held = _held(profile, pack, hub, st.workers(profile))
+    for slug in sorted(_pack_repos(pack, hub, task)):
+        if held.get(slug, task) != task:
+            return f"{held[slug]} holds repo {slug!r} and has not landed"
     return None
 
 
@@ -477,6 +626,24 @@ def _headless_session(profile: str, task: str, session: str, cwd: str, env: dict
     return proc.pid
 
 
+def _write_map(hub: Path, cwd: Path, pack: dict) -> None:
+    """Write .local/repos.map in the task worktree: pack repos at their pack worktree, the rest as the hub has them.
+    A pack without branches writes nothing; a symbolic link at .local or the map is refused."""
+    if not pack.get("branches"):
+        return
+    _, mp = _repos(hub)
+    mine = {}
+    for slug in pack["branches"]:
+        c = _checkout(hub, slug, mp)
+        mine[slug] = str(c.parent / f"{c.name}-{pack['name']}")
+    local = cwd / ".local"
+    if local.is_symlink() or (local / "repos.map").is_symlink():
+        raise Refused(f"{local} or its repos.map is a symbolic link; not writing the map")
+    local.mkdir(exist_ok=True)
+    (local / "repos.map").write_text("# written by `at sup start-worker`: pack repos at their pack worktree\n"
+                                     + "".join(f"{s}: {p}\n" for s, p in {**mp, **mine}.items()), encoding="utf-8")
+
+
 @_command(lock=False)
 def cmd_start_worker(profile: str, args) -> int:
     """Under the lock: check and write a `starting` row (it counts against the cap, so a second start cannot pass).
@@ -501,6 +668,7 @@ def cmd_start_worker(profile: str, args) -> int:
         if why:
             raise Refused(why)
         cwd = _worktree(task, hub, profile)
+        _write_map(hub, Path(cwd), pack)
         env = clean_env(AGENTS_SUPERVISOR=profile, AGENTS_SUP_TASK=task)
         prompt = WORKER_PROMPT.format(task=task, profile=profile)
         pid = (_headless_session if headless else _bg_session)(profile, task, session, cwd, env, prompt)
@@ -565,7 +733,8 @@ def register(sup_sub) -> None:
 
     name = ("name", {})
     tasks = ("tasks", {"nargs": "+", "metavar": "TASK-ID"})
-    add("pack", cmd_pack, name, tasks, flags=[("--parallel", {"action": "store_true"})])
+    add("pack", cmd_pack, name, tasks, flags=[("--parallel", {"action": "store_true"}),
+                                              ("--branch", {"action": "append", "metavar": "SLUG=BRANCH"})])
     add("packs", cmd_packs)
     for cmd, fn in (("start-pack", cmd_start_pack), ("pause-pack", cmd_pause_pack), ("close-pack", cmd_close_pack)):
         add(cmd, fn, name)
