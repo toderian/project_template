@@ -17,3 +17,8 @@ __pycache__/
 
 # Local Codex config/state.
 .codex/*
+
+# execute-plan run evidence that is regenerable
+docs/_plans/_runs/**/diff.patch
+docs/_plans/_runs/**/*.patch
+docs/_plans/_runs/*/lock

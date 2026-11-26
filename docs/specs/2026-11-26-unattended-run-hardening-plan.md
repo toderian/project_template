@@ -10,7 +10,7 @@ needs them, and reads one file in the morning to see what happened.
 
 ## Where we are
 
-Built on 2026-11-26, uncommitted, `run-all.sh` green:
+Built on 2026-11-26 (commit `54ad321`), `run-all.sh` green:
 
 - the run guard (`hooks/run-guard.sh`, `at run-guard arm|status|disarm`): a session cannot end a
   turn mid-run except on `Run: WAITING` or `Run: BLOCKED`;
@@ -44,71 +44,110 @@ The design below rests on harness behaviour that the fixtures assume and nobody 
 7. Whether the Stop and `SessionStart` hooks fire under `claude -p`, and how a headless session can
    be made to compact (a `/compact` input, or a small `autoCompactWindow`). The end-to-end harness
    below depends on both.
+8. The Stop hook payload carries the session's permission mode.
+9. Whether a `claude -p` session keeps a scheduler wakeup or a background job alive after its turn
+   ends (E6 and the watchdog's resume rule depend on it).
+
+## Shared design (settled by the architecture review, 2026-11-26)
+
+**Marker files**, all under the run-guard directory, named by session id:
+
+| File | Written by | Holds |
+|---|---|---|
+| `<session>` | `at run-guard arm` | `task` / `state` target lines (as today) plus `meta<TAB>key<TAB>value` lines: `pid` (the session process), `cwd` (where the session runs; `claude --resume` and `git config` are read there), `armed` (time), `watch` (`on` with its caps, or absent) |
+| `<session>.status` | `run-guard.sh` at every stop it lets through | `key=value` lines: `last_stop` (time), `kind` (`WAITING`, `BLOCKED`, `GAVE_UP` after five sent-backs, `EMPTY` for an empty last message, `DONE` when nothing is open), `text`, `transcript`, `mode` (the permission mode from the hook payload) |
+| `<session>.sent/<event>` | whoever notifies | one empty file per event, created with an exclusive create; the creator sends, everyone else skips. This is the only dedupe, and it is what makes "finished" one message whether the hook or the watchdog sees it first |
+| `<session>.watch` | `at run-guard watch` | the watcher's pid, exclusive create; a second watcher exits |
+
+**Lifecycle.** The hook no longer deletes the marker when nothing is open: it writes `kind=DONE` and
+treats a `DONE` marker as inactive. `at run-guard disarm`, a new `arm`, and the 14-day prune remove
+the files. So the watchdog always has a marker to read.
+
+**Shared files and lanes.** The first draft's "no shared files" was wrong: `lib/at.py`,
+`hooks/run-guard.sh`, `hooks/tests/test-hooks.sh` and `unattended-run/SKILL.md` are edited by
+several of Phases 1–4. Those phases are serial. Phases 5–6 touch `lib/task_run.py`, their own
+module and tests; their only shared files are `lib/at.py` (the `task run` argument block only) and
+`references/run-state.md` (the "Scripted driver" section only), so they form a second lane.
+Every text change to `agents-core:unattended-run` that Phases 5–6 need is made in Phase 7.
+Each scenario is its own file `scripts/tests/live/eN-<name>.sh`, so no phase edits another's.
 
 ## Phases
 
-`After:` lines follow the new convention; phases with no shared files can run as lanes.
+`After:` lines follow the new convention.
 
 #### Phase 0: Spike the harness facts
 
 After: none
 
-- [ ] A throwaway script and a real Claude Code session answer facts 1–7; each answer is one line
+- [ ] A throwaway script and a real Claude Code session answer facts 1–9; each answer is one line
       with the evidence (payload dump, command, exit code) in `docs/meta/2026-11-26-run-guard-facts.md`.
-- [ ] Each "no" names the phase it changes and how.
-
+      Fact 8: the Stop hook payload carries the permission mode. Fact 9: whether a `claude -p`
+      session keeps a scheduler wakeup or a background job alive after its turn ends.
+- [ ] Each "no" names the phase it changes and how. A "no" on fact 9 moves E6 to an interactive
+      session driven through a pty, or, if that cannot be scripted, to the manual run with E9.
 - [ ] The end-to-end harness skeleton (§"End-to-end tests") with scenario E1, which exercises the
       guard that already exists.
 
-Checks: the facts file exists and has seven answered lines.
+Checks: the facts file exists and has nine answered lines.
 E2E: E1.
 
-#### Phase 1: Re-inject the run after a compaction or resume
+#### Phase 1: Marker schema, and re-inject the run after a compaction or resume
 
 After: 0
 
+- [ ] The marker schema and lifecycle of §"Shared design": `arm` writes the `meta` lines,
+      `run-guard.sh` writes `.status` at every allowed stop (including the five-sent-back and
+      empty-message pass-throughs) and marks `DONE` instead of deleting; `status` and `disarm`
+      know the new files.
 - [ ] `hooks/run-guard-remind.sh`, a `SessionStart` hook for `compact` and `resume`: when this
       session's marker has open targets, print which tasks are open, the first open row, and "load
       `agents-core:execute-plan` and resume from `state.md`". Prints nothing otherwise; always exit 0.
 - [ ] The open-target scan is one shared function in `hooks/lib/`, used by this hook and
       `run-guard.sh` (no second copy).
 - [ ] `hooks.json` entry; `build.py`; hook tests: open run prints, no marker is silent, finished run
-      is silent, missing `jq` is silent.
+      is silent, missing `jq` is silent, a `DONE` marker lets a stop through.
 
-Shape: ≤ ~60 new code lines; `run-guard.sh` net shrinks by the scan it gives away.
+Shape: ≤ ~90 new code lines; `run-guard.sh` gives the scan away.
 E2E: E2.
 
 #### Phase 2: Tell the owner
 
-After: 0
+After: 1
 
-- [ ] `git config agents.notifyCommand` (per checkout) or `AGENTS_NOTIFY_CMD`: a command that gets
-      the title as `$1` and the body on stdin. Nothing configured means nothing is sent. No built-in
-      service, no new dependency.
-- [ ] `at notify <title>` runs it, with a 10 s timeout; a failing command never fails the caller.
-- [ ] `run-guard.sh` calls it when it lets a `Run: BLOCKED` stop through (title: task id and the
-      decision text) and when the guard ends because nothing is open (title: "run finished").
-      Once per event, not once per stop: the marker remembers the last one sent.
+- [ ] `git config agents.notifyCommand`, read in the marker's `cwd`, or `AGENTS_NOTIFY_CMD`: a
+      command that gets the title as `$1` and the body on stdin. Nothing configured means nothing
+      is sent. No built-in service, no new dependency.
+- [ ] `at notify <title> [--event <key> --session <id>]` runs it with a 10 s timeout; a failing
+      command never fails the caller. The title and body are passed as an argument and on stdin,
+      never spliced into a shell string. With `--event`, it sends only if it creates
+      `<session>.sent/<key>`.
+- [ ] `run-guard.sh` calls it when it lets a stop through as `BLOCKED` (title: task id and the
+      decision text; event key: a hash of the text), `GAVE_UP`, `EMPTY`, or `DONE` ("run finished").
 - [ ] `agents-core:unattended-run` step 2 checks that a notify command is set and that a test
       message arrived (the owner confirms it).
 - [ ] The body holds task ids and the one-line reason, never file contents or secrets; the README
       says the text leaves the machine through whatever command the owner configured.
 
+Shape: ≤ ~80 new code lines.
 E2E: E3.
 
 #### Phase 3: Morning report
 
-After: none
+After: 2
 
-- [ ] `at task report <TASK-ID>... [--since <rev>]` writes `docs/tasks_manager/_reports/<date>-<TASK-ID>.md`,
-      committed with the run (`at ledger check` accepts the directory):
-      per task its status, each phase row with its commit, verdicts and open count; every `Decision:`,
-      `Ruling:` and `Note: parked:` line; for tasks already archived, the same lines from their
-      completion summary; the commits since `--since`; and "needs you" first: parked questions.
+- [ ] `at task report <TASK-ID>... [--since <rev>]` writes `docs/tasks_manager/_reports/<date>-<TASK-ID>.md`
+      (`<date>` is the commit date of the run's `base_rev`, so a rerun on another day names the same
+      file), committed with the run; `at ledger check` (agents-tasks, `sync_todo_ledgers.py`)
+      accepts the directory. Content: per task its status, each phase row with its commit, verdicts
+      and open count; every `Decision:`, `Ruling:` and `Note: parked:` line; for tasks already
+      archived, the same lines from their completion summary; the commits since `--since`; and
+      "needs you" first: parked questions.
+- [ ] `agents-tasks:complete-task` copies `Note: parked:` lines into the completion summary next to
+      `Ruling:` and `Decision:`, so closeout loses none of them.
 - [ ] Deterministic: built only from task files, run states and `git log`, so it can be run by the
       agent, by the watchdog, or by the owner, and rerun gives the same file.
-- [ ] `agents-core:unattended-run` step 6 runs it instead of composing the summary by hand, and puts
-      the parked questions through `agents-core:ask`.
+- [ ] `agents-core:unattended-run` step 6 runs it before closeout instead of composing the summary
+      by hand, and puts the parked questions through `agents-core:ask`.
 - [ ] Unit tests on a fixture with one committed, one parked and one archived task.
 
 Shape: one new module in `lib/`, ≤ ~200 code lines.
@@ -116,7 +155,7 @@ E2E: E4.
 
 #### Phase 4: Wake a session that stopped moving
 
-After: 0, 2
+After: 3
 
 Two layers, because the cheap one cannot see a dead process and the other must not race a live one.
 
@@ -125,40 +164,53 @@ Two layers, because the cheap one cannot see a dead process and the other must n
       prompt is "run guard check: if the job you are waiting for is still running, reply
       `Run: WAITING <job>`; if it died or nothing is running, resume from `state.md`". Cancelled at
       closeout. This covers a job that never reports back, and quota that returned.
-- [ ] `run-guard.sh` records in the marker, at each allowed stop: time, `WAITING` or `BLOCKED`, the
-      text, and the transcript path.
 - [ ] **Watchdog, outside the session.** `at run-guard watch [--interval 600] [--max-resumes 4]
-      [--budget-usd N] [--until HH:MM]`, started detached by `at run-guard arm --watch` and recorded
-      in the marker. Each tick:
-      - nothing open: notify "finished", write the report, exit;
-      - last stop is `BLOCKED`: notify once, do not resume;
-      - session process alive: do nothing (the heartbeat owns that case);
-      - process dead and targets open: `claude --resume <session> -p "<resume prompt>"` with the
-        recorded permission mode and the budget, at most `--max-resumes` times with a growing pause,
-        then notify "gave up" and exit.
-- [ ] One watcher per session (pid file); `at run-guard disarm` stops it; `at run-guard status` shows it.
-- [ ] `agents-core:unattended-run` step 4 writes `Watch: on|off` and the budget into the
-      `### Unattended run` section: restarting a dead session is an authorisation, given per task.
+      [--budget-usd N] [--until HH:MM] [--idle 90]`, started detached by `at run-guard arm --watch`
+      and recorded in the marker. Liveness uses `_pid_alive` from `lib/task_run.py`. Each tick:
+      - `DONE` or nothing open: notify "finished" (deduped), write the report, exit;
+      - last stop is `BLOCKED`: notify (deduped), do not resume;
+      - session process alive: never resume. If no target file changed for `--idle` minutes, or the
+        last stop is `GAVE_UP` or `EMPTY`, notify "idle" once; the heartbeat owns the waking;
+      - process dead and targets open, whatever the last stop (a job the session waited on died
+        with it): check the authorisation below, then `claude --resume <session> -p "<fixed prompt>"`
+        in the marker's `cwd`, notify "restarted", at most `--max-resumes` times with a growing
+        pause, then notify "gave up" and exit. The fixed prompt says the session is headless, that
+        nothing outlives the turn, and to wait for jobs in the foreground instead of ending on
+        `Run: WAITING`.
+- [ ] **Limits.** `--budget-usd` is the total for the watcher: each resume gets the total divided
+      by `--max-resumes`. Before every resume the watcher re-reads each guarded task file and
+      resumes only if it still says `Execution: unattended` and `Watch: on`. The resume uses the
+      permission mode recorded in `.status`; a recorded `bypassPermissions` is refused (notify,
+      exit) unless `arm --watch --allow-bypass` was given.
+- [ ] One watcher per session (`<session>.watch`, exclusive create); `at run-guard disarm` stops it;
+      `at run-guard status` shows it.
+- [ ] `agents-core:unattended-run` step 4 writes `Watch: on|off`, the budget and, if granted,
+      `allow bypass` into the `### Unattended run` section: restarting a dead session is an
+      authorisation, given per task.
 - [ ] Tests with a fake `claude` on `PATH`: dead pid resumes once, live pid does not, `BLOCKED` does
-      not, the resume cap holds, `--until` ends it.
+      not, the resume cap holds, the budget is divided, a task no longer marked is not resumed,
+      bypass is refused without the flag, a second watcher exits, `--until` ends it.
 
-Shape: one new module in `lib/`, ≤ ~250 code lines. Security: the resume prompt is a fixed string;
+Shape: one new module in `lib/`, ≤ ~300 code lines. Security: the resume prompt is a fixed string;
 the watcher takes the session id and paths only from the marker it owns.
 E2E: E5, E6.
 
 #### Phase 5: The scripted driver learns the marks
 
-After: none
+After: 0
 
 - [ ] `at task run` reads `After:` lines. A row that ends `blocked` or `parked` no longer ends the
       run: phases that do not depend on it still run; its dependants are set `parked` with a note.
-- [ ] With `Execution: unattended`, a phase at the fix-loop cap follows the `Defaults` line for it
-      (park, or continue with a `Decision:` line naming the open findings) instead of always blocking.
+- [ ] With `Execution: unattended`, a phase at the fix-loop cap follows the line
+      `At review cap: park | continue` of the task's `### Unattended run` section (a fixed key, not
+      prose; missing means `park`). `continue` commits with a `Decision:` line naming the open
+      findings, and never applies to a critical finding.
 - [ ] `at task run <ID> <ID>...` runs a chain in the given order, skipping a task whose `Blocked by`
       is not done.
 - [ ] Exit code 0 only when every row is committed; 4 when it finished with parked rows.
 - [ ] `test_task_run.py` cases for each bullet.
 
+Shape: ≤ ~150 new code lines in `lib/task_run.py`.
 E2E: E7.
 
 #### Phase 6: Parallel lanes in the scripted driver
@@ -168,8 +220,8 @@ After: 5
 - [ ] `at task run --lanes N` (default 1, at most 3): phases whose `After:` lines are satisfied and
       whose scope fences do not overlap run at the same time, each in its own worktree and lane
       branch, one process tree per lane. A phase without a stated scope fence never shares a wave.
-- [ ] Bookkeeping stays in the integration checkout; the driver holds one lock for it, so two lanes
-      never write `state.md` at once.
+- [ ] Bookkeeping stays in the integration checkout; the driver holds one lock for it (the existing
+      run lock), so two lanes never write `state.md` at once.
 - [ ] Integration per wave, lowest phase first: `git merge --no-ff`; the checks from `--check` after
       each merge; a conflict or a red check parks that lane (worktree kept, noted) and the rest go on.
       The driver never resolves a conflict.
@@ -179,25 +231,30 @@ After: 5
 - [ ] Tests with the fake harness: two independent phases run concurrently and merge; overlapping
       fences fall back to serial; a conflict parks one lane and commits the other; rerun after a kill.
 
-Shape: lane logic in its own module, not inside `Runner`; ≤ ~350 code lines.
+Shape: wave planning, worktrees and merging in their own module, ≤ ~350 code lines; a lane runs the
+existing phase loop through its own `Runner` on the lane worktree, no copy of that loop.
 Risk: this ships merge logic before the skill-driven lanes have run on a real task. Phase 7's trial
 runs the lanes through the skill first and through the driver second.
 E2E: E8.
 
 #### Phase 7: Skill text, live trial, release
 
-After: 1, 2, 3, 4, 5, 6
+After: 4, 6
 
 - [ ] `agents-core:unattended-run` step 3 asks these every time, with a recommended default:
-      what to do at the review cap (recommend: park the phase, never self-rule a critical finding);
+      what to do at the review cap (recommend: park the phase, never self-rule a critical finding;
+      step 4 writes the answer as the `At review cap:` line);
       the lane cap for the night (recommend 2); what to do when the model refuses or a safety
       classifier stops a step (recommend: route that phase to `at task run --harness codex`, else park);
       what to do when another session holds a shared resource (recommend: wait up to N minutes, then
       park).
-- [ ] Scenario E9 on one small real task in a downstream repo; its evidence goes into the facts file.
+- [ ] The scripted suite E1–E8 run once from a clean checkout, output saved next to the facts file.
+- [ ] Scenario E9 on one small real task in a downstream repo, with the owner present; its evidence
+      goes into the facts file. It is the one step of this plan that waits for a person.
 - [ ] README, seed `AGENTS.md`, CHANGELOG; `scripts/release.sh`.
 
-E2E: E9, then the whole suite E1–E9 green in one run before the release.
+Shape: text only, apart from the suite's saved output.
+E2E: E1–E8 green in one run, then E9 by hand, before the release.
 
 ## End-to-end tests
 
@@ -205,7 +262,8 @@ Unit and fixture tests feed the hooks a payload we wrote ourselves. They cannot 
 Code sends that payload, that an agent obeys a sent-back stop, or that a restarted session finds
 its way. These scenarios run the real CLI against a scratch repository.
 
-**Harness:** `scripts/tests/test-unattended-live.sh`, built in Phase 0 and extended by each phase.
+**Harness:** `scripts/tests/test-unattended-live.sh [E1 E2 …]`, built in Phase 0. It runs the
+scenario files `scripts/tests/live/eN-<name>.sh`; each phase adds its own file.
 
 - A throwaway git repo seeded with `at init --with-tasks`, the plugins loaded from this working tree,
   and a fixture task whose phases are trivial ("append a line to `a.txt`", check: `grep`), so a
@@ -214,22 +272,22 @@ its way. These scenarios run the real CLI against a scratch repository.
   own `AGENTS_RUN_GUARD_DIR`, so it never touches a real marker.
 - Every assertion reads files, never model prose: commits, `state.md` rows, the marker, the notify
   log, the report, the transcript's hook entries.
-- Not in CI and not in the pre-commit gate (it needs the CLI and spends tokens), like
-  `test-codex-live.sh`: `run-all.sh` runs it when a run-guard file differs from `HEAD` and at every
-  release, and prints `SKIP` with the reason when the CLI is missing.
+- Run by hand only: it needs the CLI and spends tokens, so it is not in `run-all.sh`, not in the
+  pre-commit gate and not in CI. Each phase runs its own scenario before its commit and Phase 7
+  runs all of them before the release. A missing CLI is a failure, not a skip.
 - A scenario that fails keeps its scratch repo and transcript and prints both paths.
 
 | # | Scenario | Passes when |
 |---|---|---|
-| E1 | Guard holds the turn. Two-phase task; the prompt says "do phase 1, then summarise" | the transcript shows the Stop hook sent the agent back, phase 2 is committed, and the marker is gone after closeout |
+| E1 | Guard holds the turn. Two-phase task; the prompt says "do phase 1, then summarise" | the transcript shows the Stop hook sent the agent back, phase 2 is committed, and the marker is inactive after closeout |
 | E2 | Compaction mid-run. Three-phase task, compaction forced after phase 1 | the reminder hook's text is in the transcript after the compaction and phases 2–3 are committed with no further prompt |
 | E3 | Blocked stop notifies. A phase needs an "Owner only" action; the notify command appends to a log file | the row is `parked`, the last message has `Run: BLOCKED`, the log has exactly one line for it and one for nothing else |
-| E4 | Report. After E3's run, `at task report` | the file lists both commits, the parked question under "needs you" and the `Decision:` line; a second run of the command leaves it byte-identical |
-| E5 | Dead session. `kill -9` the session after phase 1 with the watchdog armed | the watchdog resumes once, phase 2 is committed, a "restarted" notification is logged, and it exits when nothing is open |
-| E6 | Dead job. The agent waits on a background job that the test kills; heartbeat interval set to 1 minute | within two intervals the agent stops waiting and the phase is committed or parked with the reason; a live job in the same setup is left alone |
+| E4 | Report. Its own run with one parked row and one `Decision:`, then `at task report` | the file lists the commits, the parked question under "needs you" and the `Decision:` line; a second run of the command leaves it byte-identical |
+| E5 | Dead session. `kill -9` the session after phase 1 with the watchdog armed | the watchdog resumes once, phase 2 is committed, one "restarted" and one "finished" notification are logged, and the watcher has exited |
+| E6 | Dead job. The agent waits on a background job that the test kills; heartbeat interval set to 1 minute (session kind per fact 9) | within two intervals the agent stops waiting and the phase is committed or parked with the reason; a live job in the same setup is left alone |
 | E7 | Driver with marks. `at task run` on a three-phase task: phase 2 cannot pass its check, phase 3 says `After: 1` | phase 3 is committed, phase 2 and nothing else is `parked`, exit code 4 |
 | E8 | Driver lanes. `at task run --lanes 2`, two independent phases, then a variant where both edit the same line | both commits are on the integration branch and no lane worktree is left; in the variant one lane is parked, the other committed, and the tree is clean |
-| E9 | Whole flow through the skills, in a real downstream repo, with a person present: readiness check with playback and grilling, `Execution: unattended`, two lanes through `agents-core:execute-parallel`, one authorised decision, one parked decision, closeout | the `### Unattended run` section holds the answers given, `state.md` has the `Decision:` line and the parked row, the wave was reviewed, and the report matches |
+| E9 | Whole flow through the skills, in a real downstream repo, with a person present: readiness check with playback and grilling, `Execution: unattended`, two lanes through `agents-core:execute-parallel`, one authorised decision, one parked decision, closeout | the `### Unattended run` section holds the answers given, the wave was reviewed, and the committed report and the completion summary both hold the `Decision:` line and the parked question |
 
 Negative checks, run with E1: a second session in the same repo that never armed the guard stops
 freely; `at run-guard disarm` lets the armed one stop; five sent-backs in a row let the stop through.
@@ -238,8 +296,9 @@ E9 is the only scenario a person judges. The rest are scripted and repeatable.
 
 ## Order
 
-Wave 1: Phase 0. Wave 2: Phases 1, 3, 5 as lanes (no shared files), Phase 2 with them if Phase 1 has
-given `run-guard.sh` its shared scan first, else after it. Wave 3: Phases 4 and 6 as lanes. Wave 4: Phase 7.
+Phase 0 first. Then two lanes: lane A is Phases 1, 2, 3, 4 in that order; lane B is Phases 5, 6 in
+that order, in its own worktree. Lane B is merged into the integration branch after lane A's last
+phase, with the full checks after the merge and one review of the integrated diff. Phase 7 last.
 
 ## Acceptance
 
@@ -247,7 +306,7 @@ The end-to-end suite E1–E8 passes from a clean checkout, and E9 was run once w
 (repo, task id, transcript path) recorded in the facts file. In particular:
 
 - A session killed with `kill -9` mid-run is resumed by the watchdog and commits the next phase.
-- A session waiting on a job that was killed resumes within one heartbeat.
+- A session waiting on a job that was killed resumes within two heartbeats.
 - After `/compact` mid-run, the next turn names the open row without the owner typing.
 - `Run: BLOCKED` produces one notification within a minute; a finished run produces one.
 - `at task report` on the trial run lists every commit, decision and parked question, and nothing
@@ -270,5 +329,19 @@ The end-to-end suite E1–E8 passes from a clean checkout, and E9 was run once w
 |---|---|---|
 | D1 | How notifications are sent | a command the owner configures per checkout; nothing built in |
 | D2 | Where the report file lives | `docs/tasks_manager/_reports/<date>-<TASK-ID>.md`, committed |
-| D3 | May the watchdog restart a dead session by itself | yes, only for `unattended` tasks, capped at 4 resumes and a budget set in the readiness check |
+| D3 | May the watchdog restart a dead session by itself | yes, only for `unattended` tasks, capped at 4 resumes and a total budget set in the readiness check |
 | D4 | Parallel lanes in the scripted driver | in this plan (Phase 6), against the recommendation to wait |
+
+---
+
+## Execution log
+
+- 2026-11-26: run opened (`agents-core:execute-plan`, large mode, runtime claude). Base `da43501`,
+  branch `master`, work mode default-branch, autonomy L1. Run state:
+  `docs/_plans/_runs/unattended-run-hardening/`. Spec source: this plan (planned intent).
+- 2026-11-26: architecture review, both REVISE (plan-critic 6 blocking, Codex peer 4; see
+  `architecture-review.md` and `architecture-review-peer.md` in the run directory). Plan revised:
+  marker schema and lifecycle settled in §"Shared design"; Phases 1–4 serial, 5–6 a second lane;
+  live suite run by hand only, one file per scenario; watchdog budget is a total, re-checks the
+  task mark, refuses bypass mode without a flag; parked notes survive closeout; facts 8–9 added.
+  Choices the reviews forced that the owner did not make are `Decision:` lines in `state.md`.
