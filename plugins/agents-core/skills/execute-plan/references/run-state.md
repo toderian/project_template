@@ -108,6 +108,46 @@ as `BLOCKED`, `GAVE_UP`, `EMPTY` or `DONE`, the hook also runs `at notify` (deta
 delays or changes the stop), which calls the owner's `agents.notifyCommand` / `AGENTS_NOTIFY_CMD`:
 a program run without a shell, the title as its last argument, body on stdin, once per event (`<session id>.sent/<key>`).
 
+`at run-guard arm --watch [--allow-bypass] [--budget-usd 4] [--max-resumes 4] [--interval 600]
+[--idle 90] [--until HH:MM] <targets>` also starts a detached watchdog (`at run-guard watch`, one per
+session: `<session id>.watch` holds its pid, `<session id>.watch.log` its capped log; the marker gets a
+`meta watch` line). What the watchdog must remember is one record, `<session id>.watch.state`: the
+restart caps of the first `arm --watch` (`--max-resumes`, `--budget-usd`, `--allow-bypass`), the restarts
+used, the pid of a running restart, the last permission mode seen, and the events already sent.
+`--until`, `--idle`, `--interval` and `--pause` belong to each watcher alone. Any re-arm keeps a live
+watcher and its caps as they are; `arm --watch` with a dead one starts a watcher that continues from the
+record, and its flags can only lower the recorded caps (`--allow-bypass` is never added later; a merge
+that leaves less than 0.01 USD per restart refuses to start). `arm --watch` prints the restarts left, and
+warns at zero that the watcher only reports. To change the caps or start a new count: `at run-guard
+disarm`, then `arm --watch`. Only `disarm` and "finished" remove the record; a record that cannot be
+read or is out of range counts as damaged and leaves no restarts.
+
+Each tick it reads the marker and `.status`. "Finished" needs evidence: the marker holds a target and
+every target could be read; then `DONE` or nothing open notifies "finished" (the hook's event key, so
+the owner gets one message), runs `at task report`, and exits. An unreadable target is looked at again,
+and notified as "idle" after the idle limit. `BLOCKED`: it notifies and never restarts. A live session
+(the `meta pid` is a running claude process), or a restart still running, is never restarted: after
+`GAVE_UP`, `EMPTY` or `--idle` minutes without a target change it notifies "idle" once, and the
+in-session heartbeat owns the waking. A dead session with work open is restarted with `claude --resume
+<id> -p "<fixed prompt>"` in the marker's `cwd`, after a pause that doubles each time, at most
+`--max-resumes` times in all, each with `--max-budget-usd` = budget / max-resumes (floored to cents);
+then it notifies "gave up" and exits. Before every restart it re-reads each open task file: the
+`Execution` cell must hold `unattended` and every `Watch:` line of its `### Unattended run` section
+must say `on` (at least one, and no other value); a marker
+without a task is never restarted. The permission mode is the one in `.status`, else the last one
+recorded, else `default`, and must be `default`, `acceptEdits` or `plan`; `bypassPermissions` needs
+both `--allow-bypass` on the first arm and an `allow bypass` line in every open task's section.
+Anything refused is notified (`refused-<reason>`) and ends the watcher, as do `--until` and `disarm`.
+The watcher's own events (idle, restarted, gave up, refused) are sent without an event key, so
+nothing in `.sent/` can silence them. Idle and restarted are deduped by the record; gave up and
+refused end the watcher and are never deduped, so each watcher that ends for that reason says so.
+
+Limits. Liveness is the recorded `meta pid` (and the restart the watcher started): an owner who
+resumes a dead session by hand should `at run-guard disarm` first, or the watchdog may restart it a
+second time. The caps guard against a run that loops by accident, not against a session that sets out
+to defeat them: the watched session can run `at run-guard disarm` and then `arm --watch` with new caps,
+and it can start `claude` itself. This is accepted; nothing here defends against it.
+
 ## Resume
 
 A resumed run starts from the file, not from memory:

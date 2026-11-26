@@ -1,0 +1,6 @@
+security-auditor, phase 4, re-review 1. Verdict: FAIL, findings 0/1/1. All seven round-0 findings closed by re-running the attacks. Checked without issue: no `at` subcommand but `disarm` removes, resets or raises the record; record written O_EXCL|O_NOFOLLOW 0600 then renamed; a damaged record gives zero restarts and no bypass; the mode from the record passes the allow-list.
+1. [important] lib/run_watch.py:351,411-414,431: terminal events are deduped by a record that outlives the watcher, so the second one is silent. Case: cap 1; the session dies; "restarted 1/1" and "gave up" arrive; the session is resumed by hand and re-arms --watch (`arm` prints "watcher pid N is running; it restarts this session only if its process dies"); the session dies: no restart, no notification, no log line. Same for refused-*. Fix: never dedupe events that end the watcher; `arm --watch` prints the restarts left and warns at zero.
+2. [minor] run_watch.py:259-261,383: a recorded --until that has passed can never be raised: `arm --watch --until +1`, wait, `arm --watch --until +3600`: the new watcher exits at its first tick, `arm` says only "the watcher did not start". Fix: until belongs to the watcher's argv, not the record.
+## Status: DONE_WITH_CONCERNS
+## Verdict: FAIL
+## Findings: 0/1/1

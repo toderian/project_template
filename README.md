@@ -85,6 +85,7 @@ at task brief AUTH-001 --phase 2      # one phase of a task as a self-contained 
 at task run-state init AUTH-001       # open the resume map for agents-core:execute-plan
 at task run AUTH-001 --check "make test"   # drive the whole execute-plan loop from a shell
 at run-guard status                   # what this session must finish before its turn may end (disarm: at run-guard disarm)
+at run-guard arm --watch --budget-usd 4 AUTH-001   # plus a watchdog that restarts the session if its process dies
 at notify "title" < body.txt         # run your notify command (git config agents.notifyCommand "<cmd>", or AGENTS_NOTIFY_CMD); the run guard uses it
 at peer enable codex          # opt in, this checkout only: large reviews also ask the other agent CLI
 at addon enable browser       # opt in, this repo: UI skills plus a browser the agent can look through

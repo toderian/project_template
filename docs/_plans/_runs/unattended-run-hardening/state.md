@@ -17,11 +17,11 @@ updated: 2026-11-26T00:00:00
 |---|---|---|---|---|---|---|---|---|
 | 0 | committed | 2 | PASS | PASS | n/a | 0 | 0063376 | — |
 | 1 | committed | 2 | PASS | PASS | PASS | 0 | 721558a | — |
-| 2 | reviewing | 2 | PASS | PASS | PASS | 0 | — | — |
-| 3 | implementing | 1 | — | — | — | 0 | — | — |
-| 4 | pending | 0 | — | — | — | 0 | — | — |
+| 2 | committed | 2 | PASS | PASS | PASS | 0 | d322b16 | — |
+| 3 | committed | 3 | PASS | PASS | n/a | 0 | 402f1f2 (lane-c/report) | — |
+| 4 | reviewing | 3 | PASS | PASS | PASS | 0 | — | — |
 | 5 | committed | 4 | PASS | PASS | PASS | 0 | 52e97e9 | — |
-| 6 | fixing | 2 | FAIL | FAIL | FAIL | 14 | — | — |
+| 6 | committed | 3 | PASS | PASS | PASS | 0 | f1971f5 (lane-b/driver) | — |
 | 7 | pending | 0 | — | — | — | 0 | — | — |
 
 Phase 0: BASE 54e23a5
@@ -82,3 +82,42 @@ Phase 2: re-review 1 FAIL 0/1/3 (findings 1, 2, 4-10 closed). Orchestrator close
 Decision: the owner's notify command is a program with optional arguments run without a shell (title appended as the last argument, body on stdin); shell snippets go in a script — replaces the round-1 design `sh -c '<cmd> "$@"'` — cost if wrong: an owner who wants a one-line curl must write a two-line script
 Ruling: re-review N1-N4 fixed by the orchestrator after the round and not re-reviewed per phase; the final review covers them — cost if wrong: a defect in about 12 changed lines reaches the final review
 Interface: `at notify <title> [--event KEY --session ID]` (body on stdin, always exit 0 unless usage error 2); command from AGENTS_NOTIFY_CMD or `git config agents.notifyCommand` in the caller's cwd; dedupe by exclusive create of `<session>.sent/<KEY>`, key removed when the send fails; AGENTS_NOTIFY_TIMEOUT 0.1-10 s for tests (phase 2, for phase 4)
+Phase 4: BASE d322b16 (main checkout; started while phase 3 is in lane C: the owner asked for parallel threads; phase 4 calls `at task report` only as a subprocess and tolerates its absence)
+Decision: the watchdog resumes only with a permission mode on an allow-list (default, acceptEdits, plan); bypassPermissions needs both `arm --watch --allow-bypass` in the watcher's argv and an `allow bypass` line in the task file; a state-only marker is never resumed; a pid counts as alive only while it is still a claude process — the marker, .status and task file are writable by the watched session, so none of them alone authorises a resume — cost if wrong: a legitimate run in a mode outside the list is notified instead of resumed
+Phase 3: reviews spec FAIL 0/3/3, quality (with security probes) FAIL 1/6/7; fix round 1/3 (11 open), with a decided design
+Decision: the morning report lists the commits recorded in the phase rows of state.md, not a `git log` range, so it is the same file on any later day; `--since <rev>` adds a separate HEAD-dependent section; an archived task's file date comes from a `Base:` line that complete-task copies into the completion summary — the plan said "the commits since --since" and "deterministic", which a range to HEAD cannot both satisfy — cost if wrong: a commit made during the run that no phase row records is missing from the default report
+Decision: "Needs you" in the report holds only what is open now (parked or blocked rows with their reasons; `Note: parked:` questions while a row is not committed); answered ones move to "Parked during the run" — cost if wrong: a question parked by a skill on a task whose rows are all committed is shown as history, not as open
+Ruling: phase 3 spec 6 (commits in another checkout when code_repo is set) — accepted: listed by recorded sha without subject — cost if wrong: the owner reads a sha instead of a subject for cross-repo tasks
+Note: Phase 3 fix 1: code net about +30 (plugins/agents-core/lib/task_report.py), 166 code lines against ~200
+Note: Phase 6 fix 1: code net +214 (plugins/agents-core/lib/task_lanes.py +108, plugins/agents-core/lib/task_run.py +106): the wave transaction, reviewed-tree check and signal handling from findings-1 design A-D
+Phase 3: re-review 1 FAIL 1/1/6 (9 of 11 closed; critical: a test helper named `fail` shadowed TestCase.fail, so most assertions could not fail); fix round 2/3 (6 open)
+Ruling: phase 3 N5 (a branch named like a recorded short sha wins in `git show`) — accepted — cost if wrong: one commit line of a report shows another commit's subject in a repo with a hex-named branch
+Ruling: phase 3 N8 (`--since` section drops empty commits) — accepted — cost if wrong: a marker commit made with --allow-empty is missing from the HEAD-dependent section
+Phase 6: re-review 1: spec+quality PASS 0/3/4, security FAIL 1/1/0 (replace refs make the reviewed diff differ from the committed tree; a lane branch can be moved before its SHA is read); fix round 2/3 (9 open)
+Decision: every git call of the scripted driver runs with GIT_NO_REPLACE_OBJECTS=1, and a lane commit is merged only when its tree equals the reviewed tree and its parent is the phase base — the plan did not cover an implementer rewriting what git shows a reviewer — cost if wrong: a repository that relies on replace refs or grafts sees its un-replaced history in driver diffs
+Note: Phase 3 fix 2: code net +16 (plugins/agents-core/lib/task_report.py), 182 code lines against ~200
+Decision: the watchdog notifies "finished" and "blocked" under the Stop hook's own dedupe keys (`done-<cksum>`, `blocked-<cksum>`) — the plan named separate events — cost if wrong: a hook send that failed and a watcher send that succeeded cannot be told apart in `.sent/`
+Decision: a plain `at run-guard arm` keeps a running watcher; only `arm --watch` replaces it and `disarm` ends it — the brief said a re-arm ends the watcher, but execute-plan re-arms on every resume, which would kill the watchdog after its first restart — cost if wrong: a watcher started with old caps outlives a re-arm that meant to drop it
+Interface: `at run-guard watch <session> [--until HH:MM|+SECONDS] [--idle MIN] [--max-resumes N] [--budget-usd USD] [--pause S] [--allow-bypass]`; files `<session>.watch` (pid), `<session>.watch.log`; events idle, restarted-<n>, gave-up, refused-<why>, plus the hook's done-/blocked- keys
+Note: Phase 6 fix 2: code net +27 (plugins/agents-core/lib/task_lanes.py +13, plugins/agents-core/lib/task_run.py +14); task_lanes.py 346 lines against ~350
+Ruling: phase 3 M1, M2 (two guards without a biting test) — fixed by the orchestrator: test_commit_cells asserts a non-hex cell is not listed under Commits, new test_symlinked_docs_is_refused; both mutants now fail (21 tests) — cost if wrong: none
+Phase 6: re-review 2: spec+quality PASS 0/0/4, security PASS 0/0/2; six minors ruled below
+Ruling: phase 6 security-2 minor 2 (undo crashed on an untracked directory entry such as a nested repository) — fixed by the orchestrator: such an entry is removed as a directory; the red-check test now leaves one and fails without the fix — cost if wrong: none
+Ruling: phase 6 security-2 minor 1 (a forged lane commit with the reviewed tree and the base as parent is merged: author and message chosen by the implementer) — accepted: the content is the reviewed content — cost if wrong: a misleading author or message on one lane commit of the integration branch
+Ruling: phase 6 M1 (commit_run_dir return-code check untested) — accepted — cost if wrong: a later edit drops the check unnoticed and a rejected run-state commit goes unreported
+Ruling: phase 6 M2 (after a rejected wave commit the wave is finished by hand: reset to the base, merge the parked lanes) — accepted; Phase 7 documents the recovery in run-state.md — cost if wrong: an owner whose gate rejects a wave commit redoes two merges by hand
+Ruling: phase 6 M3 (branch moved past the driver's commit leaves a branch that later runs report as a lane holding work) — accepted — cost if wrong: a stale message until the owner deletes the branch
+Ruling: phase 6 M4 (stray.patch is empty for untracked-only strays while the note mentions it) — accepted — cost if wrong: the owner opens an empty file; the path is in the note
+Phase 4: reviews spec FAIL 0/1/7 (size only), quality FAIL 1/4/5, security FAIL 0/3/4; fix round 1/3 (19 open) with a decided design
+Decision: the watchdog keeps one record per watched run (`<session>.watch.state`: the first caps, restarts used, resume child pid, last mode, events sent); a re-arm can only lower caps and never adds bypass; only `disarm` or "finished" removes the record — the plan kept the count in the watcher process — cost if wrong: an owner who wants higher caps mid-run must disarm and arm again
+Decision: the watchdog caps guard against a run that loops by accident, not against a session that sets out to defeat them (it can `disarm` and re-arm, or start `claude` itself); stated as a limit in run-state.md — cost if wrong: a prompt-injected session with a shell spends beyond the cap; the per-session `--max-budget-usd` of each restart still holds
+Decision: run_watch.py ceiling 350 code lines instead of the plan's ~300: the persisted record and the restart authorisation checks were not in the plan's estimate — cost if wrong: a larger module to maintain
+Note: lanes integrated early: lane-c/report merged into lane-b/driver as b359a8b (no conflicts; run-all ok, test_task_report 21 OK, test_task_run 59 OK); master takes lane-b/driver after Phase 4 commits
+Note: Phase 4 fix 1: code net +8 (plugins/agents-core/lib/run_watch.py 342 -> 350 code lines, the decided ceiling)
+Phase 4: re-review 1: spec+quality FAIL 0/1/9, security FAIL 0/1/1 (all round-0 findings closed; new: a watcher that ends after the cap is used says nothing; an untestable pause test); fix round 2/3 (12 open)
+Decision: run_watch.py ceiling raised from 350 to 380 code lines: round 1 met 350 by squeezing lines over 120 characters; readable code is worth 30 lines — cost if wrong: a larger module
+Note: Phase 4 fix 2: code net +30 (plugins/agents-core/lib/run_watch.py 350 -> 380 code lines, the decided ceiling; the growth undoes line squeezing and adds the record range check)
+Ruling: phase 4 flaky test (test_two_racing_arm_watch_calls...: failed whenever two runs of the suite overlapped, because it counted every watcher of a session named s1 on the machine) — fixed by the orchestrator: it counts only watchers whose AGENTS_RUN_GUARD_DIR is this test's; four parallel runs of the suite pass — cost if wrong: none
+Phase 4: re-review 2: spec+quality PASS 0/1/1, security PASS 0/0/0
+Ruling: phase 4 re-review-2 finding 1 (`arm --watch` misreported a watcher that refuses the budget floor) — fixed by the orchestrator: `arm` checks the merged caps before it writes anything and exits 2 with the reason; test_item4 asserts it and fails without the check — cost if wrong: none
+Ruling: phase 4 re-review-2 finding 2 (fixed 0.3 s sleep left in the racing-arm test) — accepted — cost if wrong: a rare false failure on a very slow machine

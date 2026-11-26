@@ -90,7 +90,14 @@ it, and write it only after they confirm.
    reconfigure, data it may delete and recreate, modes it may switch, spend>
    Owner only: <what always waits: push, merge, release, deploy, anything that loses data or evidence>
    Defaults: <one line per pre-answered decision: "if X, do Y">
+   Watch: <on | off>
+   Watch budget: <total USD for all restarts>, at most <N> restarts
    ```
+
+   Restarting a dead session is an authorisation, given per task: ask for it in step 3. `Watch: on`
+   lets a watchdog outside the session restart it headless, within that budget, if its process dies;
+   `Watch: off` when the owner declines. Add a line `allow bypass` only when the owner grants, in
+   words, restarts in `bypassPermissions` mode for a run that already uses it.
 
    Answers about the task itself go where the task keeps them: the phase checklist, the acceptance
    criteria or the design section they change. `Defaults` holds the rest, one line per answer from

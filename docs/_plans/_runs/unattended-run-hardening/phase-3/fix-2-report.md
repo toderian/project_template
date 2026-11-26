@@ -1,0 +1,4 @@
+Fix round 2 (implementer reply, saved by the orchestrator). All six findings reported fixed; test_task_report 20 OK, build ok, run-all ok; live E4 not rerun (report text and e4-report.sh unchanged).
+1 helper renamed `fail` -> `bad`; the only assertion that had been wrong was the stray `+ "\n"` (N2). 2 short state row is exit 2. 3 target_dir() checks every target before any write. 4 Commit cell in backticks or upper-case hex is read as a sha. 5 new report follows the umask, a replaced one keeps its mode. 6 new tests: symlinked tasks_manager, Phase 1 vs Phase 12, parked row, missing-object note, non-hex cell never reaching git, `--since -x`.
+Mutations in a scratch copy: reversed row order and a dropped symlink walk both fail their tests.
+Not added: separate tests for showSignature alone, quotePath alone, --first-parent, temp-file cleanup, the HEX_RE guard.

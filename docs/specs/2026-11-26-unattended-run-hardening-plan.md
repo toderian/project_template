@@ -136,20 +136,22 @@ E2E: E3.
 
 After: 2
 
-- [ ] `at task report <TASK-ID>... [--since <rev>]` writes `docs/tasks_manager/_reports/<date>-<TASK-ID>.md`
+- [x] `at task report <TASK-ID>... [--since <rev>]` writes `docs/tasks_manager/_reports/<date>-<TASK-ID>.md`
       (`<date>` is the commit date of the run's `base_rev`, so a rerun on another day names the same
       file), committed with the run; `at ledger check` (agents-tasks, `sync_todo_ledgers.py`)
       accepts the directory. Content: per task its status, each phase row with its commit, verdicts
       and open count; every `Decision:`, `Ruling:` and `Note: parked:` line; for tasks already
-      archived, the same lines from their completion summary; the commits since `--since`; and
-      "needs you" first: parked questions.
-- [ ] `agents-tasks:complete-task` copies `Note: parked:` lines into the completion summary next to
+      archived, the same lines from their completion summary; the commits recorded in the phase
+      rows (with `--since`, a second section listing `<rev>..HEAD`, which depends on HEAD); and
+      "needs you" first: rows that are parked or blocked now, with their reasons. An archived
+      task's date comes from the `Base:` line `agents-tasks:complete-task` copies into its summary.
+- [x] `agents-tasks:complete-task` copies `Note: parked:` lines into the completion summary next to
       `Ruling:` and `Decision:`, so closeout loses none of them.
-- [ ] Deterministic: built only from task files, run states and `git log`, so it can be run by the
+- [x] Deterministic: built only from task files, run states and `git log`, so it can be run by the
       agent, by the watchdog, or by the owner, and rerun gives the same file.
-- [ ] `agents-core:unattended-run` step 6 runs it before closeout instead of composing the summary
+- [x] `agents-core:unattended-run` step 6 runs it before closeout instead of composing the summary
       by hand, and puts the parked questions through `agents-core:ask`.
-- [ ] Unit tests on a fixture with one committed, one parked and one archived task.
+- [x] Unit tests on a fixture with one committed, one parked and one archived task.
 
 Shape: one new module in `lib/`, ≤ ~200 code lines.
 E2E: E4.
@@ -160,12 +162,12 @@ After: 3
 
 Two layers, because the cheap one cannot see a dead process and the other must not race a live one.
 
-- [ ] **Heartbeat, in the session.** `agents-core:execute-plan` step 3, for an `unattended` task and
+- [x] **Heartbeat, in the session.** `agents-core:execute-plan` step 3, for an `unattended` task and
       where the harness has a scheduler: schedule a recurring wakeup (default every 30 min) whose
       prompt is "run guard check: if the job you are waiting for is still running, reply
       `Run: WAITING <job>`; if it died or nothing is running, resume from `state.md`". Cancelled at
       closeout. This covers a job that never reports back, and quota that returned.
-- [ ] **Watchdog, outside the session.** `at run-guard watch [--interval 600] [--max-resumes 4]
+- [x] **Watchdog, outside the session.** `at run-guard watch [--interval 600] [--max-resumes 4]
       [--budget-usd N] [--until HH:MM] [--idle 90]`, started detached by `at run-guard arm --watch`
       and recorded in the marker. Liveness uses `_pid_alive` from `lib/task_run.py`. Each tick:
       - `DONE` or nothing open: notify "finished" (deduped), write the report, exit;
@@ -178,17 +180,17 @@ Two layers, because the cheap one cannot see a dead process and the other must n
         pause, then notify "gave up" and exit. The fixed prompt says the session is headless, that
         nothing outlives the turn, and to wait for jobs in the foreground instead of ending on
         `Run: WAITING`.
-- [ ] **Limits.** `--budget-usd` is the total for the watcher: each resume gets the total divided
+- [x] **Limits.** `--budget-usd` is the total for the watcher: each resume gets the total divided
       by `--max-resumes`. Before every resume the watcher re-reads each guarded task file and
       resumes only if it still says `Execution: unattended` and `Watch: on`. The resume uses the
       permission mode recorded in `.status`; a recorded `bypassPermissions` is refused (notify,
       exit) unless `arm --watch --allow-bypass` was given.
-- [ ] One watcher per session (`<session>.watch`, exclusive create); `at run-guard disarm` stops it;
+- [x] One watcher per session (`<session>.watch`, exclusive create); `at run-guard disarm` stops it;
       `at run-guard status` shows it.
-- [ ] `agents-core:unattended-run` step 4 writes `Watch: on|off`, the budget and, if granted,
+- [x] `agents-core:unattended-run` step 4 writes `Watch: on|off`, the budget and, if granted,
       `allow bypass` into the `### Unattended run` section: restarting a dead session is an
       authorisation, given per task.
-- [ ] Tests with a fake `claude` on `PATH`: dead pid resumes once, live pid does not, `BLOCKED` does
+- [x] Tests with a fake `claude` on `PATH`: dead pid resumes once, live pid does not, `BLOCKED` does
       not, the resume cap holds, the budget is divided, a task no longer marked is not resumed,
       bypass is refused without the flag, a second watcher exits, `--until` ends it.
 
@@ -219,18 +221,18 @@ E2E: E7.
 
 After: 5
 
-- [ ] `at task run --lanes N` (default 1, at most 3): phases whose `After:` lines are satisfied and
+- [x] `at task run --lanes N` (default 1, at most 3): phases whose `After:` lines are satisfied and
       whose scope fences do not overlap run at the same time, each in its own worktree and lane
       branch, one process tree per lane. A phase without a stated scope fence never shares a wave.
-- [ ] Bookkeeping stays in the integration checkout; the driver holds one lock for it (the existing
+- [x] Bookkeeping stays in the integration checkout; the driver holds one lock for it (the existing
       run lock), so two lanes never write `state.md` at once.
-- [ ] Integration per wave, lowest phase first: `git merge --no-ff`; the checks from `--check` after
+- [x] Integration per wave, lowest phase first: `git merge --no-ff`; the checks from `--check` after
       each merge; a conflict or a red check parks that lane (worktree kept, noted) and the rest go on.
       The driver never resolves a conflict.
-- [ ] One `Stage: both` review of the wave's integrated diff before the next wave.
-- [ ] Merged lanes are removed (`git worktree remove`, `git branch -d`); a killed driver leaves
+- [x] One `Stage: both` review of the wave's integrated diff before the next wave.
+- [x] Merged lanes are removed (`git worktree remove`, `git branch -d`); a killed driver leaves
       worktrees that the next run finds from the `Note: lane …` lines and reuses or reports.
-- [ ] Tests with the fake harness: two independent phases run concurrently and merge; overlapping
+- [x] Tests with the fake harness: two independent phases run concurrently and merge; overlapping
       fences fall back to serial; a conflict parks one lane and commits the other; rerun after a kill.
 
 Shape: wave planning, worktrees and merging in their own module, ≤ ~350 code lines; a lane runs the
@@ -377,3 +379,26 @@ The end-to-end suite E1–E8 passes from a clean checkout, and E9 was run once w
   the orchestrator. Decisions: command read in the payload's cwd, not the marker's; no shell.
   Rulings: 3. Checks: test-hooks 319/0, test-at 374/0, run-all ok, live E1 E3 PASS. Size: about 90
   code lines against ~80. See `docs/_plans/_runs/unattended-run-hardening/phase-2/`.
+- 2026-11-26: Phase 3 done in a third worktree (branch `lane-c/report`, `402f1f2`; merged later).
+  `at task report` in `lib/task_report.py`. Reviews: spec FAIL 0/3/3 and quality FAIL 1/6/7 at
+  round 0 (the report followed HEAD and the user's git config; the report file followed a symlink);
+  two fix rounds, re-review 2 PASS. Decisions: the commit list is the commits recorded in the phase
+  rows, `--since` is a separate section; "Needs you" holds only what is open now. Rulings: 4.
+  Checks: test_task_report 21 OK, run-all ok, live E4 PASS. Size: 182 code lines against ~200.
+  See `docs/_plans/_runs/unattended-run-hardening/phase-3/`.
+- 2026-11-26: Phase 6 done in the lane B worktree (branch `lane-b/driver`, `f1971f5`; merged later).
+  `at task run --lanes N` in `lib/task_lanes.py`. Reviews at round 0: spec, quality and security all
+  FAIL (the wave commit staged everything; a kill between merge and state save re-implemented a
+  phase). Two fix rounds with a decided design: a wave is a transaction, what is committed is the
+  reviewed tree, driver git calls ignore replace refs. Re-review 2: all PASS. Rulings: 7. Checks:
+  test_task_run 59 OK, run-all ok, live E7 E8 PASS. Size: task_lanes.py 347 lines against ~350.
+  See `docs/_plans/_runs/unattended-run-hardening/phase-6/`.
+- 2026-11-26: Phase 4 done (master). Watchdog `at run-guard arm --watch` / `watch` in
+  `lib/run_watch.py`, heartbeat text in execute-plan step 3, `Watch:` lines in unattended-run step 4.
+  Reviews at round 0: spec FAIL (size only), quality FAIL 1/4/5, security FAIL 0/3/4 (a re-arm reset
+  the restart cap and budget; the session could silence the watcher's alerts). Two fix rounds with a
+  decided design: one persisted record per watched run, a re-arm can only lower caps, watcher-only
+  events are not deduped through `.sent/`. Re-review 2: all PASS. Decisions: caps guard against
+  accidental loops, not a session that disarms and re-arms (stated in run-state.md); module ceiling
+  380 code lines instead of ~300. Rulings: 3. Checks: test_run_watch 30 OK, run-all ok, live E1 E5
+  PASS; E6 heartbeat half is manual (with E9). See `docs/_plans/_runs/unattended-run-hardening/phase-4/`.

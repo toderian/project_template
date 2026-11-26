@@ -10,7 +10,8 @@ Subcommands:
   design       wrapper: `sync` | `check` the design trees under docs/resources/<area>/design/
   explore      wrapper: exploratory-test ledger (`build` | `next` | `record`) and findings (`fingerprint` | `known`)
   task         `brief <TASK_ID> --phase N` | `run-state init|check <TASK_ID>` | `run <TASK_ID>` (scripted execute-plan) | `size <TASK_ID> --phase N|--final`
-  run-guard    `arm <TASK_ID|state.md>...` | `status` | `disarm`: keep this session from ending a turn mid-run
+  run-guard    `arm [--watch ...] <TASK_ID|state.md>...` | `status` | `disarm` | `watch`: keep this session from ending a
+               turn mid-run; `--watch` adds a detached watchdog that restarts the session if its process dies
   notify       `<title> [--event KEY --session ID]`: send title + stdin body through the owner's notify command
   addon        `list` | `status` | `enable <name>...` | `disable <name>...`: optional tools per repo
   reserve      wrapper: reserve an inbox idea or task filename
@@ -1382,10 +1383,15 @@ def run_guard_dir() -> Path:
     return Path(state) / "agents-template" / "run-guard"
 
 
-def _run_guard_clear(marker: Path, everything: bool = False) -> None:
-    """Remove a marker's side files (.status, .count, .watch, .sent/), and the marker when `everything`."""
-    sides = [marker.with_name(marker.name + s) for s in (".status", ".count", ".watch", ".sent")]
-    sides += marker.parent.glob(marker.name + ".status.*")  # temp files of an interrupted write
+def _run_guard_clear(marker: Path, everything: bool = False, keep_watch: bool = False) -> None:
+    """Remove a marker's side files (.status, .count, .watch, .sent/), and the marker, the watch record and the
+    watcher's log when `everything`. `keep_watch` leaves the `.watch` of a live watcher in place."""
+    suffixes = (".status", ".count", ".sent") + (() if keep_watch else (".watch",)) + \
+        ((".watch.log", ".watch.state") if everything else ())
+    sides = [marker.with_name(marker.name + s) for s in suffixes]
+    temps = (".status.",) + ((".watch.state.", ".arm.") if everything else ())
+    for temp in temps:  # temp files (`<name>.<pid>`) of an interrupted write
+        sides += [p for p in marker.parent.glob(marker.name + temp + "*") if p.name[len(marker.name + temp):].isdigit()]
     for side in sides:
         shutil.rmtree(side, ignore_errors=True) if side.is_dir() and not side.is_symlink() else side.unlink(missing_ok=True)
     if everything:
@@ -1394,7 +1400,9 @@ def _run_guard_clear(marker: Path, everything: bool = False) -> None:
 
 def cmd_run_guard(args: argparse.Namespace) -> int:
     """Arm, show or drop the Stop-hook marker of this session (hooks/run-guard.sh reads it)."""
-    usage = "usage: at run-guard arm <TASK_ID|path/to/state.md>... | status | disarm  [--session ID]"
+    usage = ("usage: at run-guard arm [--watch [--allow-bypass] [--budget-usd N] [--max-resumes N] [--interval S] "
+             "[--until HH:MM] [--idle MIN] [--pause S]] <TASK_ID|path/to/state.md>... | status | disarm | watch [caps]"
+             "  [--session ID]")
     rest = list(args.rest)
     session = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
     if "--session" in rest:
@@ -1403,14 +1411,18 @@ def cmd_run_guard(args: argparse.Namespace) -> int:
             die(usage, code=2)
         session = rest[i + 1]
         del rest[i:i + 2]
-    if not rest or rest[0] not in ("arm", "status", "disarm"):
+    if not rest or rest[0] not in ("arm", "status", "disarm", "watch"):
         die(usage, code=2)
-    if not re.fullmatch(r"[A-Za-z0-9._-]+", session or ""):
+    import run_watch  # lib/run_watch.py, next to this file: the watchdog
+    if not run_watch.ID_RE.fullmatch(session or ""):
         print("at: run-guard: this harness exposes no session id (CLAUDE_CODE_SESSION_ID), so no hook "
               "can hold the turn open. Follow the `Run:` declaration rule by hand.", file=sys.stderr)
         return 3
     marker = run_guard_dir() / session
+    if rest[0] == "watch":  # the watchdog itself, in the foreground; `arm --watch` starts it detached
+        return run_watch.main(marker, rest[1:], core_root() / "bin" / "at")
     if rest[0] == "disarm":
+        run_watch.stop_watcher(marker)  # only a pid whose argv is this session's watcher is signalled
         _run_guard_clear(marker, everything=True)
         print("run-guard: off for this session")
         return 0
@@ -1430,10 +1442,26 @@ def cmd_run_guard(args: argparse.Namespace) -> int:
         if sent.is_dir():
             print("run-guard: notified " + (", ".join(sorted(e.name for e in sent.iterdir())) or "nothing"))
         if watch.exists():
-            print("run-guard: a watcher is attached")
+            pid = run_watch.watcher_pid(marker)
+            print(f"run-guard: watcher pid {pid} is running (log: {marker.name}.watch.log)" if pid
+                  else "run-guard: a watcher file is left, but no watcher runs")
+        rec = run_watch.load_record(marker)
+        if rec is not None:
+            print(f"run-guard: watch record: {rec.get('used', '?')} of {rec.get('max_resumes', '?')} restarts used, "
+                  f"budget {rec.get('budget_usd', '?')} USD" if rec else "run-guard: watch record is damaged")
         return 0
-    if len(rest) < 2:
+    caps, rest = run_watch.parse_caps(rest, partial=True)  # a bad cap is a usage error before anything is written
+    want_watch = "--watch" in rest
+    rest = [x for x in rest if x != "--watch"]
+    if (caps and not want_watch) or len(rest) < 2:
         die(usage, code=2)
+    if want_watch and not shutil.which("cksum"):  # the watcher's event keys need it; without it no tick works
+        die("run-guard: no `cksum` on PATH, so the watcher cannot run; arm without --watch", code=2)
+    if want_watch and run_watch.watcher_pid(marker) is None:  # the watcher would refuse at start: say why here
+        rec = run_watch.open_record(marker, caps)
+        if not run_watch.restart_caps_ok(rec):
+            die(f"run-guard: less than 0.01 USD per restart ({rec['budget_usd']} USD over {rec['max_resumes']} "
+                "restarts, the lower of these flags and the watch record); nothing was armed", code=2)
     for target in rest[1:]:
         if Path(target).is_file():
             line = f"state\t{Path(target).resolve()}"
@@ -1458,15 +1486,47 @@ def cmd_run_guard(args: argparse.Namespace) -> int:
                 old.unlink(missing_ok=True)
         except OSError:
             pass  # a prune must never stop `arm`
-    _run_guard_clear(marker)  # a new arm starts clean: no DONE status, no count, no sent events
+    # any re-arm keeps a live watcher as it is; `--watch` replaces a dead one, which continues from the record
+    keep = run_watch.watcher_pid(marker) is not None
+    _run_guard_clear(marker, keep_watch=keep)  # a new arm starts clean: no DONE status, no count, no sent events
     now = time.strftime("%Y-%m-%dT%H:%M:%S%z")
-    meta = [f"meta\tpid\t{os.environ['CLAUDE_PID']}"] if os.environ.get("CLAUDE_PID", "").isdigit() else []
+    pid = run_watch.to_pid(os.environ.get("CLAUDE_PID", ""))
+    meta = [f"meta\tpid\t{pid}"] if pid else []
     meta += [f"meta\tcwd\t{Path.cwd()}", f"meta\tarmed\t{now}"]
+    meta += ([x for x in lines if x.startswith("meta\twatch\t")][:1] if keep else
+             [f"meta\twatch\ton {' '.join(run_watch.flags_of(caps))}".rstrip()] if want_watch else [])
     lines = [x for x in lines if not x.startswith("meta\t")] + meta
-    marker.write_text("\n".join(lines) + "\n")
-    marker.chmod(0o600)
+    tmp = marker.with_name(f"{marker.name}.arm.{os.getpid()}")  # temp + rename: a reader never sees half a marker
+    tmp.unlink(missing_ok=True)
+    fd = os.open(tmp, os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(fd, "w") as out:
+        out.write("\n".join(lines) + "\n")
+    os.replace(tmp, marker)
     print(f"run-guard: armed for this session ({len(lines) - len(meta)} target(s)); the turn ends only on "
           "`Run: WAITING <job>` or `Run: BLOCKED <decision>` until they are done")
+    if not want_watch:
+        return 0
+    if "pid" not in {x.split("\t")[1] for x in meta}:
+        print("run-guard: no session pid (CLAUDE_PID): the watcher can notify, but never restarts", file=sys.stderr)
+    if not any(x.startswith("task\t") for x in lines):
+        print("run-guard: no task target: the watcher never restarts a run guarded by a state file alone", file=sys.stderr)
+    pid = run_watch.watcher_pid(marker) if keep else run_watch.spawn(marker, run_watch.flags_of(caps),
+                                                                       Path(__file__).resolve())
+    if pid is None:
+        print(f"at: run-guard: the watcher did not start (see {marker}.watch.log)", file=sys.stderr)
+        return 1
+    if keep:
+        print(f"run-guard: watcher pid {pid} is already running; the caps of a live watcher are kept. To change "
+              "them, `at run-guard disarm`, then `at run-guard arm --watch ...`, which starts a new count")
+    else:
+        print(f"run-guard: watcher pid {pid} is running; it restarts this session only if its process dies "
+              "(a watch record left by an earlier watcher keeps its count, and new caps can only lower it)")
+    rec = run_watch.open_record(marker, {} if keep else caps)  # the record that watcher works from
+    left = max(0, rec["max_resumes"] - rec["used"])
+    print(f"run-guard: {left} of {rec['max_resumes']} restarts left")
+    if left == 0:
+        print("run-guard: warning: no restarts are left, so the watcher only reports. To restart again, "
+              "`at run-guard disarm`, then `at run-guard arm --watch ...`, which starts a new count", file=sys.stderr)
     return 0
 
 
@@ -1664,8 +1724,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_task.add_argument("rest", nargs=argparse.REMAINDER)
     p_task.set_defaults(func=cmd_task)
 
-    p_guard = sub.add_parser("run-guard", help="arm <TASK_ID|state.md>... | status | disarm: the Stop hook keeps this "
-                             "session from ending a turn while the armed run is open")
+    p_guard = sub.add_parser("run-guard", help="arm [--watch ...] <TASK_ID|state.md>... | status | disarm | watch: the Stop "
+                             "hook keeps this session from ending a turn while the armed run is open")
     p_guard.add_argument("rest", nargs=argparse.REMAINDER)
     p_guard.set_defaults(func=cmd_run_guard)
 

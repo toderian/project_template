@@ -1,0 +1,16 @@
+Implementer reply (saved by the orchestrator). Status: DONE_WITH_CONCERNS.
+
+## Test plan
+scripts/tests/test_run_watch.py, 13 tests: a dead pid is restarted once, finished is notified, the report is called, `.watch` removed; a reused pid (not a claude process) counts as dead; a live pid is never restarted, idle notified once, `--until` ends the watcher; BLOCKED is never restarted and hook and watcher share one dedupe key; the restart cap holds and the budget is divided; a task no longer marked, a state-only marker or a foreign cwd is not restarted; bypass needs the flag and the task line; one watcher per session, a plain re-arm keeps it, disarm stops it and never signals another pid; usage errors; `--until HH:MM`. Live: e5-watchdog.sh, e6-heartbeat.sh.
+
+## Each tick
+1 marker gone, `.watch` not holding the watcher's pid, or `--until` passed: exit. 2 DONE or nothing open: notify "finished" with the hook's `done-<cksum>` key, run `at task report` (failure logged), exit. 3 BLOCKED: notify with the hook's `blocked-<cksum>` key, never restart; dead session: exit. 4 session alive, its child running, or pid unknown: never restart; notify `idle` once on GAVE_UP or EMPTY or after `--idle` minutes without a target change. 5 session dead and work open: wait `pause*2^n`, check the authorisation again, run `claude --resume <id> -p --permission-mode M --max-budget-usd B -- <fixed prompt>` in the cwd, notify `restarted-<n>`. 6 dead and cap reached, or only missing state files: notify `gave-up`, exit; authorisation refused: notify `refused-{state-only|unmarked|mode|cwd|no-claude}`, exit.
+
+## Security
+Fixed prompt; session id matched against [A-Za-z0-9._-]+; argv through Popen, no shell; resume env drops inherited CLAUDE_* session variables. cwd absolute, existing, nearest ancestor with .git must hold an open guarded task file or state file (found in Python, no git run there). Modes default, acceptEdits, plan only; bypass needs `--allow-bypass` in argv and an `allow bypass` line in every open task's section. Task re-read before every restart (`Execution` cell holds `unattended`, first `Watch:` line says `on`). Dead = _pid_alive false or /proc/<pid>/cmdline argv[0..1] not naming claude. Caps from the watcher's argv only; `meta watch` is information. `.watch` created O_EXCL|O_NOFOLLOW; SIGTERM only to a pid whose argv holds `run-guard watch <session>`. Watcher detached, log `<session>.watch.log` O_NOFOLLOW, capped at 64 KB.
+
+## Deviations
+1 "finished" and "blocked" use the hook's existing keys, so the owner is not told twice. 2 a plain re-arm keeps a live watcher (execute-plan re-arms on every resume); only `arm --watch` replaces it, disarm ends it. 3 `--until` also accepts `+SECONDS`; new flag `--pause`.
+
+## Results
+test_run_watch 13 OK; test-at 374 passed; test-hooks 319 passed (one run showed 1 failure that did not come back in three reruns; the failing line was not captured); build ok; run-all ok; live `PASS E1`, `PASS E5` (watcher log: `restart 1/2`, `notify done-…`, `report: … exited 2` because `at task report` is not in this checkout yet). E6 fails by default with "needs an interactive session"; `E6_PART=dead-job` passed live (row 1 parked); the heartbeat half is not verified. run_watch.py 342 code lines against ~300.

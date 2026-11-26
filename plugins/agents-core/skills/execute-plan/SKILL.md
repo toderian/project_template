@@ -176,6 +176,20 @@ permits it.
    authorized chain (`at run-guard arm RM-280 RM-282 RM-276`), or the path of `state.md` for a plan
    without the task ledger. Exit 3 means this harness has no hook for it: keep §"Run to the end" by
    hand. The guard ends itself when the tasks are archived; `at run-guard disarm` is the owner's.
+   When the task's `### Unattended run` section says `Watch: on`, arm with the watchdog instead:
+   `at run-guard arm --watch --budget-usd <its watch budget> --max-resumes <its restarts> <TASK-ID>`,
+   plus `--allow-bypass` only when that section has an `allow bypass` line. A detached watcher then
+   restarts this session headless if its process dies ([references/run-state.md](references/run-state.md)).
+   A re-arm (a resumed run) keeps a running watcher with its caps; a new watcher continues the restart
+   count, and its caps can only lower the recorded ones. To change the caps of a live watcher,
+   `at run-guard disarm`, then `arm --watch`, which starts a new count. `arm --watch` prints the restarts left.
+5. Heartbeat, for a task marked `unattended` and only where the harness has a scheduler (a recurring
+   wakeup in an interactive session): schedule one, every 30 minutes unless the task says otherwise,
+   with the prompt `run guard check: if the job you are waiting for is still
+   running, reply Run: WAITING <job>; if it died or nothing is running, resume from state.md`. It
+   catches a job that never reports back and quota that returned. A scheduled wakeup dies with the
+   process and never fires under `claude -p`: a headless run has no heartbeat and relies on the
+   watchdog. Cancel the wakeup at closeout (step 8).
 
 Never use destructive cleanup to get a clean tree.
 
