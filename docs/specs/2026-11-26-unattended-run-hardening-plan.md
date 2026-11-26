@@ -41,6 +41,9 @@ The design below rests on harness behaviour that the fixtures assume and nobody 
 5. The harness scheduler (`CronCreate` / `/loop`) can fire a prompt into an idle session on an
    interval, and what it does while the session is out of quota.
 6. Whether a Stop hook may start a detached process that survives the session.
+7. Whether the Stop and `SessionStart` hooks fire under `claude -p`, and how a headless session can
+   be made to compact (a `/compact` input, or a small `autoCompactWindow`). The end-to-end harness
+   below depends on both.
 
 ## Phases
 
@@ -50,11 +53,15 @@ The design below rests on harness behaviour that the fixtures assume and nobody 
 
 After: none
 
-- [ ] A throwaway script and a real Claude Code session answer facts 1–6; each answer is one line
+- [ ] A throwaway script and a real Claude Code session answer facts 1–7; each answer is one line
       with the evidence (payload dump, command, exit code) in `docs/meta/2026-11-26-run-guard-facts.md`.
 - [ ] Each "no" names the phase it changes and how.
 
-Checks: the facts file exists and has six answered lines.
+- [ ] The end-to-end harness skeleton (§"End-to-end tests") with scenario E1, which exercises the
+      guard that already exists.
+
+Checks: the facts file exists and has seven answered lines.
+E2E: E1.
 
 #### Phase 1: Re-inject the run after a compaction or resume
 
@@ -69,6 +76,7 @@ After: 0
       is silent, missing `jq` is silent.
 
 Shape: ≤ ~60 new code lines; `run-guard.sh` net shrinks by the scan it gives away.
+E2E: E2.
 
 #### Phase 2: Tell the owner
 
@@ -86,6 +94,8 @@ After: 0
 - [ ] The body holds task ids and the one-line reason, never file contents or secrets; the README
       says the text leaves the machine through whatever command the owner configured.
 
+E2E: E3.
+
 #### Phase 3: Morning report
 
 After: none
@@ -102,6 +112,7 @@ After: none
 - [ ] Unit tests on a fixture with one committed, one parked and one archived task.
 
 Shape: one new module in `lib/`, ≤ ~200 code lines.
+E2E: E4.
 
 #### Phase 4: Wake a session that stopped moving
 
@@ -133,6 +144,7 @@ Two layers, because the cheap one cannot see a dead process and the other must n
 
 Shape: one new module in `lib/`, ≤ ~250 code lines. Security: the resume prompt is a fixed string;
 the watcher takes the session id and paths only from the marker it owns.
+E2E: E5, E6.
 
 #### Phase 5: The scripted driver learns the marks
 
@@ -146,6 +158,8 @@ After: none
       is not done.
 - [ ] Exit code 0 only when every row is committed; 4 when it finished with parked rows.
 - [ ] `test_task_run.py` cases for each bullet.
+
+E2E: E7.
 
 #### Phase 6: Parallel lanes in the scripted driver
 
@@ -168,6 +182,7 @@ After: 5
 Shape: lane logic in its own module, not inside `Runner`; ≤ ~350 code lines.
 Risk: this ships merge logic before the skill-driven lanes have run on a real task. Phase 7's trial
 runs the lanes through the skill first and through the driver second.
+E2E: E8.
 
 #### Phase 7: Skill text, live trial, release
 
@@ -179,9 +194,47 @@ After: 1, 2, 3, 4, 5, 6
       classifier stops a step (recommend: route that phase to `at task run --harness codex`, else park);
       what to do when another session holds a shared resource (recommend: wait up to N minutes, then
       park).
-- [ ] One small real task in a downstream repo, marked `unattended` with two independent phases:
-      readiness check, run, forced compaction, a killed session, a parked decision. Each mechanism is seen working once, then the same task shape runs through `at task run --lanes 2`; the transcript paths go into the facts file.
+- [ ] Scenario E9 on one small real task in a downstream repo; its evidence goes into the facts file.
 - [ ] README, seed `AGENTS.md`, CHANGELOG; `scripts/release.sh`.
+
+E2E: E9, then the whole suite E1–E9 green in one run before the release.
+
+## End-to-end tests
+
+Unit and fixture tests feed the hooks a payload we wrote ourselves. They cannot show that Claude
+Code sends that payload, that an agent obeys a sent-back stop, or that a restarted session finds
+its way. These scenarios run the real CLI against a scratch repository.
+
+**Harness:** `scripts/tests/test-unattended-live.sh`, built in Phase 0 and extended by each phase.
+
+- A throwaway git repo seeded with `at init --with-tasks`, the plugins loaded from this working tree,
+  and a fixture task whose phases are trivial ("append a line to `a.txt`", check: `grep`), so a
+  scenario costs cents and its outcome is exact.
+- Real `claude -p` sessions on the cheapest model, each with `--max-budget-usd` and a timeout; its
+  own `AGENTS_RUN_GUARD_DIR`, so it never touches a real marker.
+- Every assertion reads files, never model prose: commits, `state.md` rows, the marker, the notify
+  log, the report, the transcript's hook entries.
+- Not in CI and not in the pre-commit gate (it needs the CLI and spends tokens), like
+  `test-codex-live.sh`: `run-all.sh` runs it when a run-guard file differs from `HEAD` and at every
+  release, and prints `SKIP` with the reason when the CLI is missing.
+- A scenario that fails keeps its scratch repo and transcript and prints both paths.
+
+| # | Scenario | Passes when |
+|---|---|---|
+| E1 | Guard holds the turn. Two-phase task; the prompt says "do phase 1, then summarise" | the transcript shows the Stop hook sent the agent back, phase 2 is committed, and the marker is gone after closeout |
+| E2 | Compaction mid-run. Three-phase task, compaction forced after phase 1 | the reminder hook's text is in the transcript after the compaction and phases 2–3 are committed with no further prompt |
+| E3 | Blocked stop notifies. A phase needs an "Owner only" action; the notify command appends to a log file | the row is `parked`, the last message has `Run: BLOCKED`, the log has exactly one line for it and one for nothing else |
+| E4 | Report. After E3's run, `at task report` | the file lists both commits, the parked question under "needs you" and the `Decision:` line; a second run of the command leaves it byte-identical |
+| E5 | Dead session. `kill -9` the session after phase 1 with the watchdog armed | the watchdog resumes once, phase 2 is committed, a "restarted" notification is logged, and it exits when nothing is open |
+| E6 | Dead job. The agent waits on a background job that the test kills; heartbeat interval set to 1 minute | within two intervals the agent stops waiting and the phase is committed or parked with the reason; a live job in the same setup is left alone |
+| E7 | Driver with marks. `at task run` on a three-phase task: phase 2 cannot pass its check, phase 3 says `After: 1` | phase 3 is committed, phase 2 and nothing else is `parked`, exit code 4 |
+| E8 | Driver lanes. `at task run --lanes 2`, two independent phases, then a variant where both edit the same line | both commits are on the integration branch and no lane worktree is left; in the variant one lane is parked, the other committed, and the tree is clean |
+| E9 | Whole flow through the skills, in a real downstream repo, with a person present: readiness check with playback and grilling, `Execution: unattended`, two lanes through `agents-core:execute-parallel`, one authorised decision, one parked decision, closeout | the `### Unattended run` section holds the answers given, `state.md` has the `Decision:` line and the parked row, the wave was reviewed, and the report matches |
+
+Negative checks, run with E1: a second session in the same repo that never armed the guard stops
+freely; `at run-guard disarm` lets the armed one stop; five sent-backs in a row let the stop through.
+
+E9 is the only scenario a person judges. The rest are scripted and repeatable.
 
 ## Order
 
@@ -189,6 +242,9 @@ Wave 1: Phase 0. Wave 2: Phases 1, 3, 5 as lanes (no shared files), Phase 2 with
 given `run-guard.sh` its shared scan first, else after it. Wave 3: Phases 4 and 6 as lanes. Wave 4: Phase 7.
 
 ## Acceptance
+
+The end-to-end suite E1–E8 passes from a clean checkout, and E9 was run once with its evidence
+(repo, task id, transcript path) recorded in the facts file. In particular:
 
 - A session killed with `kill -9` mid-run is resumed by the watchdog and commits the next phase.
 - A session waiting on a job that was killed resumes within one heartbeat.
