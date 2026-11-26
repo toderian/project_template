@@ -11,6 +11,9 @@ codex: `exec ... -o FILE -` with the prompt on stdin). Behaviour comes from the 
   hang       every call sleeps 5 s (use with --timeout 1)
   grow       every quality review FAILs; each fix round appends 50 lines to src/phase<N>.py, so the
              driver's structural-round rule fires on round 3 and blocks the phase when it still grows
+Lane tests: FAKE_BARRIER=<dir>:<k>:<phases, comma-separated> makes those phases' implementers drop a marker in <dir> and wait up to 10 s until k markers
+exist (it exits 5 when they never do, so two phases run one after the other fail); FAKE_SHARED=<file> makes it
+also write "phase <N>" to that file (two lanes then conflict).
 Implementers write src/phase<N>.py (cwd is the repo). Calls are appended to FAKE_CALLS.
 """
 import json, os, sys, pathlib
@@ -50,6 +53,15 @@ with calls.open("a") as fh:
 if scenario == "hang":
     import time; time.sleep(5)
 seen = calls.read_text().count(f"reviewer|spec|{phase}|")
+if role == "implementer" and phase in os.environ.get("FAKE_BARRIER", "::").split(":")[2].split(","):
+    import time
+    bdir, want, _ = os.environ["FAKE_BARRIER"].split(":"); pathlib.Path(bdir).mkdir(exist_ok=True)
+    (pathlib.Path(bdir) / f"p{phase}").write_text("x")
+    for _ in range(100):
+        if len(list(pathlib.Path(bdir).iterdir())) >= int(want): break
+        time.sleep(0.1)
+    else:
+        sys.stderr.write("fake: the other lane never started\n"); sys.exit(5)
 if role == "implementer":
     if scenario == "no-status" or (scenario == "status-retry" and "missing the report block" not in prompt):
         reply = "I did the work."
@@ -59,6 +71,8 @@ if role == "implementer":
             fh.write(f"work for phase {phase}, round {calls.read_text().count(f'implementer||{phase}|')}\n")
             if scenario == "grow" and prompt.startswith(("Fix round", "Two fix rounds")):
                 fh.write("guard\n" * 50)
+        if os.environ.get("FAKE_SHARED"):
+            pathlib.Path(os.environ["FAKE_SHARED"]).write_text(f"phase {phase}\n")
         reply = "Done.\n\n## Status: DONE\n## Summary: wrote src/phase.py"
 elif role == "reviewer" and stage == "quality" and scenario == "grow":
     reply = "## Status: DONE_WITH_CONCERNS\n## Verdict: FAIL\n## Findings: 1 (C:1 I:0 M:0)\n1. [C] src/phase.py:1 — still racy\n## Report: r.md"

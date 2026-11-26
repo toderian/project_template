@@ -18,8 +18,10 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
+import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -33,7 +35,8 @@ VERDICT_RE = re.compile(r"^\s*(?:#+\s*)?Verdict:\s*(PASS|FAIL)\b", re.M)
 FINDING_RE = re.compile(r"^\s*\d+\.\s*(?:\*\*)?\[(C|I|M|P[123])\](?:\*\*)?\s*(.+?)\s*$", re.M)
 P_SEVERITY = {"P1": "C", "P2": "I", "P3": "M"}
 # `## Findings: 5 (C:3 I:2 M:0)`
-FINDINGS_HEADER_RE = re.compile(r"^\s*#+\s*Findings:\s*(\d+)(?:\s*\(([^)]*)\))?", re.M)
+FINDINGS_HEADER_RE = re.compile(r"^\s*#+\s*Findings:\s*(\d+)(?:\s*\(([^)]*)\))?(.*)$", re.M)
+DONE = ("committed", "reviewing")  # reviewing: --no-commit left it reviewed and uncommitted
 CARD_ROLES = ("implementer", "reviewer", "security-auditor")
 STATUS_REMINDER = ("Your previous reply was missing the report block. Finish with, last and exactly:\n"
                    "## Status: DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED\n## Summary: <one line>\n\n")
@@ -51,6 +54,31 @@ def _pid_alive(pid: int) -> bool:
 
 class RunError(Exception):
     pass
+
+
+# Every harness process leads its own process group (one process tree per dispatch, so per lane). On SIGINT or
+# SIGTERM the driver starts no new dispatch, terminates every running group, and unwinds; `Runner.run` then
+# releases the lock. The lock is re-entrant because the handler runs on the main thread, which may hold it.
+_LIVE: set[subprocess.Popen] = set()
+_LIVE_LOCK = threading.RLock()
+_STOPPING = threading.Event()
+_SIGNAL: list[int] = []  # the signal that stopped the run: the exit code is 128 + it
+
+
+def stop_harnesses(signum=signal.SIGINT, frame=None) -> None:
+    with _LIVE_LOCK:
+        _STOPPING.set()
+        _SIGNAL.append(signum)
+        for p in _LIVE:
+            try:
+                os.killpg(p.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+    raise KeyboardInterrupt
+
+
+class DispatchError(RunError):
+    """One dispatch failed or timed out: that phase is set aside and the run goes on. Any other RunError aborts it."""
 
 
 def now_iso() -> str:
@@ -116,12 +144,16 @@ class State:
 
     def save(self, **front: str) -> None:
         self.front.update(front)
-        self.front["updated"] = now_iso()
-        out = ["---"] + [f"{k}: {v}" for k, v in self.front.items()] + ["---", self.title, "",
-               "| Phase | Status | Attempt | Spec | Quality | Security | Open | Commit | Agent |",
-               "|---|---|---|---|---|---|---|---|---|"]
-        out += ["| " + " | ".join(r) + " |" for r in self.rows]
-        out += [""] + self.ledger + [""]
+        for stamped in (False, True):  # a save that changes nothing but the time writes nothing (a no-op rerun stays clean)
+            if stamped:
+                self.front["updated"] = now_iso()
+            out = ["---"] + [f"{k}: {v}" for k, v in self.front.items()] + ["---", self.title, "",
+                   "| Phase | Status | Attempt | Spec | Quality | Security | Open | Commit | Agent |",
+                   "|---|---|---|---|---|---|---|---|---|"]
+            out += ["| " + " | ".join(r) + " |" for r in self.rows]
+            out += [""] + self.ledger + [""]
+            if not stamped and self.path.exists() and self.path.read_text(encoding="utf-8") == "\n".join(out):
+                return
         self.path.write_text("\n".join(out), encoding="utf-8")
 
 
@@ -143,13 +175,30 @@ class Harness:
         self.timeout, self.budget_usd = timeout, budget_usd
         self.cost_usd = 0.0  # running total of what Claude reported (Codex reports nothing)
 
-    def _sh(self, role: str, cmd: list[str], **kw) -> subprocess.CompletedProcess:
+    def _sh(self, role: str, cmd: list[str], *, env: dict[str, str], input: str | None = None,
+            stdin=None) -> subprocess.CompletedProcess:
+        with _LIVE_LOCK:
+            if _STOPPING.is_set():
+                raise DispatchError(f"{role}: not started, the run is being stopped")
+            p = subprocess.Popen(cmd, cwd=str(self.repo), env=env, text=True, start_new_session=True,
+                                 stdin=subprocess.PIPE if input is not None else stdin,
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            _LIVE.add(p)
         try:
-            return sh(cmd, self.repo, timeout=self.timeout, **kw)
+            out, err = p.communicate(input, timeout=self.timeout)
         except subprocess.TimeoutExpired as exc:
+            try:
+                os.killpg(p.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            p.communicate()
             with self.log.open("a", encoding="utf-8") as fh:
                 fh.write(f"\n### {now_iso()} {role} TIMEOUT after {self.timeout}s\n")
-            raise RunError(f"{role}: no reply within {self.timeout}s (--timeout); process killed") from exc
+            raise DispatchError(f"{role}: no reply within {self.timeout}s (--timeout); process killed") from exc
+        finally:
+            with _LIVE_LOCK:
+                _LIVE.discard(p)
+        return subprocess.CompletedProcess(cmd, p.returncode, out, err)
 
     def run(self, role: str, prompt: str, *, writable: bool, strong: bool = False,
             session: str | None = None, env: dict[str, str] | None = None) -> tuple[str, str | None]:
@@ -183,7 +232,7 @@ class Harness:
             proc = self._sh(role, cmd, env=run_env, stdin=subprocess.DEVNULL)  # -p waits 3 s on an open stdin
             self._log(role, cmd, proc)
             if proc.returncode != 0:
-                raise RunError(f"{role}: claude exited {proc.returncode}: {proc.stderr.strip()[-400:]}")
+                raise DispatchError(f"{role}: claude exited {proc.returncode}: {proc.stderr.strip()[-400:]}")
             try:
                 data = json.loads(proc.stdout)
             except json.JSONDecodeError:
@@ -207,7 +256,7 @@ class Harness:
         proc = self._sh(role, cmd, input=system + "\n\n---\n\n" + prompt, env=run_env)
         self._log(role, cmd, proc)
         if proc.returncode != 0:
-            raise RunError(f"{role}: codex exited {proc.returncode}: {proc.stderr.strip()[-400:]}")
+            raise DispatchError(f"{role}: codex exited {proc.returncode}: {proc.stderr.strip()[-400:]}")
         message = proc.stdout
         if out_file.exists():
             message = out_file.read_text(encoding="utf-8")
@@ -365,12 +414,17 @@ def findings(message: str) -> list[tuple[str, str]]:
 
 
 def findings_header(message: str) -> tuple[int, dict[str, int]] | None:
-    """(count, {"C": n, ...}) from the last `## Findings: N (C:x I:y M:z)` line, or None when absent."""
+    """(count, {"C": n, ...}) from the one `## Findings: N (C:x I:y M:z)` line; {} counts when the detail is not exactly that, None when absent or repeated."""
     m = FINDINGS_HEADER_RE.findall(message)
     if not m:
         return None
-    count, detail = m[-1]
-    return int(count), {k: int(v) for k, v in re.findall(r"([CIM]):(\d+)", detail)}
+    if len(m) > 1:  # two headers: which one counts is a choice a reply should not leave open
+        return None
+    count, detail, rest = m[0]
+    pairs = re.findall(r"([CIM]):\s*(\d+)", detail)
+    clean = (not rest.strip() and re.fullmatch(r"(?:\s*[CIM]:\s*\d+\s*,?)*\s*", detail)
+             and len({k for k, _ in pairs}) == len(pairs))
+    return int(count), {k: int(v) for k, v in pairs} if clean else {}
 
 
 # ---- task file updates -----------------------------------------------------------
@@ -438,6 +492,15 @@ class Runner:
         self.project = args.project or f"{repo.name}; checks: {', '.join(args.check) or 'none configured'}"
         self.lock = self.runs / "lock"
         self.ledger_script = tasks_scripts / "sync_todo_ledgers.py"
+        self.done = False  # set when the run ends with every row committed
+        self.tasks_scripts = tasks_scripts
+        tm = self.runs.parent.parent  # docs/tasks_manager; the files sync_todo_ledgers.py generates (its docstring)
+        self.ledger_outputs = [tm / "_active.md", tm / "_done.md", repo / "docs/areas"]
+        # A lane Runner (lib/task_lanes.py) works in its own worktree on branch `self.lane`: it commits code only,
+        # leaves the task file and the bookkeeping to the integration checkout, and hands back its Execution-log
+        # entry and the full SHA of its commit.
+        self.lane, self.lane_entry, self.commit_sha = "", "", ""
+        self.lanes = 1
 
     # -- lock: one driver (or orchestrator) per run directory
     def acquire_lock(self) -> None:
@@ -464,6 +527,12 @@ class Runner:
     def head(self) -> str:
         return self.git("rev-parse", "--short", "HEAD").stdout.strip()
 
+    def must_not_have_committed(self, n: int, base: str) -> None:
+        """An implementer that commits puts unreviewed work into history, where neither the stash nor a parked row undoes it."""
+        if (head := self.head()) != base:
+            raise RunError(f"phase {n}: HEAD moved from {base} to {head} during the implementer dispatch (implementers must not "
+                           f"commit); inspect it, undo with `git reset --soft {base}`, then rerun")
+
     def dispatch(self, role: str, prompt: str, *, writable: bool, strong: bool = False,
                  session: str | None = None, stage: str = "", phase: int = 0) -> tuple[str, str | None]:
         return self.harness.run(role, prompt, writable=writable, strong=strong, session=session,
@@ -483,14 +552,42 @@ class Runner:
             raise RunError("state.md is invalid; fix it first:\n  " + "\n  ".join(errors))
         return State(path)
 
+    def dirty(self, where: Path | None = None) -> list[str]:
+        """`git status --porcelain` lines outside the run directory (the driver's own files), in checkout `where`."""
+        return [l for l in sh(["git", "status", "--porcelain"], where or self.repo).stdout.splitlines()
+                if not l[3:].startswith(self.runs_rel)]
+
     def require_clean_tree(self) -> None:
-        dirty = [l for l in self.git("status", "--porcelain").stdout.splitlines()
-                 if not l[3:].startswith(self.runs_rel)]
-        if dirty:
+        if dirty := self.dirty():
             raise RunError("working tree has changes outside the run directory; commit or stash them first:\n  "
                            + "\n  ".join(dirty[:10]))
 
     # -- one phase
+    def stage_code(self) -> str:
+        """Stage the phase's work (everything outside the run directory; in a lane also outside the task file, which
+        is the integration checkout's) and return its tree id: what the reviewers see, and what the commit must carry."""
+        keep_out = [f":(exclude){self.runs_rel}"] + ([f":(exclude){self.task_rel}"] if self.lane else [])
+        self.git("add", "-A", "--", ".", *keep_out)
+        return self.git("write-tree").stdout.strip()
+
+    def tree_changed(self) -> str:
+        """'' when the tree to commit is the one the last review saw, else which paths differ (at most five)."""
+        if (now := self.stage_code()) == self.reviewed_tree:
+            return ""
+        paths = self.git("diff", "--name-only", self.reviewed_tree, now).stdout.split()
+        return f"the tree changed after review ({', '.join(paths[:5]) + (', ...' if len(paths) > 5 else '')})"
+
+    def bookkeeping_paths(self) -> list[str]:
+        """The driver's own files: the run directory (not the lock), the task file, the ledgers the sync writes."""
+        return [self.runs_rel, self.task_rel, *(p.relative_to(self.repo).as_posix() for p in self.ledger_outputs if p.exists()),
+                f":(exclude){self.runs_rel}/lock"]
+
+    def park(self, state: State, n: int, why: str) -> None:
+        """A row that cannot go on: `parked` in an unattended run (nobody answers a blocked row), else `blocked`."""
+        status = "parked" if self.unattended else "blocked"
+        state.set(n, status=status)
+        state.note(f"Note: {status} phase {n}: {why}")
+
     def phase(self, state: State, n: int) -> bool:
         pdir = self.runs / f"phase-{n}"
         pdir.mkdir(exist_ok=True)
@@ -510,7 +607,7 @@ class Runner:
         base = self.head()
         attempt = int(state.row(n)[2]) + 1
         state.set(n, status="implementing", attempt=str(attempt), spec="—", quality="—",
-                  security="—" if self.args.security else "n/a", open="0")
+                  security="—" if self.args.security else "n/a", open="0", agent="—")
         state.note(f"Phase {n}: BASE {base}; attempt {attempt} ({self.harness.name})")
         state.save(current_phase=str(n))
         self.say(f"phase {n}: implementer")
@@ -523,6 +620,7 @@ class Runner:
                                            writable=True, phase=n,
                                            session=session if self.harness.name == "claude" else None)
         (pdir / "implementer-reply.md").write_text(reply, encoding="utf-8")
+        self.must_not_have_committed(n, base)
         status = parse_status(reply)
         if status in ("NEEDS_CONTEXT", "BLOCKED", "MISSING"):
             state.set(n, status="blocked")
@@ -557,8 +655,13 @@ class Runner:
                                                writable=True, strong=strong, session=resume, phase=n)
             session = new_session or session
             (pdir / f"implementer-reply-{round_no}.md").write_text(reply, encoding="utf-8")
-            if parse_status(reply) in ("NEEDS_CONTEXT", "BLOCKED", "MISSING"):
-                break
+            self.must_not_have_committed(n, base)
+            if (status := parse_status(reply)) in ("NEEDS_CONTEXT", "BLOCKED", "MISSING"):  # its edits are unreviewed: never commit them
+                state.set(n, status="blocked", open=str(len(items)))
+                state.note(f"Phase {n}: fix round {round_no} implementer returned {status}; see {self.runs_rel}/phase-{n}/implementer-reply-{round_no}.md")
+                state.save()
+                self.say(f"phase {n}: fix round {round_no} implementer {status}; stopping")
+                return False
             verdicts = self.review_round(state, n, pdir, base, round_no=round_no)
             grew.append(set(self.last_size.code_growth()))
             if structural and repeat & grew[-1]:
@@ -569,14 +672,22 @@ class Runner:
                 self.say(f"phase {n}: structural round still grew {structural}; row set to blocked")
                 return False
 
+        decision = ""
         if not verdicts_pass(verdicts):
             open_items = open_findings(verdicts)
-            state.set(n, status="blocked", open=str(len(open_items)))
-            state.note(f"Phase {n}: fix-loop cap reached with {len(open_items)} open finding(s); "
-                       f"add Ruling: lines (or fix by hand), set the row to pending, and rerun")
-            state.save()
-            self.say(f"phase {n}: did not converge; row set to blocked")
-            return False
+            if self.cap_continue and may_commit_open(verdicts):
+                decision = (f"Decision: phase {n} committed at the fix-loop cap with {len(open_items)} open finding(s), none critical: "
+                            + "; ".join(f"[{sev}] {stage} review, {self.runs_rel}/phase-{n}/{verdicts[stage]['file']}" for sev, _, stage in open_items))
+                state.note(decision)
+                state.save()
+                self.say(f"phase {n}: at the review cap with no critical finding; continuing (--at-review-cap continue)")
+            else:
+                state.set(n, status="blocked", open=str(len(open_items)))
+                state.note(f"Phase {n}: fix-loop cap reached with {len(open_items)} open finding(s); "
+                           f"add Ruling: lines (or fix by hand), set the row to pending, and rerun")
+                state.save()
+                self.say(f"phase {n}: did not converge; row set to blocked")
+                return False
 
         for cmd in self.args.check:
             proc = sh(["bash", "-lc", cmd], self.repo)
@@ -587,44 +698,59 @@ class Runner:
                 (pdir / "check-failure.log").write_text(proc.stdout + proc.stderr, encoding="utf-8")
                 self.say(f"phase {n}: check failed: {cmd}")
                 return False
+        # What is committed is what was reviewed: the tree is taken again and must match the one the last review saw;
+        # in a lane the commit must also land on the lane branch.
+        why = "" if self.args.no_commit else self.tree_changed() or (
+            f"the lane worktree's HEAD is not refs/heads/{self.lane}"
+            if self.lane and self.git("symbolic-ref", "-q", "HEAD").stdout.strip() != f"refs/heads/{self.lane}" else "")
+        if why:
+            state.set(n, status="blocked")
+            state.note(f"Phase {n}: {why}; nothing committed")
+            state.save()
+            self.say(f"phase {n}: {why}; not committed")
+            return False
 
         summary = ", ".join(f"{k} {v['verdict']}" for k, v in verdicts.items())
         size = self.size_line(self.phase_size)
         entry = (f"### {now_iso()} - Phase {n}: {self.tb.phase_title(self.task.phases[n - 1])} (at task run, {self.harness.label()})\n\n"
                  f"**Actions taken:** implementer dispatch ×{state.row(n)[2]}; reviews: {summary}.\n"
-                 f"**Decisions made:** see `Ruling:` lines in `{self.runs_rel}/state.md` (if any).\n"
+                 f"**Decisions made:** {decision or 'see `Ruling:` lines in `' + self.runs_rel + '/state.md` (if any).'}\n"
                  f"**Test results:** {', '.join(self.args.check) or 'no --check command configured'}: pass.\n"
                  f"**Size:** {size}.\n"
                  f"**Outcome:** see `{self.runs_rel}/phase-{n}/` for the brief, report and reviews.")
-        tick_phase(self.task.path, n, entry)
+        if self.lane:
+            self.lane_entry = entry
+        else:
+            tick_phase(self.task.path, n, entry)
 
         if self.args.no_commit:
             state.set(n, status="reviewing")
             state.note(f"Phase {n}: reviews clean; left uncommitted (--no-commit)")
             state.save()
             return True
-        # The phase commit carries the code, the task file and the run directory as reviewed. The
-        # SHA is then written into state.md, which stays dirty until the next phase's commit sweeps
-        # it in (the run directory is exempt from the clean-tree gate); the last one is committed by
-        # `run()`. Same rule as the skill: no metadata-only commit per phase.
-        if self.ledger_script.exists():  # ticked checkboxes change the generated ledgers; they ride in the commit
-            sh([sys.executable, str(self.ledger_script), "--root", str(self.repo)], self.repo)
-        self.git("add", "-A", "--", ".", f":(exclude){self.runs_rel}/lock")
+        # The phase commit carries the reviewed tree (staged above) plus, outside a lane, the driver's own files: the
+        # task file, the ledgers and the run directory. The SHA is then written into state.md, which stays dirty until
+        # the next phase's commit sweeps it in (the run directory is exempt from the clean-tree gate); the last one is
+        # committed by `run()`. Same rule as the skill: no metadata-only commit per phase.
+        if not self.lane:
+            if self.ledger_script.exists():  # ticked checkboxes change the generated ledgers; they ride in the commit
+                sh([sys.executable, str(self.ledger_script), "--root", str(self.repo)], self.repo)
+            self.git("add", "--", *self.bookkeeping_paths())
         title = self.tb.phase_title(self.task.phases[n - 1])
         msg = (f"feat: {self.task.taskid} phase {n} — {title}\n\nWhat changed:\n- phase {n} of {self.task.title}\n\n"
                f"Why:\n- {self.task_rel}\n\nChecks:\n- {', '.join(self.args.check) or 'none configured'}: pass\n"
-               f"- reviews: {summary}\n- size: {size}\n")
+               f"- reviews: {summary}\n- size: {size}\n" + (f"\n{decision}\n" if decision else ""))
         proc = self.git("commit", "-q", "-m", msg)
         if proc.returncode != 0:
             raise RunError(f"commit failed: {proc.stderr.strip()[-400:]}")
-        sha = self.head()
+        sha, self.commit_sha = self.head(), self.git("rev-parse", "HEAD").stdout.strip()
         state.set(n, status="committed", commit=sha, open="0")
         state.note(f"Phase {n}: complete (commit {sha}, {summary})")
         if self.harness.cost_usd:
             state.note(f"Note: phase {n} Claude spend so far ${self.harness.cost_usd:.2f} (run total)")
         state.save()
         self.say(f"phase {n}: committed {sha}")
-        return self.post_phase_checks(state, n)
+        return True if self.lane else self.post_phase_checks(state, n)  # a lane's checks run once, on the merged result
 
     def post_phase_checks(self, state: State, n: int) -> bool:
         """The same two checks the skill runs after every phase; a failure blocks the next phase."""
@@ -651,8 +777,8 @@ class Runner:
         return f"+{report.added}/−{report.deleted}, code net {report.net('code'):+d}, test net {report.net('test'):+d}, fixture net {report.net('fixture'):+d}; flagged: {flagged}"
 
     def review_round(self, state: State, n: int, pdir: Path, base: str, round_no: int) -> dict[str, dict]:
-        self.git("add", "--intent-to-add", "-A", "--", ".", f":(exclude){self.runs_rel}")  # new files show in the diff
-        diff = self.git("diff", base, "--", ".", f":(exclude){self.runs_rel}").stdout
+        self.reviewed_tree = self.stage_code()  # staged, so new files show in the diff
+        diff = self.git("diff", base, self.reviewed_tree, "--", ".", f":(exclude){self.runs_rel}").stdout
         (pdir / "diff.patch").write_text(diff, encoding="utf-8")
         if not diff.strip():
             # Nothing changed this phase — usually an earlier phase already delivered it. Review the
@@ -687,7 +813,7 @@ class Runner:
             suffix = "" if k == "both" else f"-{k}"
             name = f"re-review-{round_no}{suffix}.md" if round_no else f"review{suffix}.md"
             (pdir / name).write_text(reply, encoding="utf-8")
-            out[k] = {"verdict": parse_verdict(reply), "findings": findings(reply)}
+            out[k] = {"verdict": parse_verdict(reply), "findings": findings(reply), "header": findings_header(reply), "file": name}
             if k == "both":
                 state.set(n, spec=out[k]["verdict"], quality=out[k]["verdict"])
             else:
@@ -773,26 +899,95 @@ class Runner:
                 state.note(f"Note: escalated from small to large ({', '.join(reasons)})")
         state.save(mode=self.mode, mode_reason=", ".join(reasons) or "no large trigger")
 
+    def runnable(self, state: State, pending: list[int]) -> list[int]:
+        """Pending phases whose `After:` dependencies are all done, lowest first (`--phase N` waives the gate)."""
+        return [n for n in pending if self.args.phase or all(state.row(d)[1] in DONE for d in phase_deps(self.task, n))]
+
+    def set_aside(self, state: State, n: int) -> None:
+        """One path for a row that ended blocked (verdict, check, implementer or dispatch failure): its edits
+        go to a stash so an independent phase starts clean, and an unattended run parks it."""
+        name = f"at task run: {self.task.taskid} phase {n} not finished"
+        self.git("reset", "-q")  # the size report leaves intent-to-add entries, which make `git stash` refuse
+        proc = self.git("stash", "push", "-u", "-m", name, "--", ".", f":(exclude){self.runs_rel}")
+        if proc.returncode != 0:
+            state.note(f"Note: phase {n}: `git stash` failed ({proc.stderr.strip()[-200:]}); its edits are still in the working tree")
+            state.save()
+            raise RunError(f"git stash failed for phase {n}; its edits are still in the working tree: {proc.stderr.strip()[-300:]}")
+        if "No local changes" not in proc.stdout:
+            state.note(f'Note: phase {n}: its edits are in `git stash` as "{name}" (`git stash list`); pop it to fix by hand')
+            self.say(f"phase {n}: its edits are kept in `git stash` ({name})")
+        if self.unattended:  # a blocked row stays blocked otherwise; its notes say why
+            self.park(state, n, f"it did not finish; see the notes above and {self.runs_rel}/phase-{n}/")
+        state.save()
+
     def _run(self, state: State) -> int:
+        # The cap rule comes only from the command line: the task file is writable by the implementers this driver dispatches.
+        self.unattended = "unattended" in [v.strip().lower() for v in self.task.meta.get("Execution", "").split(",")]
+        self.cap_continue = self.unattended and self.args.at_review_cap == "continue"
+        import task_lanes  # lib/task_lanes.py, next to this file (imported here: it imports this module)
+        if stop := task_lanes.open_wave(self, state):
+            print(f"at task run: {stop}", file=sys.stderr)
+            return 1
         self.decide_mode(state)
+        self.lanes = 1 if self.args.phase else self.args.lanes
         todo = [int(r[0]) for r in state.rows if r[1] != "committed"]
         if self.args.phase:
             todo = [n for n in todo if n == self.args.phase]
         if not todo:
             self.say("every phase is already committed")
         if self.args.dry_run:
+            for line in task_lanes.planned_waves(self, state, todo) if self.lanes > 1 else []:
+                self.say(f"[dry-run] {line}")
             for n in todo:
                 reviews = "one reviewer (Stage: both)" if self.mode == "small" else "reviews spec, quality"
                 self.say(f"[dry-run] phase {n}: implementer ({self.harness.name}) -> {reviews}"
                          + (", security" if self.args.security else "") + f" -> up to {self.args.max_rounds} fix rounds -> commit"
                          + f"  [mode {self.mode}: {state.front.get('mode_reason')}]")
             return 0
+        held = task_lanes.leftovers(self, state, todo)  # phases an earlier lane holds work for: never run again here
+        pending = []
         for n in todo:
-            if state.row(n)[1] in ("blocked", "parked") and not self.args.retry_blocked:
-                self.say(f"phase {n} is {state.row(n)[1]}; resolve it in state.md or pass --retry-blocked")
-                return 1
-            if not self.phase(state, n):
-                return 1
+            status = state.row(n)[1]
+            if n in held:
+                continue
+            if status == "parked" and state.row(n)[8] == "waits":
+                state.set(n, status="pending")  # re-evaluated below: it parks again if its dependency is still open
+            elif status in ("blocked", "parked") and not self.args.retry_blocked:
+                self.say(f"phase {n} is {status}; resolve it in state.md or pass --retry-blocked")
+                continue
+            pending.append(n)
+        while (ready := self.runnable(state, pending)):
+            if self.lanes > 1 and len(wave := task_lanes.plan_wave(self.task, ready, self.lanes)) > 1:
+                for n in wave:
+                    pending.remove(n)
+                if not task_lanes.run_wave(self, state, wave):  # the wave committed, but the post-phase checks failed
+                    self.commit_run_dir(f"chore: {self.task.taskid} run state")
+                    return 1
+                continue
+            n = ready[0]
+            pending.remove(n)
+            try:
+                if self.phase(state, n):
+                    continue
+            except DispatchError as exc:  # a timeout or dead process on one phase is a blocked row, like any other
+                print(f"at task run: {exc}", file=sys.stderr)
+                state.set(n, status="blocked")
+                state.note(f"Phase {n}: run aborted — {str(exc).split(':')[0]} dispatch failed; see {self.runs_rel}/driver.log")
+                state.save()
+            if state.row(n)[1] != "blocked":
+                return 1  # committed, but the post-phase checks failed: stop, as before
+            self.set_aside(state, n)
+        for n in pending:  # still waiting on a dependency that is blocked, parked or not run
+            waits = ", ".join(str(d) for d in phase_deps(self.task, n) if state.row(d)[1] not in DONE)
+            if (note := f"Note: parked phase {n}: waits on phase {waits}, which is not committed") not in state.ledger:
+                state.note(note)
+            state.set(n, status="parked", agent="waits")  # the row itself records why: a rerun reads it back
+            state.save()
+            self.say(f"phase {n}: parked, waits on phase {waits}")
+        statuses = [state.row(n)[1] for n in todo]
+        if "blocked" in statuses or "parked" in statuses:
+            self.commit_run_dir(f"chore: {self.task.taskid} run state")
+            return 1 if "blocked" in statuses else 4
         ok = True
         if self.args.final_review and not self.args.phase and all(r[1] == "committed" for r in state.rows):
             if self.mode == "small" and len(state.rows) == 1:
@@ -806,6 +1001,7 @@ class Runner:
             else:
                 ok = self.final_review(state)
         self.commit_run_dir(f"chore: {self.task.taskid} run state")
+        self.done = ok and all(r[1] == "committed" for r in state.rows)
         return 0 if ok else 1
 
     def commit_run_dir(self, message: str) -> None:
@@ -814,7 +1010,36 @@ class Runner:
         if self.args.no_commit or not dirty:
             return
         self.git("add", "--", self.runs_rel, self.task_rel, f":(exclude){self.runs_rel}/lock")
-        self.git("commit", "-q", "-m", message)
+        proc = self.git("commit", "-q", "-m", message, "--", self.runs_rel, self.task_rel)  # only these paths: the user's staged work stays staged
+        if proc.returncode != 0:
+            raise RunError(f"commit `{message.splitlines()[0]}` failed: {(proc.stderr or proc.stdout).strip()[-400:]}")
+
+
+def phase_deps(task, n: int) -> list[int]:
+    """Phases `n` waits for: its `After:` line (`none`, or numbers), else the previous phase."""
+    m = re.search(r"^\s*After:\s*(.+?)\s*$", "\n".join(task.phases[n - 1].body), re.M)
+    return list(dict.fromkeys(int(x) for x in re.findall(r"\d+", m.group(1)))) if m else [n - 1] * (n > 1)
+
+
+def after_problems(task) -> list[str]:
+    """`After:` lines naming a phase that does not exist, or forming a cycle (a self-reference is one)."""
+    deps = {n: phase_deps(task, n) for n in range(1, len(task.phases) + 1)}
+    bad = [f"phase {n}: After: names phase {d}, which does not exist" for n in deps for d in deps[n] if d not in deps]
+    left = set(deps)
+    while (ready := {n for n in left if not set(deps[n]) & left}):
+        left -= ready
+    return bad + ([f"After: phases {sorted(left)} wait on each other"] if left else [])
+
+
+def may_commit_open(v: dict[str, dict]) -> bool:
+    """The one answer to "may this phase commit with open findings". Every open review (FAIL, or any critical)
+    must be a FAIL with at least one parsed finding, the strict header `N (C:x I:y M:z)` and x+y+z == N == the
+    parsed count, and no critical anywhere. Any doubt is no: so a reply without a counted header always parks."""
+    def sound(x: dict) -> bool:
+        h = x["header"]
+        return (x["verdict"] == "FAIL" and bool(x["findings"]) and h is not None and set(h[1]) == set("CIM")
+                and sum(h[1].values()) == h[0] == len(x["findings"]) and h[1]["C"] == 0 and not any(s == "C" for s, _ in x["findings"]))
+    return bool(v) and all(sound(x) for x in v.values() if x["verdict"] == "FAIL" or any(s == "C" for s, _ in x["findings"]))
 
 
 def verdicts_pass(v: dict[str, dict]) -> bool:
@@ -829,9 +1054,16 @@ def open_findings(v: dict[str, dict]) -> list[tuple[str, str, str]]:
     return out
 
 
+def lanes_arg(v: str) -> int:
+    if not v.isdigit() or not 1 <= int(v) <= 3:
+        raise argparse.ArgumentTypeError("must be 1, 2 or 3")
+    return int(v)
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="at task run", description=__doc__.split("\n\n")[0])
-    p.add_argument("task_id")
+    p.add_argument("task_ids", nargs="+", metavar="TASK_ID",
+                   help="more than one runs a chain in this order, skipping a task whose `Blocked by` is not done")
     p.add_argument("--harness", choices=("claude", "codex"), help="default: claude if on PATH, else codex")
     p.add_argument("--phase", type=int, help="run only this phase")
     p.add_argument("--model", help="model for implementers (harness default when omitted)")
@@ -849,6 +1081,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--project", help="one-line project context for the implementer prompt")
     p.add_argument("--no-commit", action="store_true", help="stop after reviews pass; leave the tree uncommitted")
     p.add_argument("--no-final-review", dest="final_review", action="store_false")
+    p.add_argument("--at-review-cap", choices=("park", "continue"), default="park",
+                   help="unattended run: commit a phase left with only non-critical findings at the fix-loop cap (default park)")
+    p.add_argument("--lanes", type=lanes_arg, default=1, metavar="N",
+                   help="run up to N phases at once (1-3, default 1) in their own worktrees: phases whose `After:` lines are met "
+                        "and whose `Files:` lines do not overlap; a phase without `Files:` runs alone")
     p.add_argument("--retry-blocked", action="store_true", help="re-run rows marked blocked")
     p.add_argument("--timeout", type=int, default=1800, metavar="SECONDS", help="per-dispatch limit (default 1800)")
     p.add_argument("--budget-usd", type=float, default=5.0, metavar="USD",
@@ -866,8 +1103,74 @@ def main(argv: list[str], repo: Path, core_root: Path, tasks_scripts: Path) -> i
         if not args.harness:
             print("at: neither `claude` nor `codex` is on PATH", file=sys.stderr)
             return 2
+    if args.lanes > 1 and args.no_commit:
+        print("at task run: --lanes needs commits to merge; drop --no-commit", file=sys.stderr)
+        return 2
+    problems = preflight(repo, tasks_scripts, args.task_ids)
+    if problems:
+        print("at task run: " + "\n  ".join(problems), file=sys.stderr)
+        return 2  # before any phase runs
+    # Replace refs would let an implementer show reviewers one blob while the commit stores another; every git
+    # process the driver starts (its own calls, task_size's, the harnesses') inherits this.
+    os.environ["GIT_NO_REPLACE_OBJECTS"] = "1"
+    for sig in (signal.SIGINT, signal.SIGTERM):  # both end the lane harnesses too, then the lock is released
+        signal.signal(sig, stop_harnesses)
     try:
-        return Runner(args, repo, core_root, tasks_scripts).run()
-    except RunError as exc:
-        print(f"at task run: {exc}", file=sys.stderr)
-        return 1
+        return run_chain(args, repo, core_root, tasks_scripts)
+    except KeyboardInterrupt:
+        print("at task run: interrupted; running harnesses terminated, lock released; rerun to resume", file=sys.stderr)
+        return 128 + (_SIGNAL[-1] if _SIGNAL else signal.SIGINT)  # 130 for SIGINT, 143 for SIGTERM
+
+
+def run_chain(args: argparse.Namespace, repo: Path, core_root: Path, tasks_scripts: Path) -> int:
+    codes, finished = [], set()
+    for tid in args.task_ids:
+        args.task_id = tid
+        try:
+            if len(args.task_ids) > 1 and (waits := open_blockers(repo, tasks_scripts, tid, finished)):
+                print(f"at task run: skipping {tid}: Blocked by {', '.join(waits)} is not done", file=sys.stderr)
+                codes.append(4)
+                continue
+            runner = Runner(args, repo, core_root, tasks_scripts)
+            codes.append(runner.run())
+            if codes[-1] == 0 and runner.done:  # `--phase N` or `--no-commit` exit 0 without finishing the task
+                finished.add(tid)
+        except RunError as exc:
+            print(f"at task run: {exc}", file=sys.stderr)
+            codes.append(1)
+    # 0 only when every row of every task is committed; 1 beats 4 (a blocked row needs a person, a parked one a decision)
+    return 1 if 1 in codes else 4 if 4 in codes else max(codes)
+
+
+def preflight(repo: Path, tasks_scripts: Path, ids: list[str]) -> list[str]:
+    """Every id well formed with a task file, and every `After:` graph valid, before the first task runs."""
+    sys.path.insert(0, str(tasks_scripts))
+    import task_brief  # noqa: E402  (agents-tasks skill script)
+    problems = []
+    for tid in ids:
+        if not re.fullmatch(r"[A-Z][A-Z0-9]*-\d+", tid):
+            problems.append(f"{tid!r} is not a task id like TASK-001")
+            continue
+        try:
+            task = task_brief.load_task(repo, tid)
+            problems += [f"{tid}: {p}" for p in after_problems(task)]
+        except SystemExit as exc:  # load_task exits when the file is missing
+            problems.append(f"{tid}: no task file ({exc})")
+    return problems
+
+
+def open_blockers(repo: Path, tasks_scripts: Path, tid: str, finished: set[str]) -> list[str]:
+    """Tasks named in `tid`'s `Blocked by` row that neither this chain finished nor a task file marks done."""
+    sys.path.insert(0, str(tasks_scripts))
+    import task_brief  # noqa: E402  (agents-tasks skill script)
+    waits = []
+    for dep in re.findall(r"[A-Z][A-Z0-9]*-\d+", task_brief.load_task(repo, tid).meta.get("Blocked by", "")):
+        if dep in finished:
+            continue
+        try:
+            done = task_brief.load_task(repo, dep).meta.get("Status", "").lower() == "done"
+        except SystemExit:  # no such task file
+            done = False
+        if not done:
+            waits.append(dep)
+    return waits

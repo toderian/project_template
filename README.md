@@ -84,6 +84,7 @@ at doctor --all               # check both runtimes when both CLIs are installed
 at task brief AUTH-001 --phase 2      # one phase of a task as a self-contained implementer brief
 at task run-state init AUTH-001       # open the resume map for agents-core:execute-plan
 at task run AUTH-001 --check "make test"   # drive the whole execute-plan loop from a shell
+at task report AUTH-001               # morning report of a run: commits, decisions, parked questions (docs/tasks_manager/_reports/)
 at run-guard status                   # what this session must finish before its turn may end (disarm: at run-guard disarm)
 at run-guard arm --watch --budget-usd 4 AUTH-001   # plus a watchdog that restarts the session if its process dies
 at notify "title" < body.txt         # run your notify command (git config agents.notifyCommand "<cmd>", or AGENTS_NOTIFY_CMD); the run guard uses it

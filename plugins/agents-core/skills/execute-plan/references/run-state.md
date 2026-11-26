@@ -86,6 +86,9 @@ Rules the validator enforces:
   Nothing else. `Ruling:` closes a review finding; `Decision:` records a choice you made where you
   would otherwise have asked the owner (`<question> — <chosen> — why: … — cost if wrong: …`).
 - `Agent` holds a subagent id when the runtime can resume by id (Claude Code); otherwise `—`.
+  The scripted driver writes `waits` there for a row it parked only because a dependency is not
+  committed: such a row reruns by itself once the dependency commits; clear the cell and it needs
+  `--retry-blocked` like a row parked for its own reason.
 
 `Open` is the count of findings not yet fixed or ruled. `Attempt` counts implementer dispatches for
 the phase including fix rounds.
@@ -185,9 +188,9 @@ with the run directory at `docs/_plans/_runs/<slug>/` and write the files by han
 
 ## Scripted driver
 
-`at task run <TASK-ID> [--harness claude|codex] [--mode small|large|auto] [--phase N] [--check CMD]... [--security]
+`at task run <TASK-ID>... [--harness claude|codex] [--mode small|large|auto] [--phase N] [--check CMD]... [--security]
 [--model M] [--strong-model M] [--effort E] [--strong-effort E] [--max-rounds 3] [--timeout 1800] [--budget-usd 5] [--no-commit]
-[--no-final-review] [--retry-blocked] [--force-unlock] [--dry-run]` executes this loop without an orchestrating session: it writes the same files, one
+[--no-final-review] [--lanes N] [--retry-blocked] [--at-review-cap park|continue] [--force-unlock] [--dry-run]` executes this loop without an orchestrating session: it writes the same files, one
 process per dispatch, and commits each phase (`feat: <ID> phase N — <title>`), leaving `state.md`
 dirty until the next phase's commit sweeps it in and committing the last one as
 `chore: <ID> run state`. Differences from the skill:
@@ -204,7 +207,87 @@ dirty until the next phase's commit sweeps it in and committing the last one as
   Claude the reviewers may run exactly those commands (`Bash(<cmd>)` allow rules) and nothing else.
 - At the fix-loop cap the row becomes `blocked` with the open findings noted; there is no
   adjudication. Add `Ruling:` lines (or fix by hand) and rerun — with `--retry-blocked` if you leave
-  the row `blocked`, or plainly after setting it back to `pending`.
+  the row `blocked`, or plainly after setting it back to `pending`. In an `Execution: unattended` task
+  (a comma-separated cell: `orchestrated, unattended` counts, `not unattended` does not) pass
+  `--at-review-cap continue` (default `park`; in a chain it applies to every task). The flag is the only
+  source of this rule: the task file is writable by the implementers the driver dispatches, so the
+  driver reads nothing about it from there. `continue` commits only
+  when the loop really reached the cap and every open review is a `FAIL` whose header reads exactly
+  `## Findings: N (C:x I:y M:z)` with x+y+z = N = the numbered findings parsed, no critical anywhere;
+  any doubt parks, so a reply without a counted header (the security auditor's today) always parks. The
+  `Decision:` line in `state.md` and the commit message name each open finding by severity, stage and
+  review file, never by its text. A fix round whose implementer returns `BLOCKED`, `NEEDS_CONTEXT`
+  or no status blocks the row and commits nothing.
+- `After:` lines (`agents-tasks:task-ledger`, todo-convention) order the phases: a phase runs once
+  every phase it names is committed, a phase without the line waits for the previous one. An `After:`
+  naming a phase that does not exist, or a cycle, is an error before any phase runs (exit `2`). A row
+  that ends `blocked`, including after a dispatch timeout or failure, no longer stops the run: its
+  edits go to `git stash` (`at task run: <ID> phase N not finished`, named in the row's `Note:`; a
+  failing `git stash` aborts the run), the phases that do not depend on it still run, and its
+  dependants are set `parked` with a `Note:`. With `Execution: unattended` the failed row itself is
+  `parked` too, since nobody answers a `blocked` one. A rerun skips `blocked` rows and rows parked for
+  their own reason unless `--retry-blocked`; a row the driver parked only because of a dependency is
+  re-evaluated and runs once that dependency is committed. A baseline-check failure, a commit failure
+  and a failed post-phase check still abort the run (exit `1`), and so does an implementer that
+  commits: the driver compares `HEAD` with the phase base after every implementer dispatch. `--phase N` ignores `After:`.
+- What is committed is what was reviewed: when a review's diff is packaged the driver stages the phase's work and
+  records its tree (`git write-tree`); just before the commit it takes the tree again, and a different one (a file
+  written after the review, also by a check) blocks the row with `the tree changed after review (<paths>)` instead
+  of committing. The commit adds only the driver's own paths on top: the run directory, the task file and the
+  ledgers `at ledger sync` writes; a failed commit, the run-state one included, aborts the run (exit `1`). Every
+  git process the driver starts runs with `GIT_NO_REPLACE_OBJECTS=1`, so a replace ref cannot show reviewers other
+  content than the commit stores. SIGINT and SIGTERM terminate every running harness (each runs in its own
+  process group), release the lock and exit `130` and `143`.
+- Lanes: `--lanes N` (1-3, default 1; not with `--no-commit`) runs phases at the same time. A phase states its
+  scope fence in `Files:` lines under its heading (comma-separated repo-relative paths, no glob, no `..`; several
+  lines add up; no convention names one elsewhere). A wave is the ready phases whose fences do not overlap, lowest
+  first, at most N; a phase without a valid `Files:` line never shares a wave, and a wave of one runs the ordinary
+  serial loop. `--dry-run` prints the planned waves. Each lane is a worktree beside the repository
+  (`<repo>-lane-<ID>-p<N>`) on branch `at-lane/<ID>-p<N>`, run by its own `Runner` through the same phase loop, one
+  process tree per lane. A lane commits its reviewed tree only, never the task file or run directory, and only on
+  its own branch (`HEAD` must be `refs/heads/at-lane/<ID>-p<N>`); its `state.md` is a private copy. An implementer
+  commit in a lane blocks that lane like any implementer commit. Only the driver thread, under the run lock,
+  writes `state.md`, the task file and the integration branch.
+- A wave is one transaction on the integration branch. The driver commits the run state, then saves `Note: wave K:
+  base <sha>, phases a, b` before the first merge. Lanes merge lowest phase first by the full SHA the lane's
+  `Runner` committed (`git merge --no-ff`; that commit's tree must be the one its last review saw and its only
+  parent the base, so a commit put in its place can differ in its message only), then every `--check` runs. A refused merge (`merge refused: <git's last line>`), a conflict (`git merge
+  --abort`, never resolved) or a red check puts the integration branch back to the SHA before that merge (files a
+  check created are removed with it) and parks
+  the lane (`blocked` when the task is not `unattended`), worktree kept; the rest go on. One `Stage: both` review of
+  `base..HEAD` (`wave-<K>/review.md`) follows; its prompt names each phase's fence and the paths a lane changed
+  outside it. A failing review, or anything dirty in the integration checkout outside the driver's own files (an
+  implementer that wrote outside its lane; those paths are named, edits to tracked files are saved to
+  `wave-<K>/stray.patch`, untracked ones are left in place), undoes the whole wave: the
+  branch goes back to the base, every merged lane is parked or blocked with its worktree and branch kept, and
+  `Note: wave K: undone — <why>` says so. On a pass the driver ticks the task file, syncs the ledgers, sets the rows
+  `committed`, notes `Note: wave K: done` and makes one bookkeeping commit (`chore: <ID> wave K`) of its own paths,
+  then removes the merged lanes. If that commit fails (a pre-commit hook), `state.md` returns to its text before
+  the done lines, nothing stays staged, the run exits `1` and the wave stays open for the recovery below. A wave
+  that merged nothing uses no wave number. "Back to a SHA" means `git reset`
+  to a SHA the driver recorded, with the files outside the run directory restored; the run directory is the
+  driver's record and is saved from memory.
+- Recovery after a kill, at the start of every run (with or without `--lanes`, also `--phase N`): a `Note: wave K:
+  base <sha>` without its `done` or `undone` line stops the run with exit `1` before any dispatch and prints the
+  recovery: `git reset --hard <sha>` (the base holds the run state as it was before the wave), then rerun; the
+  driver resets nothing itself. Then every lane worktree and `at-lane/<ID>-p*` branch of the task is looked at: one
+  that is clean and holds no commit of its own (its tip is on the integration branch's first-parent line) is
+  removed and its phase runs as usual, and so is a clean one whose row is `committed` and whose tip is an ancestor
+  of `HEAD` (a run killed before it removed its merged lanes); one that holds work (uncommitted changes, an unmerged commit, or a merged
+  lane commit) is reported, its row is parked with a `Note:`, nothing is deleted, and that phase is not run,
+  serially or in a lane, so a phase is never implemented twice. Merge or remove it by hand and set the row to
+  `pending`. Harnesses of a run killed with SIGKILL may still write in their worktree; a rerun only removes clean,
+  empty ones.
+- Chain: `at task run <ID> <ID>...` first checks every id (`[A-Z][A-Z0-9]*-<n>` with a task file; else
+  exit `2`, nothing runs), then runs the tasks in the order given and skips one whose `Blocked by` task
+  is not `done`. A task this chain ran counts as done only when all its rows are committed (not after
+  `--phase N` or `--no-commit`).
+- Exit codes: `0` every row of every task committed and the final review passed, except that
+  `--phase N` and `--no-commit` also exit `0` with rows not committed; `1` a row is `blocked` (a dispatch failure or timeout is `4` in an unattended run, where the row
+  is parked, and `1` otherwise), the lock is held, the state is invalid, a post-phase check or the
+  final review failed; `2` bad arguments, an invalid task id or `After:` graph, or no harness on
+  `PATH`; `4` the run finished with `parked` rows or a skipped chain task and no `blocked` one. `1`
+  wins over `4`.
 - `--model` / `--effort` apply to implementers; `--strong-model` / `--strong-effort` to reviewers,
   final reviews and the fix round after two failed ones (each defaults to its routine value, and
   that to the harness default). Effort is passed as the harness names it. The execution-log
@@ -216,3 +299,14 @@ dirty until the next phase's commit sweeps it in and committing the last one as
   `SubagentStop` hook does for subagents, then the row is `blocked`.
 - One run at a time: the `lock` file refuses a second driver while the first is alive.
 - After each commit it runs `at task run-state check` and `at ledger check`; a failure blocks the next phase.
+
+## Morning report
+
+`at task report <TASK-ID>... [--since <rev>]` writes `docs/tasks_manager/_reports/<date>-<TASK-ID>.md`
+(`<date>` = commit date of `base_rev`), a function of the run's ledger: the commits recorded in the
+phase rows, in row order, not of HEAD, so a rerun is byte-identical. Commit it with the run. "Needs
+you" is what is open now: `parked` and `blocked` rows with their ledger lines, and `Note: parked`
+lines (`Note: parked: <question>` and the driver's `Note: parked phase N: ...`) while a row is not
+`committed`; afterwards they sit under "Parked during the run". `--since <rev>` adds the commits
+`rev..HEAD`. A task with no run state is read from its archived `## Completion summary` (dated by its
+`Base:` line or `--since`); one with neither is an error. `at ledger check` accepts `_reports/`.

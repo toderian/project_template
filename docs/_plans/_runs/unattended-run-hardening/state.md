@@ -18,10 +18,10 @@ updated: 2026-11-26T00:00:00
 | 0 | committed | 2 | PASS | PASS | n/a | 0 | 0063376 | — |
 | 1 | committed | 2 | PASS | PASS | PASS | 0 | 721558a | — |
 | 2 | committed | 2 | PASS | PASS | PASS | 0 | d322b16 | — |
-| 3 | committed | 3 | PASS | PASS | n/a | 0 | 402f1f2 (lane-c/report) | — |
-| 4 | reviewing | 3 | PASS | PASS | PASS | 0 | — | — |
+| 3 | committed | 3 | PASS | PASS | n/a | 0 | 402f1f2 | — |
+| 4 | committed | 3 | PASS | PASS | PASS | 0 | a82668b | — |
 | 5 | committed | 4 | PASS | PASS | PASS | 0 | 52e97e9 | — |
-| 6 | committed | 3 | PASS | PASS | PASS | 0 | f1971f5 (lane-b/driver) | — |
+| 6 | committed | 3 | PASS | PASS | PASS | 0 | f1971f5 | — |
 | 7 | pending | 0 | — | — | — | 0 | — | — |
 
 Phase 0: BASE 54e23a5
@@ -121,3 +121,4 @@ Ruling: phase 4 flaky test (test_two_racing_arm_watch_calls...: failed whenever 
 Phase 4: re-review 2: spec+quality PASS 0/1/1, security PASS 0/0/0
 Ruling: phase 4 re-review-2 finding 1 (`arm --watch` misreported a watcher that refuses the budget floor) — fixed by the orchestrator: `arm` checks the merged caps before it writes anything and exits 2 with the reason; test_item4 asserts it and fails without the check — cost if wrong: none
 Ruling: phase 4 re-review-2 finding 2 (fixed 0.3 s sleep left in the racing-arm test) — accepted — cost if wrong: a rare false failure on a very slow machine
+Note: lanes merged into master: lane-b/driver (which holds lane-c/report) merged after phase 4; one conflict, in the usage text of at.py

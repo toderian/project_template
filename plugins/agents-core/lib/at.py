@@ -9,7 +9,7 @@ Subcommands:
   ledger       wrapper: `sync` | `check` (both include the design trees) | `rotate-log <TASK_ID>|--all`
   design       wrapper: `sync` | `check` the design trees under docs/resources/<area>/design/
   explore      wrapper: exploratory-test ledger (`build` | `next` | `record`) and findings (`fingerprint` | `known`)
-  task         `brief <TASK_ID> --phase N` | `run-state init|check <TASK_ID>` | `run <TASK_ID>` (scripted execute-plan) | `size <TASK_ID> --phase N|--final`
+  task         `brief <TASK_ID> --phase N` | `run-state init|check <TASK_ID>` | `run <TASK_ID>` (scripted execute-plan) | `size <TASK_ID> --phase N|--final` | `report <TASK_ID>... [--since REV]`
   run-guard    `arm [--watch ...] <TASK_ID|state.md>...` | `status` | `disarm` | `watch`: keep this session from ending a
                turn mid-run; `--watch` adds a detached watchdog that restarts the session if its process dies
   notify       `<title> [--event KEY --session ID]`: send title + stdin body through the owner's notify command
@@ -1364,7 +1364,7 @@ def cmd_reserve(args: argparse.Namespace) -> int:
 
 def cmd_task(args: argparse.Namespace) -> int:
     if not args.rest:
-        die("usage: at task brief <TASK_ID> --phase N | at task run-state init|check <TASK_ID> | at task run <TASK_ID> | at task size <TASK_ID> --phase N|--final", code=2)
+        die("usage: at task brief <TASK_ID> --phase N | at task run-state init|check <TASK_ID> | at task run <TASK_ID>... | at task size <TASK_ID> --phase N|--final", code=2)
     if args.rest[0] == "run":
         import task_run  # lib/task_run.py, next to this file
         scripts = tasks_root() / "skills" / "task-ledger" / "scripts"
@@ -1372,6 +1372,9 @@ def cmd_task(args: argparse.Namespace) -> int:
     if args.rest[0] == "size":
         import task_size  # lib/task_size.py, next to this file
         return task_size.main(list(args.rest[1:]), repo_root())
+    if args.rest[0] == "report":
+        import task_report  # lib/task_report.py, next to this file
+        return task_report.main(list(args.rest[1:]), repo_root())
     return _run_tasks_script("task_brief.py", list(args.rest))
 
 
@@ -1720,7 +1723,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_reserve.add_argument("rest", nargs=argparse.REMAINDER)
     p_reserve.set_defaults(func=cmd_reserve)
 
-    p_task = sub.add_parser("task", help="brief <TASK_ID> --phase N | run-state init|check <TASK_ID> | run <TASK_ID> | size <TASK_ID> --phase N|--final")
+    p_task = sub.add_parser("task", help="brief <TASK_ID> --phase N | run-state init|check <TASK_ID> | run <TASK_ID> | size <TASK_ID> --phase N|--final | report <TASK_ID>... [--since REV]")
     p_task.add_argument("rest", nargs=argparse.REMAINDER)
     p_task.set_defaults(func=cmd_task)
 
