@@ -17,12 +17,12 @@ Directory: ${AGENTS_SUP_DIR:-${XDG_STATE_HOME:-~/.local/state}/agents-template/s
   touch.log          one line per owner action through `at sup` (the trial counts them)
 
 Event kinds (every kind a part emits):
-  worker:   started, stopped (status BLOCKED|GAVE_UP|EMPTY), done, waiting, idle, dead, restarted
+  worker:   started, stopped (status BLOCKED|GAVE_UP|EMPTY), done, waiting, idle, dead, restarted (reason answer|dead)
   asks:     ask (q), need (resource, minutes), granted (resource), denied (resource), released (resource),
             answered (q, by), overdue (resource), owed (resource)
   refusals: start_refused (reason), land_refused (reason)
   watcher:  landed, tick_failed (reason), ticks_paused (reason)
-NO_JUDGEMENT lists the kinds a tick advances over without a session; every other kind needs one.
+JUDGEMENT lists the kinds a tick runs a session for; NO_JUDGEMENT the kinds it advances over without one.
 Every change happens under `locked(profile)`, held only around state reads and writes, never across a `claude` or
 `at` subprocess; files are replaced atomically. A part that keeps its own small file in the profile directory uses
 `read_json(path, default)` and `write_json(path, data)`. stdlib only.
@@ -50,8 +50,15 @@ EVENT_KINDS = ("started", "stopped", "done", "waiting", "idle", "dead", "restart
                "tick_failed", "ticks_paused")
 WORKER_STATES = ("starting", "running", "waiting", "stopped", "done")
 PACK_STATES = ("new", "running", "paused", "closed")
-NO_JUDGEMENT = ("started", "restarted", "landed", "released", "granted", "answered", "denied", "waiting",
-                "tick_failed", "ticks_paused")
+# Which kinds a tick must think about. One place; test_sup_state checks that every kind in EVENT_KINDS is in exactly one group.
+JUDGEMENT = ("ask", "need")  # a worker waits for the supervisor's decision: an answer, a grant or a denial
+NO_JUDGEMENT = (
+    "started", "restarted", "done", "landed",  # the worker's life and the watcher's own landing: nothing to decide
+    "granted", "denied", "released", "answered", "waiting",  # results of a decision already made, or a state change
+    "stopped", "idle",  # a BLOCKED or GAVE_UP stop is reported to the owner by the watcher (sup_watch._notices)
+    "dead", "start_refused", "land_refused", "owed", "overdue", "ticks_paused",  # the watcher reports these to the owner (NOTIFY)
+    "tick_failed",  # the watcher's report of a failed tick
+)
 
 
 def now() -> str:
@@ -375,11 +382,13 @@ def queue(profile: str, open_only: bool = True) -> list[dict]:
 
 
 def queue_add(profile: str, task: str | None, question: str, options: list[str] | None = None,
-              recommendation: str | None = None, source: str = "worker", blocking: bool = True) -> str:
+              recommendation: str | None = None, source: str = "worker", blocking: bool = True,
+              q: str | None = None) -> str:
     rows = queue(profile, open_only=False)
     qid = _next_id(rows, "Q")
     rows.append({"id": qid, "ts": now(), "task": task, "question": question, "options": options or [],
-                 "recommendation": recommendation, "source": source, "blocking": blocking, "answer": None, "by": None})
+                 "recommendation": recommendation, "source": source, "blocking": blocking, "answer": None, "by": None,
+                 **({"q": q} if q else {})})  # q: the worker question an escalation is about
     write_json(profile_dir(profile) / "queue.json", rows)
     return qid
 

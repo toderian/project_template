@@ -295,7 +295,9 @@ def measure(profile: str, since: str | None = None) -> dict:
         by_kind[str(e.get("kind"))] = by_kind.get(str(e.get("kind")), 0) + 1
     count = lambda kind: by_kind.get(kind, 0)  # noqa: E731
     asked = {e.get("q"): e for e in events if e.get("kind") == "ask" and e.get("q")}
-    qs = [q for q in sup_state.queue(profile, open_only=False) if _since_ok(q.get("ts"), since)]
+    allq = [q for q in sup_state.queue(profile, open_only=False) if _since_ok(q.get("ts"), since)]
+    qs = [q for q in allq if q.get("source", "worker") == "worker"]  # the watcher's and the supervisor's entries are no questions
+    escalations = [q for q in allq if q.get("source") in ("sup", "tick")]
     mins = []
     for q in qs:
         t0 = _epoch((asked.get(q.get("id")) or q).get("ts"))
@@ -306,7 +308,7 @@ def measure(profile: str, since: str | None = None) -> dict:
     for e in events:
         if e.get("kind") != "answered" or not e.get("task"):
             continue
-        nxt = next((r for r in events if r.get("kind") == "restarted" and r.get("task") == e["task"] and r["id"] > e["id"]), None)
+        nxt = next((r for r in events if r.get("kind") == "restarted" and r.get("reason") != "dead" and r.get("task") == e["task"] and r["id"] > e["id"]), None)
         t0, t1 = _epoch(e.get("ts")), _epoch(nxt.get("ts")) if nxt else None
         if t0 is not None and t1 is not None:
             restart.append(max(0.0, (t1 - t0) / 60))
@@ -327,7 +329,7 @@ def measure(profile: str, since: str | None = None) -> dict:
     med, mx = _median_max(mins)
     rmed, rmx = _median_max(restart)
     return {
-        "since": since, "owner_touches": len(touches), "questions": len(qs),
+        "since": since, "owner_touches": len(touches), "questions": len(qs), "escalations": len(escalations),
         "answered_by_sup": sum(1 for q in qs if q.get("by") == "sup"),
         "answered_by_owner": sum(1 for q in qs if q.get("by") == "owner"),
         "answer_minutes_median": med, "answer_minutes_max": mx,
@@ -336,7 +338,8 @@ def measure(profile: str, since: str | None = None) -> dict:
         "ticks": len(ticks), "tick_failures": sum(1 for t in ticks if not t.get("ok")),
         "tick_cost_total": round(sum(_num(t.get("cost")) for t in ticks), 4),
         "tick_duration_total": round(sum(_num(t.get("duration")) for t in ticks), 1),
-        "worker_restarts": count("restarted"), "dead_workers": count("dead"), "tick_failed_events": count("tick_failed"),
+        "worker_restarts": sum(1 for e in events if e.get("kind") == "restarted" and e.get("reason") == "dead"),
+        "wakes": sum(1 for e in events if e.get("kind") == "restarted" and e.get("reason") != "dead"), "dead_workers": count("dead"), "tick_failed_events": count("tick_failed"),
         "tasks_landed": count("landed"), "pack_wall_minutes": wall,
     }
 

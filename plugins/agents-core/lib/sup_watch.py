@@ -215,7 +215,7 @@ def _answers(profile: str, mem: dict, acts: list[str]) -> None:
                 sup_state.set_worker(profile, session, state="running", waiting_for=None, restart_pending=False, waking=None,
                                      wake_fail=0, wake_key=None, woken=unread[-1]["id"] if unread else None,
                                      dead_key=None, dead_touches=None, **pid)
-                sup_state.emit(profile, "restarted", task, session)
+                sup_state.emit(profile, "restarted", task, session, reason="dead" if cur.get("restart_pending") else "answer")
             else:
                 fails = (cur.get("wake_fail", 0) if cur.get("wake_key") == key else 0) + 1
                 sup_state.set_worker(profile, session, waking=None, wake_fail=fails, wake_key=key)

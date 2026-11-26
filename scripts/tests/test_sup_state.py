@@ -131,6 +131,14 @@ class State(unittest.TestCase):
         self.assertEqual(st.read_json(f, {}), {}); st.write_json(f, {"a": 1})
         self.assertEqual(st.read_json(f, {}), {"a": 1}); self.assertEqual(st.read_json(f, []), [])  # another type: the default
 
+    def test_every_event_kind_is_in_exactly_one_of_judgement_and_no_judgement(self):
+        both, kinds = set(st.JUDGEMENT) & set(st.NO_JUDGEMENT), set(st.EVENT_KINDS)
+        self.assertEqual(both, set())
+        self.assertEqual(kinds - set(st.JUDGEMENT) - set(st.NO_JUDGEMENT), set(), "a kind in neither group")
+        self.assertEqual((set(st.JUDGEMENT) | set(st.NO_JUDGEMENT)) - kinds, set(), "a group names an unknown kind")
+        for k in ("done", "landed", "dead", "owed", "overdue", "ticks_paused", "start_refused", "land_refused"):
+            self.assertIn(k, st.NO_JUDGEMENT)
+
 
 if __name__ == "__main__":
     unittest.main()

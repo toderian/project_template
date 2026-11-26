@@ -24,6 +24,8 @@ ALLOWED = [
     "at sup grant RM-1 lab", "at sup deny RM-1 lab 'not now'", "at sup done alpha", "at sup packs --profile rm",
     "at sup measure --json --since 2026-11-01", "at sup watch status", "at sup instructions", "at sup queue --all",
     "at sup escalate nothing", "at sup escalate 'needs a schema choice' --task RM-1 --blocking",
+    "at sup escalate 'RM-4 needs (a schema) choice: \"x\", y; z? yes! [a] a=b/c+d-e' --task RM-4 --q Q3",
+    "at sup answer Q3 'use the \u00e9tat (v2); it is fine'", "at sup escalate 'it'\"'\"'s here' --task RM-4",
     "at lease list --json", "at lease list", "at sup task RM-4", "at sup task RM-4 --profile rm",
 ]
 DENIED = [
@@ -49,6 +51,11 @@ DENIED = [
     'at sup answer RM-1 "double quoted"', "at sup answer Q3 'no'", "at sup  status", "at sup escalate",
     "at sup escalate x --task rm-1", "at sup escalate x --bogus",
     "at sup task", "at sup task rm-4", "at sup task RM-4 RM-5", "at sup task RM-4 --profile other",
+    "at sup escalate (x)", "at sup escalate x;y", "at sup escalate 'x'; rm y", "at sup escalate 'a' | cat",
+    "at sup escalate 'a' && x", "at sup escalate 'a' > f", "at sup escalate $(x)", "at sup escalate 'a'$(x)",
+    "at sup escalate '$(x)'", "at sup escalate '`x`'", "at sup escalate 'a\nb'", "at sup escalate 'a'\\''b'",
+    "at sup escalate 'a' \"(b)\"", "at sup escalate \"a (b)\"", "at sup escalate 'a'(b)", "at sup escalate a(b)",
+    "at sup escalate 'a\x01b'", "at sup escalate 'a'\"$(x)\"'b'",
     "at sup instruct x", "at sup answer Q1 x --owner", "at sup start-pack alpha", "at sup cap 3",
     "at sup pack alpha RM-1", "at sup close-pack alpha", "at sup status " + "a" * 9000,
 ]

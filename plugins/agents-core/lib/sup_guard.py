@@ -75,9 +75,12 @@ INTERPRETERS = re.compile(
     r"busybox|awk|gawk|sed|perl|ruby|node|php|lua|expect|find|su|setsid|stdbuf|strace|watch|script|"
     r"ssh|pwsh|python[0-9.]*)")
 META = set("&;|<>`$(){}\\")
+QUOTED_DENY = set("&|<>`$\\{}")  # still refused inside one single-quoted word; `( ) ; "` and the rest are inert there
 TOKEN_RE = re.compile(r"[a-f0-9]{16,64}")
 CTRL = re.compile(r"[\x00-\x1f\x7f]")
 MAX_LEN = 8192
+SAFE_RUN = re.compile(r"[A-Za-z0-9@%+=:,./-]+")  # what shlex.quote leaves unquoted
+SQUOTE = re.compile(r"'[^']*'")
 
 
 def _r(argv, flags=None, args=(), required=(), chat=False):
@@ -96,7 +99,7 @@ DEFAULT_MAIN = [
     _r("at sup answer", PROFILE, ["q-id", "any+"]),
     _r("at sup grant", PROFILE, ["task-id", "name"]),
     _r("at sup deny", PROFILE, ["task-id", "name", "any"]),
-    _r("at sup escalate", {**PROFILE, "--task": "task-id", "--blocking": None}, ["any+"]),
+    _r("at sup escalate", {**PROFILE, "--task": "task-id", "--q": "q-id", "--blocking": None}, ["any+"]),
     _r("at sup start-worker", PROFILE, ["task-id"]),
     _r("at sup stop-worker", PROFILE, ["task-id"]),
     _r("at sup land", {**PROFILE, "--dry-run": None}, ["task-id"]),
@@ -225,13 +228,48 @@ def match(rule, argv):
     return not pos
 
 
+def _unquoted(command: str):
+    """(text outside the quoted words, the words' contents), or None when the command is not made only of unquoted safe
+    runs, spaces, single-quoted words `'...'` and the escaped quote `"'"` that shlex.join writes. The shell reads these
+    pieces exactly this way, and inside them nothing expands: a single-quoted word ends only at the next single quote."""
+    out, inner, i = [], [], 0
+    while i < len(command):
+        if command[i] == "'":
+            m = SQUOTE.match(command, i)
+            if not m:
+                return None
+            inner.append(m.group()[1:-1])
+        elif command.startswith("\"'\"", i):
+            m = None
+            i += 3
+            continue
+        elif command[i] == " ":
+            out.append(" ")
+            i += 1
+            continue
+        else:
+            m = SAFE_RUN.match(command, i)
+            if not m:
+                return None
+            out.append(m.group())
+        i = m.end()
+    return "".join(out), inner
+
+
+def _control(c: str) -> bool:
+    return ord(c) < 32 or 127 <= ord(c) < 160
+
+
 def decide(command, agent_type, tables, session_id=None):
     """Return (allowed, reason). Pure apart from the chat-token file check."""
     if not isinstance(command, str):
         return False, "command is not a string"
     if len(command.encode("utf-8", "replace")) > MAX_LEN:
         return False, "command too long"
-    if any(c in META or ord(c) < 32 or ord(c) == 127 for c in command):
+    if any(_control(c) for c in command):
+        return False, "shell metacharacter or control character"
+    parts = _unquoted(command)
+    if parts is None or any(c in META for c in parts[0]) or any(c in QUOTED_DENY for w in parts[1] for c in w):
         return False, "shell metacharacter or control character"
     try:
         argv = shlex.split(command, posix=True)

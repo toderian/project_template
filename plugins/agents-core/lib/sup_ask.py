@@ -14,6 +14,7 @@ checks stop the guarded supervisor (tick or chat) and honest mistakes: superviso
 `grant`, `deny`, `instruct`, `escalate`) refuse when AGENTS_SUP_TASK is set or the caller's session is a registered
 worker of the profile, and chat-only ones also without a chat token. `touch.log` and `by: owner` are records, not proof.
 `ask` and `need` never create a worker row: they update the row found by session id, else by task, else refuse (3).
+`answer` without --owner takes worker questions only; `escalate --q <Q-id>` links an entry to the worker question it is about.
 Exit codes: 0 ok, 2 usage, 3 refused. stdlib only.
 """
 from __future__ import annotations
@@ -216,29 +217,56 @@ def _answered_event(profile: str, qid: str) -> bool:
     return any(e.get("kind") == "answered" and e.get("q") == qid for e in st.events_since(profile, 0))
 
 
+def _finished(profile: str, task: str | None) -> bool:
+    """The task's row is done or the task landed: nobody reads an inbox for it any more."""
+    if not task:
+        return False
+    row = st.worker_for(profile, task=task)
+    return bool(row and row.get("state") == "done") or any(
+        e.get("kind") == "landed" and e.get("task") == task for e in st.events_since(profile, 0))
+
+
+def _close_linked(profile: str, qid: str, by: str) -> None:
+    """Open escalation entries about worker question `qid` close with it; they get no inbox entry."""
+    for r in st.queue(profile):
+        if r.get("q") == qid and r.get("source") != "worker":
+            st.queue_close(profile, r["id"], f"answered in {qid}", by)
+
+
 def _answer(profile: str, _task, a) -> int:
     """The inbox entry comes first and the close second, so a kill between them leaves a question that a rerun finishes:
-    the entry already written decides the text (the first answer wins)."""
+    the entry already written decides the text (the first answer wins). Without --owner only a worker question may be
+    answered; the owner answering an escalation that names a worker question (`escalate --q`) answers that question."""
     by = "owner" if a.owner else "sup"
-    q = next((r for r in st.queue(profile, open_only=False) if r.get("id") == a.qid), None)
+    rows = st.queue(profile, open_only=False)
+    q = next((r for r in rows if r.get("id") == a.qid), None)
     if q is None:
         return _err(f"no question {a.qid}")
+    if q.get("source") != "worker" and not a.owner:
+        return _err(f"{a.qid} is an entry from {q.get('source')}, not a worker question: only the owner answers it")
+    asked = a.qid
+    if q.get("source") != "worker" and q.get("q") and q.get("answer") is None:
+        target = next((r for r in rows if r.get("id") == q["q"]), None)
+        if target is not None and target.get("answer") is None and target.get("source") == "worker":
+            asked, q = target["id"], target  # delivered as the answer to the worker question; the entry closes with it
     task = q.get("task")
-    prior = next((e for e in st.inbox(profile, task) if e.get("q") == a.qid), None) if task else None
+    live = not _finished(profile, task)
+    prior = next((e for e in st.inbox(profile, task) if e.get("q") == asked), None) if task else None
     text = prior["text"] if prior else a.text
     closed = q.get("answer") is not None
-    if closed and (q["answer"] != text or _answered_event(profile, a.qid)):
-        return _err(f"{a.qid} is already answered")
-    if task and prior is None:
-        st.inbox_add(profile, task, text, by=by, q=a.qid)
+    if closed and (q["answer"] != text or _answered_event(profile, asked)):
+        return _err(f"{asked} is already answered")
+    if task and live and prior is None:
+        st.inbox_add(profile, task, text, by=by, q=asked)
     if not closed:
-        st.queue_close(profile, a.qid, text, by)
-    if task:
-        _wake(profile, task, a.qid)
-    st.emit(profile, "answered", task=task, q=a.qid, by=by)
+        st.queue_close(profile, asked, text, by)
+    _close_linked(profile, asked, by)
+    if task and live:
+        _wake(profile, task, asked)
+    st.emit(profile, "answered", task=task, q=asked, by=by)
     if a.owner:
         st.touch(profile, f"answer {a.qid}")
-    print(f"answered: {a.qid} by {by}")
+    print(f"answered: {asked} by {by}" + (f" (from {a.qid})" if asked != a.qid else ""))
     return 0
 
 
@@ -304,8 +332,28 @@ def _queue(profile: str, _task, a) -> int:
 
 
 def _escalate(profile: str, _task, a) -> int:
-    qid = st.queue_add(profile, a.task, a.text, source="sup", blocking=a.blocking)
+    """One open entry per task and worker question (`--q`; without it, per identical text): a second call prints the
+    first one's id. A blocking escalation tells the owner once with `at notify`; a failing notify is not an error."""
+    rows = st.queue(profile, open_only=False)
+    task = a.task
+    if a.q:
+        link = next((r for r in rows if r.get("id") == a.q and r.get("source") == "worker"), None)
+        if link is None:
+            return _err(f"{a.q} is not a worker question")
+        if task is not None and link.get("task") != task:
+            return _err(f"{a.q} belongs to {link.get('task')}, not {task}")
+        task = link.get("task")
+    same = (lambda r: r.get("q") == a.q) if a.q else (lambda r: r.get("question") == a.text)
+    old = next((r for r in rows if r.get("source") == "sup" and r.get("answer") is None and r.get("task") == task
+                and same(r)), None)
+    if old:
+        print(old["id"])
+        return 0
+    qid = st.queue_add(profile, task, a.text, source="sup", blocking=a.blocking, q=a.q)
     print(qid)
+    if a.blocking:
+        import sup_watch  # the watcher's own notify call; its failure is not ours
+        sup_watch._run_at(profile, ["notify", f"{profile}: {_one(a.text, 150)}"], timeout=30, with_profile=False)
     return 0
 
 
@@ -389,6 +437,7 @@ def register(sup_sub) -> None:
     p.add_argument("text", type=_text)
     p.add_argument("--task", type=task_id)
     p.add_argument("--blocking", action="store_true")
+    p.add_argument("--q", type=qid, help="the worker question this is about")
     add("instruct", _instruct, chat=True).add_argument("text", type=_text)
     add("instructions", _instructions)
 

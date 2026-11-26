@@ -218,9 +218,11 @@ class Measure(Base):
         q2 = st.queue_add(P, "RM-2", "b?"); st.emit(P, "ask", task="RM-2", q=q2)
         self.clock += 120; st.queue_close(P, q1, "x", "owner"); st.emit(P, "answered", task="RM-1", q=q1, by="owner")
         self.clock += 360; st.queue_close(P, q2, "y", "sup")
-        self.clock += 240; st.emit(P, "restarted", task="RM-1")
+        self.clock += 240; st.emit(P, "restarted", task="RM-1", reason="answer")
+        st.queue_add(P, "RM-1", "owner call", source="sup", blocking=True); st.queue_add(P, "RM-1", "tick gave up", source="tick")
         st.touch(P, "answer Q1"); st.touch(P, "instruct"); st.touch(P, "sup: land RM-1"); st.touch(P, "sup: answer Q2")
-        for k in ("restarted", "dead", "tick_failed"):
+        st.emit(P, "restarted", task="RM-1", reason="dead")
+        for k in ("dead", "tick_failed"):
             st.emit(P, k, task="RM-1")
         self.clock += 600; st.emit(P, "landed", task="RM-1"); st.emit(P, "landed", task="RM-2")
         with open(st.profile_dir(P) / "ticks.jsonl", "w") as fh:
@@ -234,7 +236,8 @@ class Measure(Base):
                          (0, 2, 2, 1, 1))
         self.assertEqual((m["answer_minutes_median"], m["answer_minutes_max"]), (5.0, 8.0))
         self.assertEqual((m["answer_to_restart_minutes_median"]), 10.0)
-        self.assertEqual((m["worker_restarts"], m["dead_workers"], m["tick_failed_events"], m["tasks_landed"]), (2, 1, 1, 2))
+        self.assertEqual((m["worker_restarts"], m["dead_workers"], m["tick_failed_events"], m["tasks_landed"]), (1, 1, 1, 2))
+        self.assertEqual((m["wakes"], m["escalations"]), (1, 2))  # a wake after an answer is not a dead worker's restart
         self.assertEqual(m["events_by_kind"]["ask"], 2); self.assertEqual(m["events"], sum(m["events_by_kind"].values()))
         self.assertEqual((m["ticks"], m["tick_failures"], m["tick_cost_total"], m["tick_duration_total"]), (2, 1, 0.75, 42.5))
         self.assertEqual(m["pack_wall_minutes"], {"pk": 23.0})

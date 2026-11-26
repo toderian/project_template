@@ -211,6 +211,51 @@ class Ask(unittest.TestCase):
         q = st.queue(P)[0]; self.assertEqual((q["source"], q["task"], q["blocking"]), ("sup", "RM-1", True))
         self.assertEqual(self.at("escalate", "no task")[0], 0); self.assertEqual(st.queue(P)[1]["task"], None)
 
+    def test_escalate_with_the_same_worker_question_prints_the_open_entry_instead_of_adding_one(self):
+        self.at("ask", "Which db?")
+        self.assertEqual(self.at("escalate", "owner call", "--task", "RM-1", "--q", "Q1")[1], "Q2\n")
+        self.assertEqual(self.at("escalate", "owner call again", "--task", "RM-1", "--q", "Q1")[:2], (0, "Q2\n"))
+        self.assertEqual(len(st.queue(P, open_only=False)), 2)
+        self.assertEqual(self.at("escalate", "x", "--q", "Q2")[0], 3)  # Q2 is not a worker question
+
+    def test_answer_refuses_an_entry_that_is_not_a_worker_question_without_owner(self):
+        self.at("ask", "Which db?"); self.at("escalate", "owner call", "--task", "RM-1", "--q", "Q1")
+        code, _, err = self.at("answer", "Q2", "pg")
+        self.assertEqual(code, 3); self.assertEqual(len(err.strip().splitlines()), 1)
+        self.assertEqual(st.inbox(P, "RM-1"), []); self.assertEqual(len(st.queue(P)), 2)
+
+    def test_answering_the_worker_question_closes_its_escalations_without_an_inbox_entry(self):
+        self.at("ask", "Which db?"); self.at("escalate", "owner call", "--task", "RM-1", "--q", "Q1")
+        self.assertEqual(self.at("answer", "Q1", "pg")[0], 0)
+        e = st.queue(P, open_only=False)[1]; self.assertEqual(e["answer"], "answered in Q1")
+        self.assertEqual([i["q"] for i in st.inbox(P, "RM-1")], ["Q1"])
+
+    def test_the_owner_answering_the_escalation_answers_the_worker_question_once(self):
+        self.at("ask", "Which db?"); self.at("escalate", "owner call", "--task", "RM-1", "--q", "Q1")
+        code, out, _ = self.at("answer", "Q2", "sqlite", "--owner", env=self.chat_token())
+        self.assertEqual(code, 0, out)
+        rows = st.queue(P, open_only=False)
+        self.assertEqual((rows[0]["answer"], rows[0]["by"], rows[1]["answer"]), ("sqlite", "owner", "answered in Q1"))
+        self.assertEqual([(i["q"], i["text"], i["by"]) for i in st.inbox(P, "RM-1")], [("Q1", "sqlite", "owner")])
+        self.assertEqual(st.worker_for(P, task="RM-1")["state"], "stopped")
+
+    def test_no_inbox_entry_is_written_for_a_done_or_landed_task(self):
+        self.at("ask", "Which db?"); st.set_worker(P, WS, state="done")
+        self.assertEqual(self.at("answer", "Q1", "pg")[0], 0)
+        self.assertEqual(st.inbox(P, "RM-1"), []); self.assertEqual(st.queue(P, open_only=False)[0]["answer"], "pg")
+        self.at("ask", "again?", worker=True); st.set_worker(P, WS, state="waiting"); st.emit(P, "landed", task="RM-1")
+        st.set_worker(P, WS, state="running")
+        self.assertEqual(self.at("answer", "Q2", "x")[0], 0); self.assertEqual(st.inbox(P, "RM-1"), [])
+
+    def test_a_blocking_escalation_runs_notify_once_and_a_failing_notify_does_not_fail_it(self):
+        log = Path(self.tmp.name) / "notify.log"; fake = Path(self.tmp.name) / "at"
+        fake.write_text(f'#!/bin/sh\necho "$@" >> {log}\nexit 7\n'); fake.chmod(0o755)
+        os.environ["AGENTS_AT_BIN"] = str(fake)
+        self.assertEqual(self.at("escalate", "needs you", "--blocking")[0], 0)
+        self.assertEqual(self.at("escalate", "needs you", "--blocking")[0], 0)  # the same entry: no second notify
+        self.at("escalate", "quiet")
+        self.assertEqual(log.read_text().splitlines(), [f"notify {P}: needs you"])
+
     def test_since_age_keeps_the_utc_offset(self):
         ts = time.strftime("%Y-%m-%dT%H:%M:%S%z", time.gmtime(time.time() - 7200))
         self.assertEqual(sup_ask._age(ts), "2h")

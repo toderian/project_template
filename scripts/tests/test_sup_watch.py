@@ -97,6 +97,7 @@ class Watch(unittest.TestCase):
         self.assertEqual(sw.step(P, None, tick=False), ["dead RM-1", "notified dead RM-1"])
         self.assertEqual(self.state(), "stopped"); self.assertEqual(sw.step(P, None, tick=False), [])
         self.assertEqual(self.kinds(), ["restarted", "restarted", "dead"])
+        self.assertEqual([e.get("reason") for e in st.events_since(P, 0) if e["kind"] == "restarted"], ["dead", "dead"])
         self.assertEqual([(q["source"], q["blocking"], q["task"]) for q in st.queue(P)], [("watcher", False, "RM-1")])
         self.assertIn("notify p: dead RM-1", self.argv())
         resumes = [c for c in self.claude() if "--resume" in c["argv"]]
@@ -139,6 +140,7 @@ class Watch(unittest.TestCase):
         self.assertEqual([c["argv"] for c in resume], [["--bg", "--resume", sid(1), "Read your answers with: at sup inbox --task RM-1"]])
         self.assertEqual((resume[0]["cwd"], resume[0]["sup"], resume[0]["task"]), (str(self.fake / "wt"), P, "RM-1"))
         self.assertEqual(self.kinds(), ["restarted"]); self.assertEqual(self.state(), "running")
+        self.assertEqual(st.events_since(P, 0)[0]["reason"], "answer")
         self.assertEqual(sw.step(P, None, tick=False), [])
 
     def test_an_acknowledged_entry_never_wakes_again(self):
