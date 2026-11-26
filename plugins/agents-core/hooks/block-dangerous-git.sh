@@ -115,11 +115,14 @@ is_protected() {
 
 # Required peer review: with `git config agents.peerRequired true` (`at peer enable <cli> --required`)
 # a push of a feature branch needs a stamp for the commit it pushes, written by `at peer run --role
-# reviewer` on exit 0 under <git-common-dir>/agents/peer-reviewed/<sha>. $1 is the ref being pushed
-# (HEAD when none is named); `dir` is the caller's checkout directory. Commits after a stamped one
-# that change only docs/tasks_manager/ (run state, rulings, ledgers) keep that stamp.
+# reviewer` on exit 0 under <git-common-dir>/agents/peer-reviewed/: <sha>, and patch-<id> where <id> is
+# the `git patch-id --verbatim` of the branch diff against the protected branch (merge-base, no
+# network; docs/tasks_manager/ left out), so a rebase, squash or base merge that leaves the diff
+# unchanged keeps the stamp. Same computation as peer.py patch_id. $1 is the ref being pushed (HEAD
+# when none is named); `dir` is the caller's checkout directory. With an empty diff, commits after a
+# stamped one that change only docs/tasks_manager/ (run state, rulings, ledgers) keep that stamp.
 require_review() {
-  local ref="${1:-HEAD}" sha common base i files
+  local ref="${1:-HEAD}" sha common base i files pid b r mb
   [ -z "$PUSH_DELETE" ] || return 0  # deleting a remote branch pushes no commit
   [ "$(git -C "$dir" config --type=bool --get agents.peerRequired 2>/dev/null)" = true ] || return 0
   sha=$(git -C "$dir" rev-parse --verify --quiet "${ref}^{commit}" 2>/dev/null) \
@@ -127,6 +130,16 @@ require_review() {
   common=$(git -C "$dir" rev-parse --git-common-dir 2>/dev/null) || return 0
   case "$common" in /*) ;; *) common="$dir/$common" ;; esac
   [ -e "$common/agents/peer-reviewed/$sha" ] && return 0
+  for b in $PROTECTED_BRANCHES; do
+    for r in "refs/heads/$b" "refs/remotes/origin/$b"; do
+      mb=$(git -C "$dir" merge-base "$r" "$sha" 2>/dev/null) && break 2
+    done
+  done
+  if [ -n "$mb" ]; then
+    pid=$(git -C "$dir" diff "$mb" "$sha" -- :/ ':(top,exclude)docs/tasks_manager/' 2>/dev/null \
+      | git -C "$dir" patch-id --verbatim 2>/dev/null | cut -d' ' -f1)
+    [ -n "$pid" ] && [ -e "$common/agents/peer-reviewed/patch-$pid" ] && return 0
+  fi
   base=$sha
   for i in 1 2 3 4 5 6 7 8 9 10; do
     base=$(git -C "$dir" rev-parse --verify --quiet "${base}^1" 2>/dev/null) || break

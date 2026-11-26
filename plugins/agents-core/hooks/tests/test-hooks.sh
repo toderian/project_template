@@ -197,6 +197,39 @@ git -C "${REVIEW_REPO}" mv src/a.py docs/tasks_manager/a.py
 git -C "${REVIEW_REPO}" -c user.name=t -c user.email=t@t commit -q -m move-code
 run_case "git: required peer, moving code into docs/tasks_manager needs a new stamp" "${GIT_HOOK}" \
   "$(git_payload_in "${REVIEW_REPO}" 'git push origin feat/r')" 2
+# Patch stamp: the id of the branch diff against the protected branch, as peer.py computes it.
+PS_REPO="${WORKDIR}/patch-repo"
+G() { git -C "${PS_REPO}" -c user.name=t -c user.email=t@t "$@"; }
+PS_PUSH() { run_case "$1" "${GIT_HOOK}" "$(git_payload_in "${PS_REPO}" 'git push origin feat/p')" "$2"; }
+PS_STAMP() { mkdir -p "${PS_REPO}/.git/agents/peer-reviewed"; touch "${PS_REPO}/.git/agents/peer-reviewed/$1"; }
+PS_ID() { (cd "${HOOKS_DIR}/../lib" && python3 -c 'import sys,pathlib,peer; print(peer.patch_id(pathlib.Path(sys.argv[1])))' "${PS_REPO}"); }
+git init -q -b main "${PS_REPO}"
+printf 'a\nb\n' > "${PS_REPO}/f.txt"; G add f.txt; G commit -q -m base
+G checkout -q -b feat/p
+printf 'def f():\n    return 1\n' > "${PS_REPO}/c.py"; G add c.py; G commit -q -m c1
+printf 'x\n' >> "${PS_REPO}/c.py"; G commit -q -am c2
+git -C "${PS_REPO}" config agents.peerRequired true
+PS_STAMP "patch-$(PS_ID)"
+PS_PUSH "git: patch stamp, same branch passes" 0
+mkdir -p "${PS_REPO}/docs/tasks_manager"; echo r > "${PS_REPO}/docs/tasks_manager/s.md"
+G add docs; G commit -q -m runstate
+PS_PUSH "git: patch stamp, a docs/tasks_manager-only commit keeps it" 0
+G checkout -q main; printf 'a\nb\nc\n' > "${PS_REPO}/f.txt"; G commit -q -am newbase
+G checkout -q feat/p; G rebase -q main
+PS_PUSH "git: patch stamp survives a rebase onto a changed base" 0
+G branch -q -m feat/p feat/p-old; G checkout -q -b feat/p main; G merge -q --squash feat/p-old; G commit -q -m squashed
+PS_PUSH "git: patch stamp survives a squash" 0
+G checkout -q main; printf 'a\nb\nc\nd\n' > "${PS_REPO}/f.txt"; G commit -q -am newbase2
+G checkout -q feat/p; G merge -q main -m merge-base
+PS_PUSH "git: patch stamp survives a merge of the base" 0
+sed -i 's/^    return 1/        return 1/' "${PS_REPO}/c.py"; G commit -q -am indent
+PS_PUSH "git: patch stamp, a whitespace-only change loses it" 2
+G reset -q --hard HEAD~1; echo y >> "${PS_REPO}/c.py"; G commit -q -am content
+PS_PUSH "git: patch stamp, a content change loses it" 2
+PS_STAMP "$(git -C "${PS_REPO}" rev-parse HEAD)"
+PS_PUSH "git: patch stamp, an old sha stamp still passes" 0
+PS_HOOK_ID=$(git -C "${PS_REPO}" diff "$(git -C "${PS_REPO}" merge-base main HEAD)" HEAD -- :/ ':(top,exclude)docs/tasks_manager/' | git -C "${PS_REPO}" patch-id --verbatim | cut -d' ' -f1)
+assert_eq "$(PS_ID)" "${PS_HOOK_ID}" "peer.py and the hook compute the same patch id"
 git -C "${REVIEW_REPO}" branch -q main
 run_case "git: required peer, protected branch still blocks without the marker" "${GIT_HOOK}" \
   "$(git_payload_in "${REVIEW_REPO}" 'git push origin main')" 2

@@ -53,6 +53,9 @@ Notable changes to agents-template. All four plugins share the version of the re
 - `TaskStop` left the `implementer` agent's tool list; it fails in subagents.
 - The repository's own suite runs its steps side by side, and a release runs it once, not four
   times: about 2 minutes where a release took about 25.
+- **The peer review stamp follows the diff.** It is keyed on the branch diff against the protected
+  branch (`git patch-id --verbatim`), so a rebase, a squash or a merge of the base keeps it, and any
+  content or whitespace change loses it. Old per-commit stamps still count.
 
 ## 1.15.1 — 2026-11-26
 

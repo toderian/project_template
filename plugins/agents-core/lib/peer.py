@@ -80,14 +80,32 @@ def head_sha(repo: Path) -> str | None:
     return _git_out(repo, "rev-parse", "HEAD")
 
 
+def patch_id(repo: Path) -> str | None:
+    """Id of the branch diff against the protected branch; block-dangerous-git.sh computes the same one."""
+    names = (_git_config(repo, "--get", "agents.protectedBranches").stdout.strip() or "main master develop").split()
+    for name in names:
+        for ref in (f"refs/heads/{name}", f"refs/remotes/origin/{name}"):  # local only, no network
+            base = _git_out(repo, "merge-base", ref, "HEAD")
+            if base:
+                diff = subprocess.run(["git", "-C", str(repo), "diff", base, "HEAD", "--", ":/",
+                                       ":(top,exclude)docs/tasks_manager/"], capture_output=True, check=False)
+                pid = subprocess.run(["git", "-C", str(repo), "patch-id", "--verbatim"], input=diff.stdout,
+                                     capture_output=True, check=False).stdout.decode().split()
+                return pid[0] if diff.returncode == 0 and pid else None  # empty diff: no patch stamp
+    return None
+
+
 def stamp_reviewed(repo: Path, sha: str | None) -> str | None:
-    """Record the reviewed commit under <git-common-dir>/agents/peer-reviewed/<sha>; the push hook reads it."""
+    """Record the reviewed commit, and its diff's patch id, under <git-common-dir>/agents/peer-reviewed/; the push hook reads them."""
     common = _git_out(repo, "rev-parse", "--git-common-dir")
     if not sha or not common:
         return None
-    stamp = (repo / common) / "agents" / "peer-reviewed" / sha  # an absolute `common` wins over `repo`
-    stamp.parent.mkdir(parents=True, exist_ok=True)
-    stamp.write_text(f"{task_run.now_iso()}\n", encoding="utf-8")
+    pid = patch_id(repo)
+    for name in (sha, f"patch-{pid}" if pid else None):
+        if name:
+            stamp = (repo / common) / "agents" / "peer-reviewed" / name  # an absolute `common` wins over `repo`
+            stamp.parent.mkdir(parents=True, exist_ok=True)
+            stamp.write_text(f"{task_run.now_iso()}\n", encoding="utf-8")
     return sha
 
 

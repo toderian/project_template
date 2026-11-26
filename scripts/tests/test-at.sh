@@ -951,6 +951,19 @@ assert_missing "$STAMPS/$PEER_HEAD" "the reviewed sha is not stamped after HEAD 
 assert_missing "$STAMPS/$(git -C "$PEER_REPO" rev-parse HEAD)" "the new HEAD is not stamped either"
 PEER_HEAD="$(git -C "$PEER_REPO" rev-parse HEAD)"
 
+# Patch stamp: a reviewer run also stamps the id of the branch diff against the protected branch.
+PEER_BR="$(git -C "$PEER_REPO" symbolic-ref --short HEAD)"
+git -C "$PEER_REPO" config agents.protectedBranches pb-base
+git -C "$PEER_REPO" branch -q pb-base
+echo code > "$PEER_REPO/p.txt"; git -C "$PEER_REPO" add p.txt
+git -C "$PEER_REPO" -c user.name=t -c user.email=t@t commit -q -m patch
+peer 1 ok run --role reviewer --brief "$WORKDIR/peer-brief.md" --out "$WORKDIR/peer-out/pp.md" >/dev/null
+PEER_PID="$(git -C "$PEER_REPO" diff pb-base HEAD | git -C "$PEER_REPO" patch-id --verbatim | cut -d' ' -f1)"
+assert_exists "$STAMPS/patch-$PEER_PID" "a reviewer run stamps the patch id of the branch diff"
+git -C "$PEER_REPO" reset -q --hard HEAD~1; git -C "$PEER_REPO" branch -q -D pb-base
+git -C "$PEER_REPO" config --unset agents.protectedBranches
+rm -rf "$PEER_REPO/.git/agents"
+
 # B1: --required stores agents.peerRequired; unavailable then prints BLOCKED (exit code unchanged).
 assert_stdout_contains "$(peer 1 ok status)" "peer: codex (model gpt-test, effort default, cyber daybreak_blue)" "status without --required"
 case "$(peer 1 ok status)" in *required*) fail "status prints required before --required is set";; *) pass;; esac
