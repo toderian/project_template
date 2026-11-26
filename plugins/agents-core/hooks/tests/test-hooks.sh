@@ -769,6 +769,56 @@ run_case "status: jq missing fails closed" "${STATUS_HOOK}" \
   "$(stop_payload implementer '## Status: DONE')" 2 "${NONEXISTENT_PATH}"
 
 # ---------------------------------------------------------------------------
+# run-guard.sh
+# ---------------------------------------------------------------------------
+GUARD_HOOK="${HOOKS_DIR}/run-guard.sh"
+GUARD_REPO="${WORKDIR}/guard-repo"
+export AGENTS_RUN_GUARD_DIR="${WORKDIR}/guard-markers"
+mkdir -p "${GUARD_REPO}/docs/tasks_manager/_todos" "${GUARD_REPO}/docs/tasks_manager/_runs/GRD-001" "${AGENTS_RUN_GUARD_DIR}"
+: > "${GUARD_REPO}/docs/tasks_manager/_todos/GRD-001-F_guarded.md"
+GUARD_STATE="${GUARD_REPO}/docs/tasks_manager/_runs/GRD-001/state.md"
+printf '| Phase | Status |\n|---|---|\n| 1 | committed |\n| 2 | pending |\n' > "${GUARD_STATE}"
+printf 'task\t%s\tGRD-001\n' "${GUARD_REPO}" > "${AGENTS_RUN_GUARD_DIR}/sess-armed"
+printf 'state\t%s\n' "${GUARD_STATE}" > "${AGENTS_RUN_GUARD_DIR}/sess-state"
+
+# guard_payload <session_id> <last_assistant_message>
+guard_payload() {
+  jq -n --arg s "$1" --arg m "$2" '{hook_event_name: "Stop", session_id: $s, last_assistant_message: $m}'
+}
+
+run_case "guard: a phase summary with open rows is sent back" "${GUARD_HOOK}" \
+  "$(guard_payload sess-armed 'Phase 1 is committed. Next in the chain is phase 2.')" 2
+run_case "guard: Run: WAITING with a named job is allowed" "${GUARD_HOOK}" \
+  "$(guard_payload sess-armed $'Dispatched.\n\nRun: WAITING implementer a12f for phase 2')" 0
+run_case "guard: Run: BLOCKED with a decision is allowed" "${GUARD_HOOK}" \
+  "$(guard_payload sess-armed '**Run: BLOCKED** push to origin needs the owner')" 0
+run_case "guard: a bare Run: BLOCKED names nothing and is sent back" "${GUARD_HOOK}" \
+  "$(guard_payload sess-armed 'Run: BLOCKED')" 2
+run_case "guard: Run: DONE with open rows is sent back" "${GUARD_HOOK}" \
+  "$(guard_payload sess-armed 'Run: DONE all phases')" 2
+run_case "guard: a session that never armed is untouched" "${GUARD_HOOK}" \
+  "$(guard_payload sess-other 'bye')" 0
+run_case "guard: a state-file target with a pending row is sent back" "${GUARD_HOOK}" \
+  "$(guard_payload sess-state 'done for now')" 2
+run_case "guard: empty final message is allowed (cannot judge)" "${GUARD_HOOK}" \
+  "$(guard_payload sess-armed '')" 0
+run_case "guard: jq missing lets the stop through" "${GUARD_HOOK}" \
+  "$(guard_payload sess-armed 'summary')" 0 "${NONEXISTENT_PATH}"
+rm -f "${AGENTS_RUN_GUARD_DIR}/sess-armed.count"
+for _ in 1 2 3 4 5; do guard_payload sess-armed 'summary' | "${BASH_BIN}" "${GUARD_HOOK}" >/dev/null 2>&1; done
+run_case "guard: the sixth sent-back in a row is let through" "${GUARD_HOOK}" \
+  "$(guard_payload sess-armed 'summary')" 0
+rm -f "${GUARD_REPO}/docs/tasks_manager/_todos/GRD-001-F_guarded.md"
+run_case "guard: an archived task ends the guard" "${GUARD_HOOK}" \
+  "$(guard_payload sess-armed 'All archived.')" 0
+if [ ! -e "${AGENTS_RUN_GUARD_DIR}/sess-armed" ]; then
+  echo "PASS: guard: the marker is removed once nothing is open"; PASS_COUNT=$((PASS_COUNT + 1))
+else
+  echo "FAIL: guard: the marker is removed once nothing is open"; FAIL_COUNT=$((FAIL_COUNT + 1))
+fi
+unset AGENTS_RUN_GUARD_DIR
+
+# ---------------------------------------------------------------------------
 # session-drift.sh
 # ---------------------------------------------------------------------------
 DRIFT_HOOK="${HOOKS_DIR}/session-drift.sh"

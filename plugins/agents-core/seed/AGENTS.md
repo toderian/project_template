@@ -75,6 +75,9 @@ available skills and pick from that instead of guessing another prefix.
 | Your task | Use |
 |---|---|
 | Implement a tracked task | `agents-core:execute-plan` (+ `agents-tasks:task-ledger` when `docs/tasks_manager/` exists) |
+| Run a task end to end with nobody answering (overnight) | `agents-core:unattended-run` first, then `agents-core:execute-plan` |
+| Independent phases or child tasks, run in parallel | `agents-core:execute-parallel` |
+| Asking the user for a decision | `agents-core:ask` (context, options, what it affects, recommendation) |
 | New feature or bug fix | `agents-core:tdd` |
 | Something behaves unexpectedly | `agents-core:diagnose` |
 | Plan before code, or scope unclear | `agents-core:planning-workflow`; `agents-tasks:add-task` (spec sections) for a tracked task; `agents-core:spec-workflow` only for multi-session spec artifacts |

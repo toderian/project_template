@@ -761,7 +761,7 @@ class Runner:
                      if r and r.lower() not in ("n/a", "none", "-")]
             if len(names) > 1:  # the skill's trigger is work across repos, not the row itself
                 reasons.append(f"{len(names)} repos")
-            if re.search(r"^\|\s*Execution\s*\|\s*orchestrated", text, re.M | re.I):
+            if re.search(r"^\|\s*Execution\s*\|[^|\n]*\borchestrated\b", text, re.M | re.I):
                 reasons.append("Execution: orchestrated")
             if re.search(r"^### Design\b", text, re.M):
                 reasons.append("Design section")

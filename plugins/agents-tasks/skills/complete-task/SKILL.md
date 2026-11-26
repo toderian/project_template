@@ -97,7 +97,7 @@ Use explicit `None` rows when there is nothing to harvest. If a follow-up is nee
 ### 6. Write the completion summary
 
 Add `## Completion summary` with a short outcome summary and final validation state. Include any tests that were skipped or could not be run. When `docs/tasks_manager/_runs/<TASK-ID>/`
-exists (the task ran through `agents-core:execute-plan`), copy its `Ruling:` lines from `state.md` into
+exists (the task ran through `agents-core:execute-plan`), copy its `Ruling:` and `Decision:` lines from `state.md` into
 the summary so the decisions survive the run directory.
 
 ### 7. Archive

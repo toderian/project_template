@@ -63,6 +63,7 @@ updated: 2026-09-15T14:02:00
 Phase 1: BASE a1b2c3d; complete (commit 9f8e7d6, review clean)
 Phase 2: BASE 9f8e7d6; fix round 1/3 (2 addressed, 1 open: validator ignores empty payload)
 Ruling: empty-payload check — accepted as-is, phase 3 owns payload validation — cost if wrong: one extra 400 path
+Decision: stuck job blocks the baseline scan — hard-stopped it — why: inside the authorised lab scope — cost if wrong: one lost partial scan
 Interface: SessionValidator.validate(token) -> Result[Session, SessionError]  (phase 1, for later phases)
 Note: e2e is N/A for this repo (no browser harness); recorded in the task file
 ```
@@ -81,11 +82,22 @@ Rules the validator enforces:
 - `Spec`, `Quality`, `Security` cells are `—` (not run yet), `n/a`, `PASS` or `FAIL`. In small mode the
   single reviewer's verdict fills both `Spec` and `Quality`.
 - A `committed` row has a SHA in `Commit`, and every SHA must exist in the repository.
-- Free lines after the table start with `Phase N:`, `Ruling:`, `Interface:` or `Note:`. Nothing else.
+- Free lines after the table start with `Phase N:`, `Ruling:`, `Decision:`, `Interface:` or `Note:`.
+  Nothing else. `Ruling:` closes a review finding; `Decision:` records a choice you made where you
+  would otherwise have asked the owner (`<question> — <chosen> — why: … — cost if wrong: …`).
 - `Agent` holds a subagent id when the runtime can resume by id (Claude Code); otherwise `—`.
 
 `Open` is the count of findings not yet fixed or ruled. `Attempt` counts implementer dispatches for
 the phase including fix rounds.
+
+## Run guard
+
+`at run-guard arm <TASK-ID|state.md>...` writes a marker for this session outside the repo
+(`~/.local/state/agents-template/run-guard/<session id>`). While a guarded task is still in `_todos/`,
+or a guarded `state.md` has a row that is not `committed`, the plugin's Stop hook (`run-guard.sh`)
+ends a turn only on a `Run: WAITING …` or `Run: BLOCKED …` line. It never touches another session,
+removes itself when nothing is open, and lets the stop through after five sent-backs in a row.
+`at run-guard status` shows the targets; `at run-guard disarm` switches it off.
 
 ## Resume
 
@@ -107,7 +119,8 @@ A resumed run starts from the file, not from memory:
    - `reviewing` / `fixing` → regenerate `diff.patch` from `BASE` and rerun the reviews or the pending
      fix round; the `findings-R.md` files say where the loop stopped.
    - `blocked` / `parked` → a human decision is recorded as missing; ask before continuing.
-7. Set `runtime:` to the runtime you detected now — it may differ from the session that started the run.
+7. Arm the run guard again: the marker belongs to the session that wrote it.
+8. Set `runtime:` to the runtime you detected now — it may differ from the session that started the run.
 
 ## Without agents-tasks
 

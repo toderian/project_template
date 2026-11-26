@@ -84,6 +84,7 @@ at doctor --all               # check both runtimes when both CLIs are installed
 at task brief AUTH-001 --phase 2      # one phase of a task as a self-contained implementer brief
 at task run-state init AUTH-001       # open the resume map for agents-core:execute-plan
 at task run AUTH-001 --check "make test"   # drive the whole execute-plan loop from a shell
+at run-guard status                   # what this session must finish before its turn may end (disarm: at run-guard disarm)
 at peer enable codex          # opt in, this checkout only: large reviews also ask the other agent CLI
 at addon enable browser       # opt in, this repo: UI skills plus a browser the agent can look through
 ```
@@ -131,7 +132,7 @@ commit — without stashing or committing them first; `--commit` never sweeps th
 
 | Plugin | What's inside | Enable it when |
 |---|---|---|
-| `agents-core` | 18 skills (plan execution, TDD, diagnose, spec + planning workflows, grilling, codebase design, handoff, subagent protocol, security review, git discipline, project setup), 7 hooks (5 safety guards, a subagent report-contract check, a seed-drift notice at session start), 6 subagent roles, the `at` CLI | Always — it is the contract |
+| `agents-core` | 21 skills (plan execution in order or in parallel lanes, unattended runs, structured questions to the user, TDD, diagnose, spec + planning workflows, grilling, codebase design, handoff, subagent protocol, security review, git discipline, project setup), 8 hooks (5 safety guards, a subagent report-contract check, a run guard that keeps a session from ending a turn mid-run, a seed-drift notice at session start), 6 subagent roles, the `at` CLI | Always — it is the contract |
 | `agents-tasks` | 26 skills: the `docs/tasks_manager/` task ledger and its tooling, task simplification and verification, wayfinder decision maps, knowledge base, design trees (`at design`), exploratory testing against them (`at explore`), workbooks, artifact registry, cross-repo workflows | The repo tracks work as task files, or wants durable notes/registries |
 | `agents-extras` | 19 skills: architecture review, domain modeling, GitHub triage and PRDs, UI/frontend review, migration safety, pre-commit setup, skill and agent-doc authoring, repository memory sync | You want the wider review/GitHub/UI toolkit |
 | `agents-personal` | 8 skills: writing, editing, Obsidian, teaching, niche migrations | Personal repos; not useful in most codebases |

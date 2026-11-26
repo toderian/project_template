@@ -2,6 +2,31 @@
 
 Notable changes to agents-template. All four plugins share the version of the repository.
 
+## Unreleased
+
+### Added
+
+- **Run guard.** `agents-core:execute-plan` arms it when it opens or resumes a run
+  (`at run-guard arm <TASK-ID>...`). Until the guarded tasks are archived, a new Stop hook
+  (`run-guard.sh`) lets that session end a turn only on `Run: WAITING <job>` or
+  `Run: BLOCKED <decision>`; a phase summary is sent back to the first open row. It is keyed by
+  session id, removes itself when nothing is open, and gives way after five sent-backs in a row.
+  `at run-guard status | disarm`. Claude Code only: Codex exposes no session id, so `arm` exits 3.
+- `agents-core:unattended-run`: a readiness check before a run that nobody will watch, the
+  `Execution: unattended` mark, an `### Unattended run` section holding what the owner authorised,
+  and the rule during the run: decide inside that scope and log it, park the rest, keep going.
+- `Decision:` lines in `state.md`: a choice the agent made where it would have asked the owner.
+  `at task run-state check` accepts them and `agents-tasks:complete-task` copies them into the
+  completion summary next to the `Ruling:` lines.
+- `agents-core:execute-parallel`: independent phases (`After:` lines) or child tasks run as up to
+  three lanes, each in its own worktree; lanes are merged one at a time with the checks after each
+  merge, and every integrated wave is reviewed. `agents-core:execute-plan` routes to it.
+- `agents-core:ask`: one format for a question to the user (context, options with consequences,
+  what it affects, recommendation, what happens with no answer), as an interactive menu where the
+  harness has one. Called by the user, it re-asks every open question that way.
+- Task convention: `Execution` takes `orchestrated`, `parallel` and `unattended`, comma-separated; a
+  phase states `After:` when it does not need the phase before it.
+
 ## 1.14.0 — 2026-11-25
 
 ### Changed

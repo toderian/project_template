@@ -16,6 +16,10 @@
       { "matcher": "startup", "hooks": [
         { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/session-drift.sh" } ] }
     ],
+    "Stop": [
+      { "hooks": [
+        { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/run-guard.sh" } ] }
+    ],
     "SubagentStop": [
       { "matcher": "implementer|reviewer|security-auditor|spec-validator|plan-critic|researcher", "hooks": [
         { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/require-subagent-status.sh" } ] }

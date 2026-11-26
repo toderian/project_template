@@ -378,6 +378,18 @@ at task run-state check TST-003 >/dev/null 2>&1
 assert_eq "$?" "0" "at task run-state check exits 0 on a fresh state"
 at task >/dev/null 2>&1
 assert_eq "$?" "2" "bare at task exits 2"
+GUARD_TMP="$(mktemp -d)"
+GUARD_OUT="$(AGENTS_RUN_GUARD_DIR="$GUARD_TMP" CLAUDE_CODE_SESSION_ID=sess-t at run-guard arm TST-003 docs/tasks_manager/_runs/TST-003/state.md 2>&1)"
+assert_eq "$?" "0" "at run-guard arm exits 0: $GUARD_OUT"
+assert_contains "$GUARD_TMP/sess-t" "TST-003" "run-guard arm writes the session marker"
+assert_contains "$GUARD_TMP/sess-t" "state.md" "run-guard arm accepts a state file"
+AGENTS_RUN_GUARD_DIR="$GUARD_TMP" CLAUDE_CODE_SESSION_ID=sess-t at run-guard arm NOPE-999 >/dev/null 2>&1
+assert_eq "$?" "1" "run-guard arm refuses an unknown task"
+AGENTS_RUN_GUARD_DIR="$GUARD_TMP" CLAUDE_CODE_SESSION_ID= at run-guard arm TST-003 >/dev/null 2>&1
+assert_eq "$?" "3" "run-guard arm without a session id exits 3"
+AGENTS_RUN_GUARD_DIR="$GUARD_TMP" CLAUDE_CODE_SESSION_ID=sess-t at run-guard disarm >/dev/null 2>&1
+assert_missing "$GUARD_TMP/sess-t" "run-guard disarm removes the marker"
+rm -rf "$GUARD_TMP"
 TASK_RUN_DRY="$(at task run TST-003 --harness claude --dry-run 2>&1)"
 assert_eq "$?" "0" "at task run --dry-run exits 0: $TASK_RUN_DRY"
 if printf '%s\n' "$TASK_RUN_DRY" | grep -q '\[dry-run\] phase 3'; then pass; else fail "at task run --dry-run lists every phase: $TASK_RUN_DRY"; fi

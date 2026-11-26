@@ -34,7 +34,7 @@ META_ROWS = ("Task ID", "Type", "Area", "Repos", "Autonomy", "Spec refs")
 RUNTIMES = ("claude", "codex", "inline")
 STATUSES = ("pending", "implementing", "reviewing", "fixing", "committed", "blocked", "parked")
 VERDICTS = ("—", "n/a", "PASS", "FAIL")
-LEDGER_PREFIXES = ("Phase ", "Ruling:", "Interface:", "Note:")
+LEDGER_PREFIXES = ("Phase ", "Ruling:", "Decision:", "Interface:", "Note:")
 STATE_KEYS = ("task", "task_file", "runtime", "base_rev", "branch", "work_mode", "autonomy",
               "current_phase", "updated")
 STATE_MAX_LINES = 60
@@ -301,7 +301,7 @@ def check_state(path: Path, task: Task, root: Path, final: bool = False) -> tupl
                           "with the final-review brief)")
     for line in ledger:
         if not line.startswith(LEDGER_PREFIXES) or (line.startswith("Phase ") and not re.match(r"^Phase \d+:", line)):
-            errors.append(f"{rel}: ledger line must start with `Phase N:`, `Ruling:`, `Interface:` or `Note:`: {line!r}")
+            errors.append(f"{rel}: ledger line must start with `Phase N:`, `Ruling:`, `Decision:`, `Interface:` or `Note:`: {line!r}")
     return errors, warnings
 
 

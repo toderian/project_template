@@ -48,7 +48,7 @@ class RunState(unittest.TestCase):
         tmp = fresh(git=True); run(tmp, "run-state", "init", "TST-003")
         sha = subprocess.run(["git", "-C", str(tmp), "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip()
         s = (tmp / STATE).read_text().replace("| 1 | pending | 0 | — | — | — | 0 | — | — |", f"| 1 | committed | 1 | PASS | PASS | n/a | 0 | {sha} | — |")
-        (tmp / STATE).write_text(s + "Phase 1: complete (review clean)\nRuling: keep helper — smaller diff — cost if wrong: duplicate parsing\nInterface: Validator.validate(w) -> Result\n")
+        (tmp / STATE).write_text(s + "Phase 1: complete (review clean)\nRuling: keep helper — smaller diff — cost if wrong: duplicate parsing\nDecision: restart the lab stack — chose restart over reseed — why: 4 min vs 20 — cost if wrong: one rerun\nInterface: Validator.validate(w) -> Result\n")
         c = run(tmp, "run-state", "check", "TST-003"); self.assertEqual(c.returncode, 0, c.stderr)
     def test_check_without_git_only_warns_on_commit(self):
         tmp = fresh(); run(tmp, "run-state", "init", "TST-003")

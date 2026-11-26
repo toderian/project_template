@@ -75,7 +75,7 @@ TASKS_CACHE="$CACHE_BASE/agents-tasks/$VERSION"
   fail "installed task reservation helper is missing or not executable"
 
 SKILL_COUNT="$(find "$CACHE_BASE" -path '*/skills/*/SKILL.md' -type f | wc -l | tr -d ' ')"
-[[ "$SKILL_COUNT" == "71" ]] || fail "installed payload exposes $SKILL_COUNT skills, expected 71"
+[[ "$SKILL_COUNT" == "74" ]] || fail "installed payload exposes $SKILL_COUNT skills, expected 74"
 POLICY_COUNT="$(find "$CACHE_BASE" -path '*/skills/*/agents/openai.yaml' -type f | wc -l | tr -d ' ')"
 [[ "$POLICY_COUNT" == "9" ]] || fail "installed payload exposes $POLICY_COUNT Codex policies, expected 9"
 while IFS= read -r policy; do
@@ -97,8 +97,9 @@ jq -e '
   (.hooks.PreToolUse | length) == 2 and
   (.hooks.PostToolUse | length) == 1 and
   (.hooks.SubagentStop | length) == 1 and
+  (.hooks.Stop | length) == 1 and
   (.hooks.SessionStart | length) == 1 and
-  ([.hooks[][]?.hooks[]?.command] | length) == 7
+  ([.hooks[][]?.hooks[]?.command] | length) == 8
 ' "$CORE_CACHE/hooks/hooks.codex.json" >/dev/null || fail "installed Codex hook manifest is malformed"
 
 SAFE_PAYLOAD="$(jq -nc --arg command 'git status --short' '{tool_input: {command: $command}}')"
@@ -143,4 +144,4 @@ export PATH="$CORE_CACHE/bin:$PATH"
   HOME="$TEST_HOME" at repos-check >/dev/null || fail "seeded repo registry failed validation"
 )
 
-echo "test-codex-live: ok (Codex $ACTUAL_VERSION, 71 skills, 9 policies, 6 roles)"
+echo "test-codex-live: ok (Codex $ACTUAL_VERSION, 74 skills, 9 policies, 6 roles)"

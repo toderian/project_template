@@ -195,6 +195,12 @@ expected to have; `at task size` prints it above the phase's size table and the 
 it like a checklist item. It may budget tests and fixtures too. Without one, expect test+fixture growth within
 ~2x code growth and no fixture of 500 lines or more without a stated reason; `at task size` flags both.
 
+A plan is serial unless it says otherwise. When a phase does not need the phase before it, say so
+with one `After:` line under its heading: `After: none`, or `After: 1, 2` for the phases it does
+need. A phase without the line depends on the previous one. Write the lines whenever a task has two
+or more phases that touch different files; `agents-core:execute-plan` then runs them as parallel
+lanes. Child tasks of a parent state the same with `Blocked by`.
+
 ### Optional metadata rows
 
 Add a row when it carries a real value; omit it otherwise (never fill `N/A` to satisfy a template).
@@ -209,7 +215,7 @@ Add a row when it carries a real value; omit it otherwise (never fill `N/A` to s
 | `Repos` | `.config/repos.project.md` exists and scope is inferable | repo slugs |
 | `Autonomy` | the task must be stricter than the repo default | `L0`–`L3`, never above the repo max |
 | `Target date` / `Deadline` | the user gave explicit scheduling intent | `YYYY-MM-DD` |
-| `Execution` | the task must run through the full orchestrated pipeline regardless of size | `orchestrated` |
+| `Execution` | the task must run through the full orchestrated pipeline regardless of size (`orchestrated`); its independent phases or children run as parallel lanes (`parallel`); it runs start to end with no one answering, after the readiness check of `agents-core:unattended-run` (`unattended`) | one or more of `orchestrated`, `parallel`, `unattended`, comma-separated |
 
 `Status` is `open`, `in_progress`, `done`, or `cancelled`. `Priority` is `high`, `medium`, or `low`;
 roadmap order decides the execution sequence. `Source` names the skill or process that created the

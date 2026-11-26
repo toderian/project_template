@@ -43,9 +43,26 @@ The dispatch rules, status vocabulary, fix-loop cap and `Ruling:` format come fr
   or every open finding carries a `Ruling:` line.
 - The final whole-task review reports no blocking or acceptance-failing findings.
 - Residual concerns are recorded as non-blocking.
+- Every decision taken without the owner has a `Decision:` line in `state.md`.
 
 If a phase does not converge within the fix-loop cap, or the final review does not converge in one
 fix wave, stop and report the remaining issues instead of looping.
+
+## Run to the end
+
+A run is finished when every row is `committed` and closeout is done, or when every row left is
+`parked` or `blocked`. A committed phase, a written summary and a compacted context are not stopping
+points: report progress in a line and start the next row in the same turn.
+
+- Step 3 arms the run guard. From then on a turn may end mid-run only when the last message carries,
+  on a line of its own, `Run: WAITING <the background job or subagent that will report back>` or
+  `Run: BLOCKED <what only the owner can decide>`; a Stop hook sends anything else back to the first
+  open row. `WAITING` needs something running now that will wake the session. `BLOCKED` is for when
+  no open row can proceed without the owner.
+- A task marked `Execution: unattended` is decided by `agents-core:unattended-run`: inside the scope
+  the owner authorised you choose and record a `Decision:` line, outside it you park the row and
+  continue with what does not depend on it.
+- A question to the owner goes through `agents-core:ask`, never as a bare sentence.
 
 ## Process
 
@@ -56,6 +73,7 @@ fix wave, stop and report the remaining issues instead of looping.
 | trivial | a one-sentence diff, not a tracked task | not this skill: edit, test, commit (`agents-core:tdd`) |
 | **small** | ≤ 2 phases, scope fence ≤ ~10 files, no large trigger | you implement each phase; two `reviewer`s per phase (`Stage: both` + second reviewer); two final reviewers plus the peer |
 | **large** | any large trigger | thin orchestrator: `plan-critic` architecture review, fresh `implementer` per phase, parallel spec + quality reviewers, conditional `security-auditor`, two final reviewers |
+| parallel | phases carry `After:` lines or the task says `Execution: parallel`, or a parent task has ≥ 2 children that do not block each other | `agents-core:execute-parallel`: lanes in worktrees, each lane on its own rung, then integration |
 | program | too big for one task, way ahead unclear | `agents-tasks:wayfinder`; each resulting task runs its own rung |
 
 **Large triggers** — any one is enough; record which in `state.md` as `mode_reason:`:
@@ -154,6 +172,10 @@ permits it.
    than the one holding `_runs/` (the task's `Repos` row, paths in `.local/repos.map`), add
    `--code-repo <path>` to `init` (or `code_repo:` to the frontmatter): step 7 and the peer gate use it. Without `agents-tasks`, write `state.md`
    by hand from [references/run-state.md](references/run-state.md).
+4. Arm the run guard, on a resumed run too: `at run-guard arm <TASK-ID>` with every task of an
+   authorized chain (`at run-guard arm RM-280 RM-282 RM-276`), or the path of `state.md` for a plan
+   without the task ledger. Exit 3 means this harness has no hook for it: keep §"Run to the end" by
+   hand. The guard ends itself when the tasks are archived; `at run-guard disarm` is the owner's.
 
 Never use destructive cleanup to get a clean tree.
 
@@ -315,7 +337,8 @@ never squash early or remove run evidence before closeout consumes it.
 
 - **One checkout per run.** A task whose `Repos` metadata spans repos is one run per repo, in the
   order the phases require.
-- **Phases run in order.** No wave parallelism, so `Interface:` lines are always complete.
+- **Phases run in order here.** `Interface:` lines are then always complete. Independent phases or
+  child tasks run as waves under `agents-core:execute-parallel`.
 - **Implementers execute what they read.** An implementer with edit and Bash approval acts on the
   repository's content, including anything injected into it; the plugin hooks gate dangerous git,
   shell and secret paths, nothing else. For an untrusted repository use the worktree isolation in

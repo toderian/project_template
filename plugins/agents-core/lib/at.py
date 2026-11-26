@@ -10,6 +10,7 @@ Subcommands:
   design       wrapper: `sync` | `check` the design trees under docs/resources/<area>/design/
   explore      wrapper: exploratory-test ledger (`build` | `next` | `record`) and findings (`fingerprint` | `known`)
   task         `brief <TASK_ID> --phase N` | `run-state init|check <TASK_ID>` | `run <TASK_ID>` (scripted execute-plan) | `size <TASK_ID> --phase N|--final`
+  run-guard    `arm <TASK_ID|state.md>...` | `status` | `disarm`: keep this session from ending a turn mid-run
   addon        `list` | `status` | `enable <name>...` | `disable <name>...`: optional tools per repo
   reserve      wrapper: reserve an inbox idea or task filename
   repos-check  wrapper: validate `.config/repos.project.md`
@@ -28,6 +29,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 # Sibling modules (task_run, task_size, peer, addons, migrate) are imported lazily by name. Running
@@ -1369,6 +1371,67 @@ def cmd_task(args: argparse.Namespace) -> int:
     return _run_tasks_script("task_brief.py", list(args.rest))
 
 
+def run_guard_dir() -> Path:
+    base = os.environ.get("AGENTS_RUN_GUARD_DIR")
+    if base:
+        return Path(base)
+    state = os.environ.get("XDG_STATE_HOME") or str(Path.home() / ".local" / "state")
+    return Path(state) / "agents-template" / "run-guard"
+
+
+def cmd_run_guard(args: argparse.Namespace) -> int:
+    """Arm, show or drop the Stop-hook marker of this session (hooks/run-guard.sh reads it)."""
+    usage = "usage: at run-guard arm <TASK_ID|path/to/state.md>... | status | disarm  [--session ID]"
+    rest = list(args.rest)
+    session = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
+    if "--session" in rest:
+        i = rest.index("--session")
+        if i + 1 >= len(rest):
+            die(usage, code=2)
+        session = rest[i + 1]
+        del rest[i:i + 2]
+    if not rest or rest[0] not in ("arm", "status", "disarm"):
+        die(usage, code=2)
+    if not re.fullmatch(r"[A-Za-z0-9._-]+", session or ""):
+        print("at: run-guard: this harness exposes no session id (CLAUDE_CODE_SESSION_ID), so no hook "
+              "can hold the turn open. Follow the `Run:` declaration rule by hand.", file=sys.stderr)
+        return 3
+    marker = run_guard_dir() / session
+    if rest[0] == "disarm":
+        for path in (marker, marker.with_name(marker.name + ".count")):
+            path.unlink(missing_ok=True)
+        print("run-guard: off for this session")
+        return 0
+    lines = marker.read_text().splitlines() if marker.is_file() else []
+    if rest[0] == "status":
+        if not lines:
+            print("run-guard: off for this session")
+        for line in lines:
+            print("run-guard: " + line.replace("\t", " "))
+        return 0
+    if len(rest) < 2:
+        die(usage, code=2)
+    for target in rest[1:]:
+        if Path(target).is_file():
+            line = f"state\t{Path(target).resolve()}"
+        else:
+            root = repo_root()
+            if not list((root / "docs" / "tasks_manager" / "_todos").glob(f"{target}-*.md")):
+                die(f"run-guard: {target} is neither a file nor an open task in docs/tasks_manager/_todos/")
+            line = f"task\t{root}\t{target}"
+        if line not in lines:
+            lines.append(line)
+    marker.parent.mkdir(parents=True, exist_ok=True)
+    cutoff = time.time() - 14 * 86400
+    for old in marker.parent.iterdir():  # markers of sessions that are long gone
+        if old.is_file() and old.stat().st_mtime < cutoff:
+            old.unlink(missing_ok=True)
+    marker.write_text("\n".join(lines) + "\n")
+    print(f"run-guard: armed for this session ({len(lines)} target(s)); the turn ends only on "
+          "`Run: WAITING <job>` or `Run: BLOCKED <decision>` until they are done")
+    return 0
+
+
 def cmd_migrate(args: argparse.Namespace) -> int:
     import migrate  # lib/migrate.py
     return migrate.cmd_migrate(args, sys.modules[__name__])
@@ -1500,6 +1563,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_task = sub.add_parser("task", help="brief <TASK_ID> --phase N | run-state init|check <TASK_ID> | run <TASK_ID> | size <TASK_ID> --phase N|--final")
     p_task.add_argument("rest", nargs=argparse.REMAINDER)
     p_task.set_defaults(func=cmd_task)
+
+    p_guard = sub.add_parser("run-guard", help="arm <TASK_ID|state.md>... | status | disarm: the Stop hook keeps this "
+                             "session from ending a turn while the armed run is open")
+    p_guard.add_argument("rest", nargs=argparse.REMAINDER)
+    p_guard.set_defaults(func=cmd_run_guard)
 
     p_peer = sub.add_parser("peer", help="enable <cli>[:<model>]... [--required] | disable | status | run --role R --brief F --out F: "
                                          "read-only second opinion from the other agent CLI")

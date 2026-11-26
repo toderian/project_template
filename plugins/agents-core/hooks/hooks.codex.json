@@ -50,6 +50,16 @@
         ]
       }
     ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${PLUGIN_ROOT}\"/hooks/run-guard.sh"
+          }
+        ]
+      }
+    ],
     "SubagentStop": [
       {
         "matcher": "implementer|reviewer|security-auditor|spec-validator|plan-critic|researcher",
