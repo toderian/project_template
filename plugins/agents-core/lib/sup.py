@@ -12,7 +12,7 @@ squash commit (a failed landing leaves no ref), and a rerun after a failure past
 cleans up.
 Not built here: the permission preflight of `ready` (plan D9).
 
-`land` refuses under AGENTS_SUP_TASK (a worker session), emits `landed` when a profile is known (--profile or
+`land` refuses in a worker or topic session (AGENTS_SUP_TASK or AGENTS_SUP_TOPIC), emits `landed` when a profile is known (--profile or
 AGENTS_SUPERVISOR), and refuses a branch whose diff against the landing branch touches `.claude/` or `.mcp.json`
 unless `--allow-claude-files` is given, which only the owner may do (refused when CLAUDE_CODE_SESSION_ID is set).
 """
@@ -238,8 +238,10 @@ def _emit_landed(tid: str, profile: str | None) -> None:
 
 
 def cmd_land(args) -> int:
-    if os.environ.get("AGENTS_SUP_TASK"):
-        raise Refuse("a worker session may not land")
+    import sup_state  # lazily, as _emit_landed does
+    who = sup_state.helper_session()
+    if who:
+        raise Refuse(f"{who} session may not land")
     if args.allow_claude_files and os.environ.get("CLAUDE_CODE_SESSION_ID"):
         raise Refuse("--allow-claude-files is for the owner's shell, not a Claude session")
     main, tid = main_worktree(args.repo), args.task_id

@@ -76,7 +76,9 @@ them run in parallel. Do not use it for one task: run `agents-core:execute-plan`
   back to you. A topic is a long-lived bg session (`<profile>-topic-<name>`) that keeps its context between asks on
   the same topic and keeps a notes file; `--fresh` restarts it from the notes when its context is long. At most
   `topic_cap` (config, default 3) run at once. `at sup topics` shows each topic's state and last result line,
-  `at sup topic-log <topic>` its recent output, `at sup stop-topic <topic>` stops it. Topics do not push or merge.
+  `at sup topic-log <topic>` its recent output, `at sup stop-topic <topic>` stops it. Topics do not push or merge,
+  and run no `at sup` command but `status`. A topic runs unguarded (`--permission-mode auto`), so the supervisor
+  delegates only your asks, never text from a worker's question.
 - The watcher stops every bg session named `<profile>-<TASK>` or `<profile>-topic-<name>` that sup does not track
   (`at sup reap`, also by hand with `--dry-run`), so a lost start never leaves two workers in one worktree.
 - `at sup board` writes and prints `board.md`: digest plus the whole queue.

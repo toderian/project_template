@@ -135,9 +135,15 @@ class Topics(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertIn("a  stopped  asks 1", self.cli("topics")[1])
         self.assertEqual(self.cli("delegate", "b", "y")[0], 0)  # a stopped topic does not count against the cap
+        rc, _, err = self.cli("delegate", "a", "back")  # resuming a stopped topic adds one: the cap holds
+        self.assertEqual(rc, 3); self.assertIn("topic cap 1 reached (b)", err)
+        self.assertTrue(tp.result_path("p", "a").exists())  # a refused ask keeps the old result
+        self.cli("stop-topic", "b")
+        stops = len(self.calls("stop"))
         rc, out, _ = self.cli("delegate", "a", "back")  # a stopped topic resumes without a stop
         self.assertTrue(out.startswith("resumed topic a"), out)
-        self.assertFalse(tp.result_path("p", "a").exists())  # each ask clears the old result
+        self.assertEqual(len(self.calls("stop")), stops)
+        self.assertFalse(tp.result_path("p", "a").exists())  # a handed-over ask clears the old result
 
     def test_a_resume_that_starts_a_copy_stops_the_copy_and_refuses(self):
         self.cli("delegate", "nav", "first")
@@ -148,6 +154,44 @@ class Topics(unittest.TestCase):
         self.assertEqual(len([a for a in self.calls("--resume") if "second" in a]), tp.RESUME_TRIES)  # retried, then refused
         (self.t / "copy").unlink()
         self.assertEqual(self.cli("delegate", "nav", "third")[0], 0)
+
+    def test_fresh_refuses_a_busy_topic_without_interrupt_and_at_the_cap_stops_nothing(self):
+        self.cli("delegate", "a", "x")
+        sid = tp.topics("p")[0]["session"]
+        (self.t / "busy").write_text(sid[:8])
+        rc, _, err = self.cli("delegate", "a", "again", "--fresh")
+        self.assertEqual(rc, 3); self.assertIn("busy", err)
+        self.assertEqual(self.calls("stop"), [])
+        (self.t / "busy").unlink()
+        self.cli("delegate", "b", "y")
+        self.cli("stop-topic", "a")
+        st.set_config("p", topic_cap=1)
+        stops = len(self.calls("stop"))
+        rc, _, err = self.cli("delegate", "a", "again", "--fresh")  # a is stopped, b holds the cap
+        self.assertEqual(rc, 3); self.assertIn("topic cap 1 reached (b)", err)
+        self.assertEqual((len(self.calls("stop")), len(self.calls("--bg"))), (stops, 2))
+
+    def test_a_failed_resume_keeps_the_pending_question(self):
+        self.cli("delegate", "nav", "first")
+        tp.result_path("p", "nav").write_text("TOPIC nav blocked: which branch?\n")
+        (self.t / "copy").write_text("")
+        self.assertEqual(self.cli("delegate", "nav", "second")[0], 3)
+        self.assertEqual(tp.last_result("p", "nav"), "blocked: which branch?")
+        self.assertFalse(tp.result_path("p", "nav").with_suffix(".result.prev").exists())
+
+    def test_prompt_allows_the_notes_and_result_files(self):
+        self.cli("delegate", "a", "x")
+        self.assertIn("except your notes file and your result file", self.calls("--bg")[0][5])
+
+    def test_plain_ends_an_osc_at_st_as_well_as_bel(self):
+        text = "a \x1b]8;;http://x\x1b\\link\x1b]8;;\x1b\\ b\nkept line\n\x1b]0;title\x07c"
+        self.assertEqual(tp.plain(text), "a link b\nkept line\nc")
+
+    def test_stop_topic_refuses_when_claude_cannot_run(self):
+        self.cli("delegate", "a", "x")
+        os.environ["AGENTS_CLAUDE_BIN"] = str(self.t / "missing")
+        rc, _, err = self.cli("stop-topic", "a")
+        self.assertEqual(rc, 3); self.assertNotIn("Traceback", err)
 
     def test_refusals(self):
         self.assertEqual(self.cli("delegate", "Bad_Name", "x")[0], 2)

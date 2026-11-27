@@ -251,6 +251,16 @@ def drop_worker(profile: str, session: str) -> None:
     write_json(profile_dir(profile) / "workers.json", [w for w in workers(profile) if w.get("session") != session])
 
 
+def helper_session() -> str | None:
+    """"a worker" under AGENTS_SUP_TASK, "a topic" under AGENTS_SUP_TOPIC, else None: the sessions sup starts itself, which
+    may run no owner or supervisor command (an honest-mistake check, not a fence: same uid as the state directory)."""
+    if os.environ.get("AGENTS_SUP_TASK"):
+        return "a worker"
+    if os.environ.get("AGENTS_SUP_TOPIC"):
+        return "a topic"
+    return None
+
+
 def worker_for(profile: str, task: str | None = None, session: str | None = None) -> dict | None:
     return next((w for w in workers(profile)
                  if (session and w.get("session") == session) or (task and w.get("task") == task)), None)

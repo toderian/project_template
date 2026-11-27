@@ -7,7 +7,9 @@ resumes it with its context. The supervisor reads only the topic's last result l
 
 Commands (all take --profile, default $AGENTS_SUPERVISOR; exit 0 ok, 2 usage, 3 refused):
   delegate <topic> '<ask>' [--fresh] [--interrupt]   chat only. Start the topic, or resume it with the ask. A busy topic
-                                                      is refused unless --interrupt. --fresh stops the old session and
+                                                      is refused unless --interrupt (also with --fresh); a topic that
+                                                      does not run now is refused at the cap before anything is stopped
+                                                      or started. --fresh stops the old session and
                                                       starts a new one that reads the topic's notes file instead of an
                                                       old transcript (the way to give a long topic a clean context).
   topics                                              the topics: state, asks, age and the last result line
@@ -15,9 +17,12 @@ Commands (all take --profile, default $AGENTS_SUPERVISOR; exit 0 ok, 2 usage, 3 
   stop-topic <topic>                                  chat only. Stop the session; its notes and row stay, so a later
                                                       delegate resumes it
 State: topics.json in the profile directory, a list of {name, session, started, asks, last_ask, state}; under topics/,
-<name>.md (notes) and <name>.result (the last TOPIC line, cleared at each ask), both written by the topic session.
+<name>.md (notes) and <name>.result (the last TOPIC line, cleared once an ask is handed over), both written by the
+topic session.
 A resume waits until the stopped session has exited (sup_workers.wait_gone) and stops any copy claude starts instead. config key `topic_cap` (default 3) caps the topics
-that run at once. A worker or a topic session may run none of these (sup_workers._command refuses both).
+that run at once. A worker or a topic session may run none of these, nor any owner or supervisor command of `at sup`
+(sup_state.helper_session). Trust: an ask runs unguarded (`--permission-mode auto`, the owner's PATH), so the supervisor
+delegates only the owner's asks, never text taken from a worker's question; see sup_guard's trust model.
 """
 from __future__ import annotations
 
@@ -33,13 +38,13 @@ TOPIC_CAP = 3
 RESUME_TRIES = 3
 RESULT = re.compile(r"^\s*TOPIC (\S+) (done|blocked): (.*)$")
 ANSI_MOVE = re.compile(r"\x1b\[[0-9;]*[CG]")  # cursor moves inside a line: read as a space
-ANSI = re.compile(r"\x1b(\[[0-9;?]*[A-Za-z]|\][^\x07]*\x07|.)")
+ANSI = re.compile(r"\x1b(\[[0-9;?]*[A-Za-z]|\][^\x07\x1b]*(?:\x07|\x1b\\)|.)")  # OSC ends at BEL or ST (ESC \\)
 TOPIC_PROMPT = (
     "You are the helper session for topic `{topic}` of supervisor profile `{profile}` (hub {hub}). The supervisor cannot "
     "run git, a shell or read code; it hands such asks to you and keeps your session alive for later asks on this topic. "
     "Do the work yourself: git, shell, reading and editing files in the hub and the repos of {hub}/.local/repos.map and their "
     "worktrees. Do not push, do not merge, do not force, do not delete a branch someone else is working on, and do not edit "
-    "files under the supervisor state directory ({state}). Do not run `at sup` commands: the supervisor does those. "
+    "files under the supervisor state directory ({state}) except your notes file and your result file below. Do not run `at sup` commands: the supervisor does those. "
     "Keep a short notes file at {notes}: what the topic is, what you found, what you changed (commits, paths) and what is "
     "open; update it before you end every turn, because a fresh session of this topic starts from it. End every turn with "
     "exactly one line `TOPIC {topic} done: <one-line result>` or `TOPIC {topic} blocked: <the question for the owner>`, "
@@ -105,6 +110,27 @@ def plain(text: str) -> str:
     return ANSI.sub("", ANSI_MOVE.sub(" ", text)).replace("\r", "")
 
 
+def _hand_over(profile: str, name: str, start) -> str:
+    """Run start() with the old result file moved aside: it goes on success (the new ask writes a new one) and comes back
+    on failure, so a pending `blocked:` question is not lost to a refused start or resume. Moved before, not deleted
+    after, so a topic that answers fast is not cleared."""
+    res = result_path(profile, name)
+    old = res.with_suffix(".result.prev")
+    try:
+        res.replace(old)
+    except OSError:
+        old = None
+    try:
+        out = start()
+    except BaseException:
+        if old and not res.exists():
+            old.replace(res)
+        raise
+    if old:
+        old.unlink(missing_ok=True)
+    return out
+
+
 def last_result(profile: str, name: str) -> str | None:
     """`done: ...` or `blocked: ...` from the last TOPIC line the topic wrote to its result file."""
     try:
@@ -131,43 +157,43 @@ def cmd_delegate(profile: str, args) -> int:
     with st.locked(profile):
         row = _row(profile, name)
     agent = _agent(row, found)
+    if _busy(agent) and not args.interrupt:
+        raise sw.Refused(f"topic {name} is busy; wait, or pass --interrupt to stop its turn")
+    if not agent:  # a topic that does not run now would add one: check the cap before anything stops or starts
+        others = [t for t in topics(profile) if t.get("name") != name and _agent(t, found)]
+        cap = int(st.config(profile).get("topic_cap", TOPIC_CAP))
+        if len(others) >= cap:
+            raise sw.Refused(f"topic cap {cap} reached ({', '.join(t['name'] for t in others)}); "
+                             "stop one with `at sup stop-topic`")
+    if agent:
+        sw._stop_session(row["session"])
+        if not sw.wait_gone(row["session"]):
+            raise sw.Refused(f"topic {name} ({row['session'][:8]}) did not stop; try again")
     if row and row.get("session") and not args.fresh:
-        if _busy(agent) and not args.interrupt:
-            raise sw.Refused(f"topic {name} is busy; wait, or pass --interrupt to stop its turn")
-        if agent:
-            sw._stop_session(row["session"])
-            if not sw.wait_gone(row["session"]):
-                raise sw.Refused(f"topic {name} ({row['session'][:8]}) did not stop; try again")
-        result_path(profile, name).unlink(missing_ok=True)
-        woke = False
-        for attempt in range(RESUME_TRIES):  # a session that just stopped may still be exiting: claude then starts a copy
-            woke = sw.resume_bg(row["session"], ask, [], env, str(hub))
-            if woke or not any(x.startswith("claude started a copy") for x in sw.RESUME_SAID):
-                break
-            if attempt < RESUME_TRIES - 1:
-                sw.time.sleep(sw.POLL_DELAY * 4)
-                sw.wait_gone(row["session"])
-        if not woke:
+        def resume() -> str:
+            for attempt in range(RESUME_TRIES):  # a session that just stopped may still be exiting: claude starts a copy
+                if sw.resume_bg(row["session"], ask, [], env, str(hub)):
+                    return row["session"]
+                if not any(x.startswith("claude started a copy") for x in sw.RESUME_SAID):
+                    break
+                if attempt < RESUME_TRIES - 1:
+                    sw.time.sleep(sw.POLL_DELAY * 4)
+                    sw.wait_gone(row["session"])
             said = sw.RESUME_SAID[-1] if sw.RESUME_SAID else "no output"
             raise sw.Refused(f"could not resume topic {name} ({row['session'][:8]}): {said}; try --fresh")
+        _hand_over(profile, name, resume)
         with st.locked(profile):
-            _set(profile, name, asks=row.get("asks", 0) + 1, last_ask=st.now(), state="running")
+            asks = (_row(profile, name) or row).get("asks", 0) + 1  # re-read under the lock: delegates may overlap
+            _set(profile, name, asks=asks, last_ask=st.now(), state="running")
             st.touch(profile, f"delegate {name}")
         print(f"resumed topic {name} {row['session']}")
         return 0
-    if agent:
-        sw._stop_session(row["session"])
-    others = [t for t in topics(profile) if t.get("name") != name and _agent(t, found)]
-    cap = int(st.config(profile).get("topic_cap", TOPIC_CAP))
-    if len(others) >= cap:
-        raise sw.Refused(f"topic cap {cap} reached ({', '.join(t['name'] for t in others)}); stop one with `at sup stop-topic`")
     notes = notes_path(profile, name)
     notes.parent.mkdir(exist_ok=True)
-    result_path(profile, name).unlink(missing_ok=True)
     prompt = TOPIC_PROMPT.format(topic=name, profile=profile, hub=hub, state=st.profile_dir(profile), notes=notes,
                                  result=result_path(profile, name), notes_hint=NOTES_HINT if notes.is_file() else "",
                                  ask=ask)
-    session = sw._bg_session(profile, f"topic-{name}", str(hub), env, prompt, [])  # no --add-dir: an untrusted folder refuses the start; the sibling repos are reached by path, as a worker does
+    session = _hand_over(profile, name, lambda: sw._bg_session(profile, f"topic-{name}", str(hub), env, prompt, []))  # no --add-dir: an untrusted folder refuses the start; the sibling repos are reached by path, as a worker does
     with st.locked(profile):
         _set(profile, name, session=session, started=st.now(), asks=1, last_ask=st.now(), state="running")
         st.touch(profile, f"delegate {name}{' --fresh' if args.fresh else ''}")
@@ -210,7 +236,11 @@ def cmd_stop_topic(profile: str, args) -> int:
     row = _row(profile, _name(args.topic))
     if not row or not row.get("session"):
         raise sw.Refused(f"no topic {args.topic}")
-    if sw._run([sw._claude(), "stop", row["session"][:8]], env=sw.clean_env()).returncode != 0:
+    try:
+        stopped = sw._run([sw._claude(), "stop", row["session"][:8]], env=sw.clean_env()).returncode == 0
+    except (OSError, sw.subprocess.SubprocessError):
+        stopped = False
+    if not stopped:
         found = sw.agents()
         if found is None or _agent(row, found):
             raise sw.Refused(f"claude stop {row['session'][:8]} failed")

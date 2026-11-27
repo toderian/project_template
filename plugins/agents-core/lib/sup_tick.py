@@ -170,8 +170,9 @@ def _session_flags(profile: str) -> list[str]:
 
 def _worker_session() -> bool:
     """True (and a message) inside a worker session: owner and supervisor commands refuse there."""
-    if os.environ.get("AGENTS_SUP_TASK"):
-        print("at: sup: refused: this command is for the owner or the supervisor, not a worker session", file=sys.stderr)
+    who = st.helper_session()
+    if who:
+        print(f"at: sup: refused: this command is for the owner or the supervisor, not {who} session", file=sys.stderr)
         return True
     return False
 

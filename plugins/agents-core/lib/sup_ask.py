@@ -31,6 +31,7 @@ import sup_state as st
 
 REFUSED = "at: sup: only the owner's chat may run this"
 REFUSED_WORKER = "at: sup: a worker session may not run this"
+REFUSED_TOPIC = "at: sup: a topic session may not run this"
 DEFAULT_MINUTES = 30
 MAX_MINUTES = 480  # profile key max_minutes overrides
 
@@ -62,7 +63,7 @@ def require_chat() -> bool:
     Every chat-only command of `at sup` calls this, from any part. Refused under AGENTS_SUP_TASK (a worker session) and
     in a process with AGENTS_SUPERVISOR but no session id. Not a fence against a worker: see the module docstring."""
     session = os.environ.get("CLAUDE_CODE_SESSION_ID")
-    if os.environ.get("AGENTS_SUP_TASK"):
+    if st.helper_session():
         print(REFUSED, file=sys.stderr)
         return False
     if session is None and os.environ.get("AGENTS_SUPERVISOR"):
@@ -79,8 +80,12 @@ def require_chat() -> bool:
 
 
 def not_worker(profile: str) -> bool:
-    """False under AGENTS_SUP_TASK or when the caller's session is a registered worker of the profile."""
+    """False in a worker or topic session (sup_state.helper_session) or when the caller's session is a registered worker
+    of the profile."""
     sid = os.environ.get("CLAUDE_CODE_SESSION_ID")
+    if os.environ.get("AGENTS_SUP_TOPIC"):
+        print(REFUSED_TOPIC, file=sys.stderr)
+        return False
     if os.environ.get("AGENTS_SUP_TASK") or (sid and st.worker_for(profile, session=sid)):
         print(REFUSED_WORKER, file=sys.stderr)
         return False
@@ -95,6 +100,9 @@ def _run(fn, args, chat: bool = False, task: bool = False, sup: bool = False) ->
         if profile is None:
             return _err("no profile: pass --profile or set AGENTS_SUPERVISOR", 2)
         tid = None
+        if task and os.environ.get("AGENTS_SUP_TOPIC"):  # a topic is no worker: it may not ask or report for a task
+            print(REFUSED_TOPIC, file=sys.stderr)
+            return 3
         if task:
             tid = getattr(args, "task", None) or os.environ.get("AGENTS_SUP_TASK")
             if not tid or not st.TASK.match(tid):

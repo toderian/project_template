@@ -217,6 +217,21 @@ class Flow(unittest.TestCase):
         p = self.at("answer", "Q1", "x", env=session, ok=False); self.assertEqual(p.returncode, 3)  # a registered worker may not answer
         self.assertEqual(self.at("answer", "Q1", "x").returncode, 0)  # the supervisor's tick (no worker row) may
 
+    def test_a_topic_session_may_run_no_owner_supervisor_or_worker_command(self):
+        self.at("init", "--hub", str(self.hub), "--from", str(self.tmp / "profile.json"))
+        st.set_worker("p", "worker-0001", task=TASK, state="running", mode="bg")
+        self.at("ask", "Q?", env={"CLAUDE_CODE_SESSION_ID": "worker-0001", "AGENTS_SUP_TASK": TASK})
+        before = (self.tmp / "sup/p/queue.json").read_text()
+        topic = {"AGENTS_SUP_TOPIC": "t"}  # even without a session id, where a plain shell would pass as the owner
+        for argv in (["land", TASK], ["grant", TASK, "lab"], ["deny", TASK, "lab", "no"], ["answer", "Q1", "x"], ["pack", "b", TASK],
+                     ["ask", "Q?", "--task", TASK], ["init", "--force"], ["watch", "start"], ["watch", "status"],
+                     ["topics"], ["delegate", "t", "x"]):  # status stays open: read-only, as for a worker
+            p = self.at(*argv, env=topic, ok=False)
+            self.assertEqual((argv, p.returncode), (argv, 3), p.stdout + p.stderr)
+            self.assertNotIn("Traceback", p.stderr)
+        self.assertEqual((self.tmp / "sup/p/queue.json").read_text(), before)
+        self.assertIsNone(st.read_pack("p", "b"))
+
     def test_every_guard_rule_for_at_sup_names_a_command_that_exists(self):
         import argparse, sup
         top = argparse.ArgumentParser(); sup.add_parser(top.add_subparsers())

@@ -115,8 +115,9 @@ def _age(stamp: str) -> float:
 
 def _worker_session() -> bool:
     """True (and says so) in a worker session: these commands are for the supervisor and the owner (an honest-mistake check)."""
-    if os.environ.get("AGENTS_SUP_TASK"):
-        print("at: sup: this command is for the supervisor and the owner, not for a worker session", file=sys.stderr)
+    who = sup_state.helper_session()
+    if who:
+        print(f"at: sup: this command is for the supervisor and the owner, not for {who} session", file=sys.stderr)
         return True
     return False
 

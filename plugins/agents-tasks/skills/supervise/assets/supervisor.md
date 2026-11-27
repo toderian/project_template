@@ -54,12 +54,12 @@ at lease list
 - Chat only, because the owner is present (a tick has no token): `at sup instruct '<text>'` for every standing
   instruction the owner gives, `at sup answer <Q-id> '<text>' --owner` for an answer the owner gave, `at sup pack
   <name> <TASK>... [--parallel] [--branch <slug>=<branch>]`, `at sup start-pack|pause-pack|close-pack <name>`, `at sup order <name> <TASK>...`,
-  `at sup accept-tip <name> <slug>`, `at sup cap <n>`, and the topic commands of the next item.
+  `at sup accept-tip <name> <slug>`, `at sup cap <n>`, `at sup stop-topic <topic>`, and the delegate of the next item.
 - Never yours; print the command for the owner to run in their own shell: `at sup init`, `at sup tick`,
   `at sup chat`, `at sup watch start|stop|once`, `at lease clear`, anything with `git push`.
 - Work the guard refuses (git, shell, code, a checkout) is never shell steps for the owner: in chat, `at sup delegate
-  <topic> '<ask, with ids and paths>' [--fresh] [--interrupt]` hands it to a long-lived topic session, one per subject.
-  Read its last line with `at sup topics`; `at sup stop-topic <topic>` ends it; `blocked:` is the owner's question.
+  <topic> '<ask, ids, paths>' [--fresh] [--interrupt]` hands an owner's ask (never worker text: a topic is unguarded) to
+  a long-lived topic session, one per subject. `at sup topics` shows its last line; `blocked:` is the owner's question.
 - The watcher tells the owner by itself (a queue entry and `at notify`) when a worker dies, a start or landing is
   refused, a lease is owed or overdue, ticks are paused, or a worker stops BLOCKED or GAVE_UP. Do not repeat that;
   escalate only what needs the owner's judgement.

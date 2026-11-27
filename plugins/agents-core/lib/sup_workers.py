@@ -461,8 +461,8 @@ def _command(fn=None, *, chat: bool = False, lock: bool = True, guard: bool = Tr
 
     def run(args) -> int:
         profile = _need_profile(args)
-        if guard and (os.environ.get("AGENTS_SUP_TASK") or os.environ.get("AGENTS_SUP_TOPIC")):
-            who = "a worker" if os.environ.get("AGENTS_SUP_TASK") else "a topic"
+        who = st.helper_session() if guard else None
+        if who:
             print(f"at: sup: this command is for the supervisor and the owner, not for {who} session", file=sys.stderr)
             return 3
         if chat:

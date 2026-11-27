@@ -7,7 +7,10 @@ matched against exact tables. Deny = exit 2 plus one stderr line; allow = exit 0
 
 Trust model: a worker session runs under the same uid as the state directory, so nothing here fences a
 worker. This guard, the chat token and `require_chat` stop only the guarded supervisor (a tick or the chat
-session) and honest mistakes.
+session) and honest mistakes. `at sup delegate` is a deliberate hole in this fence: the chat supervisor hands free
+text to a topic session that runs unguarded (`--permission-mode auto`, the owner's PATH, git and a shell). It is chat
+only, so the owner is present, and the supervisor's role delegates only the owner's asks; worker text it reads (a
+question, a report) is untrusted and must never become a delegate ask.
 
 Tables: {"programs": [absolute paths], "<agent_type>": [rule, ...]}. The main session uses the built-in
 DEFAULT_MAIN and the tools in DEFAULT_TOOLS. Its hook input has no agent_type, or, when it was started with
