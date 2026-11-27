@@ -337,6 +337,114 @@ Defaults: if X, do Y
 """
 
 
+class PackReady(Base):
+    """`ready --pack`: one line per problem of the pack, `ready` and exit 0 otherwise."""
+    def setUp(self):
+        super().setUp()
+        sys.path.insert(0, str(ROOT / "plugins/agents-core/lib"))
+        os.environ["AGENTS_SUP_DIR"] = self.env["AGENTS_SUP_DIR"]; self.addCleanup(os.environ.pop, "AGENTS_SUP_DIR")
+        import sup_state as st; self.st = st
+        write(self.hub / ".config/repos.project.md", "| Repo | Required | Role | Default branch | Integration branch | Work mode |\n|---|---|---|---|---|---|\n"
+              "| hub | yes | x | main | main | d |\n| sib | no | x | dev | dev | d |\n| other | no | x | dev | dev | d |\n")
+        write(self.hub / ".local/repos.map", f"hub: {self.hub}\nsib: {self.tmp / 'sib'}\nother: {self.tmp / 'other'}\n")
+
+    def pack(self, tasks=("TST-1", "TST-2"), parallel=False, branches=None, **files):
+        """Write each task (`files[ID]` is its text; a default one otherwise) and the pack; return `ready --pack` output."""
+        for t in tasks:
+            if files.get(t) is not False:
+                write(self.hub / f"{TODO}/{t}-F_x.md", files.get(t) or READY.replace("TST-009", t))
+        self.st.write_pack("p", {"name": "pk", "tasks": list(tasks), "parallel": parallel, "state": "new", "branches": branches or {}})
+        return self.sup("ready", "--pack", "pk", "--profile", "p", "--hub", str(self.hub))
+
+    def row(self, repos, files="src/a.py", extra=""):
+        return READY.replace("| Task ID | TST-009 |", f"| Task ID | TST-009 |\n| Repos | {repos} |\n{extra}").replace("`src/a.py`", files)
+
+    def lines(self, p):
+        self.assertEqual(p.returncode, 3, p.stdout + p.stderr); return p.stdout.splitlines()
+
+    def test_a_ready_pack_prints_ready_and_a_1_17_pack_without_branches_is_ready_too(self):
+        p = self.pack(branches={"sib": "feat/x"}, **{"TST-1": self.row("`sib`", "`sib:x.py`, `src/a.py`")})
+        self.assertEqual((p.returncode, p.stdout.strip()), (0, "ready"), p.stdout + p.stderr)
+        p = self.pack(); self.assertEqual((p.returncode, p.stdout.strip()), (0, "ready"), p.stdout + p.stderr)
+
+    def test_each_task_problem_is_one_line_with_its_id(self):
+        pack = {"TST-1": False, "TST-2": READY.replace("Files: `src/a.py`\n", "")}
+        out = self.lines(self.pack(**pack)); self.assertEqual(len(out), 2, out)
+        self.assertTrue(out[0].startswith("TST-1: no task file") and out[1].startswith("TST-2: Phase 1: Build: no `Files:` line"), out)
+        write(self.hub / f"{TODO}/TST-1-F_x.md", ""); (self.hub / f"{TODO}/TST-1-F_x.md").write_bytes(b"\xff\xfe")
+        self.st.write_pack("p", {"name": "pk", "tasks": ["TST-1"], "state": "new"})
+        out = self.lines(self.sup("ready", "--pack", "pk", "--profile", "p", "--hub", str(self.hub)))
+        self.assertEqual(len(out), 1); self.assertIn("TST-1: TST-1-F_x.md cannot be read", out[0]); self.assertNotIn("Traceback", out[0])
+
+    def test_slugs_of_the_repos_row_and_the_files_entries_must_be_pack_repos_and_in_the_repos_row(self):
+        out = self.lines(self.pack(branches={"sib": "feat/x"}, **{"TST-1": self.row("`sib`, `other`"), "TST-2": self.row("`sib`", "`other:y.py`")}))
+        self.assertEqual(len(out), 3, out)
+        self.assertIn("TST-2: Phase 1: Build: `Files:` names repo 'other', which the `Repos` row does not have", out[0])  # task readiness first
+        self.assertIn("TST-1: repo 'other' is not a repo of pack 'pk'", out[1])
+        self.assertIn("TST-2: repo 'other' is not a repo of pack 'pk'", out[2])
+        out = self.lines(self.pack(**{"TST-1": self.row("`sib`")}))  # a pack without branches
+        self.assertEqual(len(out), 1); self.assertIn("TST-1: repo 'sib' is not a repo of pack 'pk' (its branches: none)", out[0])
+        write(self.hub / ".local/repos.map", f"hub: {self.hub}\nsib: {self.tmp / 'sib'}\n")  # `other` has a registry row and no map line
+        out = self.lines(self.pack(branches={"sib": "feat/x"}, **{"TST-1": self.row("`other`")})); self.assertEqual(len(out), 1); self.assertIn("repo 'other' is not a repo", out[0])
+        p = self.pack(**{"TST-1": self.row("`hub`", "`hub:src/a.py`")}); self.assertEqual(p.stdout.strip(), "ready", p.stdout)  # the hub's own slug
+
+    def test_a_hub_whose_own_slug_the_map_does_not_give_is_judged_by_the_map_alone(self):
+        (self.hub / ".local/repos.map").unlink()  # a 1.17.0 single-repo hub: a registry, no map
+        p = self.pack(**{"TST-1": self.row("`hub`"), "TST-2": self.row("`sib`")}); self.assertEqual(p.stdout.strip(), "ready", p.stdout)
+        write(self.hub / ".local/repos.map", f"sib: {self.tmp / 'sib'}\n")  # the map knows a sibling and not the hub
+        out = self.lines(self.pack(**{"TST-1": self.row("`hub`"), "TST-2": self.row("`sib`")}))
+        self.assertEqual(len(out), 1, out); self.assertIn("TST-2: repo 'sib' is not a repo of pack 'pk'", out[0])
+
+    def test_a_blocker_that_names_a_phase_an_open_blocker_outside_the_pack_and_a_cycle_are_named(self):
+        both = lambda a, b: {"TST-1": self.row("none", "src/a.py", f"| Blocked by | {a} |\n"), "TST-2": self.row("none", "src/b.py", f"| Blocked by | {b} |\n")}
+        out = self.lines(self.pack(parallel=True, **both("TST-2 Phase 1", "TST-9")))
+        self.assertEqual(len(out), 2, out); self.assertIn("TST-2 is blocked by TST-9", "".join(out))  # the edge refusal is one pack line
+        self.assertIn("TST-1: `Blocked by` names a phase", "".join(out))
+        out = self.lines(self.pack(parallel=True, **both("TST-2", "TST-1"))); self.assertEqual(len(out), 1); self.assertIn("cycle", out[0])
+        same = {t: self.row("none", "src/a.py", "| Blocked by | TST-9 |\n") for t in ("TST-1", "TST-2")}
+        self.assertEqual(len(self.lines(self.pack(parallel=True, **same))), 1)  # the edge refusal; no shared-file line while the edges are refused
+        p = self.pack(parallel=True, **both("TST-2 (after its phase-out)", "none")); self.assertEqual(p.stdout.strip(), "ready", p.stdout)
+
+    def test_a_resource_the_profile_lacks_is_named_and_a_listed_one_passes(self):
+        t = {"TST-1": READY.replace("Resources: none", "Resources: lab 20m")}
+        out = self.lines(self.pack(tasks=("TST-1",), **t)); self.assertEqual(len(out), 1); self.assertIn("TST-1: Resources: lab is not a resource of the profile", out[0])
+        out = self.lines(self.pack(tasks=("TST-1",), **{"TST-1": t["TST-1"].replace("lab 20m", "lab")})); self.assertEqual(len(out), 1)  # no duration: one line
+        out = self.lines(self.pack(tasks=("TST-1",), **{"TST-1": t["TST-1"].replace("lab 20m", "Lab_x 20m")})); self.assertIn("Resources: 'Lab_x' is not", out[0])
+        write(self.st.profile_dir("p") / "conf/profile.json", "{not json")
+        out = self.lines(self.pack(tasks=("TST-1",), **t)); self.assertEqual(len(out), 1); self.assertIn("profile.json cannot be read as a profile", out[0])
+        write(self.st.profile_dir("p") / "conf/profile.json", json.dumps({"resources": [{"name": "lab"}]}))
+        self.assertEqual(self.pack(tasks=("TST-1",), **t).stdout.strip(), "ready")
+
+    def test_tasks_that_can_run_together_may_not_share_a_files_entry(self):
+        def two(a, b, ra="none", rb="none", wait=""):
+            return {"TST-1": self.row(ra, a), "TST-2": self.row(rb, b, wait)}
+        for a, b in (("src/a.py", "src/a.py"), ("src/", "src"), ("src/", "src/a.py")):  # a directory and a file under it are shared
+            with self.subTest((a, b)):
+                out = self.lines(self.pack(parallel=True, **two(a, b))); self.assertEqual(len(out), 1)
+                self.assertRegex(out[0], r"^pack pk: TST-1 and TST-2 can run together and both list `src(/a.py)?`$")
+        out = self.lines(self.pack(parallel=True, **two("`hub:src/a.py`", "src/a.py", "`hub`")))  # the hub's own slug is the unqualified path
+        self.assertEqual(out, ["pack pk: TST-1 and TST-2 can run together and both list `src/a.py`"])
+        br = {"sib": "f", "other": "g"}
+        ok = lambda **kw: self.assertEqual(self.pack(**kw).stdout.strip(), "ready")
+        ok(parallel=True, branches=br, **two("`sib:x`", "`other:x`", "`sib`", "`other`"))  # same path in two repos
+        ok(parallel=True, branches=br, **two("`sib:x.py`", "`sib:x.py`", "`sib`, x", "`sib`"))  # the Repos cell is read as phase 1 reads it
+        ok(parallel=False, **two("src/a.py", "src/a.py"))  # a serial pack never has two together
+        ok(parallel=True, branches=br, **two("`sib:x`", "`sib:x`", "`sib`", "`sib`"))  # a shared pack repo: phase 1 serialises them
+        ok(parallel=True, **two("src/a.py", "src/a.py", wait="| Blocked by | TST-1 |\n"))  # one waits for the other
+        t = {"TST-1": self.row("none", "src/a.py"), "TST-2": self.row("none", "src/b.py", "| Blocked by | TST-1 |\n"),
+             "TST-3": self.row("none", "src/a.py", "| Blocked by | TST-2 |\n")}
+        ok(tasks=("TST-1", "TST-2", "TST-3"), parallel=True, **t)  # through another task
+        t["TST-3"] = self.row("none", "src/a.py"); self.assertEqual(len(self.lines(self.pack(("TST-1", "TST-2", "TST-3"), parallel=True, **t))), 1)
+
+    def test_no_hub_a_relative_map_path_and_a_missing_pack_never_raise(self):
+        import sup; self.assertEqual(sup.pack_problems("p", {"name": "pk", "tasks": ["TST-1"]}, None), ["pack pk: the profile has no hub"])
+        write(self.hub / ".local/repos.map", "sib: ../sib\n")
+        out = self.lines(self.pack()); self.assertEqual(len(out), 1); self.assertIn("pack pk: repos.map: the path of 'sib' is not absolute", out[0])
+        p = self.sup("ready", "--pack", "Bad_Name", "--profile", "p", "--hub", str(self.hub)); self.assertEqual((p.returncode, "Traceback" in p.stderr), (3, False))
+        p = self.sup("ready", "--pack", "nope", "--profile", "p", "--hub", str(self.hub)); self.assertEqual((p.returncode, "Traceback" in p.stderr), (3, False))
+        self.assertEqual(self.sup("ready", "TST-1", "--pack", "pk").returncode, 2); self.assertEqual(self.sup("ready").returncode, 2)
+
+
 class Ready(Base):
     def check(self, text):
         write(self.hub / TODO / "TST-009-F_x.md", text); return self.sup("ready", "TST-009")
@@ -371,6 +479,16 @@ class Ready(Base):
     def test_resource_needs_a_duration(self):
         p = self.check(READY.replace("Resources: none", "Resources: lab")); self.assertEqual(p.returncode, 3); self.assertIn("`lab` has no duration", p.stdout)
         self.assertEqual(self.check(READY.replace("Resources: none", "Resources: lab 20m")).stdout.strip(), "ready")
+
+    def test_a_files_entry_with_a_slug_needs_the_slug_in_the_repos_row(self):
+        text = READY.replace("`src/a.py`", "`sib:src/a.py`")
+        p = self.check(text); self.assertEqual(p.returncode, 3); self.assertIn("names repo 'sib', which the `Repos` row does not have", p.stdout)
+        self.assertEqual(self.check(text.replace("| Task ID | TST-009 |", "| Task ID | TST-009 |\n| Repos | `sib` |")).stdout.strip(), "ready")
+        p = self.check(text.replace("sib:src", "sib:../src")); self.assertIn("plain relative path", p.stdout)
+
+    def test_a_heading_is_cut_and_cleaned_in_the_line(self):
+        p = self.check(READY.replace("#### Phase 1: Build", "#### Phase 1a: B\x1b[31m" + "x" * 80)); self.assertEqual(p.returncode, 3)
+        self.assertNotIn("\x1b", p.stdout); self.assertTrue(all(len(l) < 200 for l in p.stdout.splitlines()))
 
     def test_child_inherits_parent_unattended_section(self):
         child = READY.replace("TST-009", "TST-010").replace("| Task ID | TST-010 |", "| Task ID | TST-010 |\n| Parent | TST-009 |")

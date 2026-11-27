@@ -34,13 +34,25 @@ from task_run import RunError, State, sh
 
 FILES_RE = re.compile(r"^\s*Files:\s*(.+?)\s*$", re.M)
 PATH_RE = re.compile(r"\w[\w.\-]*(?:/[\w.\-]+)*")  # relative, no glob; `..` is refused below
+ENTRY_RE = re.compile(r"(?:([a-z][a-z0-9-]*):)?(" + PATH_RE.pattern + ")")  # `path` in the task's own checkout, or `slug:path` in a sibling repo
 WAVE_RE = re.compile(r"^Note: wave (\d+): (?:base ([0-9a-f]{40})|(done|undone)\b)")
 
 
+def split_entry(entry: str) -> tuple:
+    """(slug or None, path) of a `Files:` entry; (None, None) when it is not one."""
+    m = ENTRY_RE.fullmatch(entry)
+    return (m[1], m[2]) if m else (None, None)
+
+
+def entry_ok(entry: str) -> bool:
+    path = split_entry(entry)[1]
+    return path is not None and not {".", ".."} & set(path.split("/"))
+
+
 def fence(task, n: int) -> list[str] | None:
-    """Phase `n`'s `Files:` paths (every such line), or None when there is none or any entry is not a plain relative path."""
+    """Phase `n`'s `Files:` entries (every such line; `slug:path` is kept as written), or None when there is none or any entry is not a plain relative path."""
     items = [x.strip().strip("`").rstrip("/") for m in FILES_RE.findall("\n".join(task.phases[n - 1].body)) for x in m.split(",")]
-    ok = items and all(PATH_RE.fullmatch(i) and ".." not in i.split("/") for i in items)
+    ok = items and all(entry_ok(i) for i in items)
     return items if ok else None
 
 

@@ -268,12 +268,9 @@ def _task_meta(root: Path, task: str) -> dict:
     uses; {} when there is no file; Refused when the file cannot be read."""
     import sup  # lazily: sup imports this module through add_parser
     try:
-        scripts = str(sup.tasks_root() / "skills" / "task-ledger" / "scripts")
+        task_brief = sup._brief()
     except sup.Refuse as e:
         raise Refused(str(e)) from e
-    if scripts not in sys.path:
-        sys.path.insert(0, scripts)
-    import task_brief
     for f in sorted(g for d in (sup.TODOS, sup.ARCHIVED) for g in (root / d).glob(f"{task}-*.md")):  # a landed task is archived
         try:
             return task_brief.parse_task(task, f).meta
@@ -282,9 +279,9 @@ def _task_meta(root: Path, task: str) -> dict:
     return {}
 
 
-def _task_repos(root: Path, task: str) -> set[str]:
-    """The slugs of the `Repos` row of the task file under root; empty when there is no file or row."""
-    return {r for r in re.split(r"[,\s]+", _task_meta(root, task).get("Repos", "").replace("`", "")) if SLUG.fullmatch(r)}
+def _task_repos(root: Path | None, task: str, meta: dict | None = None) -> set[str]:
+    """The slugs of the `Repos` row of the task file under root (or of `meta`, already read); empty when there is no file or row."""
+    return {r for r in re.split(r"[,\s]+", (_task_meta(root, task) if meta is None else meta).get("Repos", "").replace("`", "")) if SLUG.fullmatch(r)}
 
 
 def _blockers(profile: str, hub: Path | None, task: str) -> list[str]:
@@ -612,7 +609,9 @@ def cmd_start_pack(profile: str, args) -> int:
     pack = _get_pack(profile, args.name)
     live = pack.get("state") in ("new", "paused", "running")
     if live:
-        _edges(profile, pack, _hub_or_none(profile))
+        import sup  # lazily: sup_workers is loaded by sup.add_parser
+        if problems := sup.pack_problems(profile, pack, _hub_or_none(profile)):
+            raise Refused(f"pack {args.name!r} is not ready:\n" + "\n".join(problems))
     tips = _pack_worktrees(profile, pack) if live else {}  # git first, no lock
     with st.locked(profile):
         fresh = _get_pack(profile, args.name)

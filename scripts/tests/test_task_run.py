@@ -482,6 +482,11 @@ class Lanes(unittest.TestCase):
         import sys; sys.path.insert(0, str(ROOT / "plugins/agents-core/lib")); import task_run, task_lanes
         t = type("T", (), {"phases": [type("P", (), {"body": ["Files: a.py, b/", "x", "Files: `c`"]}), type("P", (), {"body": ["Files: /abs"]})]})
         self.assertEqual((task_lanes.fence(t, 1), task_lanes.fence(t, 2)), (["a.py", "b", "c"], None))
+        slug = lambda *e: task_lanes.fence(type("T", (), {"phases": [type("P", (), {"body": ["Files: " + ", ".join(e)]})]}), 1)
+        self.assertEqual(slug("sib:src/a.py", "`edge-node:x/`", "b"), ["sib:src/a.py", "edge-node:x", "b"])  # a slug entry is kept as written
+        for bad in ("sib:../x", "sib:a/../x", "sib:", "Sib:x", "-s:x", "sib:/abs", "a:b:c", "src/./a.py", "sib:./a"):
+            self.assertIsNone(slug(bad), bad)
+        self.assertTrue(task_lanes.overlap(["sib:src"], ["sib:src/a.py"])); self.assertFalse(task_lanes.overlap(["sib:src"], ["src/a.py"]))  # overlap only inside one repo
         tmp = repo(); edit_task(tmp, lane_task(f3="src/phase3.py\nFiles: docs/notes")); prompts = tmp.parent / (tmp.name + ".prompts")
         p = lanes(tmp, WRAP_EXTRA="1", WRAP_PROMPTS=str(prompts)); self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
         self.assertIn("phase 2: Files: src/phase2.py (changed outside it: extra.txt); phase 3: Files: src/phase3.py, docs/notes.", prompts.read_text())

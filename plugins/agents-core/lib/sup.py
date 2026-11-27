@@ -310,42 +310,51 @@ def unattended(path: Path, depth: int = 0) -> list[str]:
 
 def _files_problem(task, n: int) -> str:
     """Why the lane planner reads no fence in phase `n`: no `Files:` line, or an entry that is not a plain path."""
-    try:
-        import task_lanes as tl
-    except ImportError:
-        return "no `Files:` line"
+    import task_lanes as tl
     body = "\n".join(task.phases[n - 1].body)
     items = [x.strip().strip("`").rstrip("/") for m in tl.FILES_RE.findall(body) for x in m.split(",")]
-    bad = next((i for i in items if not (tl.PATH_RE.fullmatch(i) and ".." not in i.split("/"))), None)
+    bad = next((i for i in items if not tl.entry_ok(i)), None)
     if bad is None:
         return "no `Files:` line"
     return f"every `Files:` entry must be a plain relative path (comma-separated, no prose); not a plain path: {bad[:60]!r}"
 
 
-def readiness(tid: str, path: Path) -> list[str]:
-    scripts = tasks_root() / "skills" / "task-ledger" / "scripts"
-    sys.path.insert(0, str(scripts))
-    import task_brief  # parse_task: metadata, phases, acceptance criteria
-    try:
-        from task_lanes import fence  # the `Files:` rule of the lane planner
-    except ImportError:
-        def fence(task, n):  # fallback: a line starting `Files:` with something after it
-            return re.search(r"^\s*Files:\s*\S", "\n".join(task.phases[n - 1].body), re.M)
-    task = task_brief.parse_task(tid, path)
+def _brief():
+    """The task parser of agents-tasks: metadata, phases, acceptance criteria."""
+    scripts = str(tasks_root() / "skills" / "task-ledger" / "scripts")
+    if scripts not in sys.path:
+        sys.path.insert(0, scripts)
+    import task_brief
+    return task_brief
+
+
+def _resources(task, path: Path) -> str:
+    return task.meta.get("Resources") or next((m.group(1) for ln in path.read_text().splitlines()
+                                               if (m := re.match(r"\s*(?:[-*]\s*)?Resources:\s*(\S.*)", ln))), "")
+
+
+def readiness(task, path: Path, known=None) -> list[str]:
+    """What is missing from the parsed `task` (file `path`); `known` (resource names of the profile) adds the resources it lacks."""
+    import sup_state as st, sup_workers as sw
+    from task_lanes import fence, split_entry  # the `Files:` rule of the lane planner
     missing: list[str] = []
-    phases = [(n, p) for n, p in enumerate(task.phases, 1) if p.heading.lower().startswith("phase")]
-    for _, p in phases:
+    phases = [(n, p, st._clean(p.heading)[:60]) for n, p in enumerate(task.phases, 1) if p.heading.lower().startswith("phase")]
+    for _, p, h in phases:
         if not PHASE_RE.match(p.heading):
-            missing.append(f"phase heading is not `Phase <integer>`: {p.heading}")
-    if not any(PHASE_RE.match(p.heading) for _, p in phases):
+            missing.append(f"phase heading is not `Phase <integer>`: {h}")
+    if not any(PHASE_RE.match(p.heading) for _, p, _ in phases):
         missing.append("no `#### Phase <integer>` heading")
     related = [ln.strip(" -*`") for ln in task.sections.get("related tests", []) if ln.strip()]
     related_ok = bool(related) and "".join(related).upper() != "N/A"
-    for n, p in phases:
-        if not fence(task, n):
-            missing.append(f"{p.heading}: {_files_problem(task, n)}")
+    repos = sw._task_repos(None, "", task.meta)
+    for n, p, h in phases:
+        entries = fence(task, n)
+        if not entries:
+            missing.append(f"{h}: {_files_problem(task, n)}")
+        for slug in sorted({split_entry(e)[0] for e in entries or ()} - {None} - repos ):
+            missing.append(f"{h}: `Files:` names repo {slug!r}, which the `Repos` row does not have")
         if not related_ok and not re.search(r"^\s*(?:[-*]\s*)?\**checks?\**\s*:\s*\S", "\n".join(p.body), re.I | re.M):
-            missing.append(f"{p.heading}: names no check (`Checks:` line, or a `### Related tests` section)")
+            missing.append(f"{h}: names no check (`Checks:` line, or a `### Related tests` section)")
     if not any(re.match(r"\s*[-*] \[[ xX]\]", ln) for ln in task.sections.get("acceptance criteria", [])):
         missing.append("acceptance criteria: no checkbox")
     sec = unattended(path)
@@ -355,23 +364,103 @@ def readiness(tid: str, path: Path) -> list[str]:
         for key in ("Authorised", "Owner only", "Defaults"):
             if not any(re.match(rf"{key}:\s*\S", ln) for ln in sec):
                 missing.append(f"Unattended run: no `{key}:` line")
-    res = task.meta.get("Resources") or next((m.group(1) for ln in path.read_text().splitlines()
-                                              if (m := re.match(r"\s*(?:[-*]\s*)?Resources:\s*(\S.*)", ln))), "")
+    res = _resources(task, path)
     if not res:
         missing.append("no `Resources:` line (write `Resources: none` when there are none)")
     elif res.strip().lower() != "none":
         for entry in (e.strip() for e in re.split(r"[,;]", res) if e.strip()):
+            name = entry.split()[0].strip("`")
             if not DURATION_RE.search(entry):
                 missing.append(f"Resources: `{entry}` has no duration (write e.g. `lab 20m`)")
+            elif known is not None and name not in known:
+                missing.append(f"Resources: {name if st.RES.match(name) else repr(name[:40])} is not a resource of the profile")
     return missing
 
 
+def pack_problems(profile: str, pack: dict, hub: Path | None) -> list[str]:
+    """One line per reason the pack cannot start: `<ID>: <problem>` or `pack <name>: <problem>`; [] when it is ready. Never raises:
+    a Refused of a helper is one line. A task landed or archived is skipped. A `Files:` directory and a file under it count as shared."""
+    import json, sup_state as st, sup_tick, sup_workers as sw, task_lanes as tl
+    name, out = pack["name"], []
+
+    def add(tid, msg):
+        out.append(f"{tid}: {msg}" if tid else f"pack {name}: {msg}")
+    if hub is None:
+        return [f"pack {name}: the profile has no hub"]
+    try:
+        reg, mp = sw._repos(hub)
+        branches, own = set(pack.get("branches") or {}), {s for s, p in mp.items() if Path(p).resolve() == hub.resolve()}
+        pf, known = sup_tick._files(profile)["profile"], set()  # a missing profile file names no resources
+        if pf.exists():
+            try:
+                known = {r["name"] for r in json.loads(pf.read_text(encoding="utf-8"))["resources"]}
+            except (OSError, ValueError, KeyError, TypeError) as e:
+                known = None; add(None, f"{pf.name} cannot be read as a profile: {e!r:.80}")
+        parsed = {}
+        for t in pack["tasks"]:
+            found = sorted((hub / TODOS).glob(f"{t}-*.md"))
+            if sw._landed(profile, t, hub) or any((hub / ARCHIVED).glob(f"{t}-*.md")):
+                continue
+            if not found:
+                add(t, f"no task file {TODOS}/{t}-*.md")
+                continue
+            try:
+                task = _brief().parse_task(t, found[0])
+                for m in readiness(task, found[0], known):
+                    add(t, m)
+                parsed[t] = task
+            except (OSError, ValueError) as e:
+                add(t, f"{found[0].name} cannot be read: {e}")
+        try:
+            deps = sw._edges(profile, pack, hub)
+        except sw.Refused as e:
+            deps = None
+            if not any(str(e) in m for m in out):  # an unreadable file is already its task's line
+                add(None, str(e))
+        files, row = {}, {}
+        for t, task in parsed.items():
+            if re.search(r"[A-Z][A-Z0-9]*-[0-9]+\W*phase\s*[0-9]", cell := task.meta.get("Blocked by", ""), re.I):
+                add(t, f"`Blocked by` names a phase ({cell.strip()[:60]!r}); name the task")
+            row[t] = sw._task_repos(hub, t, task.meta)
+            ents = [e for n in range(1, len(task.phases) + 1) for e in tl.fence(task, n) or []]
+            for slug in sorted((row[t] & set(reg if own else mp) | {tl.split_entry(e)[0] for e in ents} - {None}) - branches - own):
+                add(t, f"repo {slug!r} is not a repo of pack {name!r} (its branches: {', '.join(sorted(branches)) or 'none'})")
+            files[t] = [p if s in own else e for e in ents for s, p in [tl.split_entry(e)]]
+
+        def after(t, seen):
+            for b in deps.get(t, []):
+                if b not in seen:
+                    seen.add(b); after(b, seen)
+            return seen
+        for i, a in enumerate(files if pack.get("parallel") and deps is not None else ()):
+            for b in list(files)[i + 1:]:
+                if b in after(a, set()) or a in after(b, set()) or row[a] & row[b] & branches:
+                    continue
+                for x in sorted({x for x in files[a] for y in files[b] if tl.overlap([x], [y])}):
+                    add(None, f"{a} and {b} can run together and both list `{x}`")
+    except (Refuse, sw.Refused, OSError, ValueError) as e:
+        add(None, str(e))
+    return out
+
+
 def cmd_ready(args) -> int:
+    if args.pack:
+        import sup_state as st
+        profile = st.current_profile(args.profile)
+        try:
+            pack = st.read_pack(profile, args.pack) if profile else None
+        except ValueError as e:
+            raise Refuse(str(e))
+        if pack is None:
+            raise Refuse(f"no pack {args.pack!r}" + ("" if profile else " (a profile is needed: --profile or AGENTS_SUPERVISOR)"))
+        problems = pack_problems(profile, pack, args.repo)
+        print("\n".join(problems or ["ready"]))
+        return 3 if problems else 0
     top = Path(git_out(args.repo, "rev-parse", "--show-toplevel"))
     files = sorted((top / TODOS).glob(f"{args.task_id}-*.md"))
     if not files:
         raise Refuse(f"no task file {TODOS}/{args.task_id}-*.md")
-    missing = readiness(args.task_id, files[0])
+    missing = readiness(_brief().parse_task(args.task_id, files[0]), files[0])
     if missing:
         print("\n".join(missing))
         return 3
@@ -412,7 +501,9 @@ def add_parser(sub) -> argparse.ArgumentParser:
     ln.add_argument("--into", help="branch to land on (default: the default branch); the landing checkout must be on it")
     ln.set_defaults(sup_func=cmd_land)
     r = leaf("ready", help="check a task file is ready to dispatch (the permission preflight is not built)")
-    r.add_argument("task_id", type=_task_id)
+    one = r.add_mutually_exclusive_group(required=True)
+    one.add_argument("task_id", nargs="?", type=_task_id)
+    one.add_argument("--pack", help="check every task of a pack and the pack itself")
     r.set_defaults(sup_func=cmd_ready)
     p.set_defaults(func=run)
     for name in PARTS:  # each part adds its own subcommands; a part that is not installed is skipped

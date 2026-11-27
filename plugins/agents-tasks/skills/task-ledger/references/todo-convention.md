@@ -201,6 +201,14 @@ need. A phase without the line depends on the previous one. Write the lines when
 or more phases that touch different files; `agents-core:execute-plan` then runs them as parallel
 lanes. Child tasks of a parent state the same with `Blocked by`.
 
+A phase names the files it edits with its `Files:` lines. A bare path is in the task's own checkout. A path in
+another repo of the `Repos` row is written `<repo-slug>:<path>` (`Files: edge-node:extensions/x.py`); the slug must
+be in the task's `Repos` row, and a `.` or `..` path segment is refused. Two entries overlap only inside one repo.
+
+When the task is meant for a supervisor pack, a `Blocked by` cell names whole tasks (`RM-281`), never a phase
+(`<ID> Phase <n>`, as `RM-281 Phase 1`): a pack orders tasks. Split a task whose phases belong to different steps
+(`agents-tasks:prepare-pack`).
+
 ### Optional metadata rows
 
 Add a row when it carries a real value; omit it otherwise (never fill `N/A` to satisfy a template).

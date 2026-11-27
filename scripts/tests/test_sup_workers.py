@@ -54,6 +54,32 @@ if a[:2] == ["sup", "ready"]:
 elif a[:2] == ["sup", "worktree"]:
     print("created worktree"); print(os.environ["FAKE_DIR"] + "/wt")
 """
+TASK = """| Field | Value |
+|---|---|
+| Task ID | RM-0 |
+{rows}
+## Ready task
+
+Resources: none
+
+### Phases
+
+#### Phase 1: Build
+
+Files: `src/RM-0.py`
+- Checks: `true`
+- [ ] do it
+
+### Acceptance criteria
+
+- [ ] works
+
+### Unattended run
+
+Authorised: x
+Owner only: y
+Defaults: z
+"""
 SID = "abcd1234-0000-4000-8000-00000000000%d"
 
 
@@ -73,7 +99,7 @@ class Workers(unittest.TestCase):
         for k in ("FAKE_READY_RC", "FAKE_RESUME_RC", "CLAUDE_CODE_SESSION_ID", "AGENTS_SUP_CHAT_TOKEN", "AGENTS_SUP_TASK",
                   "AGENTS_SUP_ORIG_PATH"):
             os.environ.pop(k, None)
-        self.t = t
+        self.t, self.fill = t, True
         self.hub = t / "hub"; self.hub.mkdir()
         git(self.hub, "init", "-q", "-b", "main"); git(self.hub, "config", "user.name", "T"); git(self.hub, "config", "user.email", "t@x.invalid")
         git(self.hub, "commit", "-q", "--allow-empty", "-m", "base")
@@ -82,7 +108,16 @@ class Workers(unittest.TestCase):
         self.addCleanup(lambda: setattr(sw, "POLL_DELAY", 0.5))
         top = argparse.ArgumentParser(); sub = top.add_subparsers(); sw.register(sub); self.top = top
 
+    def write_task(self, task, root=None, **rows):
+        """A task file that passes `at sup ready`, with the meta rows given (`Repos`, `Blocked by`)."""
+        d = (root or self.hub) / "docs/tasks_manager/_todos"; d.mkdir(parents=True, exist_ok=True)
+        (d / f"{task}-x.md").write_text(TASK.replace("RM-0", task).format(rows="".join(f"| {k.replace('_', ' ')} | {v} |\n" for k, v in rows.items())))
+
     def cli(self, *argv, profile=True):
+        if argv[:1] == ("start-pack",) and self.fill and (pack := st.read_pack("p", argv[1])):  # start-pack reads every task file: write the ones a test did not
+            for t in pack["tasks"]:
+                if not list((self.hub / "docs/tasks_manager").glob(f"*/{t}-*.md")):
+                    self.write_task(t)
         args = self.top.parse_args(list(argv) + (["--profile", "p"] if profile else []))
         out, err = io.StringIO(), io.StringIO()
         with redirect_stdout(out), redirect_stderr(err):
@@ -366,8 +401,7 @@ class Workers(unittest.TestCase):
         self.wt = self.t / "wt"
 
     def task_file(self, task, repos, root=None):
-        d = (root or self.hub) / "docs/tasks_manager/_todos"; d.mkdir(parents=True, exist_ok=True)
-        (d / f"{task}-x.md").write_text(f"# x\n\n| Repos | {repos} |\n")
+        self.write_task(task, root, Repos=repos)
 
     def test_start_pack_makes_branch_and_worktree_and_is_safe_twice_and_refuses_a_foreign_path(self):
         self.repos()
@@ -471,12 +505,11 @@ class Workers(unittest.TestCase):
         self.assertEqual(sw.next_tasks("p"), ["RM-2", "RM-3"])
 
     def blocked(self, task, cell):
-        d = self.hub / "docs/tasks_manager/_todos"; d.mkdir(parents=True, exist_ok=True)
-        (d / f"{task}-x.md").write_text(f"# x\n\n| Blocked by | {cell} |\n")
+        self.write_task(task, Blocked_by=cell)
 
     def test_blocked_by_offers_the_task_after_its_blocker_landed_and_a_started_blocker_alone_does_not_free_it(self):
-        self.blocked("RM-2", "`RM-1` Phase 1, RM-1")
         self.running_pack(("RM-1", "RM-2"), parallel=True)
+        self.blocked("RM-2", "`RM-1` Phase 1, RM-1")  # after start-pack: a phase in the cell is refused by the pack check, and offers must still read it
         self.assertEqual(sw.next_tasks("p"), ["RM-1"])
         st.set_worker("p", SID % 1, task="RM-1", state="done")
         self.assertEqual(sw.next_tasks("p"), [])
@@ -487,8 +520,8 @@ class Workers(unittest.TestCase):
 
     def test_an_archived_blocker_outside_the_pack_does_not_block_and_dash_or_none_names_no_blocker(self):
         arch = self.hub / "docs/tasks_manager/_todos_archived"; arch.mkdir(parents=True); (arch / "RM-9-x.md").write_text("# x\n")
-        self.blocked("RM-1", "RM-9 Phase 2"); self.blocked("RM-2", "\u2014"); self.blocked("RM-3", "none")
         self.running_pack(parallel=True)
+        self.blocked("RM-1", "RM-9 Phase 2"); self.blocked("RM-2", "\u2014"); self.blocked("RM-3", "none")  # after start-pack: see above
         self.assertEqual(sw.next_tasks("p"), ["RM-1", "RM-2", "RM-3"])
 
     def test_pack_and_start_pack_refuse_an_open_blocker_outside_the_pack_a_serial_order_against_an_edge_and_a_cycle(self):
@@ -538,6 +571,21 @@ class Workers(unittest.TestCase):
             st.write_pack("p", {"name": name, "tasks": [task], "parallel": True, "state": "running"})
         self.cli("cap", "1")
         self.assertEqual(sw.next_tasks("p"), ["RM-2"])
+
+    def test_start_pack_refuses_with_a_readiness_line_and_leaves_the_pack_as_it_was(self):
+        self.fill = False; self.write_task("RM-1"); self.cli("pack", "a", "RM-1", "RM-2")  # RM-2 has no task file
+        before = st.read_pack("p", "a")
+        rc, _, err = self.cli("start-pack", "a")
+        self.assertEqual(rc, 3); self.assertIn("pack 'a' is not ready", err); self.assertIn("RM-2: no task file", err)
+        self.assertEqual(st.read_pack("p", "a"), before)
+
+    def test_start_pack_restarts_a_paused_pack_whose_task_was_archived(self):
+        self.running_pack(("RM-1", "RM-2")); self.cli("pause-pack", "a")
+        (self.hub / "docs/tasks_manager/_todos_archived").mkdir(parents=True)
+        (self.hub / "docs/tasks_manager/_todos/RM-1-x.md").rename(self.hub / "docs/tasks_manager/_todos_archived/RM-1-x.md")
+        self.assertEqual(self.cli("start-pack", "a")[0], 0)
+        self.fill = False; (self.hub / "docs/tasks_manager/_todos/RM-2-x.md").unlink()
+        rc, _, err = self.cli("start-pack", "a"); self.assertEqual(rc, 3); self.assertIn("RM-2: no task file", err)
 
     def test_no_profile_is_a_usage_error(self):
         with self.assertRaises(SystemExit) as c, redirect_stderr(io.StringIO()):

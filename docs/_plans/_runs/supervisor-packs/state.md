@@ -8,7 +8,7 @@ base_rev: 3a36951
 branch: master
 work_mode: default-branch
 autonomy: L1
-current_phase: 3
+current_phase: 4
 updated: 2026-11-26T14:00:00
 ---
 # Run ledger — supervisor-packs
@@ -17,8 +17,8 @@ updated: 2026-11-26T14:00:00
 |---|---|---|---|---|---|---|---|---|
 | 1 | committed | 2 | PASS | PASS | PASS | 0 | fc0c526 | — |
 | 2 | committed | 3 | PASS | PASS | PASS | 0 | 37d7474 | — |
-| 3 | committed | 4 | PASS | PASS | n/a | 0 | PENDING | — |
-| 4 | pending | 0 | — | — | — | 0 | — | — |
+| 3 | committed | 4 | PASS | PASS | n/a | 0 | 5e6e330 | — |
+| 4 | committed | 3 | PASS | PASS | PASS | 0 | PENDING | — |
 | 5 | pending | 0 | — | — | — | 0 | — | — |
 
 Note: owner gave full autonomy on 2026-11-26 ("no need to ask me", "full access"); push of master and a release were approved earlier for 1.17.0 only, so pushes and releases of this run are left to the owner
@@ -57,3 +57,14 @@ Interface: sup_workers._edges(profile, pack, hub|None) -> {task: [open blockers]
 Interface: sup_workers._blockers(profile, hub|None, task) -> list[str]; _task_meta(root, task) -> dict ({} without a file; Refused when unreadable); task_run.blocker_ids(cell) -> list[str] (phases dropped)  (phase 3)
 Interface: sup_watch._starts retries a start refused before claude every 5 minutes (BACKOFF[0]); next_tasks puts tasks of a pack that _edges refuses after the others  (phase 3)
 Note: the watcher flake is fixed in phase 3 (the test's fake worker now lives across both steps)
+Phase 4: BASE 5e6e330; two lanes (A code, B skill and docs), disjoint files, same working tree
+Ruling: phase 4 security finding 4 (quadratic shared-file check) — accepted, a task with thousands of Files entries is not a real input — cost if wrong: a slow ready --pack
+Note: Phase 4 fix 1: code net -6 (sup.py -7, sup_workers.py -5, task_lanes.py +6)
+Phase 4: complete; fix round 1 by both implementers (18 findings), round 2 by the orchestrator (the slug fallback expression both re-reviews named, with a test; two skill sentences)
+Ruling: phase 4 round-2 fix was not re-reviewed — accepted, both reviewers named the exact expression and the test, and the final review covers the diff — cost if wrong: a readiness defect found at the final review
+Ruling: phase 4 lib code net about 101 against the ceiling of 80 — accepted, the quality reviewer found the required shape reached (one Repos parser, one task_brief import, one slug helper) and the rest is rule code for the refusals — cost if wrong: none beyond size
+Ruling: phase 4 each pack task is parsed twice per check (pack_problems, then _edges) — accepted, closing it adds lines — cost if wrong: a slower ready --pack on a large pack
+Interface: sup.pack_problems(profile, pack, hub|None) -> list[str], never raises; lines `<ID>: <problem>` or `pack <name>: <problem>`; `at sup ready --pack <name>` exit 0 `ready` or exit 3; start-pack refuses with the same lines  (phase 4)
+Interface: sup.readiness(task_parsed, path, known=None) -> list[str]; sup._brief() -> the task_brief module; sup_workers._task_repos(root, task, meta=None) -> set[str]  (phase 4)
+Interface: task_lanes.entry_ok(entry) -> bool; task_lanes.split_entry(entry) -> (slug|None, path); `Files:` entries `path` or `<slug>:path`, no `.` or `..` segment  (phase 4)
+Note: under host load (load average 8-10 from other processes) two timing tests failed once each in run-all.sh: hooks test "drift: a peer-check session is silent" (rc 141) and test_run_watch.py test_a_parked_session_is_not_restarted...; both pass alone; older than this run

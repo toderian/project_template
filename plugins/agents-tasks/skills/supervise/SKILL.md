@@ -31,8 +31,16 @@ them run in parallel. Do not use it for one task: run `agents-core:execute-plan`
    `/bin/bash <path>/sup-guard.sh` as its PreToolUse hook, and that `tables.json` holds only the operator's `at sup op`
    rule, `at lease list` and an empty adviser table: the supervisor's own commands are the guard's built-in table
    (`DEFAULT_MAIN` in `sup_guard.py`), which the file cannot override.
-4. `at sup pack <name> <TASK>... [--parallel]` for each pack, `at sup ready <TASK>` for each task, then
-   `at sup start-pack <name>`.
+4. Prepare the tasks with `agents-tasks:prepare-pack`. Then `at sup pack <name> <TASK>... [--parallel]
+   [--branch <slug>=<branch>]...` for each pack, `at sup ready --pack <name>` (prints `ready`, or one line per problem
+   and exits 3), then `at sup start-pack <name>`, which runs the same check and refuses on a problem.
+   - A task with code in a sibling repo needs `--branch` for that repo's slug. `start-pack` makes the branch off the
+     repo's integration branch and a pack worktree `<checkout>-<pack>`, and records its tip. Tasks that share a pack
+     repo never run together.
+   - Each task worktree gets `.local/repos.map` with the pack repos at their pack worktree. The worker commits to
+     them, one commit per phase. Nothing is pushed.
+   - `Blocked by` in a task file orders the pack: a task starts after its blockers landed, and the digest shows
+     `waits for <ID>`. A blocker outside the pack, a cycle or a serial order against an edge is refused.
 5. Worker mode (config key `worker_mode`): `bg` (workers as background sessions) needs the hub opened once
    interactively with `claude` so the workspace is trusted; `headless` (`claude -p`) needs nothing. A worker must
    arm the run guard (`at run-guard arm`, as `agents-core:execute-plan` does when it opens a run): without it its
@@ -54,8 +62,12 @@ them run in parallel. Do not use it for one task: run `agents-core:execute-plan`
 - Agent view: watch a worker or approve a permission prompt; no supervisor can.
 - Owner's shell only: `at sup init|tick|chat`, `at sup watch start|stop|once`, `at lease clear`, and any `git push`.
   No LLM pushes.
-- When a pack is finished: `at sup done <pack>` (exit 0 when every task is landed and nothing is live), then
-  `at sup close-pack <pack>`.
+- Landing a task squash-merges it into the hub and records, in the hub commit, the commit range it added to each pack
+  repo. The owner reviews the branches and pushes them.
+- When a pack is finished: `at sup done <pack>` (exit 0 when every task is landed and nothing is live; it lists each
+  pack branch that is ready for PR), then `at sup close-pack <pack>`. `close-pack` removes the pack worktrees and
+  keeps every branch. It keeps a worktree that has uncommitted changes, is not at the landed tip or holds ignored
+  files, and says why.
 
 ## What the supervisor may decide
 

@@ -97,6 +97,7 @@ DEFAULT_MAIN = [
     _r("at sup queue", {**PROFILE, "--json": None, "--all": None}),
     _r("at sup instructions", PROFILE), _r("at sup packs", PROFILE),
     _r("at sup ready", PROFILE, ["task-id"]),
+    _r("at sup ready", {**PROFILE, "--pack": "name"}, required=["--pack"]),
     _r("at sup task", PROFILE, ["task-id"]),
     _r("at sup answer", PROFILE, ["q-id", "any+"]),
     _r("at sup grant", PROFILE, ["task-id", "name"]),

@@ -19,7 +19,7 @@ os.environ["AGENTS_SUPERVISOR"] = "rm"  # the only profile the guard lets a comm
 
 ALLOWED = [
     "at sup status", "at sup status --json", "at sup board", "at sup queue --json",
-    "at sup ready RM-1", "at sup answer Q1 yes go ahead", "at sup answer Q12 'use the second one?' --profile rm",
+    "at sup ready RM-1", "at sup ready --pack alpha", "at sup ready --pack alpha --profile rm", "at sup answer Q1 yes go ahead", "at sup answer Q12 'use the second one?' --profile rm",
     "at sup start-worker RM-1", "at sup stop-worker RM-1", "at sup land RM-1 --dry-run",
     "at sup grant RM-1 lab", "at sup deny RM-1 lab 'not now'", "at sup done alpha", "at sup packs --profile rm",
     "at sup measure --json --since 2026-11-01", "at sup watch status", "at sup instructions", "at sup queue --all",
@@ -41,7 +41,7 @@ DENIED = [
     "at sup status\nrm x", "at sup status\rx", "at sup status 'unterminated", "", "   ",
     'at sup answer RM-1 "text with $(x)"', "at sup answer rm-1 x", "at sup answer RM-1",
     "at sup status --json --json", "at sup status --bogus", "at sup status --", "at sup status extra",
-    "at sup ready -x", "at sup inbox RM-1", "at sup answer RM-1 yes", "at sup stop-worker RM-1 --stuck",
+    "at sup ready -x", "at sup ready", "at sup ready --pack", "at sup ready RM-1 --pack alpha", "at sup ready --pack Bad_Name", "at sup ready --pack a b", "at sup inbox RM-1", "at sup answer RM-1 yes", "at sup stop-worker RM-1 --stuck",
     "at sup op deploy now", "at sup measure alpha", "at sup worktree RM-1", "at sup status --hub /tmp",
     "at sup land RM-1 --into x", "at sup init --hub /tmp", "at sup tick", "at sup chat", "at sup watch once",
     "at sup watch start", "at sup watch stop", "at sup watch start --no-tick",

@@ -97,6 +97,8 @@ available skills and pick from that instead of guessing another prefix.
 | Pausing or handing off | `agents-core:handoff` |
 | Sync saved repository memories between agents | `agents-extras:sync` (explicit invocation; local shared memory) |
 | Capture an idea, add a task, triage, plan horizons, close out | `agents-tasks:capture-idea`, `agents-tasks:add-task`, `agents-tasks:triage-inbox`, `agents-tasks:roadmap`, `agents-tasks:complete-task` |
+| Several child tasks to run under a supervisor: order, repos, files, resources | `agents-tasks:prepare-pack` |
+| Set up or run the supervisor over packs of tasks | `agents-tasks:supervise` (the owner starts it) |
 | A task plan too big or fuzzy | `agents-tasks:simplify-task` |
 | Did a finished task do what its file says | `agents-tasks:verify-task` |
 | Durable notes, runbooks, ADRs | `agents-tasks:knowledge-base`, `agents-extras:domain-modeling` for glossary and ADRs |
