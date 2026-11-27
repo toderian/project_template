@@ -2,7 +2,25 @@
 
 Notable changes to agents-template. All four plugins share the version of the repository.
 
-## Unreleased
+## 1.18.0 — 2026-11-27
+
+### Added
+
+- **Supervisor packs across repos.** `at sup pack … --branch <slug>=<branch>` records one branch per sibling
+  repo; `start-pack` makes one worktree per repo beside its checkout and every worker gets a `.local/repos.map`
+  that points at them. A landing writes the sibling commit range into the hub commit and moves the pack's tip;
+  `done` and `close-pack` check the tips, and `at sup accept-tip <pack> <slug>` takes a branch head the owner
+  moved by hand. `Blocked by` rows order the tasks of a pack. `at sup ready --pack <name>` checks a whole pack
+  (task files, repos, shared `Files:` entries, edges, resources) and `start-pack` refuses on the same lines;
+  `Files:` entries may be `<slug>:path`. Profile key `local` links hub paths that git ignores into each task
+  worktree, and a worker session is started with `--add-dir` for them.
+- **`agents-tasks:prepare-pack`**: makes the tasks of a pack ready for `at sup start-pack`.
+- `at sup land` computes the merge first (`git merge-tree`, git 2.38 or newer; older git falls back to the
+  branch diff) and refuses before it touches the checkout when the merge conflicts, when it would write on or
+  under something the hub holds untracked, or when the branch stops ignoring a file the hub holds. A file
+  already in `kept/<ID>` is never replaced.
+
+## 1.17.0 — 2026-11-26
 
 ### Added
 
@@ -39,20 +57,6 @@ Notable changes to agents-template. All four plugins share the version of the re
   - `op <resource> <script>`: an operator script from the profile, run under the resource's lease.
   - `status`, `done <pack>`, `measure`: the digest, the done check and the trial numbers.
 - **`agents-tasks:supervise`**: sets a profile up in a hub and names what the supervisor may decide.
-- **Supervisor packs across repos.** `at sup pack … --branch <slug>=<branch>` records one branch per sibling
-  repo; `start-pack` makes one worktree per repo beside its checkout and every worker gets a `.local/repos.map`
-  that points at them. A landing writes the sibling commit range into the hub commit and moves the pack's tip;
-  `done` and `close-pack` check the tips, and `at sup accept-tip <pack> <slug>` takes a branch head the owner
-  moved by hand. `Blocked by` rows order the tasks of a pack. `at sup ready --pack <name>` checks a whole pack
-  (task files, repos, shared `Files:` entries, edges, resources) and `start-pack` refuses on the same lines;
-  `Files:` entries may be `<slug>:path`. Profile key `local` links hub paths that git ignores into each task
-  worktree, and a worker session is started with `--add-dir` for them.
-- **`agents-tasks:prepare-pack`**: makes the tasks of a pack ready for `at sup start-pack`.
-- `at sup land` computes the merge first (`git merge-tree`, git 2.38 or newer; older git falls back to the
-  branch diff) and refuses before it touches the checkout when the merge conflicts, when it would write on or
-  under something the hub holds untracked, or when the branch stops ignoring a file the hub holds. A file
-  already in `kept/<ID>` is never replaced.
-
 ### Fixed
 
 - `at reserve` keeps a host-wide high-water mark per repo (git common dir) and prefix, so two worktrees
