@@ -73,7 +73,7 @@ RESERVED = {"main", "programs", "tools"}
 # session still needs the token for it, so a tick never writes a pack. Of these only the first group is in DEFAULT_MAIN:
 # init and watch start|stop are the owner's shell.
 CHAT_COMMANDS = ("instruct", "pack", "start-pack", "pause-pack", "close-pack", "order", "cap", "watch start",
-                 "watch stop", "init", "accept-tip")
+                 "watch stop", "init", "accept-tip", "delegate", "stop-topic")
 CHAT_PREFIXES = [f"at sup {c}".split() for c in CHAT_COMMANDS]
 INTERPRETERS = re.compile(
     r"(sh|bash|dash|zsh|ksh|fish|csh|tcsh|env|xargs|sudo|doas|nice|nohup|timeout|time|exec|command|"
@@ -108,6 +108,9 @@ DEFAULT_MAIN = [
     _r("at sup escalate", {**PROFILE, "--task": "task-id", "--q": "q-id", "--blocking": None}, ["any+"]),
     _r("at sup start-worker", PROFILE, ["task-id"]),
     _r("at sup stop-worker", PROFILE, ["task-id"]),
+    _r("at sup reap", {**PROFILE, "--dry-run": None}),
+    _r("at sup topics", PROFILE),
+    _r("at sup topic-log", {**PROFILE, "--lines": "int"}, ["name"]),
     _r("at sup land", {**PROFILE, "--dry-run": None}, ["task-id"]),
     _r("at sup done", PROFILE, ["name"]),
     _r("at sup measure", {**PROFILE, "--json": None, "--since": "any"}),
@@ -124,6 +127,8 @@ DEFAULT_MAIN = [
     _r("at sup accept-tip", PROFILE, ["name", "name"], chat=True),  # slug: the `name` class is the same pattern
     _r("at sup order", PROFILE, ["name", "task-id+"], chat=True),
     _r("at sup cap", PROFILE, ["int"], chat=True),
+    _r("at sup delegate", {**PROFILE, "--fresh": None, "--interrupt": None}, ["name", "any+"], chat=True),
+    _r("at sup stop-topic", PROFILE, ["name"], chat=True),
 ]
 
 

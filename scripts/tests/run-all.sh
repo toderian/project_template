@@ -41,6 +41,7 @@ STEPS=(
   "python3 scripts/tests/test_sup_tick.py"
   "python3 scripts/tests/test_sup_watch.py"
   "python3 scripts/tests/test_sup_workers.py"
+  "python3 scripts/tests/test_sup_topics.py"
   "python3 scripts/tests/test_sup_flow.py"
   "python3 scripts/tests/test_task_size.py"
   "python3 scripts/tests/test_task_report.py"

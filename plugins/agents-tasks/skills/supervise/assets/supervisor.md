@@ -45,6 +45,7 @@ at sup answer Q3 'Decision: [sup-3] use sqlite, source: RM-4.md line 12'
 at sup grant RM-4 lab
 at sup deny RM-4 lab 'the lab is booked until 14:00'
 at sup escalate 'RM-4 needs a schema choice the task file does not make' --task RM-4 --q Q3 --blocking
+at sup topics
 at sup land RM-4 --dry-run
 at sup done alpha
 at lease list
@@ -53,9 +54,12 @@ at lease list
 - Chat only, because the owner is present (a tick has no token): `at sup instruct '<text>'` for every standing
   instruction the owner gives, `at sup answer <Q-id> '<text>' --owner` for an answer the owner gave, `at sup pack
   <name> <TASK>... [--parallel] [--branch <slug>=<branch>]`, `at sup start-pack|pause-pack|close-pack <name>`, `at sup order <name> <TASK>...`,
-  `at sup accept-tip <name> <slug>` and `at sup cap <n>`.
+  `at sup accept-tip <name> <slug>`, `at sup cap <n>`, and the topic commands of the next item.
 - Never yours; print the command for the owner to run in their own shell: `at sup init`, `at sup tick`,
   `at sup chat`, `at sup watch start|stop|once`, `at lease clear`, anything with `git push`.
+- Work the guard refuses (git, shell, code, a checkout) is never shell steps for the owner: in chat, `at sup delegate
+  <topic> '<ask, with ids and paths>' [--fresh] [--interrupt]` hands it to a long-lived topic session, one per subject.
+  Read its last line with `at sup topics`; `at sup stop-topic <topic>` ends it; `blocked:` is the owner's question.
 - The watcher tells the owner by itself (a queue entry and `at notify`) when a worker dies, a start or landing is
   refused, a lease is owed or overdue, ticks are paused, or a worker stops BLOCKED or GAVE_UP. Do not repeat that;
   escalate only what needs the owner's judgement.

@@ -27,7 +27,7 @@ import sys
 from pathlib import Path
 
 LIB = Path(__file__).resolve().parent
-PARTS = ("sup_digest", "sup_workers", "sup_ask", "sup_watch", "sup_tick")
+PARTS = ("sup_digest", "sup_workers", "sup_ask", "sup_watch", "sup_tick", "sup_topics")
 if str(LIB) not in sys.path:
     sys.path.insert(0, str(LIB))
 TODOS = "docs/tasks_manager/_todos"

@@ -7,7 +7,7 @@
 Files in the profile directory: watch.pid ("<pid> <start time>"), watch.log, watch.json (what was already
 emitted, so each notice is sent once), tick.pid (written by the running tick only; the watcher reads it, and emits
 `tick_failed` when a tick exits non-zero). `watch start` and `watch stop` are chat-only (sup_ask.require_chat). One pass is `step(profile, hub)`, in order:
-liveness, leases, answers, free resources, starts, landing, notices, tick. Every change of supervisor state takes
+liveness, reap (stop bg sessions of the profile that sup does not track: sup_workers.reap), leases, answers, free resources, starts, landing, notices, tick. Every change of supervisor state takes
 `sup_state.locked` briefly; external programs (`at`, `sup_workers`) run outside it, because they lock themselves.
 Policy: a dead worker is woken with a restart text up to sup_workers.DEAD_RESTARTS times before `dead` is final; a bad
 `claude agents` answer never declares anyone dead; paused and closed packs get no start, wake or landing; an owner-stopped
@@ -41,6 +41,7 @@ import sup_state
 TICK_TIMEOUT = 600.0
 TICK_TRIES = 3
 STOP = False
+_PASS: dict = {}  # per pass: the `claude agents` rows liveness read, so reap does not call it again
 
 
 def _at() -> str:
@@ -138,6 +139,8 @@ def _liveness(profile: str, mem: dict, acts: list[str]) -> None:
     w = _workers()
     rows = sup_state.live_workers(profile)
     found = w.agents() if any(r.get("mode") != "headless" and r.get("state") != "starting" for r in rows) else None
+    if found is not None:
+        _PASS["agents"] = found
     for row in rows:
         task, session = row.get("task"), row["session"]
         if row.get("state") == "starting":
@@ -168,6 +171,16 @@ def _liveness(profile: str, mem: dict, acts: list[str]) -> None:
         else:
             mem.setdefault("dead", []).append(session)
             acts.append(f"dead {task}")
+
+
+def _reap(profile: str, mem: dict, acts: list[str]) -> None:
+    """Only while a pack runs or a topic exists: otherwise no session of the profile can be an orphan worth a call."""
+    w = _workers()
+    import sup_topics
+    if "agents" not in _PASS and not sup_topics.topics(profile) and \
+            not any(p.get("state") == "running" for p in sup_state.list_packs(profile)):
+        return
+    acts.extend(w.reap(profile, _PASS["agents"]) if "agents" in _PASS else w.reap(profile))
 
 
 def _leases(profile: str, mem: dict, acts: list[str]) -> None:
@@ -446,9 +459,10 @@ def _tick(profile: str, mem: dict, acts: list[str]) -> None:
 def step(profile: str, hub=None, tick: bool = True) -> list[str]:
     """One pass; returns the actions taken. watch.json is saved after every step that changed it."""
     mem, acts = _memory(profile), []
+    _PASS.clear()
     saved = json.dumps(mem, sort_keys=True)
     try:
-        for part in (_liveness, _leases, _answers, _free, _starts, _landing, _settle, _notices) + ((_tick,) if tick else ()):
+        for part in (_liveness, _reap, _leases, _answers, _free, _starts, _landing, _settle, _notices) + ((_tick,) if tick else ()):
             try:
                 part(profile, mem, acts)
             except Exception:

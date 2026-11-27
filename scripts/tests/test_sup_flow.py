@@ -46,6 +46,9 @@ with open(d + "/claude.log", "a") as f:
     f.write(json.dumps({"argv": a, "cwd": os.getcwd(), "env": {k: v for k, v in os.environ.items() if k.startswith("AGENTS_")}}) + "\\n")
 if "--resume" in a:
     print("woke session " + a[a.index("--resume") + 1][:8] + " with its saved options")
+    if os.path.exists(d + "/stopped"): os.remove(d + "/stopped")
+elif a[:1] == ["stop"]:
+    open(d + "/stopped", "w").write(a[1])
 elif a[:1] == ["--bg"]:
     name = a[a.index("--name") + 1]
     import uuid; sid = str(uuid.uuid4())  # like the real CLI: --bg picks the id and ignores --session-id
@@ -53,7 +56,8 @@ elif a[:1] == ["--bg"]:
     print("backgrounded \\u00b7 " + sid[:8] + " \\u00b7 " + name)
 elif a[:1] == ["agents"]:
     sid = open(d + "/sid").read() if os.path.exists(d + "/sid") else ""
-    print(json.dumps([{"sessionId": sid, "name": "x", "pid": 77}] if sid else []))
+    gone = os.path.exists(d + "/stopped")
+    print(json.dumps([{"sessionId": sid, "name": "x", "pid": None if gone else 77}] if sid else []))
 elif "-p" in a:
     print(json.dumps({"result": "TICK done: 1 handled, 0 left for the owner", "total_cost_usd": 0.01}))
 """
@@ -105,7 +109,7 @@ class Flow(unittest.TestCase):
         wt = self.tmp / "hub-tst-009"
         SESSION = worker["session"]
         self.assertEqual((worker["state"], worker["cwd"]), ("running", str(wt)))
-        first = self.claude_calls()[0]
+        first = next(c for c in self.claude_calls() if c["argv"][0] == "--bg")
         self.assertNotIn("--session-id", first["argv"])  # claude --bg ignores it and picks its own id
         self.assertEqual((self.tmp / "sid").read_text(), SESSION)
         self.assertEqual(first["env"]["AGENTS_SUP_TASK"], TASK); self.assertEqual(first["env"]["AGENTS_SUPERVISOR"], "p")
@@ -200,7 +204,8 @@ class Flow(unittest.TestCase):
     def test_every_chat_only_command_is_refused_in_a_claude_session_without_a_token(self):
         self.at("init", "--hub", str(self.hub), "--from", str(self.tmp / "profile.json"))
         args = {"instruct": ["x"], "start-pack": ["b"], "pause-pack": ["b"], "close-pack": ["b"],
-                "order": ["b", TASK], "cap": ["2"], "accept-tip": ["b", "sib"], "watch start": [], "watch stop": [], "init": ["--force"]}
+                "order": ["b", TASK], "cap": ["2"], "accept-tip": ["b", "sib"], "watch start": [], "watch stop": [], "init": ["--force"],
+                "delegate": ["t", "x"], "stop-topic": ["t"]}
         self.assertEqual(sorted(args), sorted(set(sup_guard.CHAT_COMMANDS) - {"pack"}))  # pack: any session but a worker
         session = {"CLAUDE_CODE_SESSION_ID": "worker-0001"}
         for cmd, rest in args.items():

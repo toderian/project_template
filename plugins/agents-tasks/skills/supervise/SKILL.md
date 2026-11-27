@@ -71,6 +71,14 @@ them run in parallel. Do not use it for one task: run `agents-core:execute-plan`
   standing instructions (recorded at once with `at sup instruct`), `pack`, `start-pack`, `pause-pack`,
   `close-pack`, `order`, `cap`. Only the chat session (its token) runs these from a supervisor. Outside a supervisor,
   any session but a worker may also run `pack`: it writes the pack record and starts nothing.
+- In chat, anything the supervisor cannot do itself (git, a shell, reading code, cleaning a checkout, stopping a
+  stray session): it hands the ask to a topic session with `at sup delegate <topic> '<ask>'` instead of handing it
+  back to you. A topic is a long-lived bg session (`<profile>-topic-<name>`) that keeps its context between asks on
+  the same topic and keeps a notes file; `--fresh` restarts it from the notes when its context is long. At most
+  `topic_cap` (config, default 3) run at once. `at sup topics` shows each topic's state and last result line,
+  `at sup topic-log <topic>` its recent output, `at sup stop-topic <topic>` stops it. Topics do not push or merge.
+- The watcher stops every bg session named `<profile>-<TASK>` or `<profile>-topic-<name>` that sup does not track
+  (`at sup reap`, also by hand with `--dry-run`), so a lost start never leaves two workers in one worktree.
 - `at sup board` writes and prints `board.md`: digest plus the whole queue.
 - Agent view: watch a worker or approve a permission prompt; no supervisor can.
 - Owner's shell only: `at sup init|tick|chat`, `at sup watch start|stop|once`, `at lease clear`, and any `git push`.
@@ -92,7 +100,8 @@ them run in parallel. Do not use it for one task: run `agents-core:execute-plan`
 - Grant or deny a resource request (`at sup grant <TASK> <resource>`, `at sup deny <TASK> <resource> '<reason>'`);
   leave anything else for the owner with `at sup escalate '<text>' [--task <TASK>] [--blocking]`; land a task that
   passed the done check; start the next ready task. Lab scripts run only through the operator's `at sup op`.
-- It has no `git`, `gh` or `claude` command and no `at lease take|release`; it may not edit files, push, clear a
+- It has no `git`, `gh` or `claude` command and no `at lease take|release`: work that needs them goes to a topic
+  (`at sup delegate`, chat only), never back to the owner as shell steps; it may not edit files, push, clear a
   lease, change instructions or pack controls from a tick, or run any command outside the guard's tables.
   Everything else stays in the owner's queue.
 

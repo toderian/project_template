@@ -245,9 +245,11 @@ class Workers(unittest.TestCase):
         os.chdir("/")
         self.assertTrue(sw.wake("p", SID % 1, "go"))
         calls = self.log()
-        self.assertEqual([c["argv"] for c in calls], [["stop", (SID % 1)[:8]], ["--bg", "--resume", SID % 1, "go"]])
+        self.assertEqual([c["argv"] for c in calls], [["stop", (SID % 1)[:8]], ["agents", "--json", "--all"],  # waits until it exited
+                                                      ["--bg", "--resume", SID % 1, "go"]])
         for c in calls:
-            self.assertEqual((c["cwd"], c["sup"], c["task"], c["path"]), (str(self.t / "wt"), "p", "RM-1", "/usr/bin:/bin"))
+            if c["argv"][0] != "agents":  # the global listing needs no task environment
+                self.assertEqual((c["cwd"], c["sup"], c["task"], c["path"]), (str(self.t / "wt"), "p", "RM-1", "/usr/bin:/bin"))
         self.assertEqual(st.worker_for("p", task="RM-1")["state"], "waiting")  # the caller (the watcher) sets `running`
         os.environ["FAKE_RESUME_RC"] = "1"
         self.assertFalse(sw.wake("p", SID % 1, "go"))
@@ -779,6 +781,50 @@ class Workers(unittest.TestCase):
         with self.assertRaises(SystemExit) as c, redirect_stderr(io.StringIO()):
             self.cli("packs", profile=False)
         self.assertEqual(c.exception.code, 2)
+
+    def test_a_wake_that_starts_a_copy_stops_the_copy_and_fails(self):
+        self.live_row(1, state="waiting", waiting_for="lab", cwd=str(self.t / "wt"))
+        (self.t / "resume.copy").write_text("")
+        self.assertFalse(sw.wake("p", SID % 1, "go"))
+        self.assertEqual([c["argv"] for c in self.log()][-1], ["stop", "e8ad3784"])
+
+    def test_a_wake_waits_for_the_stopped_session_to_exit_and_gives_up_without_a_resume(self):
+        self.live_row(1, state="waiting", waiting_for="lab", cwd=str(self.t / "wt"))
+        (self.t / "stop.fail").write_text("")  # never exits; the stop call fails and the session stays listed with a pid
+        self.assertFalse(sw.wake("p", SID % 1, "go"))
+        self.assertFalse([c for c in self.log() if "--resume" in c["argv"]])
+
+    def agent(self, sid, name, age=600, pid=77, kind="background"):
+        return {"sessionId": sid, "name": name, "pid": pid, "kind": kind, "startedAt": (time.time() - age) * 1000}
+
+    def test_reap_stops_only_untracked_bg_sessions_of_the_profile_past_the_grace(self):
+        self.running_pack(("RM-1", "RM-2"))
+        self.live_row(1, "RM-1")
+        orphan, dup = "eeee1111-0000-4000-8000-000000000001", "eeee2222-0000-4000-8000-000000000002"
+        found = [self.agent(SID % 1, "p-RM-1"),                     # tracked
+                 self.agent(dup, "p-RM-1"),                         # a second session of a tracked task
+                 self.agent(orphan, "p-RM-2"),                      # a lost start
+                 self.agent("eeee3333-0000-4000-8000-000000000003", "p-RM-2", age=10),     # a start in progress
+                 self.agent("eeee4444-0000-4000-8000-000000000004", "p-RM-9"),             # not a task of a pack
+                 self.agent("eeee5555-0000-4000-8000-000000000005", "q-RM-2"),             # another profile
+                 self.agent("eeee6666-0000-4000-8000-000000000006", "p-RM-2", pid=None),   # already stopped
+                 self.agent("eeee7777-0000-4000-8000-000000000007", "p-RM-2", kind="interactive"),
+                 self.agent("eeee8888-0000-4000-8000-000000000008", "p-topic-x")]          # an untracked topic
+        self.assertEqual(sw.reap("p", found, dry=True),
+                         ["would reap p-RM-1 eeee2222", "would reap p-RM-2 eeee1111", "would reap p-topic-x eeee8888"])
+        self.assertEqual(self.log(), [])
+        sw.reap("p", found)
+        self.assertEqual([c["argv"] for c in self.log()], [["stop", "eeee2222"], ["stop", "eeee1111"], ["stop", "eeee8888"]])
+        self.assertEqual(sw.reap("p", None), [])  # `claude agents` failed: nobody is reaped
+
+    def test_reap_command_and_watcher_pass(self):
+        self.running_pack(("RM-1",))
+        rc, out, _ = self.cli("reap", "--dry-run")
+        self.assertEqual((rc, out), (0, "no orphan sessions\n"))
+        self.assertEqual(sw.orphans("p", [self.agent(SID % 1, "p-RM-1")])[0]["sessionId"], SID % 1)
+        os.environ["AGENTS_SUP_TOPIC"] = "x"
+        rc, _, err = self.cli("reap")
+        self.assertEqual(rc, 3); self.assertIn("not for a topic session", err)
 
 
 if __name__ == "__main__":

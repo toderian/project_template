@@ -4,7 +4,7 @@ Commands (all take --profile, default $AGENTS_SUPERVISOR; exit 0 ok, 2 usage, 3 
   pack <name> <TASK-ID>... [--parallel] [--branch <slug>=<branch>]...   create, or replace while the pack is `new`;
                                           without --branch a replaced pack keeps its recorded branches
   packs | start-pack | pause-pack | close-pack <name> | order <name> <TASK-ID>... | cap <n>
-  start-worker <TASK-ID> [--headless] [--hub <path>] | stop-worker <TASK-ID>
+  start-worker <TASK-ID> [--headless] [--hub <path>] | stop-worker <TASK-ID> | reap [--dry-run]
 start-pack, pause-pack, close-pack, order and cap are chat-only (sup_ask.require_chat); `pack` starts nothing, so any
 session but a worker may run it (sup_ask.not_worker). Every command except `packs` refuses (exit 3) in a worker session
 (AGENTS_SUP_TASK set): an honest-mistake check, not a fence, because a worker runs under the same uid as the state directory.
@@ -14,7 +14,9 @@ creates (or attaches to) the branch off the repo's integration branch and the wo
 writes .local/repos.map in the task worktree (pack repos at their pack worktree). start-pack records the first tip of each
 pack repo in pack["tips"] (never overwritten). A key with no map line is the directory of that name beside the hub, as in 1.17.0.
 
-Sessions: both modes start with `--session-id <uuid4>`, and the full uuid is the registry key. start-worker writes a row
+Sessions: a headless start passes `--session-id <uuid4>`; `claude --bg` ignores that flag and picks its own id, so a bg
+start reads the short id from its `backgrounded · <id> · <name>` line, finds the full id in `claude agents` and re-keys
+the row. The full session id is the registry key. start-worker writes a row
 in state `starting` under the first lock (it counts against the cap and shuts out a second start of the task), then
 becomes `running`; a failed start removes the row. An existing task worktree with no live row is reused.
 Locking: state is read and written under `sup_state.locked(profile)`, but start-worker and stop-worker release it
@@ -34,6 +36,12 @@ before every `at` or `claude` subprocess. The helpers below never take it and ne
   next_tasks(profile) -> list[str]           tasks that may start now: pack running, no worker row, not landed, under the
                                              cap (live rows and rows due for a wake count); a serial pack offers its first
                                              open task, and only when the previous one is landed
+  orphans(profile, agents) -> list[dict]    live bg sessions named `<profile>-<TASK>` (a task of a pack) or
+                                             `<profile>-topic-<name>` whose session sup does not track, started more than
+                                             REAP_GRACE seconds ago (a start in progress is not yet re-keyed)
+  reap(profile, agents?, dry=False)          `claude stop` each orphan; returns one line per orphan. The watcher runs it
+                                             every pass, so a start that lost track of its session never leaves a
+                                             second worker running in the same worktree
   clean_env(**extra) -> dict                 os.environ without GIT_CONFIG_* and the chat token, PATH restored from
                                              AGENTS_SUP_ORIG_PATH (the supervisor launcher saves it)
 
@@ -74,6 +82,9 @@ WAKE_TRIES = 3
 DEAD_RESTARTS = 2
 STARTING_TTL = 300.0
 POLL_TRIES, POLL_DELAY = 6, 0.5
+GONE_TRIES = 20  # times POLL_DELAY: how long a stopped bg session may take to exit before a resume
+COPY = re.compile(r"started a copy as ([0-9a-f]{8})")
+REAP_GRACE = 120.0
 RESTART_TEXT = "Continue the task. Read your answers with: at sup inbox --task {task}"
 ANSWER_TEXT = "Read your answers with: at sup inbox --task {task}"
 
@@ -92,7 +103,8 @@ def _at() -> str:
 
 def clean_env(**extra) -> dict:
     env = {k: v for k, v in os.environ.items()
-           if not k.startswith("GIT_CONFIG_") and k not in ("AGENTS_SUP_CHAT_TOKEN", "AGENTS_SUP_TASK", "AGENTS_SUP_ORIG_PATH")}
+           if not k.startswith("GIT_CONFIG_") and k not in ("AGENTS_SUP_CHAT_TOKEN", "AGENTS_SUP_TASK", "AGENTS_SUP_TOPIC",
+                                                            "AGENTS_SUP_ORIG_PATH")}
     if os.environ.get("AGENTS_SUP_ORIG_PATH"):
         env["PATH"] = os.environ["AGENTS_SUP_ORIG_PATH"]
     env.update(extra)
@@ -162,6 +174,40 @@ def is_alive(row: dict, rows=_UNSET) -> bool | None:
     return any(r.get("sessionId") == row.get("session") and r.get("pid") is not None for r in found)
 
 
+def orphans(profile: str, found) -> list[dict]:
+    if found is None:
+        return []
+    known = {w.get("session") for w in st.workers(profile)}
+    try:
+        import sup_topics
+        known |= sup_topics.topic_sessions(profile)
+    except ImportError:
+        pass
+    tasks = {t for p in st.list_packs(profile) for t in p.get("tasks", [])}
+    out, now = [], time.time()
+    for r in found:
+        name, sid, started = r.get("name") or "", r.get("sessionId"), r.get("startedAt")
+        if r.get("pid") is None or r.get("kind", "background") != "background" or not _session_ok(sid) or sid in known:
+            continue
+        rest = name[len(profile) + 1:] if name.startswith(f"{profile}-") else None
+        if rest is None or not (rest in tasks or rest.startswith("topic-")):
+            continue
+        if not isinstance(started, (int, float)) or now - started / 1000 < REAP_GRACE:
+            continue
+        out.append(r)
+    return out
+
+
+def reap(profile: str, found=_UNSET, dry: bool = False) -> list[str]:
+    found = agents() if found is _UNSET else found
+    acts = []
+    for r in orphans(profile, found):
+        if not dry:
+            _stop_session(r["sessionId"])
+        acts.append(f"{'would reap' if dry else 'reaped'} {r['name']} {r['sessionId'][:8]}")
+    return acts
+
+
 def _pack_blocked(profile: str, task: str) -> bool:
     pack = st.pack_of(profile, task)
     return bool(pack) and pack.get("state") in ("paused", "closed")
@@ -220,8 +266,9 @@ def wake(profile: str, session: str, text: str) -> bool | int:
             found = agents()
             if found is None or any(r.get("sessionId") == session and r.get("pid") is not None for r in found):
                 return False  # the stop failed and the session may still run: a resume would start a copy
-        out = _run([_claude(), "--bg", "--resume", session, text, *_add_dirs(profile, _wake_hub(profile, cwd), cwd)], env=env, cwd=cwd)
-        return out.returncode == 0 and f"woke session {session[:8]}" in out.stdout
+        if not wait_gone(session):
+            return False  # still exiting: a resume now would start an untracked copy
+        return resume_bg(session, text, _add_dirs(profile, _wake_hub(profile, cwd), cwd), env, cwd)
     except (OSError, subprocess.SubprocessError):
         return False
 
@@ -414,8 +461,9 @@ def _command(fn=None, *, chat: bool = False, lock: bool = True, guard: bool = Tr
 
     def run(args) -> int:
         profile = _need_profile(args)
-        if guard and os.environ.get("AGENTS_SUP_TASK"):
-            print("at: sup: this command is for the supervisor and the owner, not for a worker session", file=sys.stderr)
+        if guard and (os.environ.get("AGENTS_SUP_TASK") or os.environ.get("AGENTS_SUP_TOPIC")):
+            who = "a worker" if os.environ.get("AGENTS_SUP_TASK") else "a topic"
+            print(f"at: sup: this command is for the supervisor and the owner, not for {who} session", file=sys.stderr)
             return 3
         if chat:
             import sup_ask  # lazily: sup_ask is another part
@@ -797,6 +845,38 @@ def _worktree(task: str, hub: Path, profile: str) -> str:
     return lines[-1]
 
 
+def wait_gone(session: str) -> bool:
+    """True once `claude agents` lists no live process for the session; `claude stop` returns before it exits."""
+    for i in range(GONE_TRIES):
+        found = agents()
+        if found is not None and not any(r.get("sessionId") == session and r.get("pid") is not None for r in found):
+            return True
+        if i < GONE_TRIES - 1:
+            time.sleep(POLL_DELAY)
+    return False
+
+
+RESUME_SAID: list[str] = []  # the last line claude printed on a failed resume_bg, for the caller's message
+
+
+def resume_bg(session: str, text: str, dirs: list[str], env: dict, cwd) -> bool:
+    """`claude --bg --resume`: True only when that session woke. When it was still up, claude starts a copy under a new
+    id and name instead; the copy is stopped at once, so it never runs untracked beside the worker. One attempt: the
+    caller retries (the watcher on its next pass, `delegate` in its own loop)."""
+    RESUME_SAID.clear()
+    out = _run([_claude(), "--bg", "--resume", session, text, *dirs], env=env, cwd=cwd)
+    said = out.stdout + out.stderr
+    copy = COPY.search(said)
+    if copy:
+        _stop_session(copy.group(1))
+        RESUME_SAID.append(f"claude started a copy {copy.group(1)} instead (stopped)")
+        return False
+    if out.returncode == 0 and f"woke session {session[:8]}" in said:
+        return True
+    RESUME_SAID.append((said.strip().splitlines() or ["no output"])[-1])
+    return False
+
+
 def _stop_session(session: str) -> None:
     try:
         _run([_claude(), "stop", session[:8]], env=clean_env())
@@ -1013,6 +1093,16 @@ def cmd_stop_worker(profile: str, args) -> int:
     return 0
 
 
+@_command(lock=False)
+def cmd_reap(profile: str, args) -> int:
+    found = agents()
+    if found is None:
+        raise Refused("`claude agents` failed: nothing reaped")
+    acts = reap(profile, found, dry=args.dry_run)
+    print("\n".join(acts) if acts else "no orphan sessions")
+    return 0
+
+
 def register(sup_sub) -> None:
     def add(name, func, *pos, flags=()):
         p = sup_sub.add_parser(name)
@@ -1036,3 +1126,4 @@ def register(sup_sub) -> None:
     add("start-worker", cmd_start_worker, ("task", {"metavar": "TASK-ID"}),
         flags=[("--headless", {"action": "store_true"}), ("--hub", {"help": "hub (default: the profile's, else the cwd's git toplevel)"})])
     add("stop-worker", cmd_stop_worker, ("task", {"metavar": "TASK-ID"}))
+    add("reap", cmd_reap, flags=[("--dry-run", {"action": "store_true"})])
