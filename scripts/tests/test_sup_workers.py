@@ -89,7 +89,7 @@ def git(path, *a):
 
 class Workers(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)  # a fake session may still be writing; self.addCleanup(self.tmp.cleanup)
+        self.tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True); self.addCleanup(self.tmp.cleanup)  # a fake session may still be writing
         self.old = dict(os.environ); self.addCleanup(lambda: (os.environ.clear(), os.environ.update(self.old)))
         t = Path(self.tmp.name).resolve(); (t / "wt").mkdir()
         for name, body in (("claude", FAKE_CLAUDE), ("at", FAKE_AT)):
