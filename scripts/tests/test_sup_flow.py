@@ -48,8 +48,9 @@ if "--resume" in a:
     print("woke session " + a[a.index("--resume") + 1][:8] + " with its saved options")
 elif a[:1] == ["--bg"]:
     name = a[a.index("--name") + 1]
-    open(d + "/name", "w").write(name); open(d + "/sid", "w").write(a[a.index("--session-id") + 1])
-    print("backgrounded \\u00b7 " + a[a.index("--session-id") + 1][:8] + " \\u00b7 " + name)
+    import uuid; sid = str(uuid.uuid4())  # like the real CLI: --bg picks the id and ignores --session-id
+    open(d + "/name", "w").write(name); open(d + "/sid", "w").write(sid)
+    print("backgrounded \\u00b7 " + sid[:8] + " \\u00b7 " + name)
 elif a[:1] == ["agents"]:
     sid = open(d + "/sid").read() if os.path.exists(d + "/sid") else ""
     print(json.dumps([{"sessionId": sid, "name": "x", "pid": 77}] if sid else []))
@@ -105,7 +106,8 @@ class Flow(unittest.TestCase):
         SESSION = worker["session"]
         self.assertEqual((worker["state"], worker["cwd"]), ("running", str(wt)))
         first = self.claude_calls()[0]
-        self.assertEqual(first["argv"][first["argv"].index("--session-id") + 1], SESSION)
+        self.assertNotIn("--session-id", first["argv"])  # claude --bg ignores it and picks its own id
+        self.assertEqual((self.tmp / "sid").read_text(), SESSION)
         self.assertEqual(first["env"]["AGENTS_SUP_TASK"], TASK); self.assertEqual(first["env"]["AGENTS_SUPERVISOR"], "p")
         self.assertEqual(Path(first["cwd"]).resolve(), wt)
 

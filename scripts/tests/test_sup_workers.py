@@ -29,7 +29,7 @@ if "--resume" in a:
 if a[0] == "--bg":
     if has("bg.fail"):
         sys.stderr.write((open(d + "/bg.fail").read().strip() or "Workspace not trusted") + "\\n"); sys.exit(1)
-    sid = a[a.index("--session-id") + 1]
+    import uuid; sid = str(uuid.uuid4())  # like the real CLI: --bg picks the id and ignores --session-id
     open(d + "/sessions", "a").write(sid + "\\n")
     print("backgrounded \\u00b7 " + sid[:8] + " \\u00b7 " + a[a.index("--name") + 1])
 elif a[0] == "agents":
@@ -169,7 +169,8 @@ class Workers(unittest.TestCase):
         self.assertEqual((rc, out), (0, f"started RM-1 {row['session']}\n"))
         self.assertRegex(row["session"], r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}$")
         bg = self.log()[0]
-        self.assertEqual(bg["argv"][:7], ["--bg", "--session-id", row["session"], "--name", "p-RM-1", "--permission-mode", "auto"])
+        self.assertEqual(bg["argv"][:5], ["--bg", "--name", "p-RM-1", "--permission-mode", "auto"])
+        self.assertEqual(open(self.t / "sessions").read().split(), [row["session"]])
         self.assertEqual((bg["sup"], bg["task"], bg["cwd"]), ("p", "RM-1", os.path.realpath(self.t / "wt")))
         self.assertEqual((bg["gitcfg"], bg["path"]), ([], "/usr/bin:/bin"))  # finding security-10
         for text in ("WAITING supervisor", "profile p", "at sup inbox --ack", "at sup release", "--minutes", "run the resource's script yourself",

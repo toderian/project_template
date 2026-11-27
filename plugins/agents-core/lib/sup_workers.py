@@ -804,26 +804,33 @@ def _stop_session(session: str) -> None:
         pass
 
 
-def _bg_session(profile: str, task: str, session: str, cwd: str, env: dict, prompt: str, dirs: list[str]) -> int | None:
+def _bg_session(profile: str, task: str, cwd: str, env: dict, prompt: str, dirs: list[str]) -> str:
+    """Start a bg worker and return its session id. `claude --bg` picks the id itself (it ignores --session-id), so
+    the short id comes from its `backgrounded · <id> · <name>` line and the full one from `claude agents`."""
     name = f"{profile}-{task}"
     try:
-        proc = subprocess.run([_claude(), "--bg", "--session-id", session, "--name", name, *session_flags(), prompt, *dirs],
+        proc = subprocess.run([_claude(), "--bg", "--name", name, *session_flags(), prompt, *dirs],
                               cwd=cwd, env=env, capture_output=True, text=True, timeout=120, start_new_session=True,
                               stdin=subprocess.DEVNULL)
     except (OSError, subprocess.SubprocessError) as e:
-        _stop_session(session)
         raise Refused(f"cannot start claude: {e}") from None
     if proc.returncode != 0:
         tail = (proc.stderr.strip() or proc.stdout.strip()).splitlines()
         raise Refused(f"claude --bg failed: {tail[-1] if tail else 'no output'}")
+    m = re.search(r"^backgrounded \u00b7 ([0-9a-f]{8}) \u00b7", proc.stdout, re.M)
+    if not m:
+        raise Refused(f"started {name} but `claude --bg` printed no session id; check `claude agents`")
+    short = m.group(1)
     for i in range(POLL_TRIES):
         rows = agents()
-        if rows is not None and any(r.get("sessionId") == session for r in rows):
-            return None
+        for r in rows or []:
+            sid = r.get("sessionId")
+            if isinstance(sid, str) and sid.startswith(short):
+                return sid
         if i < POLL_TRIES - 1:
             time.sleep(POLL_DELAY)
-    _stop_session(session)
-    raise Refused(f"started {name} ({session[:8]}) but it is not in `claude agents`; stopped it")
+    _stop_session(short)
+    raise Refused(f"started {name} ({short}) but it is not in `claude agents`; stopped it")
 
 
 def _headless_session(profile: str, task: str, session: str, cwd: str, env: dict, prompt: str, dirs: list[str]) -> int | None:
@@ -949,9 +956,15 @@ def cmd_start_worker(profile: str, args) -> int:
                 print(f"{e}: linked, not writable by the worker: a file at the hub root; put it in a directory to make it writable")
         env = clean_env(AGENTS_SUPERVISOR=profile, AGENTS_SUP_TASK=task)
         prompt = WORKER_PROMPT.format(task=task, profile=profile)
-        pid = (_headless_session if headless else _bg_session)(profile, task, session, cwd, env, prompt,
-                                                                   _add_dirs(profile, hub, cwd))
+        dirs = _add_dirs(profile, hub, cwd)
+        pid = _headless_session(profile, task, session, cwd, env, prompt, dirs) if headless else None
+        real = session if headless else _bg_session(profile, task, cwd, env, prompt, dirs)
         with st.locked(profile):
+            if real != session:  # re-key the `starting` row under the id claude chose
+                row = st.worker_for(profile, session=session) or {}
+                st.drop_worker(profile, session)
+                st.set_worker(profile, real, **{k: v for k, v in row.items() if k != "session"})
+                session = real
             st.set_worker(profile, session, cwd=cwd, state="running", **({"pid": pid} if pid else {}))
             st.emit(profile, "started", task=task, session=session, mode=mode)
     except BaseException:
