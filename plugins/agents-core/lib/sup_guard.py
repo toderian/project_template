@@ -69,7 +69,9 @@ DEFAULT_TOOLS = ["Bash", "Agent", "AskUserQuestion", "Read", "Glob", "Grep"]
 REPEATABLE = {"--branch"}  # flags that may appear more than once
 RESERVED = {"main", "programs", "tools"}
 # Commands only the owner's chat (or plain shell) may run; `answer --owner` is checked in decide. `at sup` calls
-# require_chat for the same list. Of these only the first group is in DEFAULT_MAIN: init and watch start|stop are the owner's shell.
+# require_chat for the same list except `pack`, which starts nothing and is refused there only for a worker; a supervisor
+# session still needs the token for it, so a tick never writes a pack. Of these only the first group is in DEFAULT_MAIN:
+# init and watch start|stop are the owner's shell.
 CHAT_COMMANDS = ("instruct", "pack", "start-pack", "pause-pack", "close-pack", "order", "cap", "watch start",
                  "watch stop", "init", "accept-tip")
 CHAT_PREFIXES = [f"at sup {c}".split() for c in CHAT_COMMANDS]

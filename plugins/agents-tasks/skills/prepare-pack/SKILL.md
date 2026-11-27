@@ -65,7 +65,7 @@ at sup ready --pack <name>
 Both need a profile: `--profile <name>` or `AGENTS_SUPERVISOR`.
 
 `at sup ready --pack` prints `ready`, or one line per problem (`<ID>: <problem>` or `pack <name>: <problem>`) and
-exits 3. `at sup pack` runs in the owner's chat or shell, not in a worker. Fix the task file the line names and
+exits 3. `at sup pack` runs in any session but a worker or a supervisor tick. Fix the task file the line names and
 run it again. It checks every task's readiness, the order against the pack, that no blocker names a phase, that
 every resource exists in the profile, that every slug is a pack repo, and that no two tasks that can run together
 share a `Files:` entry. `at sup start-pack` runs the same check.

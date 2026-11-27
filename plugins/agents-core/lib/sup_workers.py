@@ -5,9 +5,9 @@ Commands (all take --profile, default $AGENTS_SUPERVISOR; exit 0 ok, 2 usage, 3 
                                           without --branch a replaced pack keeps its recorded branches
   packs | start-pack | pause-pack | close-pack <name> | order <name> <TASK-ID>... | cap <n>
   start-worker <TASK-ID> [--headless] [--hub <path>] | stop-worker <TASK-ID>
-pack, start-pack, pause-pack, close-pack, order and cap are chat-only (sup_ask.require_chat). Every command except `packs`
-refuses (exit 3) in a worker session (AGENTS_SUP_TASK set): an honest-mistake check, not a fence, because a worker runs
-under the same uid as the state directory.
+start-pack, pause-pack, close-pack, order and cap are chat-only (sup_ask.require_chat); `pack` starts nothing, so any
+session but a worker may run it (sup_ask.not_worker). Every command except `packs` refuses (exit 3) in a worker session
+(AGENTS_SUP_TASK set): an honest-mistake check, not a fence, because a worker runs under the same uid as the state directory.
 
 Pack repos: a key of the pack's `branches` is a slug of .config/repos.project.md with a line in .local/repos.map. start-pack
 creates (or attaches to) the branch off the repo's integration branch and the worktree <checkout>-<pack>; start-worker
@@ -575,8 +575,11 @@ def _pack_worktrees(profile: str, pack: dict) -> dict:
     return tips
 
 
-@_command(chat=True)
+@_command
 def cmd_pack(profile: str, args) -> int:
+    import sup_ask  # lazily: sup_ask is another part
+    if not sup_ask.not_worker(profile):
+        return 3
     old = st.read_pack(profile, args.name)
     if old and old.get("state") != "new":
         raise Refused(f"pack {args.name!r} is {old['state']}; only a new pack can be replaced")

@@ -6,7 +6,7 @@ line the worker ends its turn with, `WAITING supervisor: <Q-id or resource>`. `i
 Supervisor and owner side: `answer` closes a question (first answer wins) and puts the answer in the task's
 inbox; `grant` and `deny` settle a `need`; `queue` lists the owner's open questions. A row set to `stopped`
 with `waiting_for` None is what the watcher wakes. Chat-only commands (`instruct`, `answer --owner`, and the ones in the
-other parts: sup_guard.CHAT_COMMANDS) call `require_chat()`: allowed in a plain shell, and in a Claude session only with
+other parts: sup_guard.CHAT_COMMANDS but `pack`) call `require_chat()`: allowed in a plain shell, and in a Claude session only with
 the chat token of that session (sup_guard.check_chat_token).
 
 Trust model: a worker runs under the same uid as the state directory, so nothing here is a fence against a worker. The

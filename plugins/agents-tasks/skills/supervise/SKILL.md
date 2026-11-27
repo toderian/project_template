@@ -69,7 +69,8 @@ them run in parallel. Do not use it for one task: run `agents-core:execute-plan`
 
 - In chat: "status" (the digest, the queue first), answers to the queue (`at sup answer <Q-id> '<text>' --owner`),
   standing instructions (recorded at once with `at sup instruct`), `pack`, `start-pack`, `pause-pack`,
-  `close-pack`, `order`, `cap`. Only the chat session (its token) runs these from a supervisor.
+  `close-pack`, `order`, `cap`. Only the chat session (its token) runs these from a supervisor. Outside a supervisor,
+  any session but a worker may also run `pack`: it writes the pack record and starts nothing.
 - `at sup board` writes and prints `board.md`: digest plus the whole queue.
 - Agent view: watch a worker or approve a permission prompt; no supervisor can.
 - Owner's shell only: `at sup init|tick|chat`, `at sup watch start|stop|once`, `at lease clear`, and any `git push`.

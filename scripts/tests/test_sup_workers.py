@@ -364,6 +364,19 @@ class Workers(unittest.TestCase):
             rc, _, err = self.cli(*argv); self.assertEqual(rc, 3, argv); self.assertIn("not for a worker", err)
         self.assertEqual(self.cli("packs")[0], 0)
 
+    def test_an_agent_session_without_a_chat_token_may_write_a_new_pack_but_not_start_or_replace_a_started_one(self):
+        os.environ["CLAUDE_CODE_SESSION_ID"] = "agent-session"
+        rc, _, err = self.cli("pack", "a", "RM-1", "RM-2"); self.assertEqual(rc, 0, err)
+        rc, _, err = self.cli("start-pack", "a"); self.assertEqual(rc, 3); self.assertIn("only the owner's chat", err)
+        os.environ.pop("CLAUDE_CODE_SESSION_ID"); self.running_pack(("RM-1", "RM-2"))
+        os.environ["CLAUDE_CODE_SESSION_ID"] = "agent-session"
+        for state in ("running", "paused"):
+            st.write_pack("p", {**st.read_pack("p", "a"), "state": state})
+            rc, _, err = self.cli("pack", "a", "RM-1"); self.assertEqual(rc, 3, state); self.assertIn(f"is {state}", err)
+        st.set_worker("p", "agent-session", task="RM-1", state="running", mode="bg")  # now a registered worker
+        rc, _, err = self.cli("pack", "b", "RM-3"); self.assertEqual(rc, 3); self.assertIn("worker session", err)
+        self.assertIsNone(st.read_pack("p", "b"))
+
     def test_pack_order_and_cap_validation_and_touch_log(self):
         self.assertEqual(self.cli("pack", "a", "RM-1", "bad")[0], 2)
         self.assertEqual(self.cli("pack", "a", "RM-1", "RM-1")[0], 2)

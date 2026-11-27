@@ -197,9 +197,9 @@ class Flow(unittest.TestCase):
 
     def test_every_chat_only_command_is_refused_in_a_claude_session_without_a_token(self):
         self.at("init", "--hub", str(self.hub), "--from", str(self.tmp / "profile.json"))
-        args = {"instruct": ["x"], "pack": ["b", TASK], "start-pack": ["b"], "pause-pack": ["b"], "close-pack": ["b"],
+        args = {"instruct": ["x"], "start-pack": ["b"], "pause-pack": ["b"], "close-pack": ["b"],
                 "order": ["b", TASK], "cap": ["2"], "accept-tip": ["b", "sib"], "watch start": [], "watch stop": [], "init": ["--force"]}
-        self.assertEqual(sorted(args), sorted(sup_guard.CHAT_COMMANDS))
+        self.assertEqual(sorted(args), sorted(set(sup_guard.CHAT_COMMANDS) - {"pack"}))  # pack: any session but a worker
         session = {"CLAUDE_CODE_SESSION_ID": "worker-0001"}
         for cmd, rest in args.items():
             p = self.at(*cmd.split(), *rest, env=session, ok=False)
