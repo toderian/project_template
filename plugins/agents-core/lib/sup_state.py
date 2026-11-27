@@ -344,6 +344,15 @@ def advance(profile: str, last_id: int) -> None:
         _atomic_text(profile_dir(profile) / "cursor", f"{last_id}\n")
 
 
+def landing_message(hub_dir, branch: str, task: str) -> str:
+    """The message of the commit on `branch` that landed `task`: the one with the whole line
+    `Archive: refs/archive/task/<ID>` (RM-1 is not RM-10); '' when there is none."""
+    line = f"Archive: refs/archive/task/{task}"
+    log = subprocess.run(["git", "-C", str(hub_dir), "log", branch, "--format=%B%x00", "--fixed-strings", f"--grep={line}"],
+                         capture_output=True, text=True)
+    return next((m.strip("\n") for m in log.stdout.split("\0") if line in m.splitlines()), "") if log.returncode == 0 else ""
+
+
 def landed(profile: str, task: str, hub_dir) -> bool:
     """True when a `landed` event exists for the task, or the hub has refs/archive/task/<ID> and the default branch
     log carries `Archive: refs/archive/task/<ID>`."""
@@ -365,9 +374,7 @@ def landed(profile: str, task: str, hub_dir) -> bool:
                 break
     if branch is None:
         return False
-    log = subprocess.run(git + ["log", branch, "--format=%B", "--fixed-strings", f"--grep=Archive: {ref}"],
-                         capture_output=True, text=True)
-    return log.returncode == 0 and f"Archive: {ref}" in log.stdout
+    return bool(landing_message(hub_dir, branch, task))
 
 
 # ---- the owner's queue and a worker's inbox --------------------------------------------

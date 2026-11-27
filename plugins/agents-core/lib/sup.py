@@ -145,7 +145,7 @@ def archived_file(main: Path, tid: str, branch: str) -> str:
 
 def kept_ignored(wt: Path) -> list[str]:
     out = git_z(wt, "ls-files", "--others", "--ignored", "--exclude-standard")
-    return [f for f in out if not (set(f.split("/")) & CACHES or f.endswith(".pyc"))]
+    return [f for f in out if f != ".local/repos.map" and not (set(f.split("/")) & CACHES or f.endswith(".pyc"))]
 
 
 def ledger_script(main: Path) -> Path | None:
@@ -167,7 +167,7 @@ def ledger_sync(main: Path) -> None:
             raise Refuse(f"ledger {'check' if extra else 'sync'} failed: {last}")
 
 
-def squash_and_commit(main: Path, tid: str, branch: str, task_file: str) -> None:
+def squash_and_commit(main: Path, tid: str, branch: str, task_file: str, body: str = "") -> None:
     try:
         p = git(main, "merge", "--squash", f"refs/heads/{branch}")
         if p.returncode:
@@ -186,7 +186,7 @@ def squash_and_commit(main: Path, tid: str, branch: str, task_file: str) -> None
         heading = next((ln[3:].strip() for ln in (main / task_file).read_text().splitlines() if ln.startswith("## ")), tid)
         m = CONVENTIONAL.match(heading)
         kind, title = (m.group(1), heading[m.end():]) if m else ("feat", heading)
-        git_out(main, "commit", "-q", "-m", f"{kind}: {tid} {title}\n\nTask: {tid}\nArchive: refs/archive/task/{tid}\n")
+        git_out(main, "commit", "-q", "-m", f"{kind}: {tid} {title}\n\nTask: {tid}\nArchive: refs/archive/task/{tid}\n{body}")
     except BaseException:
         git(main, "reset", "--hard", "HEAD")  # the landing checkout was clean before the merge
         raise
@@ -230,6 +230,14 @@ def cmd_land(args) -> int:
         raise Refuse(f"task worktree {wt} has uncommitted changes")
     if is_dirty(main):
         raise Refuse(f"landing checkout {main} has uncommitted changes")
+    import sup_state, sup_workers
+    try:  # the pack repos the task names: dirty pack worktree refuses; the ranges go into the hub commit
+        profile, pack = sup_workers.pack_for_land(main, sup_state.current_profile(args.profile), tid)
+        ranges = sup_workers.land_ranges(main, pack, tid) if pack else {}
+    except sup_workers.Refused as e:
+        raise Refuse(str(e)) from e
+    # a repo the task names without a new commit (old == new) gets no range line, and no tip to move
+    body = "".join(f"{s} {b} {o}..{n}\n" for s, (b, o, n) in ranges.items() if o != n)
     default = args.into or default_branch(main)
     head = git(main, "symbolic-ref", "--short", "-q", "HEAD")
     if head.returncode:
@@ -242,20 +250,26 @@ def cmd_land(args) -> int:
     old = git(main, "rev-parse", "--verify", "-q", ref).stdout.strip()
     if old and old != tip:
         raise Refuse(f"{ref} already exists at another commit")
-    done = bool(git_out(main, "log", "-1", "--format=%H", "--fixed-strings", f"--grep=Archive: {ref}", default))
+    done = bool(sup_state.landing_message(main, default, tid))
     ledger_script(main)
     steps = [] if done else [f"squash-merge {branch} into {default} and commit once (hub-ledger lease, ledger sync and check)"]
     steps += [f"git update-ref {ref} {tip[:12]}"] if old != tip else []
     if wt:
         steps.append(f"move ignored files other than caches to {state_dir() / 'kept' / tid}, then remove worktree {wt}")
+    steps += [f"record the pack tips of {', '.join(ranges)}"] if ranges else []
     steps.append(f"delete branch {branch}")
     if args.dry_run:
         print("\n".join("dry-run: " + s for s in steps))
         return 0
     if not done:
-        _with_lease("hub-ledger", lambda: squash_and_commit(main, tid, branch, task_file), tid)
+        _with_lease("hub-ledger", lambda: squash_and_commit(main, tid, branch, task_file, body), tid)
     if old != tip:
         git_out(main, "update-ref", ref, tip)
+    if pack:  # after the hub commit, from its body (new or found): a crash here leaves the tips behind, the rerun moves them
+        try:
+            sup_workers.advance_tips(profile, pack, main, sup_state.landing_message(main, default, tid))
+        except sup_workers.Refused as e:
+            raise Refuse(f"the commit is made; {e}; rerun `sup land {tid}`") from e
     if wt and wt.exists():
         if is_dirty(wt):  # recomputed now: the worker may have written since the first check
             raise Refuse(f"task worktree {wt} changed during landing; the commit is made, rerun `sup land {tid}`")

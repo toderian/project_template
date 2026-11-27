@@ -146,6 +146,55 @@ class Flow(unittest.TestCase):
         self.assertEqual(self.at("done", "a").stdout.strip(), "done: a")
         self.assertEqual(json.loads(self.at("measure", "--json").stdout)["tasks_landed"], 1)
 
+    def close_out(self, task, wt):
+        (wt / "docs/tasks_manager/_todos_archived").mkdir(parents=True, exist_ok=True)
+        git(wt, "mv", f"docs/tasks_manager/_todos/{task}-F_x.md", f"docs/tasks_manager/_todos_archived/{task}-F_x.md")
+        f = wt / f"docs/tasks_manager/_todos_archived/{task}-F_x.md"; f.write_text(f.read_text().replace("- [ ]", "- [x]")); git(wt, "add", "-A")
+        git(wt, "commit", "-q", "-m", f"{task} closeout")
+
+    def test_a_pack_with_a_sibling_repo_runs_two_tasks_in_order_and_done_names_the_branch(self):
+        T1, T2 = "TST-009", "TST-010"
+        sib = self.tmp / "sib"; sib.mkdir()
+        git(sib, "init", "-q", "-b", "dev"); git(sib, "config", "user.name", "T"); git(sib, "config", "user.email", "t@example.invalid")
+        git(sib, "commit", "-q", "--allow-empty", "-m", "sib base")
+        (self.hub / ".config").mkdir(); (self.hub / ".local").mkdir(); (self.hub / ".gitignore").write_text(".local/\n")
+        (self.hub / ".config/repos.project.md").write_text("| Repo | Required | Role | Default branch | Integration branch | Work mode |\n|---|---|---|---|---|---|\n"
+                                                           "| hub | yes | x | main | main | d |\n| sib | no | x | dev | dev | d |\n")
+        (self.hub / ".local/repos.map").write_text(f"hub: {self.hub}\nsib: {sib}\n")
+        todo = self.hub / "docs/tasks_manager/_todos"
+        for t in (T1, T2):
+            (todo / f"{t}-F_x.md").write_text(TASK_FILE.replace(TASK, t).replace("| Task ID |", "| Repos | `sib` |\n| Task ID |"))
+        git(self.hub, "add", "-A"); git(self.hub, "commit", "-q", "-m", "tasks and registry")
+        self.at("init", "--hub", str(self.hub), "--from", str(self.tmp / "profile.json"))
+        self.at("pack", "a", T1, T2, "--branch", "sib=feat/x"); self.at("start-pack", "a")
+        pw, tip0 = self.tmp / "sib-a", git(sib, "rev-parse", "dev")
+        self.assertEqual(st.read_pack("p", "a")["tips"], {"sib": tip0})
+        tips, hub_commits = [tip0], int(git(self.hub, "rev-list", "--count", "main"))
+        for n, t in enumerate((T1, T2), 1):
+            self.assertEqual(self.at("watch", "once", "--no-tick").stdout.split(), ["started", t])
+            wt = self.tmp / f"hub-{t.lower()}"
+            self.assertIn(f"sib: {pw}", (wt / ".local/repos.map").read_text())
+            self.assertEqual(git(pw, "rev-list", "--count", f"{tip0}..HEAD"), str(n - 1))  # the second task starts on the first one's commit
+            (pw / f"p{n}.py").write_text("x\n"); git(pw, "add", "-A"); git(pw, "commit", "-q", "-m", f"{t} phase 1")
+            self.close_out(t, wt)
+            with st.locked("p"):
+                st.set_worker("p", st.worker_for("p", task=t)["session"], state="done")
+            if n == 2:  # a dirty pack worktree refuses the landing; an ignored file under .local is kept
+                (wt / ".local/notes.txt").write_text("n\n"); (pw / "half.py").write_text("x")
+                p = self.at("land", t, ok=False); self.assertEqual(p.returncode, 3); self.assertIn("uncommitted changes", p.stderr)
+                (pw / "half.py").unlink()
+            self.assertEqual(self.at("watch", "once", "--no-tick").stdout.split(), ["landed", t])
+            tips.append(git(pw, "rev-parse", "HEAD"))
+            self.assertIn(f"sib feat/x {tips[-2]}..{tips[-1]}", git(self.hub, "log", "-1", "--format=%B"))
+            self.assertEqual(st.read_pack("p", "a")["tips"], {"sib": tips[-1]})
+        self.assertEqual(int(git(self.hub, "rev-list", "--count", "main")), hub_commits + 2)
+        self.assertEqual((self.tmp / "sup/_host/kept" / T2 / ".local/notes.txt").read_text(), "n\n")
+        self.assertFalse((self.tmp / "sup/_host/kept" / T2 / ".local/repos.map").exists())
+        done = self.at("done", "a").stdout
+        self.assertIn("sib: feat/x, 2 commit(s) over dev, ready for PR", done); self.assertTrue(done.endswith("done: a\n"))
+        (pw / "late.py").write_text("x"); git(pw, "add", "-A"); git(pw, "commit", "-q", "-m", "late")
+        late = self.at("done", "a", ok=False); self.assertEqual(late.returncode, 3); self.assertIn("1 commit(s) above the landed tip", late.stdout)
+
     def test_every_chat_only_command_is_refused_in_a_claude_session_without_a_token(self):
         self.at("init", "--hub", str(self.hub), "--from", str(self.tmp / "profile.json"))
         args = {"instruct": ["x"], "pack": ["b", TASK], "start-pack": ["b"], "pause-pack": ["b"], "close-pack": ["b"],

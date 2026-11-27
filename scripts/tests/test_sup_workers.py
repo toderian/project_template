@@ -437,6 +437,20 @@ class Workers(unittest.TestCase):
         self.assertEqual(st.read_pack("p", "a")["tips"], {"sib": tip})  # and so does a failed worker start
         self.assertIn("one commit per phase", next(l for l in self.log() if l["argv"][0] == "--bg")["argv"][-1])
 
+    def test_close_pack_removes_only_a_clean_worktree_at_the_tip_and_keeps_the_branch(self):
+        self.repos(); self.cli("pack", "a", "RM-1", "--branch", "sib=feat/x"); self.cli("start-pack", "a")
+        wt = self.t / "sib-a"; (wt / "half.py").write_text("x")
+        rc, out, _ = self.cli("close-pack", "a"); self.assertEqual(rc, 0); self.assertIn("kept", out); self.assertIn("uncommitted changes", out); self.assertTrue(wt.exists())
+        (wt / "half.py").unlink(); git(wt, "commit", "-q", "--allow-empty", "-m", "phase 1")
+        rc, out, _ = self.cli("close-pack", "a"); self.assertIn("not at the landed tip", out); self.assertTrue(wt.exists())
+        st.write_pack("p", {**st.read_pack("p", "a"), "tips": {"sib": git(wt, "rev-parse", "HEAD")}})
+        (self.sib / ".git/info/exclude").write_text("*.log\n")
+        (wt / "run.log").write_text("evidence")  # an ignored file survives: the worktree stays
+        rc, out, _ = self.cli("close-pack", "a"); self.assertIn("1 ignored file(s)", out); self.assertTrue((wt / "run.log").exists())
+        (wt / "run.log").unlink()
+        rc, out, _ = self.cli("close-pack", "a"); self.assertIn(f"removed {wt}", out); self.assertFalse(wt.exists())
+        git(self.sib, "rev-parse", "--verify", "feat/x")  # the branch is still there (git raises when it is gone)
+
     def test_a_pack_without_branches_writes_no_map_and_no_worktree(self):
         self.repos()
         self.running_pack(("RM-1",))

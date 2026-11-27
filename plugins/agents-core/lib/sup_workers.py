@@ -274,7 +274,7 @@ def _task_repos(root: Path, task: str) -> set[str]:
     if scripts not in sys.path:
         sys.path.insert(0, scripts)
     import task_brief
-    for f in sorted((root / sup.TODOS).glob(f"{task}-*.md")):
+    for f in sorted(g for d in (sup.TODOS, sup.ARCHIVED) for g in (root / d).glob(f"{task}-*.md")):  # a landed task is archived
         cell = task_brief.parse_task(task, f).meta.get("Repos", "")
         return {r for r in re.split(r"[,\s]+", cell.replace("`", "")) if SLUG.fullmatch(r)}
     return set()
@@ -381,6 +381,84 @@ def _valid_branch(branch: str) -> bool:
         _git(".", "check-ref-format", "--branch", branch).returncode == 0
 
 
+def _pack_wt(checkout: Path, pack: dict) -> Path:
+    """The pack worktree of a pack repo: the one rule for its path."""
+    return checkout.parent / f"{checkout.name}-{pack['name']}"
+
+
+def _clean(path) -> bool:
+    p = _git(path, "status", "--porcelain")
+    return p.returncode == 0 and not p.stdout.strip()
+
+
+def _tip(checkout, branch: str) -> str:
+    return _git(checkout, "rev-parse", "--verify", "-q", f"refs/heads/{branch}^{{commit}}").stdout.strip()
+
+
+def land_ranges(main: Path, pack: dict, task: str) -> dict:
+    """{slug: (branch, old tip, new tip)} of the pack repos `task` names, for `at sup land`; refuses a dirty pack worktree
+    or a repo with no recorded tip. The tips in the pack move only after the hub commit (see advance_tips)."""
+    _, mp = _repos(main)
+    out = {}
+    for slug in sorted(_pack_repos(pack, main, task)):
+        checkout, branch = _checkout(main, slug, mp), pack["branches"][slug]
+        wt = _pack_wt(checkout, pack)
+        if wt.exists() and not _clean(wt):
+            raise Refused(f"pack worktree {wt} has uncommitted changes")
+        old, new = (pack.get("tips") or {}).get(slug), _tip(checkout, branch)
+        if not old or not new:
+            raise Refused(f"{slug}: no recorded tip or no branch {branch}; run start-pack")
+        out[slug] = (branch, old, new)
+    return out
+
+
+def pack_for_land(main: Path, profile: str | None, task: str):
+    """(profile, pack) the landing of `task` works with, or (None, None) when no pack with branches holds it. Every profile
+    whose hub is `main` (and the given one) is searched: landing past a pack never depends on the flag or the environment."""
+    held = {}
+    for d in sorted(st.root().iterdir()) if st.root().is_dir() else ():
+        if d.is_dir() and st.NAME.match(d.name):
+            pack = st.pack_of(d.name, task)
+            hub = st.config(d.name).get("hub")
+            # a profile with no usable hub in its config counts as this hub: the landing fails closed
+            if pack and pack.get("branches") and (d.name == profile or not isinstance(hub, str) or not hub or Path(hub).resolve() == main.resolve()):
+                held[d.name] = pack
+    if held and profile not in held:
+        raise Refused(f"{task} is in a pack of {', '.join(held)} with pack branches; pass --profile of the one that holds it")
+    return (profile, held[profile]) if held else (None, None)
+
+
+def advance_tips(profile: str, pack: dict, main: Path, message: str) -> None:
+    """Move the tips to the `<slug> <branch> <old>..<new>` lines of the hub landing commit `message`: one source for a first
+    landing and a rerun. A tip never moves backwards: a new tip that does not descend from the stored one is left, and said."""
+    _, mp = _repos(main)
+    new = {}
+    for slug, b, tip in re.findall(r"^(\S+) (\S+) [0-9a-f]{40}\.\.([0-9a-f]{40})$", message, re.M):
+        cur = (pack.get("tips") or {}).get(slug)
+        if pack["branches"].get(slug) != b or cur == tip:
+            continue
+        if cur and _git(_checkout(main, slug, mp), "merge-base", "--is-ancestor", cur, tip).returncode:
+            print(f"{slug}: the stored tip {cur[:12]} is not an ancestor of {tip[:12]}; left as it is")
+        else:
+            new[slug] = tip
+    if new:
+        with st.locked(profile):
+            fresh = _get_pack(profile, pack["name"])
+            st.write_pack(profile, {**fresh, "tips": {**(fresh.get("tips") or {}), **new}})
+
+
+def pack_ahead(hub: Path, pack: dict) -> dict:
+    """{slug: (branch, commits above the recorded tip)} for the pack repos whose branch is past its tip."""
+    _, mp = _repos(hub)
+    out = {}
+    for slug, branch in (pack.get("branches") or {}).items():
+        tip = (pack.get("tips") or {}).get(slug)
+        n = _git(_checkout(hub, slug, mp), "rev-list", "--count", f"{tip}..refs/heads/{branch}") if tip else None
+        if n is not None and n.returncode == 0 and int(n.stdout) > 0:
+            out[slug] = (branch, int(n.stdout))
+    return out
+
+
 def _pack_worktrees(profile: str, pack: dict) -> dict:
     """Per pack repo: the branch (off the integration branch, or the existing one) and the worktree <checkout>-<pack>.
     Returns {slug: tip of the worktree}. Safe to run twice; refuses a path that is not that worktree on that branch.
@@ -394,7 +472,7 @@ def _pack_worktrees(profile: str, pack: dict) -> dict:
         checkout = _checkout(hub, slug, mp)
         if not checkout.is_dir() or _git(checkout, "rev-parse", "--git-dir").returncode:
             raise Refused(f"{slug}: {checkout} is not a git repository")
-        wt = checkout.parent / f"{checkout.name}-{pack['name']}"
+        wt = _pack_wt(checkout, pack)
         if wt.exists():
             same = _git(wt, "rev-parse", "--git-common-dir").stdout.strip(), _git(checkout, "rev-parse", "--git-common-dir").stdout.strip()
             if (_git(wt, "symbolic-ref", "--short", "HEAD").stdout.strip() != branch
@@ -494,7 +572,25 @@ def cmd_pause_pack(profile: str, args) -> int:
 
 @_command(chat=True)
 def cmd_close_pack(profile: str, args) -> int:
-    return _set_state(profile, args.name, "closed", ("new", "running", "paused", "closed"), "close")
+    import sup  # lazily: sup_workers is loaded by sup.add_parser
+    pack = _get_pack(profile, args.name)
+    hub = st.hub(profile) if pack.get("branches") and pack.get("tips") else None
+    _, mp = _repos(hub) if hub else (0, {})
+    plan = []  # decided before `closed` is written; never --force, never a branch delete
+    for slug, branch in (pack.get("branches") or {}).items() if hub else ():
+        checkout = _checkout(hub, slug, mp)
+        wt = _pack_wt(checkout, pack)
+        if wt.exists():
+            kept = len(sup.kept_ignored(wt)) if _clean(wt) else 0  # the same ignored files `land` keeps
+            why = "uncommitted changes" if not _clean(wt) else f"{kept} ignored file(s)" if kept else \
+                "not at the landed tip" if _git(wt, "rev-parse", "HEAD").stdout.strip() != pack["tips"].get(slug) else ""
+            plan.append((slug, branch, checkout, wt, why))
+    rc = _set_state(profile, args.name, "closed", ("new", "running", "paused", "closed"), "close")
+    for slug, branch, checkout, wt, why in plan:
+        if not why and _git(checkout, "worktree", "remove", str(wt)).returncode:
+            why = "git worktree remove refused"
+        print(f"{slug}: kept {wt} ({why}); branch {branch} kept" if why else f"{slug}: removed {wt}; branch {branch} kept")
+    return rc
 
 
 @_command(chat=True)

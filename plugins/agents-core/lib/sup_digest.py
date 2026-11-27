@@ -126,10 +126,10 @@ def _section_problems(text: str) -> list[str]:
     return bad
 
 
-def _branch_exists(hub: Path, repo: str, branch: str) -> bool:
-    sup = _sup()
-    d = hub if repo in (".", hub.name) else hub.parent / repo
-    return d.is_dir() and sup.git(d, "rev-parse", "--verify", "-q", f"{branch}^{{commit}}").returncode == 0
+def _branch_exists(hub: Path, repo: str, branch: str, mp: dict) -> bool:
+    import sup_workers as w
+    d = hub if repo in (".", hub.name) and repo not in mp else w._checkout(hub, repo, mp)
+    return d.is_dir() and _sup().git(d, "rev-parse", "--verify", "-q", f"refs/heads/{branch}^{{commit}}").returncode == 0
 
 
 def done_check(profile: str, pack_name: str, hub: Path) -> list[str]:
@@ -160,9 +160,49 @@ def done_check(profile: str, pack_name: str, hub: Path) -> list[str]:
             for q in sup_state.queue(profile)
             if q.get("task") in tasks and not (q.get("source") == "watcher" and states.get(q["task"]) == "landed")]
     bad += [f"lease {r['resource']} {r['state']} by {r['task']}" for r in _leases() if r["task"] in tasks]
-    bad += [f"branch {b} of {repo} does not exist" for repo, b in (pack.get("branches") or {}).items()
-            if not _branch_exists(hub, repo, b)]
+    bad += _pack_repo_problems(hub, pack)
     return bad
+
+
+def _pack_repo_problems(hub: Path, pack: dict) -> list[str]:
+    """Per pack repo: the branch exists and, when a tip is recorded, is at that tip with a clean pack worktree.
+    A refusal of the map or of git (`Refused`) is one problem line."""
+    import sup_workers as w
+    out = []
+    try:
+        mp = w._repos(hub)[1]
+        for slug, branch in (pack.get("branches") or {}).items():
+            tip, checkout = (pack.get("tips") or {}).get(slug), w._checkout(hub, slug, mp)
+            if not _branch_exists(hub, slug, branch, mp):
+                out.append(f"branch {branch} of {slug} does not exist")
+                continue
+            if not tip or not checkout.is_dir():
+                continue  # a pack of 1.17.0 has no tips
+            if w._tip(checkout, branch) != tip:
+                out.append(f"{slug}: {branch} has {w.pack_ahead(hub, pack).get(slug, ('', '?'))[1]} commit(s) above the landed tip {tip[:12]}")
+            wt = w._pack_wt(checkout, pack)
+            if wt.exists() and not w._clean(wt):
+                out.append(f"{slug}: pack worktree {wt} has uncommitted changes")
+    except w.Refused as e:
+        out.append(str(e))
+    return out
+
+
+def _pack_ready_lines(hub: Path, pack: dict) -> list[str]:
+    """One line per pack repo with a recorded tip; the count only over a registry branch git accepts."""
+    import sup_workers as w
+    out = []
+    try:
+        reg, mp = w._repos(hub)
+        for slug, branch in (pack.get("branches") or {}).items():
+            base, n = reg.get(slug, ("unknown", "unknown"))[1], None
+            if slug in (pack.get("tips") or {}) and w._valid_branch(base):
+                n = w._git(w._checkout(hub, slug, mp), "rev-list", "--count", f"refs/heads/{base}..refs/heads/{branch}")
+            count = f", {n.stdout.strip()} commit(s) over {base}" if n is not None and n.returncode == 0 else ""
+            out += [f"{slug}: {branch}{count}, ready for PR"] * (slug in (pack.get("tips") or {}))
+    except w.Refused as e:
+        out.append(str(e))
+    return out
 
 
 def _capped(rows: list[str], limit: int, urgent: str = "") -> list[str]:
@@ -207,6 +247,21 @@ def _ptask(v) -> str:
     return v if isinstance(v, str) and sup_state.TASK.match(v) else "(other)"
 
 
+def _ahead_lines(profile: str, hub: Path, T, W) -> list[str]:
+    """One row per pack repo whose branch is above its landed tip: the repo, the task holding it, the count (at most 4 rows)."""
+    import sup_workers as w
+    rows = []
+    for p in sup_state.list_packs(profile):
+        if p.get("branches") and p.get("tips") and p.get("state") != "closed":
+            try:
+                held = w._held(profile, p, hub, sup_state.workers(profile))
+                rows += [f"  {W(p['name'])}/{W(slug)}: {T(held.get(slug))} {n} commit(s) above the landed tip on {W(b)}"
+                         for slug, (b, n) in w.pack_ahead(hub, p).items()]
+            except w.Refused as e:
+                rows.append(f"  {W(p['name'])}: {_cut(str(e))}")
+    return (["COMMITS ABOVE THE LANDED TIP"] + _capped(rows, 4)) if rows else []
+
+
 def digest(profile: str, hub: Path | None = None, for_prompt: bool = False) -> str:
     """`for_prompt=True` (the tick's prompt): question ids, tasks and the blocking mark only, no worker text.
     In every mode an event shows its kind only when it is in EVENT_KINDS and its task only when it matches TASK."""
@@ -235,6 +290,7 @@ def digest(profile: str, hub: Path | None = None, for_prompt: bool = False) -> s
         rows += textwrap.wrap(", ".join(f"{T(t)} {W(s)}" for t, s in st.items()), 118,
                               initial_indent="    ", subsequent_indent="    ")
     out += [f"PACKS ({len(sup_state.list_packs(profile))})"] + _capped(rows, 18)
+    out += _ahead_lines(profile, hub, T, W)
 
     order = {"waiting": 0, "running": 1, "stopped": 2}
     rows_w = sorted((w for w in sup_state.workers(profile) if w.get("state") != "done"),
@@ -385,7 +441,7 @@ def cmd_done(args) -> int:
         print(line)
     if bad:
         return 3
-    print(f"done: {args.pack}")
+    print("\n".join(_pack_ready_lines(sup_state.hub(profile, args.hub), sup_state.read_pack(profile, args.pack)) + [f"done: {args.pack}"]))
     return 0
 
 

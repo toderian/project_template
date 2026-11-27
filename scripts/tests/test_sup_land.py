@@ -99,6 +99,13 @@ class Land(Base):
         kept = self.tmp / "state/_host/kept/TST-001"; self.assertIn(str(kept), p.stdout)
         self.assertEqual((kept / "notes/run.log").read_text(), "evidence\n"); self.assertFalse((kept / "src").exists()); self.assertFalse(wt.exists())
 
+    def test_a_task_whose_id_is_a_prefix_of_a_landed_one_still_gets_its_own_commit(self):
+        self.task("TST-10"); self.assertEqual(self.sup("land", "TST-10").returncode, 0)
+        self.task("TST-1"); before = int(g(self.hub, "rev-list", "--count", "main").stdout)
+        p = self.sup("land", "TST-1"); self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertEqual(int(g(self.hub, "rev-list", "--count", "main").stdout), before + 1)
+        self.assertTrue((self.hub / "src/tst_1.py").exists())
+
     def test_second_task_after_landing_sees_first_archived_file(self):
         self.task("TST-001"); self.assertEqual(self.sup("land", "TST-001").returncode, 0)
         wt2 = self.sup("worktree", "TST-002"); self.assertEqual(wt2.returncode, 0, wt2.stderr)
@@ -217,6 +224,68 @@ class Land(Base):
         self.ledger_hub(); p = self.sup("worktree", "TST-001"); self.archive(pathlib.Path(p.stdout.strip()), "x"); before = self.snapshot()
         self.env["AT_TASKS_ROOT"] = str(self.tmp / "none"); p = self.sup("land", "TST-001")
         self.assertEqual(p.returncode, 3); self.assertIn("agents-tasks", p.stderr); self.assertEqual(self.snapshot(), before)
+
+
+class PackLand(Base):
+    """A pack with one sibling repo `sib`: the pack worktree sib-pk on feat/x, the hub's map pointing at the checkout."""
+    def setUp(self):
+        super().setUp()
+        sys.path.insert(0, str(ROOT / "plugins/agents-core/lib"))
+        os.environ["AGENTS_SUP_DIR"] = self.env["AGENTS_SUP_DIR"]; self.addCleanup(os.environ.pop, "AGENTS_SUP_DIR")
+        self.sib = self.tmp / "sib"; self.sib.mkdir()
+        g(self.sib, "init", "-q", "-b", "dev"); g(self.sib, "config", "user.name", "T"); g(self.sib, "config", "user.email", "t@example.invalid")
+        g(self.sib, "commit", "-q", "--allow-empty", "-m", "sib base")
+        g(self.sib, "worktree", "add", "-q", "-b", "feat/x", str(self.tmp / "sib-pk"), "dev")
+        self.pw = self.tmp / "sib-pk"
+        write(self.hub / ".config/repos.project.md", "| Repo | Required | Role | Default branch | Integration branch | Work mode |\n|---|---|---|---|---|---|\n"
+              "| hub | yes | x | main | main | d |\n| sib | no | x | dev | dev | d |\n")
+        write(self.hub / ".local/repos.map", f"hub: {self.hub}\nsib: {self.sib}\n")
+        write(self.hub / ".gitignore", "*.log\n.local/\n"); g(self.hub, "add", "-A"); g(self.hub, "commit", "-q", "-m", "registry")
+        self.tip0 = g(self.sib, "rev-parse", "dev").stdout.strip()
+        import sup_state as st; self.st = st
+        st.write_pack("p", {"name": "pk", "tasks": ["TST-001", "TST-002"], "branches": {"sib": "feat/x"}, "tips": {"sib": self.tip0}})
+
+    def pack_task(self, tid):
+        write(self.hub / f"{TODO}/{tid}-F_x.md", f"| Field | Value |\n|---|---|\n| Repos | `sib` |\n\n## Add {tid}\n")
+        g(self.hub, "add", "-A"); g(self.hub, "commit", "-q", "-m", f"add {tid}")
+        wt = pathlib.Path(self.sup("worktree", tid).stdout.strip())
+        write(wt / ARCH / f"{tid}-F_x.md", f"| Field | Value |\n|---|---|\n| Repos | `sib` |\n\n## Add {tid}\n")
+        g(wt, "rm", "-q", f"{TODO}/{tid}-F_x.md"); g(wt, "add", "-A"); g(wt, "commit", "-q", "-m", tid)
+        return wt
+
+    def land(self, tid):
+        return self.sup("land", tid, "--profile", "p")
+
+    def test_the_hub_commit_carries_the_range_and_the_tip_moves(self):
+        self.pack_task("TST-001")
+        g(self.pw, "commit", "-q", "--allow-empty", "-m", "phase 1"); new = g(self.pw, "rev-parse", "HEAD").stdout.strip()
+        p = self.land("TST-001"); self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertIn(f"sib feat/x {self.tip0}..{new}\n", g(self.hub, "log", "-1", "--format=%B").stdout)
+        self.assertEqual(self.st.read_pack("p", "pk")["tips"], {"sib": new})
+
+    def test_a_landing_without_the_holding_profile_refuses_and_changes_nothing(self):
+        self.pack_task("TST-001"); self.st.set_config("p", hub=str(self.hub)); before = self.snapshot()
+        for args in ((), ("--profile", "q")):
+            p = self.sup("land", "TST-001", *args); self.assertEqual(p.returncode, 3, args); self.assertIn("--profile", p.stderr)
+        self.assertEqual(self.snapshot(), before)
+        self.st.set_config("p", hub=None)  # a profile that never ran init has no hub: it still counts as this hub
+        self.assertEqual(self.sup("land", "TST-001").returncode, 3); self.assertEqual(self.snapshot(), before)
+        self.assertEqual(self.sup("land", "TST-001", "--profile", "p").returncode, 0)
+
+    def test_a_dirty_pack_worktree_refuses_and_changes_nothing(self):
+        self.pack_task("TST-001"); write(self.pw / "half.py", "x\n"); before = self.snapshot()
+        self.assertEqual(self.land("TST-001").returncode, 3)
+        self.assertEqual(self.snapshot(), before); self.assertEqual(self.st.read_pack("p", "pk")["tips"], {"sib": self.tip0})
+
+    def test_a_rerun_after_a_crash_between_the_commit_and_the_tips_moves_the_tips(self):
+        wt = self.pack_task("TST-001"); g(self.pw, "commit", "-q", "--allow-empty", "-m", "phase 1"); new = g(self.pw, "rev-parse", "HEAD").stdout.strip()
+        tip = g(wt, "rev-parse", "HEAD").stdout.strip(); self.assertEqual(self.land("TST-001").returncode, 0)
+        g(self.hub, "branch", "task/TST-001", tip)  # the state a crash leaves: the hub commit exists, the branch and the old tips remain
+        g(self.pw, "commit", "-q", "--allow-empty", "-m", "moved on")  # the branch moved after the landing: the tip stays the commit's
+        self.st.write_pack("p", {**self.st.read_pack("p", "pk"), "tips": {"sib": self.tip0}}); count = g(self.hub, "rev-list", "--count", "main").stdout
+        p = self.land("TST-001"); self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertEqual(g(self.hub, "rev-list", "--count", "main").stdout, count)
+        self.assertEqual(self.st.read_pack("p", "pk")["tips"], {"sib": new})
 
 
 class Parser(Base):

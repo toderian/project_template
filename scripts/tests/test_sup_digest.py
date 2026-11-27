@@ -206,6 +206,29 @@ class Done(Base):
         st.write_pack(P, {"name": "pk", "tasks": ["RM-1"], "branches": {self.hub.name: "feat/x"}})
         self.assertEqual(dg.done_check(P, "pk", self.hub), [])
 
+    def test_pack_repos_need_the_tip_and_a_clean_worktree_then_done_names_the_branch(self):
+        self.commit_tasks(["RM-1"]); self.close_out("RM-1"); self.land("RM-1")
+        sib = self.hub.parent / "sib"; sib.mkdir()
+        g = lambda *a: subprocess.run([*GIT, "-C", str(sib), *a], check=True, capture_output=True, text=True).stdout.strip()
+        g("init", "-q", "-b", "dev"); g("commit", "-q", "--allow-empty", "-m", "base"); g("worktree", "add", "-q", "-b", "feat/x", str(self.hub.parent / "sib-pk"), "dev")
+        pw = self.hub.parent / "sib-pk"; tip = g("rev-parse", "dev")
+        (self.hub / ".config").mkdir(); (self.hub / ".config/repos.project.md").write_text(
+            "| Repo | Required | Role | Default branch | Integration branch | Work mode |\n|---|---|---|---|---|---|\n| sib | no | x | dev | dev | d |\n")
+        st.write_pack(P, {"name": "pk", "tasks": ["RM-1"], "branches": {"sib": "feat/x"}, "tips": {"sib": tip}})
+        subprocess.run([*GIT, "-C", str(pw), "commit", "-q", "--allow-empty", "-m", "phase 1"], check=True)
+        bad = dg.done_check(P, "pk", self.hub); self.assertEqual(len(bad), 1, bad); self.assertIn("sib: feat/x has 1 commit(s) above the landed tip", bad[0])
+        self.todos.mkdir(exist_ok=True); self.commit_tasks(["RM-2"]); (self.todos / "RM-2-x.md").write_text("| Repos | `sib` |\n")  # a started task holds the repo
+        st.write_pack(P, {**st.read_pack(P, "pk"), "state": "running", "tasks": ["RM-1", "RM-2"]}); st.set_worker(P, "s2", task="RM-2", state="running")
+        self.assertIn("pk/sib: RM-2 1 commit(s) above the landed tip on feat/x", self.cli("status", "--profile", P, "--hub", str(self.hub))[1])
+        st.drop_worker(P, "s2"); st.write_pack(P, {**st.read_pack(P, "pk"), "tasks": ["RM-1"]})
+        (self.hub / ".local").mkdir(); (self.hub / ".local/repos.map").write_text("sib: rel/path\n")  # a refused map is a line, not a traceback
+        self.assertIn("not absolute", dg.done_check(P, "pk", self.hub)[0]); self.assertIn("not absolute", self.cli("status", "--profile", P, "--hub", str(self.hub))[1])
+        (self.hub / ".local/repos.map").unlink()
+        st.write_pack(P, {**st.read_pack(P, "pk"), "tips": {"sib": subprocess.run([*GIT, "-C", str(pw), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()}})
+        (pw / "half.py").write_text("x"); self.assertIn("has uncommitted changes", dg.done_check(P, "pk", self.hub)[0]); (pw / "half.py").unlink()
+        code, out, _ = self.cli("done", "pk", "--profile", P, "--hub", str(self.hub))
+        self.assertEqual(code, 0); self.assertIn("sib: feat/x, 1 commit(s) over dev, ready for PR", out)
+
     def test_unknown_pack_is_a_usage_error(self):
         self.assertEqual(self.cli("done", "nope", "--profile", P, "--hub", str(self.hub))[0], 2)
 
