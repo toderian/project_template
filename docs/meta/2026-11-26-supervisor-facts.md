@@ -164,3 +164,29 @@ cap 2), profile with an `auto` resource `lab` and `local: ["shared/"]`.
   Meaning: a `local` path must not look like a resource to the worker; the task text should say it is a plain path.
 - Result: three hub commits (one squash per task), the pack branch with one commit per sibling task in task
   order, nothing pushed (the scratch repos have no remote), no lease left, no worker left.
+
+## From the six-task trials (2026-11-27, Claude Code 2.1.332, model `haiku`, dev copy after 1.18.0)
+
+Scratch hub, two sibling repos, pack of six tasks (`--parallel`, one branch per sibling, cap 3): two tasks need the
+`auto` resource `lab` (script takes 25 seconds and fails on overlap), two `Blocked by` edges, one task writes a linked
+directory and a linked file, one task asks a question its `Defaults` line answers. Three runs.
+
+| Run | Result | Wall | Questions | Answered by supervisor / owner | Wakes | Ticks (cost) | Worker runs (cost) |
+|---|---|---|---|---|---|---|---|
+| 1 | no worker started | — | — | — | — | — | — |
+| 2 | 6 of 6 landed | 2.7 min | 2 | 2 / 0 | 3 | 3 ($0.007) | 9 ($0.11) |
+| 3 | 6 of 6 landed | 15.6 min, 12.5 of them waiting for the owner | 3 | 1 / 2 | 4 | 4 ($0.010) | 10 ($0.11) |
+
+- `claude --bg … --add-dir <dir>` in a workspace that is not trusted exits with `Added folder not trusted: <dir> (part of
+  the repository at <hub>)`. Run 1 stopped there: the watcher only knew `Workspace not trusted`. Fixed: any `not trusted`
+  refusal of a background start switches the profile to headless. In a trusted hub the flag was not tried with `--bg`.
+- Headless `claude -p … --add-dir <dir>` starts in the same untrusted workspace.
+- The lab was never used twice at once: the second task got the lease 15 seconds after the first released it. A task
+  blocked by another started 11 to 30 seconds after its blocker landed. No worker died, no tick failed.
+- The `auto` mode classifier refused a Bash append to the linked `data/cache.db` in both runs ("Destructive or Unwanted
+  Actions"), also as a single simple command after the owner allowed it. The Write tool on the same linked paths passed.
+  Meaning: `--add-dir` opens the path, the classifier still decides per command; a task that must write a linked file
+  should say "use the Write tool".
+- Run 2: the supervisor answered that question with "skip the two linked writes", and the task landed with required work
+  not done. Fixed in the supervisor prompt: such a question is escalated. Run 3: it escalated both times, the owner was
+  notified through `at notify`, and the worker went on within 12 seconds of each owner answer.

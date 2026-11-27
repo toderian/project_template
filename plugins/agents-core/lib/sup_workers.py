@@ -212,7 +212,7 @@ def wake(profile: str, session: str, text: str) -> bool | int:
             logs.mkdir(exist_ok=True)
             n = len(list(logs.glob(f"{row['task']}.wake-*.json"))) + 1
             with open(logs / f"{row['task']}.wake-{n}.json", "w", encoding="utf-8") as out:
-                proc = subprocess.Popen([_claude(), "-p", "--resume", session, *session_flags(), "--output-format", "json", text, *_add_dirs(profile, _hub_or_none(profile), cwd)],
+                proc = subprocess.Popen([_claude(), "-p", "--resume", session, *session_flags(), "--output-format", "json", text, *_add_dirs(profile, _wake_hub(profile, cwd), cwd)],
                                         cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT,
                                         start_new_session=True)
             return proc.pid
@@ -220,10 +220,22 @@ def wake(profile: str, session: str, text: str) -> bool | int:
             found = agents()
             if found is None or any(r.get("sessionId") == session and r.get("pid") is not None for r in found):
                 return False  # the stop failed and the session may still run: a resume would start a copy
-        out = _run([_claude(), "--bg", "--resume", session, text, *_add_dirs(profile, _hub_or_none(profile), cwd)], env=env, cwd=cwd)
+        out = _run([_claude(), "--bg", "--resume", session, text, *_add_dirs(profile, _wake_hub(profile, cwd), cwd)], env=env, cwd=cwd)
         return out.returncode == 0 and f"woke session {session[:8]}" in out.stdout
     except (OSError, subprocess.SubprocessError):
         return False
+
+
+def _wake_hub(profile: str, cwd) -> Path | None:
+    """The hub of a woken worker: config key `hub`, else the repo the worktree `cwd` belongs to (a start with `--hub` stored no
+    key, and the wake may run from any directory), else the hub of the process cwd."""
+    if st.config(profile).get("hub"):
+        return _hub_or_none(profile)
+    try:
+        common = Path(_git(cwd, "rev-parse", "--path-format=absolute", "--git-common-dir").stdout.strip())
+    except Refused:
+        return _hub_or_none(profile)
+    return common.parent if common.name == ".git" else _hub_or_none(profile)
 
 
 def _landed(profile: str, task: str, hub) -> bool:
@@ -678,9 +690,9 @@ def cmd_accept_tip(profile: str, args) -> int:
     wt = _pack_wt(checkout, pack)
     if wt.exists() and not _clean(wt):
         raise Refused(f"pack worktree {wt} has uncommitted changes")
-    for w in st.live_workers(profile):
-        if w.get("task") in pack["tasks"] and args.slug in _pack_repos(pack, hub, w["task"]):
-            raise Refused(f"{w['task']} has a live worker that names repo {args.slug!r}")
+    if pack.get("state") != "closed" and (holder := _held(profile, pack, hub, st.workers(profile)).get(args.slug)):
+        raise Refused(f"{holder} was started and is not landed, so it holds repo {args.slug!r}: land it, or give the task up "
+                      f"with `at sup close-pack {args.name}` and accept the tip then")
     tip = _tip(checkout, branch)
     if not tip:
         raise Refused(f"{args.slug}: no branch {branch}")
@@ -846,10 +858,12 @@ def _write_map(hub: Path, cwd: Path, pack: dict) -> None:
 def _add_dirs(profile: str, hub: Path | None, cwd) -> list[str]:
     """`--add-dir <hub path>` for each `local` entry linked in the worktree `cwd` (the hub directory of a `/` entry, the parent
     of a file): a session may not write through a link that leaves its working directories. The flag takes several values, so
-    callers put it after the prompt. [] without linked entries."""
+    callers put it after the prompt. A file at the hub root adds nothing (its parent is the whole hub): the worker reads the
+    link, it cannot write through it. [] without linked entries; a `local` that cannot be read is said on stderr."""
     try:
         entries = st.profile_local(profile, hub, check=False) if hub else []
-    except ValueError:
+    except ValueError as e:
+        print(f"sup: {profile}: local entries unreadable, session started without --add-dir: {e}", file=sys.stderr)
         return []
     dirs = []
     for e in entries:
@@ -859,7 +873,8 @@ def _add_dirs(profile: str, hub: Path | None, cwd) -> list[str]:
         except (OSError, RuntimeError):
             linked = False
         d = str(src if e.endswith("/") else src.parent)
-        if linked and d not in dirs:
+        own = Path(d).relative_to(hub).parts[:1] in ((), (".claude",), (".git",))  # the hub itself, its agent settings, its git
+        if linked and not own and d not in dirs:
             dirs.append(d)
     return ["--add-dir", *dirs] if dirs else []
 
@@ -926,6 +941,9 @@ def cmd_start_worker(profile: str, args) -> int:
         _write_map(hub, Path(cwd), pack)
         for e in _link_local(profile, hub, Path(cwd)):
             print(f"local {e}: not in the hub, skipped")
+        for e in st.profile_local(profile, hub, check=False):
+            if "/" not in e.rstrip("/") and not e.endswith("/") and (Path(cwd) / e).is_symlink():
+                print(f"{e}: linked, not writable by the worker: a file at the hub root; put it in a directory to make it writable")
         env = clean_env(AGENTS_SUPERVISOR=profile, AGENTS_SUP_TASK=task)
         prompt = WORKER_PROMPT.format(task=task, profile=profile)
         pid = (_headless_session if headless else _bg_session)(profile, task, session, cwd, env, prompt,

@@ -51,7 +51,8 @@ them run in parallel. Do not use it for one task: run `agents-core:execute-plan`
      a link, not a directory. The line must be in the branch the task starts from. A trailing `/` in `local` marks a
      directory, which `start-worker` creates in the hub. `start-worker` links each path into the
      task worktree and refuses when something else is there. At landing the link goes; a real file in its place is
-     kept in `kept/<ID>`. A file entry that is not in the hub is skipped.
+     kept in `kept/<ID>`. A file entry that is not in the hub is skipped. A file at the hub root is linked but not
+     writable by the worker (its parent is the whole hub); put it in a directory to make it writable.
 5. Worker mode (config key `worker_mode`): `bg` (workers as background sessions) needs the hub opened once
    interactively with `claude` so the workspace is trusted; `headless` (`claude -p`) needs nothing. A worker must
    arm the run guard (`at run-guard arm`, as `agents-core:execute-plan` does when it opens a run): without it its

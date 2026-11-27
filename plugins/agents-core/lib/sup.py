@@ -5,8 +5,11 @@ The hub is `--hub <path>` (alias `--repo`) when given, else config key `hub` of 
 AGENTS_SUPERVISOR; set by `at sup init`), else the git toplevel of the current directory. Exit codes: 0 ok,
 2 usage, 3 refused (one line on stderr saying why). Standalone: `python3 sup.py worktree ...`.
 
-`land` writes the archive ref after the squash commit (a failed landing leaves no ref), and a rerun
-after a failure past the commit skips the squash and only cleans up.
+`land` refuses before it touches the checkout when it cannot compute the merge result (`git merge-tree --write-tree`,
+git 2.38+) unless the branch sits on the tip of the landing branch, and when an assume-unchanged hub file differs from the
+index. It stages only the merge result, tracked changes and the generated ledger pages. It writes the archive ref after the
+squash commit (a failed landing leaves no ref), and a rerun after a failure past the commit skips the squash and only
+cleans up.
 Not built here: the permission preflight of `ready` (plan D9).
 
 `land` refuses under AGENTS_SUP_TASK (a worker session), emits `landed` when a profile is known (--profile or
@@ -49,7 +52,8 @@ def _git_env() -> dict:
 
 
 def git(cwd: Path, *args: str) -> subprocess.CompletedProcess:
-    return subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, text=True, env=_git_env())
+    # surrogateescape: a file name that is not UTF-8 round-trips to the file system instead of raising
+    return subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, text=True, errors="surrogateescape", env=_git_env())
 
 
 def git_out(cwd: Path, *args: str) -> str:
@@ -182,13 +186,18 @@ def squash_and_commit(main: Path, tid: str, branch: str, task_file: str, body: s
             for f in conflicted:
                 git_out(main, "checkout", "--ours", "--", f)
                 git_out(main, "add", "--", f)
-        # the checkout was clean, so an untracked file now is one the branch stopped ignoring: `add -A` would commit it
+        # the checkout was clean, so an untracked file now is one the branch stopped ignoring: staging it would commit it
         loose = git_z(main, "ls-files", "--others", "--exclude-standard")
         if loose:
             raise Refuse(f"{branch} stops ignoring {loose[0]}, which the hub holds: landing would commit it; "
                          f"keep the ignore line on the branch, or move the hub's copy away")
         ledger_sync(main)
-        git_out(main, "add", "-A")
+        # only what the landing owns: the merge result is staged already, the sync rewrote tracked files and may have
+        # created ledger pages in its two directories. A file another writer drops elsewhere in the checkout now is neither committed
+        # nor, on a failure, reset away.
+        git_out(main, "add", "-u")
+        if pages := git_z(main, "ls-files", "--others", "--exclude-standard", "--", "docs/areas", "docs/tasks_manager"):
+            git_out(main, "add", "--", *pages)
         if git(main, "diff", "--cached", "--quiet").returncode == 0:
             raise Refuse(f"nothing to land: {branch} adds nothing to the default branch")
         heading = next((ln[3:].strip() for ln in (main / task_file).read_text().splitlines() if ln.startswith("## ")), tid)
@@ -202,7 +211,7 @@ def squash_and_commit(main: Path, tid: str, branch: str, task_file: str, body: s
 
 def merge_result(main: Path, default: str, branch: str) -> tuple[str, list[str]] | None:
     """(tree, conflicted paths) of merging the branch into default, computed without touching the checkout.
-    None when this git has no `merge-tree --write-tree` (before 2.38)."""
+    None when this git has no `merge-tree --write-tree` (before 2.38) or the command fails."""
     p = git(main, "merge-tree", "--write-tree", "--name-only", "--no-messages", "-z", default, f"refs/heads/{branch}")
     parts = p.stdout.split("\0")
     return (parts[0], [f for f in parts[1:] if f]) if p.returncode in (0, 1) and parts[0] else None
@@ -246,6 +255,12 @@ def cmd_land(args) -> int:
         raise Refuse(f"task worktree {wt} has uncommitted changes")
     if is_dirty(main):
         raise Refuse(f"landing checkout {main} has uncommitted changes")
+    if hidden := [e[2:] for e in git_z(main, "ls-files", "-v") if e[0].islower()]:  # assume-unchanged: `status` does not show an edit
+        index = {e.split("\t", 1)[1]: e.split()[1] for e in git_z(main, "ls-files", "-s")}
+        for f in hidden:
+            if (main / f).is_file() and not (main / f).is_symlink() and git_out(main, "hash-object", "--", f) != index.get(f):
+                raise Refuse(f"{f} is marked assume-unchanged and differs from the index: landing could lose your edit; "
+                             f"run `git update-index --no-assume-unchanged {f}`, commit or stash the edit, then rerun `sup land {tid}`")
     import sup_state, sup_workers
     try:
         prof = sup_state.current_profile(args.profile)
@@ -269,12 +284,17 @@ def cmd_land(args) -> int:
     # (a committed link to a `local` directory would replace that directory with a link to itself). The paths are those of
     # the merge result, not of the branch: default may have renamed a directory. A conflict is refused here, before the
     # checkout is touched: a merge that stops half-way has already written over ignored files, and the reset removes them.
-    merged = None if sup_state.landing_message(main, default, tid) else merge_result(main, default, branch)
+    rerun = bool(sup_state.landing_message(main, default, tid))  # the commit exists: only the cleanup runs, no merge, no guard
+    merged = None if rerun else merge_result(main, default, branch)
+    if merged is None and not rerun:  # no merge-tree: the merged tree is known only when the branch sits on the default's tip
+        if git(main, "merge-base", default, f"refs/heads/{branch}").stdout.strip() != git_out(main, "rev-parse", default):
+            raise Refuse(f"git cannot compute the merge for landing {tid} (no merge-tree --write-tree before git 2.38, or unrelated histories): merge or rebase "
+                         f"{default} into {branch} in the task worktree, then rerun `sup land {tid}`")
+        merged = (f"refs/heads/{branch}", [])
     if merged and (hand := [f for f in merged[1] if f not in GENERATED]):
         raise Refuse(f"conflict landing {tid}; resolve in the task worktree: {', '.join(hand)}")
     tracked = set(git_z(main, "ls-tree", "-r", "-z", "--name-only", default))
-    for f in git_z(main, "diff", "--name-only", "--no-renames", "--diff-filter=A",
-                   *([default, merged[0]] if merged else [f"{default}...refs/heads/{branch}"])):
+    for f in [] if rerun else git_z(main, "diff", "--name-only", "--no-renames", "--diff-filter=A", default, merged[0]):
         for q in (Path(f), *Path(f).parents[:-1]):
             at = main / q
             if at.is_dir() and not at.is_symlink():  # a directory the branch turns into a file: its ignored content would go
@@ -290,7 +310,7 @@ def cmd_land(args) -> int:
     old = git(main, "rev-parse", "--verify", "-q", ref).stdout.strip()
     if old and old != tip:
         raise Refuse(f"{ref} already exists at another commit")
-    done = bool(sup_state.landing_message(main, default, tid))
+    done = rerun
     ledger_script(main)
     steps = [] if done else [f"squash-merge {branch} into {default} and commit once (hub-ledger lease, ledger sync and check)"]
     steps += [f"git update-ref {ref} {tip[:12]}"] if old != tip else []
@@ -322,8 +342,11 @@ def cmd_land(args) -> int:
             dest, n = kept / f, 1
             while os.path.lexists(dest):  # a file kept by an earlier attempt of this landing is evidence too
                 dest, n = kept / f"{f}.{n}", n + 1
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(wt / f), str(dest))
+            try:
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(wt / f), str(dest))
+            except OSError as e:  # e.g. a part of the path is a file kept earlier
+                raise Refuse(f"the commit is made; cannot keep {f} in {kept} ({e.strerror}): move {kept} away, then rerun `sup land {tid}`") from e
         if keep:
             print(f"kept ignored files: {kept}")
         git_out(main, "worktree", "remove", str(wt))
@@ -472,7 +495,7 @@ def pack_problems(profile: str, pack: dict, hub: Path | None) -> list[str]:
             for slug in sorted((row[t] & set(reg if own else mp) | {tl.split_entry(e)[0] for e in ents} - {None}) - branches - own):
                 add(t, f"repo {slug!r} is not a repo of pack {name!r} (its branches: {', '.join(sorted(branches)) or 'none'})")
             for r in re.split(r"[,\s]+", task.meta.get("Repos", "").replace("`", "")) if reg or mp else ():
-                if r and r.lower() not in ("none", "-", "—") and r not in reg and r not in mp:  # a typo must not read as "no repo"
+                if r and r.lower() not in ("none", "-", "—") and r not in (reg or mp):  # a typo must not read as "no repo"; the registry is the reference, the map only when there is none
                     add(t, f"`Repos` names {r[:40]!r}, which the repo registry does not have")
             files[t] = [p if s in own else e for e in ents for s, p in [tl.split_entry(e)]]
 
@@ -605,7 +628,7 @@ def run(args) -> int:
     try:
         return args.sup_func(args)
     except (Refuse, OSError) as e:
-        print(f"sup: refused: {e}", file=sys.stderr)
+        print("sup: refused: " + str(e).encode("utf-8", "backslashreplace").decode(), file=sys.stderr)  # a path may not be UTF-8
         return 3
 
 

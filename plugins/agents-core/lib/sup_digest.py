@@ -265,14 +265,15 @@ def _waits(profile: str, hub: Path, pack: dict, task: str, state: str, T) -> str
 
 
 def _ahead_lines(profile: str, hub: Path, T, W) -> list[str]:
-    """One row per pack repo whose branch is above its landed tip: the repo, the task holding it, the count (at most 4 rows)."""
+    """One row per pack repo whose branch is above its landed tip: the repo, the task holding it, the count (at most 4 rows); the accept-tip hint only on a row nobody holds."""
     import sup_workers as w
     rows = []
     for p in sup_state.list_packs(profile):
         if p.get("branches") and p.get("tips") and p.get("state") != "closed":
             try:
                 held = w._held(profile, p, hub, sup_state.workers(profile))
-                rows += [f"  {W(p['name'])}/{W(slug)}: {T(held.get(slug))} {n} commit(s) above the landed tip on {W(b)} (at sup accept-tip {W(p['name'])} {W(slug)})"
+                rows += [f"  {W(p['name'])}/{W(slug)}: {T(held.get(slug))} {n} commit(s) above the landed tip on {W(b)}"
+                         + ("" if held.get(slug) else f" (at sup accept-tip {W(p['name'])} {W(slug)})")
                          for slug, (b, n) in w.pack_ahead(hub, p).items()]
             except w.Refused as e:
                 rows.append(f"  {W(p['name'])}: {_cut(str(e))}")
@@ -492,7 +493,8 @@ def task_text(profile: str, hub: Path, tid: str) -> tuple[str, str]:
     path = next((n for n in names if n.rpartition("/")[2].startswith(f"{tid}-") and n.endswith(".md")), "")
     if not path:
         raise sup.Refuse(f"no task file for {tid} on {ref}")
-    return path, sup.git_out(hub, "show", f"refs/heads/{ref}:{path}")
+    # worker-written bytes that are not UTF-8 arrive as surrogates (sup.git): escape them, a print must not raise
+    return path, sup.git_out(hub, "show", f"refs/heads/{ref}:{path}").encode("utf-8", "backslashreplace").decode()
 
 
 def cmd_task(args) -> int:

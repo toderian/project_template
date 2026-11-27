@@ -91,3 +91,7 @@ Ruling: simplicity 9 (a task archived by hand without a landing counts as open f
 Note: with git older than 2.38 the landing guard falls back to the branch diff: a conflict is then found by the merge itself, after it wrote
 Note: `--add-dir` with `--bg` workers is not tried on a real session
 Decision: push and release are left to the owner; unpushed: 3a36951 and every commit of this run
+Note: post-release round (2026-11-27, after 1.18.0): peer, landing reviewer and workers reviewer on the unreviewed fix wave (`post/review-*.md`): 1 critical, 6 important, 3 minor; all fixed; a re-review found 2 regressions and 3 smaller items (`post/re-review.md`), fixed except the item ruled below
+Ruling: re-review finding 6 (the assume-unchanged check also refuses a cleanup-only rerun) — left, the refusal names the way out and nothing is lost — cost if wrong: one extra command for the owner
+Note: the note above about git older than 2.38 no longer holds: such a git lands only a branch on the default tip
+Note: `--add-dir` with `--bg` was tried in the trials: an untrusted added folder refuses the start; the watcher now falls back to headless

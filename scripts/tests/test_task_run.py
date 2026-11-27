@@ -216,6 +216,7 @@ if E("AT_TASK_ROLE") == "implementer":
         for _ in range(300):
             if sh("git log -1 --format=%s refs/heads/at-lane/TST-003-p2").stdout.startswith(b"feat: TST-003 phase 2"): break
             time.sleep(0.1)
+        time.sleep(1.5)  # the driver reads the SHA of its commit right after making it: a move in between is the "during" case
         sh("git update-ref refs/heads/at-lane/TST-003-p2 $(git commit-tree refs/heads/at-lane/TST-003-p2^{tree} -p refs/heads/at-lane/TST-003-p2 -m moved)")
     if ph in E("WRAP_HANG_PHASE", "").split(","):
         if E("WRAP_PIDS"): open(f"{E('WRAP_PIDS')}/{ph}", "w").write(str(os.getpid()))

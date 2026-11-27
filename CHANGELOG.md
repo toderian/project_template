@@ -2,6 +2,23 @@
 
 Notable changes to agents-template. All four plugins share the version of the repository.
 
+## 1.18.1 — 2026-11-27
+
+### Fixed
+
+- `at sup land` on a git without `merge-tree --write-tree` (before 2.38) lands only a branch that sits on the tip
+  of the default branch and refuses anything else before it touches the checkout; the old fallback could delete
+  a file the hub ignores. It stages only the merge result and the ledger pages (never `git add -A`), refuses an
+  edit hidden by `assume-unchanged`, no longer fails on a file name that is not UTF-8, and a rerun that only
+  cleans up skips the guard.
+- The watcher switches a profile to headless workers also when a background start is refused for an untrusted
+  `--add-dir` folder. A `local` file at the hub root, or under the hub's `.claude/` or `.git/`, is linked without
+  `--add-dir`. A wake finds the hub from the worktree.
+- `at sup accept-tip` refuses while a started task that is not landed holds the repo (a closed pack accepts).
+  `at sup ready` reports a `Repos` word that the repo registry does not have.
+- The supervisor escalates a question about work the task requires or an action the harness refused, and no
+  longer answers it with "skip".
+
 ## 1.18.0 — 2026-11-27
 
 ### Added

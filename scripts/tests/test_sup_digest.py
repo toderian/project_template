@@ -240,8 +240,9 @@ class Done(Base):
         self.todos.mkdir(exist_ok=True); self.commit_tasks(["RM-2"]); (self.todos / "RM-2-x.md").write_text("| Repos | `sib` |\n")  # a started task holds the repo
         st.write_pack(P, {**st.read_pack(P, "pk"), "state": "running", "tasks": ["RM-1", "RM-2"]}); st.set_worker(P, "s2", task="RM-2", state="running")
         status = self.cli("status", "--profile", P, "--hub", str(self.hub))[1]
-        self.assertIn("pk/sib: RM-2 1 commit(s) above the landed tip on feat/x", status); self.assertIn("at sup accept-tip pk sib", status)
+        self.assertIn("pk/sib: RM-2 1 commit(s) above the landed tip on feat/x", status); self.assertNotIn("at sup accept-tip pk sib", status)  # a holder: no hint
         st.drop_worker(P, "s2"); st.write_pack(P, {**st.read_pack(P, "pk"), "tasks": ["RM-1"]})
+        self.assertIn("pk/sib: - 1 commit(s) above the landed tip on feat/x (at sup accept-tip pk sib)", self.cli("status", "--profile", P, "--hub", str(self.hub))[1])  # nobody holds it: the hint
         (self.hub / ".local").mkdir(); (self.hub / ".local/repos.map").write_text("sib: rel/path\n")  # a refused map is a line, not a traceback
         self.assertIn("not absolute", dg.done_check(P, "pk", self.hub)[0]); self.assertIn("not absolute", self.cli("status", "--profile", P, "--hub", str(self.hub))[1])
         (self.hub / ".local/repos.map").write_bytes(b"\xff\xfe")  # not UTF-8: a line naming the file, not a traceback

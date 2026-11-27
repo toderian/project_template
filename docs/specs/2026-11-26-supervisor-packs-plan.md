@@ -1,6 +1,6 @@
 # Supervisor packs for umbrella tasks: plan
 
-Date: 2026-11-26. Status: revised after the architecture review (plan critic and peer, 2026-11-26); implemented 2026-11-27 (five phases, final review and one fix wave, acceptance trial with real sessions); run state in `docs/_plans/_runs/supervisor-packs/`. Not released, not pushed. Follows
+Date: 2026-11-26. Status: revised after the architecture review (plan critic and peer, 2026-11-26); implemented 2026-11-27 (five phases, final review and one fix wave, acceptance trial with real sessions); run state in `docs/_plans/_runs/supervisor-packs/`. Released as 1.18.0; a post-release review and three end-to-end trials led to 1.18.1 (same day). Follows
 `docs/specs/2026-11-26-supervisor-session-plan.md` (built, released as 1.17.0).
 
 ## Goal

@@ -281,6 +281,12 @@ class Watch(unittest.TestCase):
         self.assertEqual(sw.step(P, None, tick=False), ["started RM-2"])
         self.assertIn(f"sup start-worker RM-2 --headless --profile {P}", self.argv())  # the config key is passed on
 
+    def test_an_untrusted_added_folder_switches_to_headless_too(self):
+        self.pack("RM-1"); (self.fake / "hold").write_text("4")
+        (self.fake / "bg.fail").write_text("Added folder not trusted: /hub/shared (part of the repository at /hub). Leave out its --add-dir")
+        self.assertEqual(sw.step(P, None, tick=False), ["started RM-1"])
+        self.assertEqual(st.worker_for(P, task="RM-1")["mode"], "headless")
+
     def test_a_claude_start_failure_is_retried_after_5_then_15_minutes_and_a_task_file_edit_retries_at_once(self):
         self.pack("RM-1"); (self.fake / "bg.fail").write_text("no network")
         todo = self.hub / "docs/tasks_manager/_todos"; todo.mkdir(parents=True); (todo / "RM-1-F_x.md").write_text("a")

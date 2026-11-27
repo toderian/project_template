@@ -12,7 +12,8 @@ liveness, leases, answers, free resources, starts, landing, notices, tick. Every
 Policy: a dead worker is woken with a restart text up to sup_workers.DEAD_RESTARTS times before `dead` is final; a bad
 `claude agents` answer never declares anyone dead; paused and closed packs get no start, wake or landing; an owner-stopped
 row is never woken; a refused start is retried only when the owner touches or the pack or task file changes (a start that
-failed inside `claude` also after 5, then 15 minutes), a bg start refused as "Workspace not trusted" switches config
+failed inside `claude` also after 5, then 15 minutes), a bg start refused as "… not trusted" (the workspace, or a
+folder given with `--add-dir`) switches config
 `worker_mode` to headless and retries at once; a dead session whose task is archived on its branch is `done` (inferred); a
 landed task's row is settled to `done` and its watcher queue entries closed; a refused landing only
 when task/<ID> has a new tip or the owner touches; `dead`, `start_refused`, `land_refused`, `owed`, `overdue`,
@@ -267,10 +268,10 @@ def _task_hash(profile: str, task: str) -> str:
 
 
 def _start(profile: str, task: str) -> tuple[int, str]:
-    """`at sup start-worker`; when a bg start dies on "Workspace not trusted", switch the profile to headless and retry once."""
+    """`at sup start-worker`; when a bg start dies on "… not trusted", switch the profile to headless and retry once."""
     headless = sup_state.config(profile).get("worker_mode") == "headless"
     rc, reason = _run_at(profile, ["sup", "start-worker", task, *(["--headless"] if headless else [])])
-    if rc != 0 and not headless and "Workspace not trusted" in reason:
+    if rc != 0 and not headless and "not trusted" in reason:
         sup_state.set_config(profile, worker_mode="headless")
         _log(profile, f"start-worker {task}: {reason}; worker_mode is now headless")
         rc, reason = _run_at(profile, ["sup", "start-worker", task, "--headless"])

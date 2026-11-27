@@ -325,6 +325,75 @@ class Land(Base):
         self.env["AT_TASKS_ROOT"] = str(self.tmp / "none"); p = self.sup("land", "TST-001")
         self.assertEqual(p.returncode, 3); self.assertIn("agents-tasks", p.stderr); self.assertEqual(self.snapshot(), before)
 
+    def no_merge_tree(self):
+        """A `git` first on PATH that fails `merge-tree`, as git before 2.38 does."""
+        fake = self.tmp / "fakegit"
+        write(fake / "git", f'#!/bin/bash\nfor a in "$@"; do if [ "$a" = merge-tree ]; then echo unsupported >&2; exit 129; fi; done\nexec {shutil.which("git")} "$@"\n')
+        (fake / "git").chmod(0o755); self.env["PATH"] = f"{fake}:{self.env['PATH']}"
+
+    def test_without_merge_tree_a_landing_that_default_has_moved_past_is_refused_before_the_checkout_is_touched(self):
+        self.no_merge_tree()
+        for n in "abc":
+            write(self.hub / f"old/{n}.py", f"{n} = 1\n")
+        g(self.hub, "add", "-A"); g(self.hub, "commit", "-qm", "old"); self.task("TST-001", files={"old/f.bin": "from the branch\n"})
+        g(self.hub, "mv", "old", "new"); write(self.hub / ".gitignore", "*.log\n__pycache__/\n*.bin\n"); g(self.hub, "commit", "-qam", "rename")
+        write(self.hub / "new/f.bin", "the owner's\n")
+        self.refused("TST-001", "2.38"); self.assertEqual((self.hub / "new/f.bin").read_text(), "the owner's\n")
+
+    def test_without_merge_tree_a_branch_based_on_the_default_tip_lands_and_the_guard_still_holds(self):
+        self.no_merge_tree(); write(self.hub / ".gitignore", "*.log\n__pycache__/\nx.bin\n"); g(self.hub, "commit", "-qam", "ignore"); write(self.hub / "x.bin", "mine\n")
+        wt = self.task("TST-001"); write(wt / "x.bin", "branch\n"); g(wt, "add", "-f", "x.bin"); g(wt, "commit", "-qm", "force"); self.refused("TST-001", "the hub holds x.bin untracked")
+        self.assertEqual((self.hub / "x.bin").read_text(), "mine\n"); (self.hub / "x.bin").unlink()
+        self.task("TST-002"); p = self.sup("land", "TST-002"); self.assertEqual(p.returncode, 0, p.stderr)
+
+    def sync_that_writes(self, note):
+        """A ledger sync that rebuilds `_done.md` and, like a hub writer racing the landing, drops `note` into the checkout."""
+        write(self.tmp / "tasksroot/skills/task-ledger/scripts/sync_todo_ledgers.py",
+              "import pathlib, sys\nroot = pathlib.Path(sys.argv[sys.argv.index('--root') + 1])\n"
+              f"if '--check' not in sys.argv:\n    (root / 'docs/tasks_manager/_done.md').write_text('generated done\\n')\n    (root / {note!r}).write_text('owner note\\n')\n")
+        self.env["AT_TASKS_ROOT"] = str(self.tmp / "tasksroot")
+
+    def test_a_file_that_appears_in_the_hub_during_landing_is_neither_committed_nor_deleted(self):
+        self.ledger_hub(); self.sync_that_writes("owner-note.txt"); wt = pathlib.Path(self.sup("worktree", "TST-001").stdout.strip()); self.archive(wt, "# task side")
+        write(self.hub / "docs/tasks_manager/_done.md", "# main side\n"); g(self.hub, "commit", "-qam", "main edit")
+        hook = self.hub / ".git/hooks/pre-commit"; write(hook, "#!/bin/sh\nexit 1\n"); hook.chmod(0o755)
+        p = self.sup("land", "TST-001"); self.assertEqual(p.returncode, 3); self.assertEqual((self.hub / "owner-note.txt").read_text(), "owner note\n")
+        hook.unlink(); (self.hub / "owner-note.txt").unlink(); g(self.hub, "checkout", "-q", "--", "."); p = self.sup("land", "TST-001"); self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertEqual(g(self.hub, "show", "--name-only", "--format=", "HEAD").stdout.count("owner-note"), 0)
+        self.assertEqual(g(self.hub, "show", "HEAD:docs/tasks_manager/_done.md").stdout, "generated done\n"); self.assertTrue((self.hub / "owner-note.txt").is_file())
+
+    def test_a_ledger_page_the_sync_creates_under_docs_is_committed_with_the_landing(self):
+        self.ledger_hub(); self.sync_that_writes("docs/areas/new-page.md"); wt = pathlib.Path(self.sup("worktree", "TST-001").stdout.strip()); self.archive(wt, "# task side")
+        p = self.sup("land", "TST-001"); self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertIn("docs/areas/new-page.md", g(self.hub, "show", "--name-only", "--format=", "HEAD").stdout)
+        self.assertEqual(g(self.hub, "status", "--porcelain").stdout, "")
+
+    def test_an_edit_hidden_by_assume_unchanged_is_refused_by_name_and_survives(self):
+        self.task("TST-001"); g(self.hub, "update-index", "--assume-unchanged", "README.md"); write(self.hub / "README.md", "my edit\n")
+        self.refused("TST-001", "README.md"); self.assertEqual((self.hub / "README.md").read_text(), "my edit\n")
+        write(self.hub / "README.md", "base\n"); p = self.sup("land", "TST-001"); self.assertEqual(p.returncode, 0, p.stderr)
+
+    def test_a_non_utf8_file_name_neither_crashes_the_kept_move_nor_the_landing(self):
+        name = os.fsdecode(b"caf\xe9.log"); wt = self.task("TST-001"); write(wt / name, "evidence\n")
+        p = self.sup("land", "TST-001"); self.assertEqual(p.returncode, 0, p.stderr); self.assertEqual((self.tmp / "state/_host/kept/TST-001" / name).read_text(), "evidence\n")
+        odd = os.fsdecode(b"src/caf\xe9.py"); self.task("TST-002", files={odd: "x = 1\n"}); p = self.sup("land", "TST-002")
+        self.assertEqual(p.returncode, 0, p.stderr); self.assertTrue((self.hub / odd).is_file())
+
+    def test_a_refusal_naming_a_non_utf8_path_is_one_line(self):
+        odd = os.fsdecode(b"caf\xe9.txt"); write(self.hub / odd, "base\n"); g(self.hub, "add", "-A"); g(self.hub, "commit", "-qm", "odd")
+        self.task("TST-001", files={odd: "task side\n"}); write(self.hub / odd, "main side\n"); g(self.hub, "commit", "-qam", "main edit")
+        p = self.sup("land", "TST-001"); self.assertEqual(p.returncode, 3, p.stderr); self.assertEqual(len(p.stderr.strip().splitlines()), 1); self.assertNotIn("Traceback", p.stderr)
+
+    def test_a_rerun_that_only_cleans_up_skips_the_added_path_guard(self):
+        wt = self.task("TST-001"); g(self.hub, "worktree", "lock", str(wt)); self.assertEqual(self.sup("land", "TST-001").returncode, 3)
+        g(self.hub, "rm", "-q", "--cached", "src/tst_001.py"); write(self.hub / ".gitignore", "*.log\n__pycache__/\nsrc/\n"); g(self.hub, "commit", "-qam", "untrack")
+        g(self.hub, "worktree", "unlock", str(wt)); p = self.sup("land", "TST-001"); self.assertEqual(p.returncode, 0, p.stderr); self.assertFalse(wt.exists())
+
+    def test_a_kept_file_whose_parent_name_is_a_file_in_kept_is_refused_with_the_way_out(self):
+        wt = self.task("TST-001"); write(wt / "agen/b.log", "x"); write(self.tmp / "state/_host/kept/TST-001/agen", "an earlier file\n")
+        p = self.sup("land", "TST-001"); self.assertEqual(p.returncode, 3); self.assertEqual(len(p.stderr.strip().splitlines()), 1)
+        self.assertIn(str(self.tmp / "state/_host/kept/TST-001"), p.stderr); self.assertNotIn("Errno", p.stderr)
+
 
 class PackLand(Base):
     """A pack with one sibling repo `sib`: the pack worktree sib-pk on feat/x, the hub's map pointing at the checkout."""
@@ -497,6 +566,14 @@ class PackReady(Base):
     def test_a_repos_row_entry_that_is_no_registry_repo_is_a_problem_and_none_is_not(self):
         out = self.lines(self.pack(branches={"sib": "feat/x"}, **{"TST-1": self.row("`sib`, `other_repo`"), "TST-2": self.row("none")}))
         self.assertEqual(out, ["TST-1: `Repos` names 'other_repo', which the repo registry does not have"])
+
+    def test_a_repos_word_that_only_the_map_has_is_a_problem_while_the_registry_exists_and_empty_cells_pass(self):
+        write(self.hub / ".config/repos.project.md", "| Repo | Required | Role | Default branch | Integration branch | Work mode |\n|---|---|---|---|---|---|\n"
+              "| hub | yes | x | main | main | d |\n| sib | no | x | dev | dev | d |\n")  # `other` is in the map only
+        out = self.lines(self.pack(branches={"other": "f"}, **{"TST-1": self.row("`other`")}))
+        self.assertEqual(out, ["TST-1: `Repos` names 'other', which the repo registry does not have"])
+        for cell in ("none", "-", "—", ""):
+            self.assertEqual(self.pack(**{"TST-1": self.row(cell)}).stdout.strip(), "ready", cell)
 
     def test_a_hub_whose_own_slug_the_map_does_not_give_is_judged_by_the_map_alone(self):
         (self.hub / ".local/repos.map").unlink()  # a 1.17.0 single-repo hub: a registry, no map

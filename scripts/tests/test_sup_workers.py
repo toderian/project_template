@@ -701,11 +701,50 @@ class Workers(unittest.TestCase):
         (wt / "half.py").write_text("x")
         rc, _, err = self.cli("accept-tip", "a", "sib"); self.assertEqual(rc, 3); self.assertIn("uncommitted changes", err)
         (wt / "half.py").unlink(); st.set_worker("p", SID % 1, task="RM-1", state="running")
-        rc, _, err = self.cli("accept-tip", "a", "sib"); self.assertEqual(rc, 3); self.assertIn("RM-1 has a live worker", err)
+        rc, _, err = self.cli("accept-tip", "a", "sib"); self.assertEqual(rc, 3); self.assertIn("RM-1 was started and is not landed", err)
         self.assertNotEqual(st.read_pack("p", "a")["tips"]["sib"], head)
         st.drop_worker("p", SID % 1)
         rc, out, _ = self.cli("accept-tip", "a", "sib"); self.assertEqual(rc, 0); self.assertIn(head[:12], out)
         self.assertEqual(st.read_pack("p", "a")["tips"], {"sib": head})
+
+    def test_a_hub_root_file_is_linked_but_never_adds_the_hub_as_a_directory_and_start_worker_says_so(self):
+        (self.hub / ".env").write_text("x"); (self.hub / "data").mkdir(); (self.hub / "data/cache.db").write_text("x")
+        self.local_start(".env", "data/cache.db", ignore=".env\ndata/cache.db\n")
+        rc, out, err = self.cli("start-worker", "RM-1"); self.assertEqual(rc, 0, err)
+        self.assertEqual((self.wt / ".env").resolve(), self.hub / ".env")
+        self.assertEqual(self.sessions()[0][-2:], ["--add-dir", str(self.hub / "data")]); self.assertNotIn(str(self.hub), self.sessions()[0][:-1])
+        self.assertIn(".env: linked, not writable by the worker: a file at the hub root", out); self.assertNotIn("data/cache.db:", out)
+
+    def test_a_wake_says_when_local_cannot_be_read_and_finds_the_hub_from_the_worktree_when_the_profile_has_no_hub_key(self):
+        (self.hub / "data").mkdir(); (self.hub / "data/cache.db").write_text("x")
+        self.local_start("data/cache.db"); self.assertEqual(self.cli("start-worker", "RM-1")[0], 0)
+        row = st.worker_for("p", task="RM-1"); conf = st.profile_dir("p") / "conf/profile.json"
+        conf.write_text("{"); err = io.StringIO()
+        with redirect_stderr(err): self.assertTrue(sw.wake("p", row["session"], "go"))
+        self.assertIn("sup: p: local entries unreadable, session started without --add-dir", err.getvalue())
+        self.assertEqual(self.sessions()[-1], ["--bg", "--resume", row["session"], "go"])
+        conf.write_text(json.dumps({"local": ["data/cache.db"]}))
+        wt2 = self.t / "wt2"; git(self.hub, "worktree", "add", "-q", "-b", "x", str(wt2)); (wt2 / "data").mkdir(); os.symlink(self.hub / "data/cache.db", wt2 / "data/cache.db")
+        st.set_worker("p", row["session"], cwd=str(wt2)); st.set_config("p", hub=None)
+        self.assertTrue(sw.wake("p", row["session"], "go"))  # the process cwd is not the hub
+        self.assertEqual(self.sessions()[-1], ["--bg", "--resume", row["session"], "go", "--add-dir", str(self.hub / "data")])
+
+    def test_accept_tip_refuses_while_an_unlanded_task_with_a_stopped_worker_holds_the_repo(self):
+        self.repos(); self.task_file("RM-1", "sib"); self.cli("pack", "a", "RM-1", "--branch", "sib=feat/x"); self.cli("start-pack", "a")
+        wt = self.t / "sib-a"
+        for n in (1, 2): git(wt, "commit", "-q", "--allow-empty", "-m", f"c{n}")
+        tip = st.read_pack("p", "a")["tips"]["sib"]; st.set_worker("p", SID % 1, task="RM-1", state="stopped")
+        rc, _, err = self.cli("accept-tip", "a", "sib"); self.assertEqual(rc, 3); self.assertIn("RM-1 was started and is not landed", err)
+        self.assertEqual(st.read_pack("p", "a")["tips"]["sib"], tip)
+        self.assertIn("at sup close-pack a", err)  # the way out for a task given up: a closed pack accepts
+        self.assertEqual(self.cli("close-pack", "a")[0], 0)
+        rc, out, err = self.cli("accept-tip", "a", "sib"); self.assertEqual(rc, 0, err); self.assertNotEqual(st.read_pack("p", "a")["tips"]["sib"], tip)
+
+    def test_a_local_entry_under_the_agent_settings_or_git_of_the_hub_adds_no_directory(self):
+        (self.hub / ".claude").mkdir(exist_ok=True); (self.hub / ".claude/settings.local.json").write_text("{}")
+        self.local_start(".claude/settings.local.json", ignore=".claude/settings.local.json\n")
+        rc, out, err = self.cli("start-worker", "RM-1"); self.assertEqual(rc, 0, err)
+        self.assertNotIn("--add-dir", self.sessions()[0])
 
     def test_a_tip_never_moves_backwards_and_a_pack_repo_with_no_tip_refuses_the_landing(self):
         self.repos(); self.task_file("RM-1", "sib"); self.cli("pack", "a", "RM-1", "--branch", "sib=feat/x"); self.cli("start-pack", "a")
