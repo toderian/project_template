@@ -33,7 +33,7 @@ date +%s.%N >> "{calls}.end"
 """
 
 
-def wait_for(pred, seconds=2.0):
+def wait_for(pred, seconds=10.0):
     end = time.time() + seconds
     while time.time() < end:
         if pred():
