@@ -47,6 +47,14 @@ class Event(unittest.TestCase):
         self.assertEqual(self.run_event("stopped", "--session", self.S, "status=GAVE_UP").returncode, 0)
         self.assertEqual(st.worker_for("p1", task="RM-1")["state"], "stopped")
 
+    def test_the_task_comes_from_the_row_of_the_session_not_from_a_stale_env(self):
+        st.set_worker("p1", "sess-0152", task="RM-152", state="running")
+        st.set_worker("p1", self.S, task="RM-245", state="running"); st.queue_add("p1", "RM-245", "which?")
+        p = self.run_event("waiting", "--session", self.S, "resource=Q1", AGENTS_SUP_TASK="RM-152")  # a bg-spare env
+        self.assertEqual((p.returncode, p.stderr), (0, ""))
+        self.assertEqual(st.events_since("p1", 0)[-1]["task"], "RM-245")
+        self.assertEqual((st.worker_for("p1", task="RM-245")["state"], st.worker_for("p1", task="RM-152")["state"]), ("waiting", "running"))
+
     def test_no_row_writes_nothing_and_exits_1(self):
         st.profile_dir("p1"); p = self.run_event("done", "--task", "RM-9", "--session", "nobody-0001")
         self.assertEqual((p.returncode, len(p.stderr.strip().splitlines())), (1, 1))

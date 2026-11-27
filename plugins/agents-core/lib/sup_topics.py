@@ -172,7 +172,7 @@ def cmd_delegate(profile: str, args) -> int:
     if row and row.get("session") and not args.fresh:
         def resume() -> str:
             for attempt in range(RESUME_TRIES):  # a session that just stopped may still be exiting: claude starts a copy
-                if sw.resume_bg(row["session"], ask, [], env, str(hub)):
+                if sw.resume_bg(row["session"], ask, env, str(hub)):
                     return row["session"]
                 if not any(x.startswith("claude started a copy") for x in sw.RESUME_SAID):
                     break

@@ -12,9 +12,13 @@ import sup_workers as sw
 FAKE_CLAUDE = """#!/usr/bin/env python3
 import json, os, sys, uuid
 d, a = os.environ["FAKE_DIR"], sys.argv[1:]
+def env_of(a):  # like claude 2.1.33x: a bg session never sees the launching env, only --settings env
+    if "--bg" not in a: return dict(os.environ)
+    return json.loads(a[a.index("--settings") + 1]).get("env", {}) if "--settings" in a else {}
 with open(d + "/claude.log", "a") as f:
-    f.write(json.dumps({"argv": a, "cwd": os.getcwd(), "topic": os.environ.get("AGENTS_SUP_TOPIC"),
-                        "sup": os.environ.get("AGENTS_SUPERVISOR")}) + "\\n")
+    e = env_of(a)
+    f.write(json.dumps({"argv": a, "cwd": os.getcwd(), "topic": e.get("AGENTS_SUP_TOPIC"), "task": e.get("AGENTS_SUP_TASK"),
+                        "token": e.get("AGENTS_SUP_CHAT_TOKEN"), "sup": e.get("AGENTS_SUPERVISOR")}) + "\\n")
 def rows():
     p = d + "/sessions"
     return [l.split(" ", 1) for l in open(p).read().splitlines()] if os.path.exists(p) else []
@@ -88,12 +92,14 @@ class Topics(unittest.TestCase):
         start = next(c for c in map(json.loads, (self.t / "claude.log").read_text().splitlines()) if c["argv"][0] == "--bg")
         self.assertEqual(start["argv"][:5], ["--bg", "--name", "p-topic-rm-152-checkout", "--permission-mode", "auto"])
         self.assertEqual((start["cwd"], start["topic"], start["sup"]), (str(self.hub), "rm-152-checkout", "p"))
-        prompt = start["argv"][5]
+        self.assertEqual(start["argv"][5], "--settings")
+        self.assertEqual((start["task"], start["token"]), ("", ""))  # stale bg-spare values are overridden, not left
+        prompt = start["argv"][7]
         for text in ("drop the stray commit f7d92c8e", "TOPIC rm-152-checkout done:", "Do not push",
                      str(tp.notes_path("p", "rm-152-checkout"))):
             self.assertIn(text, prompt)
         self.assertNotIn("Read your notes file first", prompt)
-        self.assertEqual(start["argv"][6:], [])  # no --add-dir: an untrusted folder would refuse the start
+        self.assertEqual(start["argv"][8:], [])  # no --add-dir: an untrusted folder would refuse the start
         self.assertEqual((row["asks"], row["state"]), (1, "running"))
 
     def test_a_second_ask_resumes_the_same_session_and_a_busy_topic_needs_interrupt(self):
@@ -118,14 +124,14 @@ class Topics(unittest.TestCase):
         self.assertEqual((rc, out), (0, f"started topic nav {new}\n"))
         self.assertNotEqual(old, new)
         self.assertIn(["stop", old[:8]], self.calls("stop"))
-        self.assertIn("Read your notes file first", self.calls("--bg")[-1][5])
+        self.assertIn("Read your notes file first", self.calls("--bg")[-1][7])
 
     def test_cap_stop_topics_and_log(self):
         st.set_config("p", topic_cap=1)
         self.cli("delegate", "a", "x")
         rc, _, err = self.cli("delegate", "b", "y")
         self.assertEqual(rc, 3); self.assertIn("topic cap 1 reached (a)", err)
-        self.assertIn(str(tp.result_path("p", "a")), self.calls("--bg")[0][5])
+        self.assertIn(str(tp.result_path("p", "a")), self.calls("--bg")[0][7])
         tp.result_path("p", "a").write_text("TOPIC a done: dropped   commit f7d92c8e\n")
         rc, out, _ = self.cli("topics")
         self.assertRegex(out, r"^a  idle  asks 1  [0-9a-f]{8}  last ask 0m ago  done: dropped commit f7d92c8e\n$")
@@ -181,7 +187,7 @@ class Topics(unittest.TestCase):
 
     def test_prompt_allows_the_notes_and_result_files(self):
         self.cli("delegate", "a", "x")
-        self.assertIn("except your notes file and your result file", self.calls("--bg")[0][5])
+        self.assertIn("except your notes file and your result file", self.calls("--bg")[0][7])
 
     def test_plain_ends_an_osc_at_st_as_well_as_bel(self):
         text = "a \x1b]8;;http://x\x1b\\link\x1b]8;;\x1b\\ b\nkept line\n\x1b]0;title\x07c"

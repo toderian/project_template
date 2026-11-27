@@ -104,7 +104,9 @@ def _run(fn, args, chat: bool = False, task: bool = False, sup: bool = False) ->
             print(REFUSED_TOPIC, file=sys.stderr)
             return 3
         if task:
-            tid = getattr(args, "task", None) or os.environ.get("AGENTS_SUP_TASK")
+            sid = os.environ.get("CLAUDE_CODE_SESSION_ID")
+            mine = sid and st.worker_for(profile, session=sid)  # a registered worker's own row names its task: its env
+            tid = (mine or {}).get("task") or getattr(args, "task", None) or os.environ.get("AGENTS_SUP_TASK")  # may be stale
             if not tid or not st.TASK.match(tid):
                 return _err("no task: pass --task or set AGENTS_SUP_TASK (like RM-12)", 2)
         if (sup or chat) and not not_worker(profile):

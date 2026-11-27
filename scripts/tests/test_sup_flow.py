@@ -42,8 +42,11 @@ Defaults: if X, do Y
 FAKE_CLAUDE = """#!/usr/bin/env python3
 import json, os, sys
 d, a = os.environ["FAKE_DIR"], sys.argv[1:]
+def env_of(a):  # like claude 2.1.33x: a bg session never sees the launching env, only --settings env
+    if "--bg" not in a: return dict(os.environ)
+    return json.loads(a[a.index("--settings") + 1]).get("env", {}) if "--settings" in a else {}
 with open(d + "/claude.log", "a") as f:
-    f.write(json.dumps({"argv": a, "cwd": os.getcwd(), "env": {k: v for k, v in os.environ.items() if k.startswith("AGENTS_")}}) + "\\n")
+    f.write(json.dumps({"argv": a, "cwd": os.getcwd(), "env": {k: v for k, v in env_of(a).items() if k.startswith("AGENTS_")}}) + "\\n")
 if "--resume" in a:
     print("woke session " + a[a.index("--resume") + 1][:8] + " with its saved options")
     if os.path.exists(d + "/stopped"): os.remove(d + "/stopped")

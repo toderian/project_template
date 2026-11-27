@@ -11,10 +11,14 @@ import sup_workers as sw
 FAKE_CLAUDE = """#!/usr/bin/env python3
 import json, os, sys
 d = os.environ["FAKE_DIR"]
+def env_of(a):  # like claude 2.1.33x: a bg session never sees the launching env, only --settings env
+    if "--bg" not in a: return dict(os.environ)
+    return json.loads(a[a.index("--settings") + 1]).get("env", {}) if "--settings" in a else {}
 a = sys.argv[1:]
 with open(d + "/claude.log", "a") as f:
-    f.write(json.dumps({"argv": a, "cwd": os.getcwd(), "sup": os.environ.get("AGENTS_SUPERVISOR"), "task": os.environ.get("AGENTS_SUP_TASK"),
-                        "path": os.environ.get("PATH"), "gitcfg": sorted(k for k in os.environ if k.startswith("GIT_CONFIG"))}) + "\\n")
+    e = env_of(a)
+    f.write(json.dumps({"argv": a, "cwd": os.getcwd(), "sup": e.get("AGENTS_SUPERVISOR"), "task": e.get("AGENTS_SUP_TASK"),
+                        "path": e.get("PATH"), "gitcfg": sorted(k for k in os.environ if k.startswith("GIT_CONFIG"))}) + "\\n")
 def has(n): return os.path.exists(d + "/" + n)
 def lines(n): return open(d + "/" + n).read().split() if has(n) else []
 if has("hold") and a[0] == "-p":
@@ -239,6 +243,13 @@ class Workers(unittest.TestCase):
         self.assertEqual(self.cli("stop-worker", "RM-1")[0], 3)
         row = st.worker_for("p", task="RM-1"); self.assertEqual((row["state"], row["waiting_for"]), ("waiting", "lab"))
 
+    def test_a_bg_start_carries_the_identity_in_settings_and_blanks_stale_values(self):
+        os.environ["AGENTS_SUP_CHAT_TOKEN"] = "x" * 32; os.environ["AGENTS_SUP_ORIG_PATH"] = "/usr/bin:/bin"
+        flags = sw.bg_env_flags(sw.clean_env(AGENTS_SUPERVISOR="p", AGENTS_SUP_TASK="RM-1"))
+        self.assertEqual(flags[0], "--settings")
+        self.assertEqual(json.loads(flags[1])["env"], {"AGENTS_SUPERVISOR": "p", "AGENTS_SUP_TASK": "RM-1", "AGENTS_SUP_TOPIC": "",
+                                                       "AGENTS_SUP_CHAT_TOKEN": "", "AGENTS_SUP_ORIG_PATH": "", "PATH": "/usr/bin:/bin"})
+
     def test_wake_stops_then_resumes_in_the_row_cwd_with_the_task_environment(self):
         self.live_row(1, state="waiting", waiting_for="lab", cwd=str(self.t / "wt"))
         os.environ["AGENTS_SUP_ORIG_PATH"] = "/usr/bin:/bin"; os.environ["AGENTS_SUP_CHAT_TOKEN"] = "x" * 32
@@ -248,8 +259,9 @@ class Workers(unittest.TestCase):
         self.assertEqual([c["argv"] for c in calls], [["stop", (SID % 1)[:8]], ["agents", "--json", "--all"],  # waits until it exited
                                                       ["--bg", "--resume", SID % 1, "go"]])
         for c in calls:
-            if c["argv"][0] != "agents":  # the global listing needs no task environment
+            if c["argv"][0] == "stop":  # the global listing needs no task environment
                 self.assertEqual((c["cwd"], c["sup"], c["task"], c["path"]), (str(self.t / "wt"), "p", "RM-1", "/usr/bin:/bin"))
+        self.assertEqual(calls[-1]["cwd"], str(self.t / "wt"))  # the resume: its env is the one saved at launch (--settings)
         self.assertEqual(st.worker_for("p", task="RM-1")["state"], "waiting")  # the caller (the watcher) sets `running`
         os.environ["FAKE_RESUME_RC"] = "1"
         self.assertFalse(sw.wake("p", SID % 1, "go"))
@@ -670,7 +682,7 @@ class Workers(unittest.TestCase):
         self.assertEqual(self.sessions()[0][-3:], dirs); self.assertIn("Execute task RM-1", self.sessions()[0][-4])
         row = st.worker_for("p", task="RM-1")
         self.assertTrue(sw.wake("p", row["session"], "go"))
-        self.assertEqual(self.sessions()[1], ["--bg", "--resume", row["session"], "go", *dirs])
+        self.assertEqual(self.sessions()[1], ["--bg", "--resume", row["session"], "go"])  # a bg resume takes no flag: --add-dir is saved
         st.set_worker("p", row["session"], mode="headless", pid=999999999)
         self.assertGreater(sw.wake("p", row["session"], "go2"), 1)
         self.assertEqual(self.sessions(3)[2][-4:], ["go2", *dirs])
@@ -737,13 +749,13 @@ class Workers(unittest.TestCase):
         row = st.worker_for("p", task="RM-1"); conf = st.profile_dir("p") / "conf/profile.json"
         conf.write_text("{"); err = io.StringIO()
         with redirect_stderr(err): self.assertTrue(sw.wake("p", row["session"], "go"))
-        self.assertIn("sup: p: local entries unreadable, session started without --add-dir", err.getvalue())
+        self.assertEqual(err.getvalue(), "")  # a bg wake reads no local entries: the session saved its --add-dir
         self.assertEqual(self.sessions()[-1], ["--bg", "--resume", row["session"], "go"])
         conf.write_text(json.dumps({"local": ["data/cache.db"]}))
         wt2 = self.t / "wt2"; git(self.hub, "worktree", "add", "-q", "-b", "x", str(wt2)); (wt2 / "data").mkdir(); os.symlink(self.hub / "data/cache.db", wt2 / "data/cache.db")
         st.set_worker("p", row["session"], cwd=str(wt2)); st.set_config("p", hub=None)
         self.assertTrue(sw.wake("p", row["session"], "go"))  # the process cwd is not the hub
-        self.assertEqual(self.sessions()[-1], ["--bg", "--resume", row["session"], "go", "--add-dir", str(self.hub / "data")])
+        self.assertEqual(self.sessions()[-1], ["--bg", "--resume", row["session"], "go"])  # never a flag: it would start a copy
 
     def test_accept_tip_refuses_while_an_unlanded_task_with_a_stopped_worker_holds_the_repo(self):
         self.repos(); self.task_file("RM-1", "sib"); self.cli("pack", "a", "RM-1", "--branch", "sib=feat/x"); self.cli("start-pack", "a")

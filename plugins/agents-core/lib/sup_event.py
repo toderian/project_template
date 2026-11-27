@@ -63,6 +63,7 @@ def run(argv: list[str]) -> None:
         row = (session and sup_state.worker_for(profile, session=session)) or (task and sup_state.worker_for(profile, task=task))
         if not row:
             raise LookupError("no registry row for this worker; nothing written")
+        task = row.get("task") or task  # the row found by session names the task: env may be another session's (bg-spare)
         if kind == "waiting" and not _open_request(profile, data["resource"], row.get("task")):
             raise LookupError(f"{data['resource']} is not an open request of this worker; nothing written")
         sup_state.emit(profile, kind, task=task, session=session, **data)

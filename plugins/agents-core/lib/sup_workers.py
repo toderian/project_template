@@ -45,7 +45,8 @@ before every `at` or `claude` subprocess. The helpers below never take it and ne
   clean_env(**extra) -> dict                 os.environ without GIT_CONFIG_* and the chat token, PATH restored from
                                              AGENTS_SUP_ORIG_PATH (the supervisor launcher saves it)
 
-The `claude` binary is $AGENTS_CLAUDE_BIN and `at` is $AGENTS_AT_BIN. Workers get AGENTS_SUPERVISOR and AGENTS_SUP_TASK.
+The `claude` binary is $AGENTS_CLAUDE_BIN and `at` is $AGENTS_AT_BIN. Workers get AGENTS_SUPERVISOR and AGENTS_SUP_TASK, a bg
+session through `--settings` (bg_env_flags: a bg session never sees the launching env), a headless one through its env.
 """
 from __future__ import annotations
 
@@ -113,6 +114,20 @@ def clean_env(**extra) -> dict:
 
 def session_flags() -> list[str]:
     return ["--permission-mode", "auto"]
+
+
+SUP_ENV = ("AGENTS_SUPERVISOR", "AGENTS_SUP_TASK", "AGENTS_SUP_TOPIC", "AGENTS_SUP_CHAT_TOKEN", "AGENTS_SUP_ORIG_PATH")
+
+
+def bg_env_flags(env: dict) -> list[str]:
+    """`--settings` carrying a bg session's identity. `claude --bg` hands the launch to a pre-spawned `claude bg-spare`
+    process that keeps the environment it was spawned with (often an earlier launch's), so the env of the launching
+    process never reaches the session; launch flags do, and a resume keeps them as saved options. Every sup variable is
+    set, an absent one to "", so a stale value in the spare's environment cannot leak in (a worker running as another
+    task, a chat token). PATH goes too: the owner's PATH, as clean_env chose it."""
+    values = {k: env.get(k, "") for k in SUP_ENV}
+    values["PATH"] = env.get("PATH", os.environ.get("PATH", ""))
+    return ["--settings", json.dumps({"env": values}, separators=(",", ":"))]
 
 
 def age(stamp) -> float:
@@ -268,7 +283,7 @@ def wake(profile: str, session: str, text: str) -> bool | int:
                 return False  # the stop failed and the session may still run: a resume would start a copy
         if not wait_gone(session):
             return False  # still exiting: a resume now would start an untracked copy
-        return resume_bg(session, text, _add_dirs(profile, _wake_hub(profile, cwd), cwd), env, cwd)
+        return resume_bg(session, text, env, cwd)  # no --add-dir: the session saved the one it was launched with
     except (OSError, subprocess.SubprocessError):
         return False
 
@@ -859,12 +874,13 @@ def wait_gone(session: str) -> bool:
 RESUME_SAID: list[str] = []  # the last line claude printed on a failed resume_bg, for the caller's message
 
 
-def resume_bg(session: str, text: str, dirs: list[str], env: dict, cwd) -> bool:
-    """`claude --bg --resume`: True only when that session woke. When it was still up, claude starts a copy under a new
-    id and name instead; the copy is stopped at once, so it never runs untracked beside the worker. One attempt: the
-    caller retries (the watcher on its next pass, `delegate` in its own loop)."""
+def resume_bg(session: str, text: str, env: dict, cwd) -> bool:
+    """`claude --bg --resume <full id> <text>`, with no flag: True only when that session woke. The session keeps the
+    options it was launched with (--settings env, --add-dir, --name); any flag passed here makes claude start a copy
+    instead, as does a session that is still up. A copy is stopped at once, so it never runs untracked beside the
+    worker. One attempt: the caller retries (the watcher on its next pass, `delegate` in its own loop)."""
     RESUME_SAID.clear()
-    out = _run([_claude(), "--bg", "--resume", session, text, *dirs], env=env, cwd=cwd)
+    out = _run([_claude(), "--bg", "--resume", session, text], env=env, cwd=cwd)
     said = out.stdout + out.stderr
     copy = COPY.search(said)
     if copy:
@@ -889,7 +905,7 @@ def _bg_session(profile: str, task: str, cwd: str, env: dict, prompt: str, dirs:
     the short id comes from its `backgrounded · <id> · <name>` line and the full one from `claude agents`."""
     name = f"{profile}-{task}"
     try:
-        proc = subprocess.run([_claude(), "--bg", "--name", name, *session_flags(), prompt, *dirs],
+        proc = subprocess.run([_claude(), "--bg", "--name", name, *session_flags(), *bg_env_flags(env), prompt, *dirs],
                               cwd=cwd, env=env, capture_output=True, text=True, timeout=120, start_new_session=True,
                               stdin=subprocess.DEVNULL)
     except (OSError, subprocess.SubprocessError) as e:

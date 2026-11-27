@@ -138,7 +138,7 @@ class Watch(unittest.TestCase):
         self.assertEqual(sw.step(P, None, tick=False), ["restarted RM-1"])
         resume = [c for c in self.claude() if "--resume" in c["argv"]]
         self.assertEqual([c["argv"] for c in resume], [["--bg", "--resume", sid(1), "Read your answers with: at sup inbox --task RM-1"]])
-        self.assertEqual((resume[0]["cwd"], resume[0]["sup"], resume[0]["task"]), (str(self.fake / "wt"), P, "RM-1"))
+        self.assertEqual(resume[0]["cwd"], str(self.fake / "wt"))  # its env: the --settings saved at launch, not this process's
         self.assertEqual(self.kinds(), ["restarted"]); self.assertEqual(self.state(), "running")
         self.assertEqual(st.events_since(P, 0)[0]["reason"], "answer")
         self.assertEqual(sw.step(P, None, tick=False), [])

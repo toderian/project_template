@@ -60,6 +60,13 @@ class Ask(unittest.TestCase):
         code, out, _ = self.at("ask", "Fyi?", "--no-block")
         self.assertNotIn("WAITING", out); self.assertEqual(st.worker_for(P, task="RM-1")["waiting_for"], "Q1")
 
+    def test_a_worker_asks_for_its_own_task_even_with_a_stale_env_task(self):
+        st.set_worker(P, "other-0002", task="RM-2")
+        code, _, err = self.at("ask", "Which db?", env={"AGENTS_SUP_TASK": "RM-2"})  # a bg-spare env of another launch
+        self.assertEqual(code, 0, err)
+        self.assertEqual(st.queue(P)[-1]["task"], "RM-1")
+        self.assertEqual((st.worker_for(P, task="RM-1")["state"], st.worker_for(P, task="RM-2")["state"]), ("waiting", "running"))  # RM-2 untouched
+
     def test_ask_and_need_never_create_a_row(self):
         for argv in (("ask", "q?"), ("need", "lab", "--minutes", "5")):
             code, _, err = self.at(*argv, env={"CLAUDE_CODE_SESSION_ID": "stranger-sess-9", "AGENTS_SUP_TASK": "RM-5"})
