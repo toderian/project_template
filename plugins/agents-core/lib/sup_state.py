@@ -157,6 +157,40 @@ def config(profile: str) -> dict:
     return cfg
 
 
+def local_entries(entries, hub: Path, check: bool = True) -> list[str]:
+    """The `local` list of a profile: relative paths without `..`, none a parent of another, not the repos.map that
+    start-worker writes per worktree, and (when `check`, an early hint: the worktree's git decides) ignored by git in
+    the hub. ValueError names the entry. A trailing `/` marks a directory."""
+    if not (isinstance(entries, list) and all(isinstance(e, str) for e in entries)):
+        raise ValueError("local must be a list of strings")
+    bodies = [e[:-1] if e.endswith("/") else e for e in entries]
+    for e, body in zip(entries, bodies):
+        if (not body or body[0] == ":" or any(p in ("", ".", "..") for p in body.split("/")) or "\\" in e
+                or any(ord(c) < 32 or ord(c) == 127 for c in e) or body in (".local", ".local/repos.map")):
+            raise ValueError(f"local entry {e!r} must be a relative path with no empty, '.' or '..' part, not starting with ':', not .local/repos.map")
+        if any(o != body and o.startswith(body + "/") for o in bodies):
+            raise ValueError(f"local entry {e!r} is a parent of another entry")
+        if check:
+            p = subprocess.run(["git", "-C", str(hub), "check-ignore", "-q", "--", body], capture_output=True, text=True)
+            if p.returncode == 1:
+                raise ValueError(f"local entry {e!r} is not ignored by git in {hub} (write `{body}`, not `{body}/`, in .gitignore)")
+            if p.returncode:
+                raise ValueError(f"git check-ignore of local entry {e!r} failed: {(p.stderr.strip().splitlines() or ['?'])[-1]}")
+    return entries
+
+
+def profile_local(profile: str, hub: Path, check: bool = True) -> list[str]:
+    """`local` of the profile's conf/profile.json (empty without the file or the key), checked by local_entries."""
+    pf = profile_dir(profile) / "conf" / "profile.json"
+    if not pf.is_file():
+        return []
+    try:
+        entries = json.loads(pf.read_text(encoding="utf-8")).get("local", [])
+    except (OSError, ValueError, AttributeError) as e:
+        raise ValueError(f"{pf} cannot be read as a profile: {e}") from None
+    return local_entries(entries, hub, check)
+
+
 def set_config(profile: str, **changes) -> dict:
     d = profile_dir(profile)
     cfg = read_json(d / "config.json", {})

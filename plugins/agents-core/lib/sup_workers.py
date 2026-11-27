@@ -58,7 +58,8 @@ import sup_state as st
 WORKER_PROMPT = (
     "Execute task {task} with agents-core:execute-plan as an unattended run. You are supervised by profile {profile}. "
     "For a decision outside your authority run `at sup ask`. For a shared resource run `at sup need <resource> "
-    "--minutes <n>` (--minutes is required) and `at sup release <resource>` as soon as you are done with it. Only after "
+    "--minutes <n>` (--minutes is required); once it is granted, run the resource's script yourself while you hold the lease, "
+    "then `at sup release <resource>` as soon as you are done with it. Only after "
     "an `ask` or a `need` that was not granted at once, end your turn with the line `WAITING supervisor: <id>`, where "
     "<id> is the question id or the resource name that the command printed. When you are woken, read your answers with `at sup inbox` and "
     "acknowledge each one with `at sup inbox --ack <id>`. Never ask the user. Close the task out with "
@@ -802,6 +803,38 @@ def _write_map(hub: Path, cwd: Path, pack: dict) -> None:
                                      + "".join(f"{s}: {p}\n" for s, p in {**mp, **mine}.items()), encoding="utf-8")
 
 
+def _link_local(profile: str, hub: Path, cwd: Path) -> list[str]:
+    """Link each `local` path of the profile from the task worktree to the hub; a restart leaves a correct link alone and
+    anything else at the path is refused. Returns the entries skipped (missing in the hub, no trailing `/`)."""
+    try:
+        entries = st.profile_local(profile, hub, check=False)  # the worktree's git decides below, not the hub's
+    except ValueError as e:
+        raise Refused(str(e)) from None
+    skipped, top = [], cwd.resolve()
+    for e in entries:
+        body = e.rstrip("/")
+        src, dst = hub / body, cwd / body
+        if not os.path.lexists(src) and not e.endswith("/"):
+            skipped.append(e); continue
+        if dst.is_symlink() and dst.resolve() == src.resolve():
+            continue
+        if os.path.lexists(dst):
+            raise Refused(f"{dst} exists and is not the link to {src}")
+        if not Path(os.path.realpath(dst.parent)).is_relative_to(top):  # a tracked symlinked directory could redirect it
+            raise Refused(f"{dst} would lie outside {top}")
+        if (ign := _git(cwd, "check-ignore", "-q", "--", body)).returncode > 1:
+            raise Refused(f"git check-ignore {body} in {cwd}: {(ign.stderr.strip().splitlines() or ['failed'])[-1]}")
+        if ign.returncode:  # the link must not be committable into the hub
+            raise Refused(f"git does not ignore {body} in {cwd}: write `{body}` (no trailing /: it is a link there) in .gitignore on the branch the task starts from")
+        try:
+            src.mkdir(parents=True, exist_ok=True)
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            dst.symlink_to(src)
+        except OSError as x:
+            raise Refused(f"cannot link {dst}: {x}") from None
+    return skipped
+
+
 @_command(lock=False)
 def cmd_start_worker(profile: str, args) -> int:
     """Under the lock: check and write a `starting` row (it counts against the cap, so a second start cannot pass).
@@ -827,6 +860,8 @@ def cmd_start_worker(profile: str, args) -> int:
             raise Refused(why)
         cwd = _worktree(task, hub, profile)
         _write_map(hub, Path(cwd), pack)
+        for e in _link_local(profile, hub, Path(cwd)):
+            print(f"local {e}: not in the hub, skipped")
         env = clean_env(AGENTS_SUPERVISOR=profile, AGENTS_SUP_TASK=task)
         prompt = WORKER_PROMPT.format(task=task, profile=profile)
         pid = (_headless_session if headless else _bg_session)(profile, task, session, cwd, env, prompt)

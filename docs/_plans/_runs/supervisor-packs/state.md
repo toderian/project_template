@@ -8,7 +8,7 @@ base_rev: 3a36951
 branch: master
 work_mode: default-branch
 autonomy: L1
-current_phase: 4
+current_phase: 5
 updated: 2026-11-26T14:00:00
 ---
 # Run ledger — supervisor-packs
@@ -18,8 +18,8 @@ updated: 2026-11-26T14:00:00
 | 1 | committed | 2 | PASS | PASS | PASS | 0 | fc0c526 | — |
 | 2 | committed | 3 | PASS | PASS | PASS | 0 | 37d7474 | — |
 | 3 | committed | 4 | PASS | PASS | n/a | 0 | 5e6e330 | — |
-| 4 | committed | 3 | PASS | PASS | PASS | 0 | PENDING | — |
-| 5 | pending | 0 | — | — | — | 0 | — | — |
+| 4 | committed | 3 | PASS | PASS | PASS | 0 | 71bf02b | — |
+| 5 | committed | 4 | PASS | PASS | PASS | 0 | PENDING | — |
 
 Note: owner gave full autonomy on 2026-11-26 ("no need to ask me", "full access"); push of master and a release were approved earlier for 1.17.0 only, so pushes and releases of this run are left to the owner
 Note: architecture review round 1: plan-critic REVISE (3 blocking), peer BLOCKED (6); all confirmed and taken into the plan: only .local/repos.map skipped at landing, links checked at landing, no ledger discard, guard + task_lanes + sup_tick in scope, branches keyed by slug with 1.17.0 fallback, no silent Blocked-by wait, landed_tip checks, Phase 1 split in two, no new Parent inheritance, D21 unchanged
@@ -68,3 +68,14 @@ Interface: sup.pack_problems(profile, pack, hub|None) -> list[str], never raises
 Interface: sup.readiness(task_parsed, path, known=None) -> list[str]; sup._brief() -> the task_brief module; sup_workers._task_repos(root, task, meta=None) -> set[str]  (phase 4)
 Interface: task_lanes.entry_ok(entry) -> bool; task_lanes.split_entry(entry) -> (slug|None, path); `Files:` entries `path` or `<slug>:path`, no `.` or `..` segment  (phase 4)
 Note: under host load (load average 8-10 from other processes) two timing tests failed once each in run-all.sh: hooks test "drift: a peer-check session is silent" (rc 141) and test_run_watch.py test_a_parked_session_is_not_restarted...; both pass alone; older than this run
+Phase 5: BASE 71bf02b
+Ruling: phase 5 spec finding 6 (a manual `at sup land` without a profile moves the link itself to kept/<ID>) — accepted, the hub content is intact and the watcher passes the profile — cost if wrong: a stray link in kept/
+Ruling: phase 5 security finding 2 (race between the ignored-file listing and the move at landing) — accepted, workers run as the owner and nothing fences them (D20) — cost if wrong: an outside file relocated into kept/ by a hostile worker
+Note: Phase 5 fix 1: code net +19 (sup.py +6, sup_state.py +8, sup_workers.py +5)
+Note: Phase 5 fix 2: code net +2 (sup.py), by the orchestrator: the landing guard no longer depends on a profile
+Phase 5: code complete; fix round 1 by the implementer, rounds 2 and 3 by the orchestrator (the landing guard); the first real run of the lease path is done with the acceptance trial in step 6
+Ruling: phase 5 round-3 fix (a tracked directory turned into a file) was not re-reviewed by the phase reviewer — accepted, the reviewer named the fix, it has a test, and the final review is pointed at the landing guard — cost if wrong: a shape of hub content loss at landing found at the final review
+Ruling: phase 5 lib code net about 90 against the ceiling of 60 — accepted, the reviewer judged the growth justified (three guards, each in one place, no flags or retries) — cost if wrong: none beyond size
+Interface: sup_state.local_entries(entries, hub, check=True) -> list[str] (ValueError names the entry; check=False = shape rules only); sup_state.profile_local(profile, hub, check=True) -> list[str], [] without the file or key  (phase 5)
+Interface: sup_workers._link_local(profile, hub, cwd) -> skipped entries; links only where the task worktree's git ignores the path; Refused otherwise  (phase 5)
+Interface: sup.kept_ignored(wt, linked=()) skips only a link that resolves to a `local` hub path; cmd_land refuses before any commit when the branch adds a path on or under something the hub holds untracked, and when a kept destination is a link or lies outside kept/<ID>  (phase 5)

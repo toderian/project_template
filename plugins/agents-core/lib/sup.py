@@ -143,9 +143,12 @@ def archived_file(main: Path, tid: str, branch: str) -> str:
     return next((n for n in names if n.startswith(f"{ARCHIVED}/{tid}-") and n.endswith(".md")), "")
 
 
-def kept_ignored(wt: Path) -> list[str]:
+def kept_ignored(wt: Path, linked=()) -> list[str]:
+    """Ignored files `land` keeps. `linked` holds the real hub paths of the profile's `local` entries: a symbolic link
+    still resolving to one of them is the worker's own link and goes with the worktree; anything else is kept."""
     out = git_z(wt, "ls-files", "--others", "--ignored", "--exclude-standard")
-    return [f for f in out if f != ".local/repos.map" and not (set(f.split("/")) & CACHES or f.endswith(".pyc"))]
+    return [f for f in out if f != ".local/repos.map" and not (set(f.split("/")) & CACHES or f.endswith(".pyc"))
+            and not ((wt / f).is_symlink() and os.path.realpath(wt / f) in linked)]
 
 
 def ledger_script(main: Path) -> Path | None:
@@ -231,8 +234,13 @@ def cmd_land(args) -> int:
     if is_dirty(main):
         raise Refuse(f"landing checkout {main} has uncommitted changes")
     import sup_state, sup_workers
+    try:
+        prof = sup_state.current_profile(args.profile)
+        entries = sup_state.profile_local(prof, main, check=False) if prof else []  # the links `kept_ignored` skips
+    except ValueError as e:
+        raise Refuse(str(e)) from e
     try:  # the pack repos the task names: dirty pack worktree refuses; the ranges go into the hub commit
-        profile, pack = sup_workers.pack_for_land(main, sup_state.current_profile(args.profile), tid)
+        profile, pack = sup_workers.pack_for_land(main, prof, tid)
         ranges = sup_workers.land_ranges(main, pack, tid) if pack else {}
     except sup_workers.Refused as e:
         raise Refuse(str(e)) from e
@@ -244,6 +252,19 @@ def cmd_land(args) -> int:
         raise Refuse(f"landing checkout {main} is on a detached HEAD, not {default}")
     if head.stdout.strip() != default:
         raise Refuse(f"landing checkout {main} is on {head.stdout.strip()}, not {default}")
+    # git overwrites what it ignores: a path the branch adds must not land on, or under, something the hub holds untracked
+    # (a committed link to a `local` directory would replace that directory with a link to itself)
+    tracked = set(git_z(main, "ls-tree", "-r", "-z", "--name-only", default))
+    for f in git_z(main, "diff", "--name-only", "--no-renames", "--diff-filter=A", f"{default}...refs/heads/{branch}"):
+        for q in (Path(f), *Path(f).parents[:-1]):
+            at = main / q
+            if at.is_dir() and not at.is_symlink():  # a directory the branch turns into a file: its ignored content would go
+                hit = q == Path(f) and bool(git_z(main, "ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--", f))
+            else:
+                hit = os.path.lexists(at) and str(q) not in tracked
+            if hit:
+                raise Refuse(f"{branch} adds {f}, and the hub holds {q} untracked: landing would replace it; "
+                             f"remove {f} from the branch, or move the hub's copy away")
     touched = [f for f in git_z(main, "diff", "--name-only", "--no-renames", f"{default}...refs/heads/{branch}") if _claude_file(f)]
     if touched and not args.allow_claude_files:
         raise Refuse(f"{branch} changes {', '.join(touched[:3])}: files the supervisor's sessions load; the owner lands it with --allow-claude-files")
@@ -273,7 +294,11 @@ def cmd_land(args) -> int:
     if wt and wt.exists():
         if is_dirty(wt):  # recomputed now: the worker may have written since the first check
             raise Refuse(f"task worktree {wt} changed during landing; the commit is made, rerun `sup land {tid}`")
-        keep, kept = kept_ignored(wt), state_dir() / "kept" / tid
+        linked = {os.path.realpath(main / e.rstrip("/")) for e in entries}
+        keep, kept = kept_ignored(wt, linked), state_dir() / "kept" / tid
+        for f in keep:  # a link left in kept/<ID> by an earlier failed landing must not redirect the move
+            if (kept / f).is_symlink() or not Path(os.path.realpath((kept / f).parent)).is_relative_to(os.path.realpath(kept)):
+                raise Refuse(f"the commit is made; {kept / f} would lie outside {kept}: remove that link, then rerun `sup land {tid}`")
         for f in keep:  # `git worktree remove` deletes ignored files silently
             dest = kept / f
             dest.parent.mkdir(parents=True, exist_ok=True)

@@ -225,6 +225,7 @@ def cmd_init(args) -> int:
         assets = _assets()
         resources = spec.get("resources", [])
         _check_resources(resources)
+        local = st.local_entries(spec.get("local", []), hub)
     except (OSError, ValueError) as e:
         return _err(f"cannot read the profile source: {e}")
     files = _files(profile)
@@ -238,7 +239,7 @@ def cmd_init(args) -> int:
               f"{profile}-adviser": []}
     import sup_guard
     hook = {"type": "command", "command": "/bin/bash " + shlex.quote(str(sup_guard.hook_path())), "timeout": 10}
-    out = {"profile": {"name": profile, "hub": str(hub), "repos": spec.get("repos", []), "resources": resources,
+    out = {"profile": {"name": profile, "hub": str(hub), "repos": spec.get("repos", []), "resources": resources, "local": local,
                        "cap": spec.get("cap", 3), "land": spec.get("land", "auto")},
            "settings": {"hooks": {"PreToolUse": [{"matcher": "*", "hooks": [hook]}]}}, "tables": tables}
     try:

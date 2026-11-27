@@ -21,7 +21,7 @@ them run in parallel. Do not use it for one task: run `agents-core:execute-plan`
 ## Set up, in this order
 
 1. Copy `assets/profile.json` and fill it: repos, resources (`name`, default `minutes`, `auto`, and `scripts`: the
-   lab wrapper scripts of that resource as absolute paths), session `cap` and `land` mode.
+   lab wrapper scripts of that resource as absolute paths), session `cap` and `land` mode, and `local` (below).
 2. `at sup init --profile <p> --hub <hub> --from <profile.json>` (the owner's shell or chat; a worker or tick is
    refused). It records the hub in the profile's config, so later commands need no `--hub`, and writes nothing into
    the hub. Everything goes to `${AGENTS_SUP_DIR:-~/.local/state/agents-template/sup}/<p>/conf/` (mode 0700):
@@ -41,6 +41,17 @@ them run in parallel. Do not use it for one task: run `agents-core:execute-plan`
      them, one commit per phase. Nothing is pushed.
    - `Blocked by` in a task file orders the pack: a task starts after its blockers landed, and the digest shows
      `waits for <ID>`. A blocker outside the pack, a cycle or a serial order against an edge is refused.
+   - A lab script of a resource, in the hub: an absolute path; arguments only; exit 0 means pass; its own timeout
+     below the lease minutes; a fresh output directory per attempt; a separate restore script; the last lines are
+     the summary and a log path. A worker that holds the lease runs it itself; the supervisor only through `at sup op`.
+   - A gate is the `Checks:` line of the step's last phase. A gate that must test landed state is a one-phase task
+     of its own.
+   - `local` in the profile lists hub paths a task worktree shares, e.g. `"local": ["lab-results/", "data/cache.db"]`.
+     Each is relative, has no `..`. Write `lab-results`, not `lab-results/`, in `.gitignore`: the task worktree holds
+     a link, not a directory. The line must be in the branch the task starts from. A trailing `/` in `local` marks a
+     directory, which `start-worker` creates in the hub. `start-worker` links each path into the
+     task worktree and refuses when something else is there. At landing the link goes; a real file in its place is
+     kept in `kept/<ID>`. A file entry that is not in the hub is skipped.
 5. Worker mode (config key `worker_mode`): `bg` (workers as background sessions) needs the hub opened once
    interactively with `claude` so the workspace is trusted; `headless` (`claude -p`) needs nothing. A worker must
    arm the run guard (`at run-guard arm`, as `agents-core:execute-plan` does when it opens a run): without it its

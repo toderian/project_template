@@ -114,6 +114,15 @@ class Sup(unittest.TestCase):
             self.assertEqual(self.init(), 3, res)
         self.assertFalse(self.conf.exists())
 
+    def test_init_keeps_local_and_refuses_a_bad_or_unignored_entry(self):
+        subprocess.run(["git", "-C", str(self.hub), "init", "-q"], check=True); (self.hub / ".gitignore").write_text("lab\n")
+        for local, rc in ((["lab/"], 0), (["../lab/"], 3), (["src/"], 3), ([".local/repos.map"], 3), (["a\\b"], 3), (["a\x01b"], 3), (["lab", "lab/x"], 3), ([":lab"], 3)):
+            Path(self.spec).write_text(json.dumps({"local": local})); self.assertEqual(self.init("--force"), rc, local)
+        Path(self.spec).write_text(json.dumps({"local": ["lab/"]})); self.init("--force")
+        self.assertEqual(json.loads((self.conf / "profile.json").read_text())["local"], ["lab/"])
+        Path(self.spec).write_text(json.dumps({})); self.assertEqual(self.init("--force"), 0)  # a 1.17.0 profile loads
+        self.assertEqual(json.loads((self.conf / "profile.json").read_text())["local"], [])
+
     def test_the_tables_init_wrote_load_in_the_guard_and_decide_per_table(self):
         import sup_guard as g
         self.init(); os.environ["AGENTS_SUP_GUARD_TABLES"] = str(self.conf / "tables.json"); os.environ["AGENTS_SUPERVISOR"] = "rm"

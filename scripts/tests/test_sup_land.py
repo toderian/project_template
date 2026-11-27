@@ -99,6 +99,73 @@ class Land(Base):
         kept = self.tmp / "state/_host/kept/TST-001"; self.assertIn(str(kept), p.stdout)
         self.assertEqual((kept / "notes/run.log").read_text(), "evidence\n"); self.assertFalse((kept / "src").exists()); self.assertFalse(wt.exists())
 
+    def test_a_linked_local_path_goes_with_the_worktree_and_a_real_file_in_its_place_is_kept(self):
+        write(self.hub / ".gitignore", "*.log\n__pycache__/\nshared\n"); g(self.hub, "commit", "-qam", "ignore shared")
+        write(self.tmp / "state/p/conf/profile.json", json.dumps({"local": ["shared/"]}))
+        for tid, replace in (("TST-001", False), ("TST-002", True)):
+            wt = self.task(tid); write(self.hub / "shared/data.txt", "from the hub\n")
+            (wt / "shared").symlink_to(self.hub / "shared")
+            if replace:
+                (wt / "shared").unlink(); write(wt / "shared/own.txt", "a tool wrote this\n")
+            p = self.sup("land", tid, "--profile", "p"); self.assertEqual(p.returncode, 0, p.stderr)
+            self.assertFalse(wt.exists()); self.assertEqual((self.hub / "shared/data.txt").read_text(), "from the hub\n")
+            kept = self.tmp / "state/_host/kept" / tid
+            self.assertEqual(sorted(str(f.relative_to(kept)) for f in kept.rglob("*") if f.is_file()), ["shared/own.txt"] if replace else [])
+            self.assertEqual(kept.exists(), replace)
+
+    def local(self, *entries):
+        write(self.hub / ".gitignore", "*.log\n__pycache__/\nshared\n"); g(self.hub, "commit", "-qam", "ignore shared", check=False)
+        write(self.tmp / "state/p/conf/profile.json", json.dumps({"local": list(entries)})); write(self.hub / "shared/data.txt", "from the hub\n")
+
+    def test_a_branch_that_tracks_a_local_path_is_refused_before_any_commit(self):
+        self.local("shared/")
+        wt = self.task("TST-001"); (wt / "shared").symlink_to(self.hub / "shared"); g(wt, "add", "-f", "shared"); g(wt, "commit", "-qm", "oops")
+        before = self.snapshot(); p = self.sup("land", "TST-001", "--profile", "p")
+        self.assertEqual(p.returncode, 3); self.assertIn("the hub holds shared untracked", p.stderr)
+        self.assertEqual(self.snapshot(), before); self.assertTrue((self.hub / "shared/data.txt").is_file())
+        p = self.sup("land", "TST-001")  # by hand, no profile: the same refusal
+        self.assertEqual(p.returncode, 3); self.assertEqual(self.snapshot(), before); self.assertTrue((self.hub / "shared/data.txt").is_file())
+
+    def test_a_branch_that_adds_a_parent_of_untracked_hub_content_is_refused_and_one_that_removed_its_link_lands(self):
+        write(self.hub / ".gitignore", "lab/\nshared\n"); g(self.hub, "add", ".gitignore"); g(self.hub, "commit", "-qm", "ignore")
+        write(self.hub / "lab/results/r.txt", "r\n"); write(self.hub / "shared/data.txt", "d\n")
+        wt = self.task("TST-001"); write(wt / "lab", "a file where the hub has a directory\n"); g(wt, "add", "-f", "lab"); g(wt, "commit", "-qm", "oops")
+        before = self.snapshot(); p = self.sup("land", "TST-001")
+        self.assertEqual(p.returncode, 3); self.assertIn("the hub holds lab untracked", p.stderr)
+        self.assertEqual(self.snapshot(), before); self.assertTrue((self.hub / "lab/results/r.txt").is_file())
+        (self.tmp / "far").mkdir(); (self.hub / "shared/sl").symlink_to(self.tmp / "far")  # an untracked link as a parent
+        wt = self.task("TST-003"); write(wt / "shared/sl/x", "x\n"); g(wt, "add", "-f", "shared/sl/x"); g(wt, "commit", "-qm", "under the link")
+        before = self.snapshot(); p = self.sup("land", "TST-003")
+        self.assertEqual(p.returncode, 3); self.assertIn("the hub holds shared/sl untracked", p.stderr)
+        self.assertEqual(self.snapshot(), before); self.assertEqual(list((self.tmp / "far").iterdir()), [])
+        wt = self.task("TST-002"); (wt / "shared").symlink_to(self.hub / "shared"); g(wt, "add", "-f", "shared"); g(wt, "commit", "-qm", "oops")
+        g(wt, "rm", "-q", "--cached", "shared"); g(wt, "commit", "-qm", "undo")
+        p = self.sup("land", "TST-002"); self.assertEqual(p.returncode, 0, p.stderr); self.assertTrue((self.hub / "shared/data.txt").is_file())
+
+    def test_a_branch_that_turns_a_tracked_directory_into_a_file_is_refused_while_the_hub_holds_ignored_files_in_it(self):
+        write(self.hub / ".gitignore", "*.db\n"); write(self.hub / "data/keep.py", "k = 1\n"); g(self.hub, "add", "-A"); g(self.hub, "commit", "-qm", "data")
+        write(self.hub / "data/c.db", "precious\n")
+        wt = self.task("TST-001"); g(wt, "rm", "-rq", "data"); write(wt / "data", "now a file\n"); g(wt, "add", "data"); g(wt, "commit", "-qm", "data is a file")
+        before = self.snapshot(); p = self.sup("land", "TST-001")
+        self.assertEqual(p.returncode, 3); self.assertIn("the hub holds data untracked", p.stderr)
+        self.assertEqual(self.snapshot(), before); self.assertEqual((self.hub / "data/c.db").read_text(), "precious\n")
+        (self.hub / "data/c.db").unlink(); p = self.sup("land", "TST-001"); self.assertEqual(p.returncode, 0, p.stderr)  # nothing left to lose
+
+    def test_a_retargeted_link_and_a_link_of_a_dropped_entry_are_kept_as_links_and_nothing_behind_them_is_touched(self):
+        for tid, entries, target in (("TST-001", ["shared/"], self.tmp / "elsewhere"), ("TST-002", [], self.hub / "shared")):
+            self.local(*entries); write(target / "keep.txt", "k\n"); wt = self.task(tid); (wt / "shared").symlink_to(target)
+            p = self.sup("land", tid, "--profile", "p"); self.assertEqual(p.returncode, 0, p.stderr)
+            link = self.tmp / "state/_host/kept" / tid / "shared"
+            self.assertTrue(link.is_symlink()); self.assertEqual(os.readlink(link), str(target)); self.assertTrue((target / "keep.txt").is_file())
+
+    def test_a_link_in_kept_that_points_outside_refuses_the_move(self):
+        wt = self.task("TST-001"); write(wt / "a/f.log", "x"); (self.tmp / "outside").mkdir()
+        kept = self.tmp / "state/_host/kept/TST-001"; kept.mkdir(parents=True); (kept / "a").symlink_to(self.tmp / "outside")
+        p = self.sup("land", "TST-001"); self.assertEqual(p.returncode, 3); self.assertIn("would lie outside", p.stderr)
+        self.assertEqual(list((self.tmp / "outside").iterdir()), [])
+        (kept / "a").unlink(); write(wt / "b.log", "x"); (kept / "b.log").symlink_to(self.tmp / "outside")  # the destination itself is a link
+        p = self.sup("land", "TST-001"); self.assertEqual(p.returncode, 3, p.stderr); self.assertEqual(list((self.tmp / "outside").iterdir()), [])
+
     def test_a_task_whose_id_is_a_prefix_of_a_landed_one_still_gets_its_own_commit(self):
         self.task("TST-10"); self.assertEqual(self.sup("land", "TST-10").returncode, 0)
         self.task("TST-1"); before = int(g(self.hub, "rev-list", "--count", "main").stdout)

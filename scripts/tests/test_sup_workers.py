@@ -172,7 +172,7 @@ class Workers(unittest.TestCase):
         self.assertEqual(bg["argv"][:7], ["--bg", "--session-id", row["session"], "--name", "p-RM-1", "--permission-mode", "auto"])
         self.assertEqual((bg["sup"], bg["task"], bg["cwd"]), ("p", "RM-1", os.path.realpath(self.t / "wt")))
         self.assertEqual((bg["gitcfg"], bg["path"]), ([], "/usr/bin:/bin"))  # finding security-10
-        for text in ("WAITING supervisor", "profile p", "at sup inbox --ack", "at sup release", "--minutes"):
+        for text in ("WAITING supervisor", "profile p", "at sup inbox --ack", "at sup release", "--minutes", "run the resource's script yourself"):
             self.assertIn(text, bg["argv"][-1])
         self.assertEqual((row["mode"], row["state"], row["pack"]), ("bg", "running", "a"))
         ev = st.events_since("p", 0)
@@ -470,6 +470,46 @@ class Workers(unittest.TestCase):
         os.environ["FAKE_READY_RC"] = "1"; self.assertEqual(self.cli("start-worker", "RM-1")[0], 3); os.environ.pop("FAKE_READY_RC")
         self.assertEqual(st.read_pack("p", "a")["tips"], {"sib": tip})  # and so does a failed worker start
         self.assertIn("one commit per phase", next(l for l in self.log() if l["argv"][0] == "--bg")["argv"][-1])
+
+    def test_start_worker_links_the_local_paths_and_refuses_what_is_in_the_way(self):
+        self.repos(); (self.hub / ".gitignore").write_text("lab\nnotes.txt\nout\n")
+        git(self.wt, "init", "-q", "-b", "main"); (self.wt / ".gitignore").write_text("lab\nnotes.txt\nout\n")  # the branch's own ignore lines decide
+        conf = st.profile_dir("p") / "conf"; conf.mkdir()
+        local = lambda *e: (conf / "profile.json").write_text(json.dumps({"local": list(e)}))
+        self.running_pack(); self.write_task("RM-1")
+        local("lab/results/", "notes.txt", "out/")  # a directory entry is created in the hub; a missing file entry is skipped, said
+        (self.hub / "out").mkdir(); (self.hub / "out" / "a").write_text("x"); (self.wt / "out").mkdir()
+        rc, _, err = self.cli("start-worker", "RM-1")  # a real directory in the way
+        self.assertEqual(rc, 3); self.assertIn(str(self.wt / "out"), err); self.assertEqual(st.workers("p"), [])
+        (self.wt / "out").rmdir()
+        rc, out, _ = self.cli("start-worker", "RM-1")
+        self.assertEqual(rc, 0); self.assertIn("local notes.txt: not in the hub, skipped", out)
+        self.assertEqual(((self.wt / "lab/results").resolve(), (self.wt / "out/a").read_text()), (self.hub / "lab/results", "x"))
+        self.assertFalse((self.wt / "notes.txt").exists())
+        st.drop_worker("p", st.worker_for("p", task="RM-1")["session"])
+        self.assertEqual(self.cli("start-worker", "RM-1")[0], 0)  # a restart keeps the links
+        st.drop_worker("p", st.worker_for("p", task="RM-1")["session"])
+        (self.wt / "out").unlink(); (self.wt / "out").symlink_to(self.t)  # a link to elsewhere is never followed or replaced
+        self.assertEqual(self.cli("start-worker", "RM-1")[0], 3); self.assertEqual((self.wt / "out").resolve(), self.t)
+        for bad in ("../x", "/abs", ".local/repos.map", ".local", "a//b", "nope/", ":x"):  # not valid, or not ignored by git in the hub
+            local(bad); self.assertEqual(self.cli("start-worker", "RM-1")[0], 3, bad)
+        local("lab", "lab/x"); self.assertIn("parent of another", self.cli("start-worker", "RM-1")[2])
+        (conf / "profile.json").write_text("{bad"); self.assertIn("profile.json cannot be read", self.cli("start-worker", "RM-1")[2])
+
+    def test_a_link_is_made_only_where_the_task_worktree_ignores_it_and_never_through_a_link_or_a_file(self):
+        self.repos(); (self.hub / ".gitignore").write_text("shared/\nlab\nd\nf/x\nd/x\n"); (self.hub / "shared").mkdir()
+        git(self.wt, "init", "-q", "-b", "main"); (self.wt / ".gitignore").write_text("shared/\nlab\nf\nf/x\n")
+        conf = st.profile_dir("p") / "conf"; conf.mkdir()
+        local = lambda e: (conf / "profile.json").write_text(json.dumps({"local": [e]}))
+        self.running_pack(); self.write_task("RM-1")
+        local("shared")  # `shared/` ignores a directory, not the link: the link would be committable
+        rc, _, err = self.cli("start-worker", "RM-1"); self.assertEqual(rc, 3); self.assertIn("does not ignore shared", err)
+        self.assertFalse(os.path.lexists(self.wt / "shared")); self.assertTrue((self.hub / "shared").is_dir())
+        (self.wt / "f").write_text("x"); local("f/x/")  # a file at a parent of the link
+        rc, _, err = self.cli("start-worker", "RM-1"); self.assertEqual(rc, 3); self.assertIn("cannot link", err)
+        (self.t / "other").mkdir(); (self.wt / "d").symlink_to(self.t / "other"); local("d/x/")  # a link at a parent
+        rc, _, err = self.cli("start-worker", "RM-1"); self.assertEqual(rc, 3); self.assertIn("would lie outside", err)
+        self.assertEqual(list((self.t / "other").iterdir()), []); self.assertFalse((self.hub / "d").exists())
 
     def test_close_pack_removes_only_a_clean_worktree_at_the_tip_and_keeps_the_branch(self):
         self.repos(); self.cli("pack", "a", "RM-1", "--branch", "sib=feat/x"); self.cli("start-pack", "a")
