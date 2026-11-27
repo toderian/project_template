@@ -182,6 +182,11 @@ def squash_and_commit(main: Path, tid: str, branch: str, task_file: str, body: s
             for f in conflicted:
                 git_out(main, "checkout", "--ours", "--", f)
                 git_out(main, "add", "--", f)
+        # the checkout was clean, so an untracked file now is one the branch stopped ignoring: `add -A` would commit it
+        loose = git_z(main, "ls-files", "--others", "--exclude-standard")
+        if loose:
+            raise Refuse(f"{branch} stops ignoring {loose[0]}, which the hub holds: landing would commit it; "
+                         f"keep the ignore line on the branch, or move the hub's copy away")
         ledger_sync(main)
         git_out(main, "add", "-A")
         if git(main, "diff", "--cached", "--quiet").returncode == 0:
@@ -193,6 +198,14 @@ def squash_and_commit(main: Path, tid: str, branch: str, task_file: str, body: s
     except BaseException:
         git(main, "reset", "--hard", "HEAD")  # the landing checkout was clean before the merge
         raise
+
+
+def merge_result(main: Path, default: str, branch: str) -> tuple[str, list[str]] | None:
+    """(tree, conflicted paths) of merging the branch into default, computed without touching the checkout.
+    None when this git has no `merge-tree --write-tree` (before 2.38)."""
+    p = git(main, "merge-tree", "--write-tree", "--name-only", "--no-messages", "-z", default, f"refs/heads/{branch}")
+    parts = p.stdout.split("\0")
+    return (parts[0], [f for f in parts[1:] if f]) if p.returncode in (0, 1) and parts[0] else None
 
 
 def state_dir() -> Path:
@@ -252,10 +265,16 @@ def cmd_land(args) -> int:
         raise Refuse(f"landing checkout {main} is on a detached HEAD, not {default}")
     if head.stdout.strip() != default:
         raise Refuse(f"landing checkout {main} is on {head.stdout.strip()}, not {default}")
-    # git overwrites what it ignores: a path the branch adds must not land on, or under, something the hub holds untracked
-    # (a committed link to a `local` directory would replace that directory with a link to itself)
+    # git overwrites what it ignores: a path the merge adds must not land on, or under, something the hub holds untracked
+    # (a committed link to a `local` directory would replace that directory with a link to itself). The paths are those of
+    # the merge result, not of the branch: default may have renamed a directory. A conflict is refused here, before the
+    # checkout is touched: a merge that stops half-way has already written over ignored files, and the reset removes them.
+    merged = None if sup_state.landing_message(main, default, tid) else merge_result(main, default, branch)
+    if merged and (hand := [f for f in merged[1] if f not in GENERATED]):
+        raise Refuse(f"conflict landing {tid}; resolve in the task worktree: {', '.join(hand)}")
     tracked = set(git_z(main, "ls-tree", "-r", "-z", "--name-only", default))
-    for f in git_z(main, "diff", "--name-only", "--no-renames", "--diff-filter=A", f"{default}...refs/heads/{branch}"):
+    for f in git_z(main, "diff", "--name-only", "--no-renames", "--diff-filter=A",
+                   *([default, merged[0]] if merged else [f"{default}...refs/heads/{branch}"])):
         for q in (Path(f), *Path(f).parents[:-1]):
             at = main / q
             if at.is_dir() and not at.is_symlink():  # a directory the branch turns into a file: its ignored content would go
@@ -263,7 +282,7 @@ def cmd_land(args) -> int:
             else:
                 hit = os.path.lexists(at) and str(q) not in tracked
             if hit:
-                raise Refuse(f"{branch} adds {f}, and the hub holds {q} untracked: landing would replace it; "
+                raise Refuse(f"landing {branch} adds {f}, and the hub holds {q} untracked: landing would replace it; "
                              f"remove {f} from the branch, or move the hub's copy away")
     touched = [f for f in git_z(main, "diff", "--name-only", "--no-renames", f"{default}...refs/heads/{branch}") if _claude_file(f)]
     if touched and not args.allow_claude_files:
@@ -300,7 +319,9 @@ def cmd_land(args) -> int:
             if (kept / f).is_symlink() or not Path(os.path.realpath((kept / f).parent)).is_relative_to(os.path.realpath(kept)):
                 raise Refuse(f"the commit is made; {kept / f} would lie outside {kept}: remove that link, then rerun `sup land {tid}`")
         for f in keep:  # `git worktree remove` deletes ignored files silently
-            dest = kept / f
+            dest, n = kept / f, 1
+            while os.path.lexists(dest):  # a file kept by an earlier attempt of this landing is evidence too
+                dest, n = kept / f"{f}.{n}", n + 1
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(str(wt / f), str(dest))
         if keep:
@@ -405,7 +426,7 @@ def readiness(task, path: Path, known=None) -> list[str]:
 def pack_problems(profile: str, pack: dict, hub: Path | None) -> list[str]:
     """One line per reason the pack cannot start: `<ID>: <problem>` or `pack <name>: <problem>`; [] when it is ready. Never raises:
     a Refused of a helper is one line. A task landed or archived is skipped. A `Files:` directory and a file under it count as shared."""
-    import json, sup_state as st, sup_tick, sup_workers as sw, task_lanes as tl
+    import json, sup_tick, sup_workers as sw, task_lanes as tl
     name, out = pack["name"], []
 
     def add(tid, msg):
@@ -450,6 +471,9 @@ def pack_problems(profile: str, pack: dict, hub: Path | None) -> list[str]:
             ents = [e for n in range(1, len(task.phases) + 1) for e in tl.fence(task, n) or []]
             for slug in sorted((row[t] & set(reg if own else mp) | {tl.split_entry(e)[0] for e in ents} - {None}) - branches - own):
                 add(t, f"repo {slug!r} is not a repo of pack {name!r} (its branches: {', '.join(sorted(branches)) or 'none'})")
+            for r in re.split(r"[,\s]+", task.meta.get("Repos", "").replace("`", "")) if reg or mp else ():
+                if r and r.lower() not in ("none", "-", "—") and r not in reg and r not in mp:  # a typo must not read as "no repo"
+                    add(t, f"`Repos` names {r[:40]!r}, which the repo registry does not have")
             files[t] = [p if s in own else e for e in ents for s, p in [tl.split_entry(e)]]
 
         def after(t, seen):

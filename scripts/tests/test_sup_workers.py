@@ -134,7 +134,7 @@ class Workers(unittest.TestCase):
 
     def running_pack(self, tasks=("RM-1", "RM-2", "RM-3"), parallel=False, name="a"):
         self.assertEqual(self.cli("pack", name, *tasks, *(["--parallel"] if parallel else []))[0], 0)
-        self.assertEqual(self.cli("start-pack", name)[0], 0)
+        rc, _, err = self.cli("start-pack", name); self.assertEqual(rc, 0, err)
 
     def add_session(self, sid):
         with open(self.t / "sessions", "a") as f:
@@ -172,7 +172,8 @@ class Workers(unittest.TestCase):
         self.assertEqual(bg["argv"][:7], ["--bg", "--session-id", row["session"], "--name", "p-RM-1", "--permission-mode", "auto"])
         self.assertEqual((bg["sup"], bg["task"], bg["cwd"]), ("p", "RM-1", os.path.realpath(self.t / "wt")))
         self.assertEqual((bg["gitcfg"], bg["path"]), ([], "/usr/bin:/bin"))  # finding security-10
-        for text in ("WAITING supervisor", "profile p", "at sup inbox --ack", "at sup release", "--minutes", "run the resource's script yourself"):
+        for text in ("WAITING supervisor", "profile p", "at sup inbox --ack", "at sup release", "--minutes", "run the resource's script yourself",
+                     "You are on task/RM-1 in a task worktree on purpose"):
             self.assertIn(text, bg["argv"][-1])
         self.assertEqual((row["mode"], row["state"], row["pack"]), ("bg", "running", "a"))
         ev = st.events_since("p", 0)
@@ -562,6 +563,7 @@ class Workers(unittest.TestCase):
         arch = self.hub / "docs/tasks_manager/_todos_archived"; arch.mkdir(parents=True); (arch / "RM-9-x.md").write_text("# x\n")
         self.running_pack(parallel=True)
         self.blocked("RM-1", "RM-9 Phase 2"); self.blocked("RM-2", "\u2014"); self.blocked("RM-3", "none")  # after start-pack: see above
+        self.assertEqual(sw._blockers("p", self.hub, "RM-1"), [])  # the archive of the hub is read, not only the landed events
         self.assertEqual(sw.next_tasks("p"), ["RM-1", "RM-2", "RM-3"])
 
     def test_pack_and_start_pack_refuse_an_open_blocker_outside_the_pack_a_serial_order_against_an_edge_and_a_cycle(self):
@@ -626,6 +628,99 @@ class Workers(unittest.TestCase):
         self.assertEqual(self.cli("start-pack", "a")[0], 0)
         self.fill = False; (self.hub / "docs/tasks_manager/_todos/RM-2-x.md").unlink()
         rc, _, err = self.cli("start-pack", "a"); self.assertEqual(rc, 3); self.assertIn("RM-2: no task file", err)
+
+    # `local` links, --add-dir, unreadable files, accept-tip
+    def local_start(self, *entries, ignore="data/cache.db\nlab/results\n"):
+        self.repos(); (self.hub / ".gitignore").write_text(ignore)
+        git(self.wt, "init", "-q", "-b", "main"); (self.wt / ".gitignore").write_text(ignore)
+        self.running_pack(("RM-1",)); self.write_task("RM-1")
+        conf = st.profile_dir("p") / "conf"; conf.mkdir()  # after start-pack: its readiness check wants a `resources` key
+        (conf / "profile.json").write_text(json.dumps({"local": list(entries)}))
+
+    def sessions(self, n=0):
+        """The calls that start or resume a session (not `stop` or `agents`); waits for n of them (a headless one is async)."""
+        for _ in range(100):
+            calls = [c["argv"] for c in self.log() if c["argv"][0] in ("-p", "--bg")]
+            if len(calls) >= n: break
+            time.sleep(0.05)
+        return calls
+
+    def test_a_hub_file_entry_is_linked_and_every_start_and_wake_passes_add_dir_for_the_linked_entries_only(self):
+        (self.hub / "data").mkdir(); (self.hub / "data/cache.db").write_text("x")
+        self.local_start("data/cache.db", "lab/results/", "gone.txt")
+        rc, _, err = self.cli("start-worker", "RM-1"); self.assertEqual(rc, 0, err)
+        self.assertEqual((self.wt / "data/cache.db").resolve(), self.hub / "data/cache.db")
+        dirs = ["--add-dir", str(self.hub / "data"), str(self.hub / "lab/results")]  # the file's parent, the directory itself; not the skipped entry
+        self.assertEqual(self.sessions()[0][-3:], dirs); self.assertIn("Execute task RM-1", self.sessions()[0][-4])
+        row = st.worker_for("p", task="RM-1")
+        self.assertTrue(sw.wake("p", row["session"], "go"))
+        self.assertEqual(self.sessions()[1], ["--bg", "--resume", row["session"], "go", *dirs])
+        st.set_worker("p", row["session"], mode="headless", pid=999999999)
+        self.assertGreater(sw.wake("p", row["session"], "go2"), 1)
+        self.assertEqual(self.sessions(3)[2][-4:], ["go2", *dirs])
+        st.drop_worker("p", row["session"])
+        self.assertEqual(self.cli("start-worker", "RM-1", "--headless")[0], 0)
+        self.assertEqual(self.sessions(4)[3][-3:], dirs)
+
+    def test_no_local_entry_leaves_the_worker_argv_alone_and_a_link_loop_is_refused_by_path(self):
+        self.local_start("lab/results/"); loop = self.wt / "lab/results"; loop.parent.mkdir()
+        os.symlink(self.wt / "lab/b", loop); os.symlink(loop, self.wt / "lab/b")
+        rc, _, err = self.cli("start-worker", "RM-1"); self.assertEqual(rc, 3); self.assertIn(f"{loop} is a symbolic link loop", err)
+        loop.unlink(); (self.wt / "lab/b").unlink()
+        (st.profile_dir("p") / "conf/profile.json").write_text("{}")
+        self.assertEqual(self.cli("start-worker", "RM-1")[0], 0)
+        self.assertEqual(self.sessions()[-1][-1][:12], "Execute task")  # the prompt is last: no --add-dir
+
+    def test_an_unreadable_task_file_in_a_pack_with_branches_makes_the_pack_late_not_a_crash(self):
+        self.repos(); self.task_file("RM-1", "sib"); self.task_file("RM-2", "hub"); self.cli("cap", "5")
+        self.cli("pack", "a", "RM-1", "RM-2", "--parallel", "--branch", "sib=feat/x"); self.cli("start-pack", "a")
+        (self.hub / "docs/tasks_manager/_todos/RM-1-x.md").write_bytes(b"\xff\xfe")
+        self.assertEqual(sw.next_tasks("p"), ["RM-1", "RM-2"])  # both late: the pack is unhealthy
+        rc, _, err = self.cli("start-worker", "RM-1"); self.assertEqual(rc, 3); self.assertIn("RM-1-x.md cannot be read", err)
+        st.set_worker("p", SID % 1, task="RM-1", state="running")  # a started task whose file cannot be read
+        self.assertEqual(sw.next_tasks("p"), ["RM-2"])
+
+    def test_a_map_or_registry_that_is_not_utf8_is_refused_by_name_and_so_is_an_unwritable_worker_map(self):
+        self.repos()
+        for f in (self.hub / ".local/repos.map", self.hub / ".config/repos.project.md"):
+            good = f.read_bytes(); f.write_bytes(b"\xff\xfe")
+            with self.assertRaises(sw.Refused) as c: sw._repos(self.hub)
+            self.assertIn(f"{f} cannot be read", str(c.exception))
+            f.write_bytes(good)
+        self.task_file("RM-1", "sib"); self.cli("pack", "a", "RM-1", "--branch", "sib=feat/x"); self.cli("start-pack", "a")
+        (self.wt / ".local").write_text("x")  # `.local` is a file
+        rc, _, err = self.cli("start-worker", "RM-1"); self.assertEqual(rc, 3); self.assertIn(str(self.wt / ".local" / "repos.map"), err)
+        (self.wt / ".local").unlink(); (self.wt / ".local/repos.map").mkdir(parents=True)  # the map is a directory
+        rc, _, err = self.cli("start-worker", "RM-1"); self.assertEqual(rc, 3); self.assertIn(str(self.wt / ".local" / "repos.map"), err)
+
+    def test_accept_tip_records_the_branch_head_and_refuses_what_it_must(self):
+        self.repos(); self.task_file("RM-1", "sib"); self.cli("pack", "a", "RM-1", "--branch", "sib=feat/x"); self.cli("start-pack", "a")
+        wt = self.t / "sib-a"; git(wt, "commit", "-q", "--allow-empty", "-m", "fixup"); head = git(wt, "rev-parse", "HEAD")
+        for argv in (("zz", "sib"), ("a", "hub")):  # an unknown pack, a repo the pack has no branch in
+            rc, _, err = self.cli("accept-tip", *argv); self.assertEqual(rc, 3, err)
+        (wt / "half.py").write_text("x")
+        rc, _, err = self.cli("accept-tip", "a", "sib"); self.assertEqual(rc, 3); self.assertIn("uncommitted changes", err)
+        (wt / "half.py").unlink(); st.set_worker("p", SID % 1, task="RM-1", state="running")
+        rc, _, err = self.cli("accept-tip", "a", "sib"); self.assertEqual(rc, 3); self.assertIn("RM-1 has a live worker", err)
+        self.assertNotEqual(st.read_pack("p", "a")["tips"]["sib"], head)
+        st.drop_worker("p", SID % 1)
+        rc, out, _ = self.cli("accept-tip", "a", "sib"); self.assertEqual(rc, 0); self.assertIn(head[:12], out)
+        self.assertEqual(st.read_pack("p", "a")["tips"], {"sib": head})
+
+    def test_a_tip_never_moves_backwards_and_a_pack_repo_with_no_tip_refuses_the_landing(self):
+        self.repos(); self.task_file("RM-1", "sib"); self.cli("pack", "a", "RM-1", "--branch", "sib=feat/x"); self.cli("start-pack", "a")
+        wt = self.t / "sib-a"; pack = st.read_pack("p", "a"); tip0 = pack["tips"]["sib"]
+        heads = []
+        for n in (1, 2):
+            git(wt, "commit", "-q", "--allow-empty", "-m", f"phase {n}"); heads.append(git(wt, "rev-parse", "HEAD"))
+        with redirect_stdout(io.StringIO()) as out:
+            sw.advance_tips("p", pack, self.hub, f"sib feat/x {tip0}..{heads[1]}")
+            self.assertEqual(st.read_pack("p", "a")["tips"], {"sib": heads[1]})
+            sw.advance_tips("p", st.read_pack("p", "a"), self.hub, f"sib feat/x {heads[0]}..{heads[0]}")  # older than the stored tip
+        self.assertEqual(st.read_pack("p", "a")["tips"], {"sib": heads[1]}); self.assertIn("not an ancestor", out.getvalue())
+        self.assertIn("accept-tip a sib", out.getvalue())
+        with self.assertRaises(sw.Refused) as c: sw.land_ranges(self.hub, {**pack, "tips": {}}, "RM-1")
+        self.assertIn("no recorded tip", str(c.exception))
 
     def test_no_profile_is_a_usage_error(self):
         with self.assertRaises(SystemExit) as c, redirect_stderr(io.StringIO()):

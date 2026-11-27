@@ -61,6 +61,7 @@ CLASSES = {
     "name": re.compile(r"[a-z0-9][a-z0-9-]*"),
     "q-id": re.compile(r"Q[0-9]+"),
     "int": re.compile(r"[0-9]+"),
+    # slug pattern: copy of task_lanes.SLUG (this module imports nothing)
     "slug=branch": re.compile(r"[a-z][a-z0-9-]*=[A-Za-z0-9][A-Za-z0-9._/-]*"),
     "profile": re.compile(r".+"),  # checked against AGENTS_SUPERVISOR in _ok
 }
@@ -70,7 +71,7 @@ RESERVED = {"main", "programs", "tools"}
 # Commands only the owner's chat (or plain shell) may run; `answer --owner` is checked in decide. `at sup` calls
 # require_chat for the same list. Of these only the first group is in DEFAULT_MAIN: init and watch start|stop are the owner's shell.
 CHAT_COMMANDS = ("instruct", "pack", "start-pack", "pause-pack", "close-pack", "order", "cap", "watch start",
-                 "watch stop", "init")
+                 "watch stop", "init", "accept-tip")
 CHAT_PREFIXES = [f"at sup {c}".split() for c in CHAT_COMMANDS]
 INTERPRETERS = re.compile(
     r"(sh|bash|dash|zsh|ksh|fish|csh|tcsh|env|xargs|sudo|doas|nice|nohup|timeout|time|exec|command|"
@@ -118,6 +119,7 @@ DEFAULT_MAIN = [
     _r("at sup start-pack", PROFILE, ["name"], chat=True),
     _r("at sup pause-pack", PROFILE, ["name"], chat=True),
     _r("at sup close-pack", PROFILE, ["name"], chat=True),
+    _r("at sup accept-tip", PROFILE, ["name", "name"], chat=True),  # slug: the `name` class is the same pattern
     _r("at sup order", PROFILE, ["name", "task-id+"], chat=True),
     _r("at sup cap", PROFILE, ["int"], chat=True),
 ]

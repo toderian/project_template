@@ -54,6 +54,7 @@ from datetime import datetime
 from pathlib import Path
 
 import sup_state as st
+from task_lanes import SLUG
 
 WORKER_PROMPT = (
     "Execute task {task} with agents-core:execute-plan as an unattended run. You are supervised by profile {profile}. "
@@ -68,7 +69,6 @@ WORKER_PROMPT = (
     "does not apply to you. Code for a sibling repo goes to the path in .local/repos.map, one commit per phase, on the branch "
     "checked out there; create no branch and push nothing."
 )
-SLUG = re.compile(r"[a-z][a-z0-9-]*")
 CAP_RANGE = range(1, 9)
 WAKE_TRIES = 3
 DEAD_RESTARTS = 2
@@ -212,7 +212,7 @@ def wake(profile: str, session: str, text: str) -> bool | int:
             logs.mkdir(exist_ok=True)
             n = len(list(logs.glob(f"{row['task']}.wake-*.json"))) + 1
             with open(logs / f"{row['task']}.wake-{n}.json", "w", encoding="utf-8") as out:
-                proc = subprocess.Popen([_claude(), "-p", "--resume", session, *session_flags(), "--output-format", "json", text],
+                proc = subprocess.Popen([_claude(), "-p", "--resume", session, *session_flags(), "--output-format", "json", text, *_add_dirs(profile, _hub_or_none(profile), cwd)],
                                         cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT,
                                         start_new_session=True)
             return proc.pid
@@ -220,7 +220,7 @@ def wake(profile: str, session: str, text: str) -> bool | int:
             found = agents()
             if found is None or any(r.get("sessionId") == session and r.get("pid") is not None for r in found):
                 return False  # the stop failed and the session may still run: a resume would start a copy
-        out = _run([_claude(), "--bg", "--resume", session, text], env=env, cwd=cwd)
+        out = _run([_claude(), "--bg", "--resume", session, text, *_add_dirs(profile, _hub_or_none(profile), cwd)], env=env, cwd=cwd)
         return out.returncode == 0 and f"woke session {session[:8]}" in out.stdout
     except (OSError, subprocess.SubprocessError):
         return False
@@ -239,19 +239,27 @@ def _hub_or_none(profile: str):
         return None
 
 
+def _lines(f: Path) -> list[str]:
+    """The lines of a UTF-8 file; [] when it is no file; Refused (naming it) when it cannot be read."""
+    try:
+        return f.read_text(encoding="utf-8").splitlines() if f.is_file() else []
+    except (OSError, ValueError) as e:
+        raise Refused(f"{f} cannot be read: {e}") from None
+
+
 def _repos(hub: Path) -> tuple[dict, dict]:
     """(registry {slug: (default branch, integration branch)}, map {slug: absolute path}) of the hub: the one reader of both
     files; a missing file is empty; a map path that is not absolute is refused by name."""
     reg, cols, mp = {}, (3, 4), {}
     f = hub / ".config" / "repos.project.md"
-    for line in f.read_text(encoding="utf-8").splitlines() if f.is_file() else []:
+    for line in _lines(f):
         cells = [c.strip().strip("`") for c in line.strip().strip("|").split("|")] if line.lstrip().startswith("|") else []
         if cells[:1] == ["Repo"] and "Integration branch" in cells and "Default branch" in cells:
             cols = (cells.index("Default branch"), cells.index("Integration branch"))
         elif cells and SLUG.fullmatch(cells[0]):
             reg[cells[0]] = tuple(cells[c] if c < len(cells) else "unknown" for c in cols)
     f = hub / ".local" / "repos.map"
-    for line in f.read_text(encoding="utf-8").splitlines() if f.is_file() else []:
+    for line in _lines(f):
         slug, sep, path = line.partition(":")
         if sep and SLUG.fullmatch(slug.strip()) and path.strip():
             if not os.path.isabs(path.strip()):
@@ -344,11 +352,11 @@ def next_tasks(profile: str) -> list[str]:
     for pack in st.list_packs(profile):
         if pack.get("state") != "running":
             continue
-        busy = _held(profile, pack, hub, rows)
-        try:  # only a healthy wait holds a task back
+        try:  # only a healthy wait holds a task back; a task file git or the disk cannot read makes the pack unhealthy too
+            busy = _held(profile, pack, hub, rows)
             deps, offer = _edges(profile, pack, hub), out
         except Refused:
-            deps, offer = {}, late
+            busy, deps, offer = {}, {}, late
         open_ = [t for t in pack["tasks"] if not _landed(profile, t, hub)]
         for task in open_:
             if any(w.get("task") == task for w in rows):
@@ -359,7 +367,13 @@ def next_tasks(profile: str) -> list[str]:
                 if not pack.get("parallel"):
                     break
                 continue
-            mine = _pack_repos(pack, hub, task)
+            try:
+                mine = _pack_repos(pack, hub, task)
+            except Refused:
+                offer.append(task)  # `start-worker` names the unreadable file
+                if not pack.get("parallel"):
+                    break
+                continue
             if mine & set(busy):
                 continue  # another task of the pack works in the same pack repo and has not landed
             busy.update(dict.fromkeys(mine, task))
@@ -489,7 +503,7 @@ def advance_tips(profile: str, pack: dict, main: Path, message: str) -> None:
         if pack["branches"].get(slug) != b or cur == tip:
             continue
         if cur and _git(_checkout(main, slug, mp), "merge-base", "--is-ancestor", cur, tip).returncode:
-            print(f"{slug}: the stored tip {cur[:12]} is not an ancestor of {tip[:12]}; left as it is")
+            print(f"{slug}: the stored tip {cur[:12]} is not an ancestor of {tip[:12]}; left as it is (`at sup accept-tip {pack['name']} {slug}` takes the branch head)")
         else:
             new[slug] = tip
     if new:
@@ -638,8 +652,9 @@ def cmd_close_pack(profile: str, args) -> int:
         checkout = _checkout(hub, slug, mp)
         wt = _pack_wt(checkout, pack)
         if wt.exists():
-            kept = len(sup.kept_ignored(wt)) if _clean(wt) else 0  # the same ignored files `land` keeps
-            why = "uncommitted changes" if not _clean(wt) else f"{kept} ignored file(s)" if kept else \
+            clean = _clean(wt)
+            kept = len(sup.kept_ignored(wt)) if clean else 0  # the same ignored files `land` keeps
+            why = "uncommitted changes" if not clean else f"{kept} ignored file(s)" if kept else \
                 "not at the landed tip" if _git(wt, "rev-parse", "HEAD").stdout.strip() != pack["tips"].get(slug) else ""
             plan.append((slug, branch, checkout, wt, why))
     rc = _set_state(profile, args.name, "closed", ("new", "running", "paused", "closed"), "close")
@@ -648,6 +663,31 @@ def cmd_close_pack(profile: str, args) -> int:
             why = "git worktree remove refused"
         print(f"{slug}: kept {wt} ({why}); branch {branch} kept" if why else f"{slug}: removed {wt}; branch {branch} kept")
     return rc
+
+
+@_command(chat=True)
+def cmd_accept_tip(profile: str, args) -> int:
+    """Record the head of the pack branch of `slug` as its landed tip: for a branch that moved above or away from the tip
+    (an owner fixup, an amended landed commit), which `done` and `close-pack` would refuse for ever."""
+    pack = _get_pack(profile, args.name)
+    branch = (pack.get("branches") or {}).get(args.slug)
+    if not branch:
+        raise Refused(f"pack {args.name!r} has no repo {args.slug!r}")
+    hub = st.hub(profile)
+    checkout = _checkout(hub, args.slug, _repos(hub)[1])
+    wt = _pack_wt(checkout, pack)
+    if wt.exists() and not _clean(wt):
+        raise Refused(f"pack worktree {wt} has uncommitted changes")
+    for w in st.live_workers(profile):
+        if w.get("task") in pack["tasks"] and args.slug in _pack_repos(pack, hub, w["task"]):
+            raise Refused(f"{w['task']} has a live worker that names repo {args.slug!r}")
+    tip = _tip(checkout, branch)
+    if not tip:
+        raise Refused(f"{args.slug}: no branch {branch}")
+    st.write_pack(profile, {**pack, "tips": {**(pack.get("tips") or {}), args.slug: tip}})
+    st.touch(profile, f"accept-tip {args.name} {args.slug}")
+    print(f"{args.slug}: landed tip is now {tip[:12]} on {branch}")
+    return 0
 
 
 @_command(chat=True)
@@ -749,10 +789,10 @@ def _stop_session(session: str) -> None:
         pass
 
 
-def _bg_session(profile: str, task: str, session: str, cwd: str, env: dict, prompt: str) -> int | None:
+def _bg_session(profile: str, task: str, session: str, cwd: str, env: dict, prompt: str, dirs: list[str]) -> int | None:
     name = f"{profile}-{task}"
     try:
-        proc = subprocess.run([_claude(), "--bg", "--session-id", session, "--name", name, *session_flags(), prompt],
+        proc = subprocess.run([_claude(), "--bg", "--session-id", session, "--name", name, *session_flags(), prompt, *dirs],
                               cwd=cwd, env=env, capture_output=True, text=True, timeout=120, start_new_session=True,
                               stdin=subprocess.DEVNULL)
     except (OSError, subprocess.SubprocessError) as e:
@@ -771,13 +811,13 @@ def _bg_session(profile: str, task: str, session: str, cwd: str, env: dict, prom
     raise Refused(f"started {name} ({session[:8]}) but it is not in `claude agents`; stopped it")
 
 
-def _headless_session(profile: str, task: str, session: str, cwd: str, env: dict, prompt: str) -> int | None:
+def _headless_session(profile: str, task: str, session: str, cwd: str, env: dict, prompt: str, dirs: list[str]) -> int | None:
     logs = st.profile_dir(profile) / "logs"
     logs.mkdir(exist_ok=True)
     try:
         with open(logs / f"{task}.json", "w", encoding="utf-8") as out:
             proc = subprocess.Popen([_claude(), "-p", "--session-id", session, *session_flags(),
-                                     "--output-format", "json", prompt],
+                                     "--output-format", "json", prompt, *dirs],
                                     cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT,
                                     start_new_session=True)
     except OSError as e:
@@ -791,16 +831,37 @@ def _write_map(hub: Path, cwd: Path, pack: dict) -> None:
     if not pack.get("branches"):
         return
     _, mp = _repos(hub)
-    mine = {}
-    for slug in pack["branches"]:
-        c = _checkout(hub, slug, mp)
-        mine[slug] = str(c.parent / f"{c.name}-{pack['name']}")
+    mine = {slug: str(_pack_wt(_checkout(hub, slug, mp), pack)) for slug in pack["branches"]}
     local = cwd / ".local"
     if local.is_symlink() or (local / "repos.map").is_symlink():
         raise Refused(f"{local} or its repos.map is a symbolic link; not writing the map")
-    local.mkdir(exist_ok=True)
-    (local / "repos.map").write_text("# written by `at sup start-worker`: pack repos at their pack worktree\n"
-                                     + "".join(f"{s}: {p}\n" for s, p in {**mp, **mine}.items()), encoding="utf-8")
+    try:
+        local.mkdir(exist_ok=True)
+        (local / "repos.map").write_text("# written by `at sup start-worker`: pack repos at their pack worktree\n"
+                                         + "".join(f"{s}: {p}\n" for s, p in {**mp, **mine}.items()), encoding="utf-8")
+    except OSError as e:
+        raise Refused(f"cannot write {local / 'repos.map'}: {e}") from None
+
+
+def _add_dirs(profile: str, hub: Path | None, cwd) -> list[str]:
+    """`--add-dir <hub path>` for each `local` entry linked in the worktree `cwd` (the hub directory of a `/` entry, the parent
+    of a file): a session may not write through a link that leaves its working directories. The flag takes several values, so
+    callers put it after the prompt. [] without linked entries."""
+    try:
+        entries = st.profile_local(profile, hub, check=False) if hub else []
+    except ValueError:
+        return []
+    dirs = []
+    for e in entries:
+        src, dst = hub / e.rstrip("/"), Path(cwd) / e.rstrip("/")
+        try:
+            linked = dst.is_symlink() and dst.resolve() == src.resolve()
+        except (OSError, RuntimeError):
+            linked = False
+        d = str(src if e.endswith("/") else src.parent)
+        if linked and d not in dirs:
+            dirs.append(d)
+    return ["--add-dir", *dirs] if dirs else []
 
 
 def _link_local(profile: str, hub: Path, cwd: Path) -> list[str]:
@@ -816,8 +877,11 @@ def _link_local(profile: str, hub: Path, cwd: Path) -> list[str]:
         src, dst = hub / body, cwd / body
         if not os.path.lexists(src) and not e.endswith("/"):
             skipped.append(e); continue
-        if dst.is_symlink() and dst.resolve() == src.resolve():
-            continue
+        try:
+            if dst.is_symlink() and dst.resolve() == src.resolve():
+                continue
+        except RuntimeError:  # a symbolic link loop
+            raise Refused(f"{dst} is a symbolic link loop") from None
         if os.path.lexists(dst):
             raise Refused(f"{dst} exists and is not the link to {src}")
         if not Path(os.path.realpath(dst.parent)).is_relative_to(top):  # a tracked symlinked directory could redirect it
@@ -827,7 +891,7 @@ def _link_local(profile: str, hub: Path, cwd: Path) -> list[str]:
         if ign.returncode:  # the link must not be committable into the hub
             raise Refused(f"git does not ignore {body} in {cwd}: write `{body}` (no trailing /: it is a link there) in .gitignore on the branch the task starts from")
         try:
-            src.mkdir(parents=True, exist_ok=True)
+            (src if e.endswith("/") else src.parent).mkdir(parents=True, exist_ok=True)
             dst.parent.mkdir(parents=True, exist_ok=True)
             dst.symlink_to(src)
         except OSError as x:
@@ -864,7 +928,8 @@ def cmd_start_worker(profile: str, args) -> int:
             print(f"local {e}: not in the hub, skipped")
         env = clean_env(AGENTS_SUPERVISOR=profile, AGENTS_SUP_TASK=task)
         prompt = WORKER_PROMPT.format(task=task, profile=profile)
-        pid = (_headless_session if headless else _bg_session)(profile, task, session, cwd, env, prompt)
+        pid = (_headless_session if headless else _bg_session)(profile, task, session, cwd, env, prompt,
+                                                                   _add_dirs(profile, hub, cwd))
         with st.locked(profile):
             st.set_worker(profile, session, cwd=cwd, state="running", **({"pid": pid} if pid else {}))
             st.emit(profile, "started", task=task, session=session, mode=mode)
@@ -931,6 +996,7 @@ def register(sup_sub) -> None:
     add("packs", cmd_packs)
     for cmd, fn in (("start-pack", cmd_start_pack), ("pause-pack", cmd_pause_pack), ("close-pack", cmd_close_pack)):
         add(cmd, fn, name)
+    add("accept-tip", cmd_accept_tip, name, ("slug", {}))
     add("order", cmd_order, name, tasks)
     add("cap", cmd_cap, ("n", {"type": int}))
     add("start-worker", cmd_start_worker, ("task", {"metavar": "TASK-ID"}),

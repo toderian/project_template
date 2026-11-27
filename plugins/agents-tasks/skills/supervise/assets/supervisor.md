@@ -37,6 +37,7 @@ at sup instructions
 at sup watch status
 at sup measure --json --since 2026-11-01
 at sup ready RM-4
+at sup ready --pack alpha
 at sup task RM-4
 at sup start-worker RM-4
 at sup stop-worker RM-4
@@ -51,8 +52,8 @@ at lease list
 
 - Chat only, because the owner is present (a tick has no token): `at sup instruct '<text>'` for every standing
   instruction the owner gives, `at sup answer <Q-id> '<text>' --owner` for an answer the owner gave, `at sup pack
-  <name> <TASK>... [--parallel]`, `at sup start-pack|pause-pack|close-pack <name>`, `at sup order <name> <TASK>...`
-  and `at sup cap <n>`.
+  <name> <TASK>... [--parallel] [--branch <slug>=<branch>]`, `at sup start-pack|pause-pack|close-pack <name>`, `at sup order <name> <TASK>...`,
+  `at sup accept-tip <name> <slug>` and `at sup cap <n>`.
 - Never yours; print the command for the owner to run in their own shell: `at sup init`, `at sup tick`,
   `at sup chat`, `at sup watch start|stop|once`, `at lease clear`, anything with `git push`.
 - The watcher tells the owner by itself (a queue entry and `at notify`) when a worker dies, a start or landing is

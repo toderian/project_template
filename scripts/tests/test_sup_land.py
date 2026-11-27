@@ -142,6 +142,39 @@ class Land(Base):
         g(wt, "rm", "-q", "--cached", "shared"); g(wt, "commit", "-qm", "undo")
         p = self.sup("land", "TST-002"); self.assertEqual(p.returncode, 0, p.stderr); self.assertTrue((self.hub / "shared/data.txt").is_file())
 
+    def test_a_conflict_is_refused_before_the_checkout_is_touched_so_an_ignored_hub_file_survives(self):
+        write(self.hub / "conf.local", "v1\n"); g(self.hub, "add", "conf.local"); g(self.hub, "commit", "-qm", "conf")
+        wt = self.task("TST-001"); write(wt / "conf.local", "branch edit\n"); g(wt, "commit", "-qam", "edit")
+        g(self.hub, "rm", "-q", "--cached", "conf.local"); write(self.hub / ".gitignore", "*.log\n__pycache__/\nconf.local\n")
+        g(self.hub, "commit", "-qam", "untrack"); write(self.hub / "conf.local", "the owner's private copy\n")
+        before = self.snapshot(); p = self.sup("land", "TST-001")
+        self.assertEqual(p.returncode, 3); self.assertIn("conflict landing TST-001", p.stderr); self.assertIn("conf.local", p.stderr)
+        self.assertEqual(self.snapshot(), before); self.assertEqual((self.hub / "conf.local").read_text(), "the owner's private copy\n")
+
+    def test_a_directory_renamed_on_default_does_not_carry_a_branch_file_onto_an_ignored_hub_file(self):
+        for n in "abc":
+            write(self.hub / f"src/{n}.py", f"{n} = 1\n")
+        g(self.hub, "add", "-A"); g(self.hub, "commit", "-qm", "src")
+        wt = self.task("TST-001", files={"src/local.cfg": "from the branch\n"})
+        g(self.hub, "mv", "src", "lib"); write(self.hub / ".gitignore", "*.log\n__pycache__/\nlocal.cfg\n"); g(self.hub, "commit", "-qam", "rename")
+        write(self.hub / "lib/local.cfg", "the owner's\n")
+        before = self.snapshot(); p = self.sup("land", "TST-001")
+        self.assertEqual(p.returncode, 3, p.stdout + p.stderr)
+        self.assertEqual(self.snapshot(), before); self.assertEqual((self.hub / "lib/local.cfg").read_text(), "the owner's\n")
+
+    def test_a_branch_that_stops_ignoring_a_file_the_hub_holds_is_refused_and_the_file_stays(self):
+        write(self.hub / ".gitignore", "*.log\n__pycache__/\nsecrets.env\n"); g(self.hub, "commit", "-qam", "ignore"); write(self.hub / "secrets.env", "KEY=1\n")
+        wt = self.task("TST-001"); write(wt / ".gitignore", "*.log\n__pycache__/\n"); g(wt, "commit", "-qam", "drop the line")
+        before = self.snapshot(); p = self.sup("land", "TST-001")
+        self.assertEqual(p.returncode, 3); self.assertIn("stops ignoring secrets.env", p.stderr)
+        self.assertEqual(self.snapshot(), before); self.assertEqual((self.hub / "secrets.env").read_text(), "KEY=1\n")
+        self.assertEqual(g(self.hub, "ls-files", "secrets.env").stdout, "")
+
+    def test_a_second_landing_attempt_does_not_replace_a_file_kept_by_the_first(self):
+        wt = self.task("TST-001"); write(wt / "notes/run.log", "second\n"); write(self.tmp / "state/_host/kept/TST-001/notes/run.log", "first\n")
+        p = self.sup("land", "TST-001"); self.assertEqual(p.returncode, 0, p.stderr); kept = self.tmp / "state/_host/kept/TST-001/notes"
+        self.assertEqual((kept / "run.log").read_text(), "first\n"); self.assertEqual((kept / "run.log.1").read_text(), "second\n")
+
     def test_a_branch_that_turns_a_tracked_directory_into_a_file_is_refused_while_the_hub_holds_ignored_files_in_it(self):
         write(self.hub / ".gitignore", "*.db\n"); write(self.hub / "data/keep.py", "k = 1\n"); g(self.hub, "add", "-A"); g(self.hub, "commit", "-qm", "data")
         write(self.hub / "data/c.db", "precious\n")
@@ -355,6 +388,12 @@ class PackLand(Base):
         self.assertEqual(self.st.read_pack("p", "pk")["tips"], {"sib": new})
 
 
+    def test_a_task_without_a_sibling_commit_lands_with_no_range_line_and_leaves_the_tip(self):
+        self.pack_task("TST-001"); p = self.land("TST-001"); self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertNotIn("sib feat/x", g(self.hub, "log", "-1", "--format=%B").stdout)
+        self.assertEqual(self.st.read_pack("p", "pk")["tips"], {"sib": self.tip0})
+
+
 class Parser(Base):
     def test_top_level_flags_reach_every_part(self):
         # before the subcommand, as `at sup --help` shows them
@@ -455,6 +494,10 @@ class PackReady(Base):
         out = self.lines(self.pack(branches={"sib": "feat/x"}, **{"TST-1": self.row("`other`")})); self.assertEqual(len(out), 1); self.assertIn("repo 'other' is not a repo", out[0])
         p = self.pack(**{"TST-1": self.row("`hub`", "`hub:src/a.py`")}); self.assertEqual(p.stdout.strip(), "ready", p.stdout)  # the hub's own slug
 
+    def test_a_repos_row_entry_that_is_no_registry_repo_is_a_problem_and_none_is_not(self):
+        out = self.lines(self.pack(branches={"sib": "feat/x"}, **{"TST-1": self.row("`sib`, `other_repo`"), "TST-2": self.row("none")}))
+        self.assertEqual(out, ["TST-1: `Repos` names 'other_repo', which the repo registry does not have"])
+
     def test_a_hub_whose_own_slug_the_map_does_not_give_is_judged_by_the_map_alone(self):
         (self.hub / ".local/repos.map").unlink()  # a 1.17.0 single-repo hub: a registry, no map
         p = self.pack(**{"TST-1": self.row("`hub`"), "TST-2": self.row("`sib`")}); self.assertEqual(p.stdout.strip(), "ready", p.stdout)
@@ -494,7 +537,7 @@ class PackReady(Base):
         br = {"sib": "f", "other": "g"}
         ok = lambda **kw: self.assertEqual(self.pack(**kw).stdout.strip(), "ready")
         ok(parallel=True, branches=br, **two("`sib:x`", "`other:x`", "`sib`", "`other`"))  # same path in two repos
-        ok(parallel=True, branches=br, **two("`sib:x.py`", "`sib:x.py`", "`sib`, x", "`sib`"))  # the Repos cell is read as phase 1 reads it
+        ok(parallel=True, branches=br, **two("`sib:x.py`", "`sib:x.py`", "sib, `hub`", "`sib`"))  # the Repos cell is read as phase 1 reads it
         ok(parallel=False, **two("src/a.py", "src/a.py"))  # a serial pack never has two together
         ok(parallel=True, branches=br, **two("`sib:x`", "`sib:x`", "`sib`", "`sib`"))  # a shared pack repo: phase 1 serialises them
         ok(parallel=True, **two("src/a.py", "src/a.py", wait="| Blocked by | TST-1 |\n"))  # one waits for the other

@@ -193,12 +193,12 @@ class Flow(unittest.TestCase):
         done = self.at("done", "a").stdout
         self.assertIn("sib: feat/x, 2 commit(s) over dev, ready for PR", done); self.assertTrue(done.endswith("done: a\n"))
         (pw / "late.py").write_text("x"); git(pw, "add", "-A"); git(pw, "commit", "-q", "-m", "late")
-        late = self.at("done", "a", ok=False); self.assertEqual(late.returncode, 3); self.assertIn("1 commit(s) above the landed tip", late.stdout)
+        late = self.at("done", "a", ok=False); self.assertEqual(late.returncode, 3); self.assertIn("1 commit(s) above the landed tip", late.stdout); self.assertIn("at sup accept-tip a sib", late.stdout)
 
     def test_every_chat_only_command_is_refused_in_a_claude_session_without_a_token(self):
         self.at("init", "--hub", str(self.hub), "--from", str(self.tmp / "profile.json"))
         args = {"instruct": ["x"], "pack": ["b", TASK], "start-pack": ["b"], "pause-pack": ["b"], "close-pack": ["b"],
-                "order": ["b", TASK], "cap": ["2"], "watch start": [], "watch stop": [], "init": ["--force"]}
+                "order": ["b", TASK], "cap": ["2"], "accept-tip": ["b", "sib"], "watch start": [], "watch stop": [], "init": ["--force"]}
         self.assertEqual(sorted(args), sorted(sup_guard.CHAT_COMMANDS))
         session = {"CLAUDE_CODE_SESSION_ID": "worker-0001"}
         for cmd, rest in args.items():

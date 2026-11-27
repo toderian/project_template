@@ -34,7 +34,8 @@ from task_run import RunError, State, sh
 
 FILES_RE = re.compile(r"^\s*Files:\s*(.+?)\s*$", re.M)
 PATH_RE = re.compile(r"\w[\w.\-]*(?:/[\w.\-]+)*")  # relative, no glob; `..` is refused below
-ENTRY_RE = re.compile(r"(?:([a-z][a-z0-9-]*):)?(" + PATH_RE.pattern + ")")  # `path` in the task's own checkout, or `slug:path` in a sibling repo
+SLUG = re.compile(r"[a-z][a-z0-9-]*")  # a repo slug: the one pattern (sup_workers imports it; sup_guard keeps a copy)
+ENTRY_RE = re.compile(r"(?:(" + SLUG.pattern + "):)?(" + PATH_RE.pattern + ")")  # `path` in the task's own checkout, or `slug:path` in a sibling repo
 WAVE_RE = re.compile(r"^Note: wave (\d+): (?:base ([0-9a-f]{40})|(done|undone)\b)")
 
 

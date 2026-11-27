@@ -179,7 +179,7 @@ def _pack_repo_problems(hub: Path, pack: dict) -> list[str]:
             if not tip or not checkout.is_dir():
                 continue  # a pack of 1.17.0 has no tips
             if w._tip(checkout, branch) != tip:
-                out.append(f"{slug}: {branch} has {w.pack_ahead(hub, pack).get(slug, ('', '?'))[1]} commit(s) above the landed tip {tip[:12]}")
+                out.append(f"{slug}: {branch} has {w.pack_ahead(hub, pack).get(slug, ('', '?'))[1]} commit(s) above the landed tip {tip[:12]} (`at sup accept-tip {pack['name']} {slug}` takes the branch head)")
             wt = w._pack_wt(checkout, pack)
             if wt.exists() and not w._clean(wt):
                 out.append(f"{slug}: pack worktree {wt} has uncommitted changes")
@@ -195,11 +195,13 @@ def _pack_ready_lines(hub: Path, pack: dict) -> list[str]:
     try:
         reg, mp = w._repos(hub)
         for slug, branch in (pack.get("branches") or {}).items():
+            if slug not in (pack.get("tips") or {}):
+                continue
             base, n = reg.get(slug, ("unknown", "unknown"))[1], None
-            if slug in (pack.get("tips") or {}) and w._valid_branch(base):
+            if w._valid_branch(base):
                 n = w._git(w._checkout(hub, slug, mp), "rev-list", "--count", f"refs/heads/{base}..refs/heads/{branch}")
             count = f", {n.stdout.strip()} commit(s) over {base}" if n is not None and n.returncode == 0 else ""
-            out += [f"{slug}: {branch}{count}, ready for PR"] * (slug in (pack.get("tips") or {}))
+            out.append(f"{slug}: {branch}{count}, ready for PR")
     except w.Refused as e:
         out.append(str(e))
     return out
@@ -247,14 +249,19 @@ def _ptask(v) -> str:
     return v if isinstance(v, str) and sup_state.TASK.match(v) else "(other)"
 
 
-def _waits(profile: str, hub: Path, task: str, state: str, T) -> str:
-    """` waits for <ID>` after a task that has not started and has an open blocker."""
+def _waits(profile: str, hub: Path, pack: dict, task: str, state: str, T) -> str:
+    """` waits for <ID>` after a task that has not started and has an open blocker, or whose pack repo another unlanded
+    task of the pack holds (`waits for <ID> (repo <slug>)`)."""
     import sup_workers as w
+    if state != "waiting-to-start":
+        return ""
     try:
-        b = w._blockers(profile, hub, task) if state == "waiting-to-start" else []
+        if b := w._blockers(profile, hub, task):
+            return f" waits for {T(b[0])}"
+        held = w._held(profile, pack, hub, sup_state.workers(profile))
+        return next((f" waits for {T(held[s])} (repo {s})" for s in sorted(w._pack_repos(pack, hub, task)) if held.get(s, task) != task), "")
     except w.Refused:
         return " task file unreadable"
-    return f" waits for {T(b[0])}" if b else ""
 
 
 def _ahead_lines(profile: str, hub: Path, T, W) -> list[str]:
@@ -265,7 +272,7 @@ def _ahead_lines(profile: str, hub: Path, T, W) -> list[str]:
         if p.get("branches") and p.get("tips") and p.get("state") != "closed":
             try:
                 held = w._held(profile, p, hub, sup_state.workers(profile))
-                rows += [f"  {W(p['name'])}/{W(slug)}: {T(held.get(slug))} {n} commit(s) above the landed tip on {W(b)}"
+                rows += [f"  {W(p['name'])}/{W(slug)}: {T(held.get(slug))} {n} commit(s) above the landed tip on {W(b)} (at sup accept-tip {W(p['name'])} {W(slug)})"
                          for slug, (b, n) in w.pack_ahead(hub, p).items()]
             except w.Refused as e:
                 rows.append(f"  {W(p['name'])}: {_cut(str(e))}")
@@ -297,7 +304,7 @@ def digest(profile: str, hub: Path | None = None, for_prompt: bool = False) -> s
     for p in sup_state.list_packs(profile):
         st = task_states(profile, p, hub, events)
         rows.append(f"  {W(p['name'])} [{W(p.get('state'))}]")
-        rows += textwrap.wrap(", ".join(f"{T(t)} {W(s)}{_waits(profile, hub, t, s, T)}" for t, s in st.items()), 118,
+        rows += textwrap.wrap(", ".join(f"{T(t)} {W(s)}{_waits(profile, hub, p, t, s, T)}" for t, s in st.items()), 118,
                               initial_indent="    ", subsequent_indent="    ")
     out += [f"PACKS ({len(sup_state.list_packs(profile))})"] + _capped(rows, 18)
     out += _ahead_lines(profile, hub, T, W)

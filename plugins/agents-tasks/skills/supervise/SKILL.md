@@ -79,6 +79,9 @@ them run in parallel. Do not use it for one task: run `agents-core:execute-plan`
   pack branch that is ready for PR), then `at sup close-pack <pack>`. `close-pack` removes the pack worktrees and
   keeps every branch. It keeps a worktree that has uncommitted changes, is not at the landed tip or holds ignored
   files, and says why.
+  When a pack branch has a commit above its landed tip or moved off it (an owner fixup), `done` exits 3 and
+  `close-pack` keeps the worktree: the owner runs `at sup accept-tip <pack> <slug>` in chat to take the branch head as
+  the landed tip.
 
 ## What the supervisor may decide
 

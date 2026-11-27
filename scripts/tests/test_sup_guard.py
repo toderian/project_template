@@ -57,7 +57,7 @@ DENIED = [
     "at sup escalate 'a' \"(b)\"", "at sup escalate \"a (b)\"", "at sup escalate 'a'(b)", "at sup escalate a(b)",
     "at sup escalate 'a\x01b'", "at sup escalate 'a'\"$(x)\"'b'",
     "at sup instruct x", "at sup answer Q1 x --owner", "at sup start-pack alpha", "at sup cap 3",
-    "at sup pack alpha RM-1", "at sup close-pack alpha", "at sup status " + "a" * 9000,
+    "at sup pack alpha RM-1", "at sup close-pack alpha", "at sup accept-tip alpha sib", "at sup status " + "a" * 9000,
 ]
 
 
@@ -115,7 +115,7 @@ class ChatToken(unittest.TestCase):
     def test_chat_commands(self):
         cmds = ["at sup instruct x", "at sup answer Q1 x --owner", "at sup start-pack alpha",
                 "at sup pause-pack alpha", "at sup close-pack alpha", "at sup order alpha RM-1", "at sup cap 3",
-                "at sup pack alpha RM-1 RM-2 --parallel"]
+                "at sup accept-tip alpha sib", "at sup pack alpha RM-1 RM-2 --parallel"]
         for cmd in cmds:  # no token set
             self.assertEqual(g.decide(cmd, None, TABLES, "chat1"), (False, "chat only"), cmd)
         os.environ["AGENTS_SUP_CHAT_TOKEN"] = "a1b2c3d4e5f60718"  # token set, file missing

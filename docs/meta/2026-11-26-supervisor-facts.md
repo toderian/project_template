@@ -137,3 +137,30 @@ out before it removes a worktree, as the plan says.
   a hub worktree wrote a file with the Write tool and ran `git add` and `git commit` in a worktree of another
   repo outside its cwd; `permission_denials` was empty. Meaning: a headless worker reaches a pack worktree by
   path with no `--add-dir`. Not tried: the same from a `--bg` worker.
+
+## From the supervisor packs trial (2026-11-27, Claude Code 2.1.332, model `haiku`, headless workers)
+
+Scratch hub with a repo registry, one sibling repo, a pack of three tasks (`--parallel`, `--branch sib=feat/trial`,
+cap 2), profile with an `auto` resource `lab` and `local: ["shared/"]`.
+
+- Lease path, first real run: the worker of TST-001 ran `at sup need lab --minutes 5`, was granted at once, ran the
+  hub's lab script itself (one line in the script's log, 16 seconds after the start), released, and no lease was left.
+- Sibling code: both sibling tasks committed in the pack worktree by the path from `.local/repos.map`; the pack
+  branch holds one commit per task in task order; each hub landing commit carries `sib feat/trial <old>..<new>`;
+  TST-002 (`Blocked by TST-001`) started 11 seconds after TST-001 landed. Wall time for both: under 2 minutes.
+- A write through a symbolic link that leaves the working directory is refused, for the Write tool and for Bash
+  (`permission_denials` names the resolved path, "outside the allowed working directories"). The worker of TST-003
+  stopped on it and asked. Probe in a scratch directory: the same writes pass when the session is started with
+  `--add-dir <target directory>` (the prompt must come before `--add-dir`, which takes several values). Meaning:
+  `start-worker` and the wake must pass `--add-dir` for each `local` hub path.
+- A write by absolute path into a sibling pack worktree outside the working directory was not refused (as in the
+  phase 1 fact); only the path through a link was.
+- After the fix (`--add-dir` for each linked `local` entry, after the prompt, on start and on wake) the same worker
+  was woken with `-p --resume … --add-dir <hub>/shared`, wrote `shared/notes.txt` through the link, closed out and
+  landed; `at sup done` printed `sib: feat/trial, 2 commit(s) over main, ready for PR` and `done: pk`, and
+  `close-pack` removed the pack worktree and kept the branch. Not tried: `--add-dir` with `--bg`.
+- The `haiku` worker needed two more owner answers on the way: after the first refusal it had asked for a lease
+  named after the directory, was denied (`Resources: none`), and asked again instead of retrying the write.
+  Meaning: a `local` path must not look like a resource to the worker; the task text should say it is a plain path.
+- Result: three hub commits (one squash per task), the pack branch with one commit per sibling task in task
+  order, nothing pushed (the scratch repos have no remote), no lease left, no worker left.
