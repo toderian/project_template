@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Tests for plugins/agents-core/lib/sup_workers.py with a fake `claude` and a fake `at`."""
-import argparse, io, json, os, subprocess, sys, tempfile, time, unittest
+import argparse, io, json, os, shutil, subprocess, sys, tempfile, time, unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
@@ -128,7 +128,7 @@ class Workers(unittest.TestCase):
     def test_start_worker_registers_the_row_sets_the_environment_and_emits_started(self):
         self.running_pack()
         os.environ.update(GIT_CONFIG_COUNT="1", GIT_CONFIG_KEY_0="core.hooksPath", GIT_CONFIG_VALUE_0="/dev/null",
-                          AGENTS_SUP_ORIG_PATH="/usr/bin:/bin", PATH="/restricted")
+                          AGENTS_SUP_ORIG_PATH="/usr/bin:/bin", PATH="/restricted:" + os.path.dirname(shutil.which("git")))  # git stays reachable for the landed check
         rc, out, _ = self.cli("start-worker", "RM-1")
         row = st.worker_for("p", task="RM-1")
         self.assertEqual((rc, out), (0, f"started RM-1 {row['session']}\n"))
@@ -469,6 +469,75 @@ class Workers(unittest.TestCase):
         self.assertEqual(sw.next_tasks("p"), ["RM-3"])
         st.emit("p", "landed", task="RM-1")
         self.assertEqual(sw.next_tasks("p"), ["RM-2", "RM-3"])
+
+    def blocked(self, task, cell):
+        d = self.hub / "docs/tasks_manager/_todos"; d.mkdir(parents=True, exist_ok=True)
+        (d / f"{task}-x.md").write_text(f"# x\n\n| Blocked by | {cell} |\n")
+
+    def test_blocked_by_offers_the_task_after_its_blocker_landed_and_a_started_blocker_alone_does_not_free_it(self):
+        self.blocked("RM-2", "`RM-1` Phase 1, RM-1")
+        self.running_pack(("RM-1", "RM-2"), parallel=True)
+        self.assertEqual(sw.next_tasks("p"), ["RM-1"])
+        st.set_worker("p", SID % 1, task="RM-1", state="done")
+        self.assertEqual(sw.next_tasks("p"), [])
+        rc, _, err = self.cli("start-worker", "RM-2")
+        self.assertNotEqual(rc, 0); self.assertIn("RM-2 is blocked by RM-1", err)
+        st.emit("p", "landed", task="RM-1")
+        self.assertEqual(sw.next_tasks("p"), ["RM-2"])
+
+    def test_an_archived_blocker_outside_the_pack_does_not_block_and_dash_or_none_names_no_blocker(self):
+        arch = self.hub / "docs/tasks_manager/_todos_archived"; arch.mkdir(parents=True); (arch / "RM-9-x.md").write_text("# x\n")
+        self.blocked("RM-1", "RM-9 Phase 2"); self.blocked("RM-2", "\u2014"); self.blocked("RM-3", "none")
+        self.running_pack(parallel=True)
+        self.assertEqual(sw.next_tasks("p"), ["RM-1", "RM-2", "RM-3"])
+
+    def test_pack_and_start_pack_refuse_an_open_blocker_outside_the_pack_a_serial_order_against_an_edge_and_a_cycle(self):
+        self.blocked("RM-2", "RM-1"); self.blocked("RM-3", "RM-7")
+        for argv, edge in ((("RM-3",), "RM-3 is blocked by RM-7"), (("RM-2", "RM-1"), "RM-2 is blocked by RM-1")):
+            rc, _, err = self.cli("pack", "a", *argv); self.assertEqual(rc, 3, err); self.assertIn(edge, err)
+        self.assertEqual(self.cli("pack", "a", "RM-2", "RM-1", "--parallel")[0], 0)  # parallel: the order is free
+        self.blocked("RM-4", "RM-5"); self.blocked("RM-5", "RM-4")
+        rc, _, err = self.cli("pack", "b", "RM-4", "RM-5", "--parallel"); self.assertEqual(rc, 3); self.assertIn("cycle", err)
+        self.assertIn("is blocked by", err)
+        self.blocked("RM-6", "RM-6")
+        rc, _, err = self.cli("pack", "c", "RM-6"); self.assertEqual(rc, 3); self.assertIn("RM-6 is blocked by RM-6", err)
+        self.blocked("RM-1", "RM-5")  # the task file changed after `pack`: start-pack checks again
+        rc, _, err = self.cli("start-pack", "a"); self.assertEqual(rc, 3); self.assertIn("RM-1 is blocked by RM-5", err)
+
+    def test_an_unreadable_task_file_in_a_serial_pack_is_offered_and_start_worker_refuses_it_by_name(self):
+        self.running_pack(("RM-1", "RM-2"))
+        (self.hub / "docs/tasks_manager/_todos").mkdir(parents=True, exist_ok=True)
+        (self.hub / "docs/tasks_manager/_todos/RM-1-x.md").write_bytes(b"\xff\xfe")
+        self.assertEqual(sw.next_tasks("p"), ["RM-1"])
+        rc, _, err = self.cli("start-worker", "RM-1"); self.assertEqual(rc, 3); self.assertIn("RM-1-x.md cannot be read", err)
+
+    def test_a_non_ascii_digit_in_a_blocked_by_cell_neither_raises_nor_blocks(self):
+        self.blocked("RM-2", "RM-\u0661")
+        self.running_pack(("RM-1", "RM-2"), parallel=True)
+        self.assertEqual(sw.next_tasks("p"), ["RM-1", "RM-2"])
+
+    def test_an_edge_written_after_start_pack_is_offered_and_refused_with_the_edge_named(self):
+        self.running_pack(("RM-1", "RM-2"), parallel=True)
+        self.blocked("RM-1", "RM-7")
+        self.assertEqual(sw.next_tasks("p"), ["RM-1", "RM-2"])
+        rc, _, err = self.cli("start-worker", "RM-1"); self.assertEqual(rc, 3); self.assertIn("RM-1 is blocked by RM-7", err)
+        self.blocked("RM-1", "RM-2"); self.blocked("RM-2", "RM-1")
+        self.assertEqual(sw.next_tasks("p"), ["RM-1", "RM-2"])
+        rc, _, err = self.cli("start-worker", "RM-2"); self.assertEqual(rc, 3); self.assertIn("RM-2 is blocked by RM-1, and", err)
+
+    def test_the_cycle_message_names_an_edge_on_the_cycle_for_a_serial_self_edge_and_a_task_that_only_waits_on_it(self):
+        self.blocked("RM-1", "RM-1")
+        rc, _, err = self.cli("pack", "a", "RM-1"); self.assertEqual(rc, 3); self.assertIn("RM-1 is blocked by RM-1, and the blockers of the pack form a cycle", err)
+        self.blocked("RM-1", "RM-2"); self.blocked("RM-2", "RM-3"); self.blocked("RM-3", "RM-2")
+        rc, _, err = self.cli("pack", "a", "RM-1", "RM-2", "RM-3", "--parallel"); self.assertEqual(rc, 3)
+        self.assertTrue("RM-2 is blocked by RM-3, and" in err or "RM-3 is blocked by RM-2, and" in err, err)
+
+    def test_a_healthy_pack_listed_after_an_unhealthy_one_still_gets_the_only_slot(self):
+        self.blocked("RM-1", "RM-7")
+        for name, task in (("a", "RM-1"), ("b", "RM-2")):  # written as a running pack, as if the edge came after start-pack
+            st.write_pack("p", {"name": name, "tasks": [task], "parallel": True, "state": "running"})
+        self.cli("cap", "1")
+        self.assertEqual(sw.next_tasks("p"), ["RM-2"])
 
     def test_no_profile_is_a_usage_error(self):
         with self.assertRaises(SystemExit) as c, redirect_stderr(io.StringIO()):

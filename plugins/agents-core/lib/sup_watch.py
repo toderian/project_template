@@ -251,7 +251,7 @@ def _free(profile: str, mem: dict, acts: list[str]) -> None:
             acts.append(f"free {res} for {task}")
 
 
-BACKOFF = {1: 300.0, 2: 900.0}  # seconds before the next try after the 1st and 2nd failure inside `claude`; then never
+BACKOFF = {0: 300.0, 1: 300.0, 2: 900.0}  # seconds before the next try: 0 = refused before `claude` ran (no limit), 1 and 2 = failures inside `claude`; then never
 
 
 def _task_hash(profile: str, task: str) -> str:
@@ -278,14 +278,15 @@ def _start(profile: str, task: str) -> tuple[int, str]:
 
 
 def _starts(profile: str, mem: dict, acts: list[str]) -> None:
-    """A refused start is tried again when the owner touches, the pack file or the task file changes; a start that failed
-    inside `claude` also after BACKOFF (5 minutes, then 15, then only on a change)."""
+    """A start refused before `claude` ran starts no session, so it is tried again every 5 minutes without limit, and at once
+    when the owner touches or the pack file or the task file changes; a start that failed inside `claude` is tried again after
+    BACKOFF (5 minutes, then 15, then only on a change). `start_refused` is sent once per task and reason."""
     tried, backoff = mem.setdefault("start_tried", {}), mem.setdefault("start_backoff", {})
     for task in _workers().next_tasks(profile):
         key = [_owner_touches(profile), json.dumps(sup_state.pack_of(profile, task), sort_keys=True), _task_hash(profile, task)]
         if tried.get(task) == key:
-            bo = backoff.get(task)
-            if not bo or time.time() - bo["at"] < BACKOFF.get(bo["n"], float("inf")):
+            bo = backoff.get(task) or {"n": 0, "at": 0}  # a memory written before the retry rule has no entry: retry
+            if time.time() - bo["at"] < BACKOFF.get(bo["n"], float("inf")):
                 continue
         else:
             backoff.pop(task, None)
@@ -296,8 +297,9 @@ def _starts(profile: str, mem: dict, acts: list[str]) -> None:
             acts.append(f"started {task}")
             continue
         tried[task] = key
-        if "claude" in reason:
-            backoff[task] = {"n": backoff.get(task, {"n": 0})["n"] + 1, "at": time.time()}
+        # the texts of sup_workers' start: a pack or file name with "claude" in it is not a failure of claude
+        in_claude = any(t in reason for t in ("cannot start claude:", "claude --bg failed:", "not in `claude agents`"))
+        backoff[task] = {"n": backoff.get(task, {"n": 0})["n"] + 1 if in_claude else 0, "at": time.time()}
         _log(profile, f"start-worker {task} refused: {reason}")
         if _once(mem, "start_refused", f"{task}:{reason}"):
             _emit(profile, "start_refused", task, reason=reason)

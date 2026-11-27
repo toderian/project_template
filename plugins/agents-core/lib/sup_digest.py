@@ -247,6 +247,16 @@ def _ptask(v) -> str:
     return v if isinstance(v, str) and sup_state.TASK.match(v) else "(other)"
 
 
+def _waits(profile: str, hub: Path, task: str, state: str, T) -> str:
+    """` waits for <ID>` after a task that has not started and has an open blocker."""
+    import sup_workers as w
+    try:
+        b = w._blockers(profile, hub, task) if state == "waiting-to-start" else []
+    except w.Refused:
+        return " task file unreadable"
+    return f" waits for {T(b[0])}" if b else ""
+
+
 def _ahead_lines(profile: str, hub: Path, T, W) -> list[str]:
     """One row per pack repo whose branch is above its landed tip: the repo, the task holding it, the count (at most 4 rows)."""
     import sup_workers as w
@@ -287,7 +297,7 @@ def digest(profile: str, hub: Path | None = None, for_prompt: bool = False) -> s
     for p in sup_state.list_packs(profile):
         st = task_states(profile, p, hub, events)
         rows.append(f"  {W(p['name'])} [{W(p.get('state'))}]")
-        rows += textwrap.wrap(", ".join(f"{T(t)} {W(s)}" for t, s in st.items()), 118,
+        rows += textwrap.wrap(", ".join(f"{T(t)} {W(s)}{_waits(profile, hub, t, s, T)}" for t, s in st.items()), 118,
                               initial_indent="    ", subsequent_indent="    ")
     out += [f"PACKS ({len(sup_state.list_packs(profile))})"] + _capped(rows, 18)
     out += _ahead_lines(profile, hub, T, W)

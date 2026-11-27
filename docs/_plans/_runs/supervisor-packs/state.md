@@ -8,7 +8,7 @@ base_rev: 3a36951
 branch: master
 work_mode: default-branch
 autonomy: L1
-current_phase: 2
+current_phase: 3
 updated: 2026-11-26T14:00:00
 ---
 # Run ledger — supervisor-packs
@@ -16,8 +16,8 @@ updated: 2026-11-26T14:00:00
 | Phase | Status | Attempt | Spec | Quality | Security | Open | Commit | Agent |
 |---|---|---|---|---|---|---|---|---|
 | 1 | committed | 2 | PASS | PASS | PASS | 0 | fc0c526 | — |
-| 2 | committed | 3 | PASS | PASS | PASS | 0 | PENDING | — |
-| 3 | pending | 0 | — | — | — | 0 | — | — |
+| 2 | committed | 3 | PASS | PASS | PASS | 0 | 37d7474 | — |
+| 3 | committed | 4 | PASS | PASS | n/a | 0 | PENDING | — |
 | 4 | pending | 0 | — | — | — | 0 | — | — |
 | 5 | pending | 0 | — | — | — | 0 | — | — |
 
@@ -45,3 +45,15 @@ Interface: sup_workers.pack_for_land(main, profile|None, task) -> (profile, pack
 Interface: sup_workers.land_ranges(main, pack, task) -> {slug: (branch, old, new)}; advance_tips(profile, pack, main, hub_commit_message); pack_ahead(hub, pack) -> {slug: (branch, n)}; _pack_wt(checkout, pack); _clean(path); _tip(checkout, branch)  (phase 2)
 Interface: sup_digest._pack_repo_problems / _pack_ready_lines / _ahead_lines return lines, never raise Refused; _branch_exists(hub, repo, branch, mp)  (phase 2)
 Note: test_sup_watch.py test_an_untrusted_workspace_switches_the_profile_to_headless_and_retries_in_the_same_pass failed once in a full-suite run (worker seen dead between two steps) and passed in 6 runs alone and in the next full run; a timing flake older than this run, to fix at the end
+Phase 3: BASE 37d7474
+Ruling: next_tasks parses each unstarted task file once per watcher pass — accepted as-is, 0.2 s for 20 tasks against a pass every minute — cost if wrong: a slower pass on a pack of hundreds of tasks
+Note: Phase 3 fix 1: code net +15 (sup_workers.py)
+Decision: when does the watcher retry a start that was refused for a cause outside the task file — every 5 minutes, without limit, for refusals that did not come from claude — why: the retry starts no session and costs nothing, and a key over every possible cause would miss one — cost if wrong: one refused start-worker call per stuck task every 5 minutes
+Note: Phase 3 fix 2: code net -3 (sup_workers.py), sup_watch.py +5/-5
+Phase 3: complete; fix rounds 1 and 2 by the implementer, round 3 (3 findings, all in sup_watch._starts) fixed and tested by the orchestrator at the cap
+Ruling: phase 3 round-3 fixes were not re-reviewed by the phase reviewer — accepted, each has a test and the final review covers the diff — cost if wrong: a retry-rule defect found at the final review
+Ruling: phase 3 code net about 80 against the ceiling of 60 — accepted, the reviewer found no guard left where structure was available — cost if wrong: none beyond size
+Interface: sup_workers._edges(profile, pack, hub|None) -> {task: [open blockers]}; Refused, in this order, on an open blocker outside the pack, a cycle, a serial order against an edge; each names `<task> is blocked by <blocker>`  (phase 3)
+Interface: sup_workers._blockers(profile, hub|None, task) -> list[str]; _task_meta(root, task) -> dict ({} without a file; Refused when unreadable); task_run.blocker_ids(cell) -> list[str] (phases dropped)  (phase 3)
+Interface: sup_watch._starts retries a start refused before claude every 5 minutes (BACKOFF[0]); next_tasks puts tasks of a pack that _edges refuses after the others  (phase 3)
+Note: the watcher flake is fixed in phase 3 (the test's fake worker now lives across both steps)

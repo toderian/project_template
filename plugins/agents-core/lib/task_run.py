@@ -1181,12 +1181,17 @@ def preflight(repo: Path, tasks_scripts: Path, ids: list[str]) -> list[str]:
     return problems
 
 
+def blocker_ids(cell: str) -> list[str]:
+    """The task ids a `Blocked by` cell names, once each in order; a phase (`RM-1 Phase 2`), backticks, `—` and `none` add nothing."""
+    return list(dict.fromkeys(re.findall(r"[A-Z][A-Z0-9]*-[0-9]+", cell)))
+
+
 def open_blockers(repo: Path, tasks_scripts: Path, tid: str, finished: set[str]) -> list[str]:
     """Tasks named in `tid`'s `Blocked by` row that neither this chain finished nor a task file marks done."""
     sys.path.insert(0, str(tasks_scripts))
     import task_brief  # noqa: E402  (agents-tasks skill script)
     waits = []
-    for dep in re.findall(r"[A-Z][A-Z0-9]*-\d+", task_brief.load_task(repo, tid).meta.get("Blocked by", "")):
+    for dep in blocker_ids(task_brief.load_task(repo, tid).meta.get("Blocked by", "")):
         if dep in finished:
             continue
         try:

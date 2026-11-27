@@ -263,9 +263,9 @@ def _checkout(hub: Path, slug: str, mp: dict) -> Path:
     return Path(mp[slug]) if slug in mp else hub.parent / slug
 
 
-def _task_repos(root: Path, task: str) -> set[str]:
-    """The slugs of the `Repos` row of the task file under root (the hub or a task worktree), read with the task parser
-    `sup.readiness` uses; empty when there is no file or row."""
+def _task_meta(root: Path, task: str) -> dict:
+    """The meta rows of the task file under root (the hub or a task worktree), read with the task parser `sup.readiness`
+    uses; {} when there is no file; Refused when the file cannot be read."""
     import sup  # lazily: sup imports this module through add_parser
     try:
         scripts = str(sup.tasks_root() / "skills" / "task-ledger" / "scripts")
@@ -275,9 +275,53 @@ def _task_repos(root: Path, task: str) -> set[str]:
         sys.path.insert(0, scripts)
     import task_brief
     for f in sorted(g for d in (sup.TODOS, sup.ARCHIVED) for g in (root / d).glob(f"{task}-*.md")):  # a landed task is archived
-        cell = task_brief.parse_task(task, f).meta.get("Repos", "")
-        return {r for r in re.split(r"[,\s]+", cell.replace("`", "")) if SLUG.fullmatch(r)}
-    return set()
+        try:
+            return task_brief.parse_task(task, f).meta
+        except (OSError, ValueError) as e:
+            raise Refused(f"{f.name} cannot be read: {e}") from e
+    return {}
+
+
+def _task_repos(root: Path, task: str) -> set[str]:
+    """The slugs of the `Repos` row of the task file under root; empty when there is no file or row."""
+    return {r for r in re.split(r"[,\s]+", _task_meta(root, task).get("Repos", "").replace("`", "")) if SLUG.fullmatch(r)}
+
+
+def _blockers(profile: str, hub: Path | None, task: str) -> list[str]:
+    """The open blockers of `task`: ids in its `Blocked by` row (hub working tree) that neither landed in this profile nor
+    sit in the archive of the default branch; a phase counts as the whole task. The one rule for offers, refusals and status."""
+    if hub is None:
+        return []
+    import sup, task_run
+    return [b for b in task_run.blocker_ids(_task_meta(hub, task).get("Blocked by", ""))
+            if st.TASK.match(b) and not _landed(profile, b, hub) and not any((hub / sup.ARCHIVED).glob(f"{b}-*.md"))]
+
+
+def _edges(profile: str, pack: dict, hub: Path | None) -> dict[str, list[str]]:
+    """{task: open blockers} of the pack's unlanded tasks that have any. Refused when the pack would wait for ever: a blocker
+    open and outside the pack, a cycle, a serial order against an edge."""
+    tasks = pack["tasks"]
+    deps = {t: bs for t in tasks if not _landed(profile, t, hub) and (bs := _blockers(profile, hub, t))}
+    for t, bs in deps.items():
+        for b in bs:
+            if b not in tasks:
+                raise Refused(f"{t} is blocked by {b}, which is open and not in pack {pack['name']!r}")
+    rest = dict(deps)
+    while stuck := {t: [b for b in bs if b in rest] for t, bs in rest.items()}:
+        free = [t for t, bs in stuck.items() if not bs]
+        if not free:
+            seen, t = [], next(iter(stuck))
+            while t not in seen:  # every stuck task has a stuck blocker: follow them until one repeats
+                seen.append(t); prev, t = t, stuck[t][0]
+            raise Refused(f"{prev} is blocked by {t}, and the blockers of the pack form a cycle")
+        for t in free:
+            del rest[t]
+    if not pack.get("parallel"):
+        for i, t in enumerate(tasks):
+            for b in deps.get(t, []):
+                if tasks.index(b) > i:
+                    raise Refused(f"{t} is blocked by {b}, which a serial pack runs later; reorder the tasks")
+    return deps
 
 
 def _pack_repos(pack: dict, hub: Path | None, task: str) -> set[str]:
@@ -298,24 +342,33 @@ def next_tasks(profile: str) -> list[str]:
     waking = sum(1 for w in rows if w.get("state") == "stopped" and wake_due(profile, w))
     free = st.config(profile)["cap"] - slots_used(profile) - waking
     out: list[str] = []
+    late: list[str] = []  # tasks of a pack whose edges are refused: offered so `start-worker` says why, after the healthy packs
     for pack in st.list_packs(profile):
         if pack.get("state") != "running":
             continue
         busy = _held(profile, pack, hub, rows)
+        try:  # only a healthy wait holds a task back
+            deps, offer = _edges(profile, pack, hub), out
+        except Refused:
+            deps, offer = {}, late
         open_ = [t for t in pack["tasks"] if not _landed(profile, t, hub)]
         for task in open_:
             if any(w.get("task") == task for w in rows):
                 if not pack.get("parallel"):
                     break  # the previous task is not landed yet: a serial pack waits
                 continue
+            if deps.get(task):
+                if not pack.get("parallel"):
+                    break
+                continue
             mine = _pack_repos(pack, hub, task)
             if mine & set(busy):
                 continue  # another task of the pack works in the same pack repo and has not landed
             busy.update(dict.fromkeys(mine, task))
-            out.append(task)
+            offer.append(task)
             if not pack.get("parallel"):
                 break
-    return out[:max(free, 0)]
+    return (out + late)[:max(free, 0)]
 
 
 def _need_profile(args) -> str:
@@ -509,6 +562,7 @@ def cmd_pack(profile: str, args) -> int:
         other = st.pack_of(profile, task)
         if other and other["name"] != args.name:
             raise Refused(f"{task} is already in pack {other['name']!r}")
+    _edges(profile, {"name": args.name, "tasks": args.tasks, "parallel": args.parallel}, _hub_or_none(profile))
     branches = (old or {}).get("branches") or {}
     if args.branch:
         reg, mp = _repos(st.hub(profile))
@@ -556,7 +610,10 @@ def _set_state(profile: str, name: str, state: str, allowed: tuple[str, ...], ve
 @_command(chat=True, lock=False)
 def cmd_start_pack(profile: str, args) -> int:
     pack = _get_pack(profile, args.name)
-    tips = _pack_worktrees(profile, pack) if pack.get("state") in ("new", "paused", "running") else {}  # git first, no lock
+    live = pack.get("state") in ("new", "paused", "running")
+    if live:
+        _edges(profile, pack, _hub_or_none(profile))
+    tips = _pack_worktrees(profile, pack) if live else {}  # git first, no lock
     with st.locked(profile):
         fresh = _get_pack(profile, args.name)
         if (fresh.get("branches") or {}) != (pack.get("branches") or {}):
@@ -630,6 +687,12 @@ def _refusal(profile: str, task: str) -> str | None:
     if slots_used(profile) >= cap:
         return f"session cap {cap} reached"
     hub = _hub_or_none(profile)
+    try:
+        waits = _edges(profile, pack, hub).get(task)
+    except Refused as e:
+        return str(e)
+    if waits:
+        return f"{task} is blocked by {waits[0]}, which has not landed"
     held = _held(profile, pack, hub, st.workers(profile))
     for slug in sorted(_pack_repos(pack, hub, task)):
         if held.get(slug, task) != task:

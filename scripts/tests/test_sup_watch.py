@@ -273,6 +273,7 @@ class Watch(unittest.TestCase):
 
     def test_an_untrusted_workspace_switches_the_profile_to_headless_and_retries_in_the_same_pass(self):
         self.pack("RM-1"); (self.fake / "bg.fail").write_text("")
+        (self.fake / "hold").write_text("4")  # the headless worker lives across both steps: without it the second step may see it dead
         self.assertEqual(sw.step(P, None, tick=False), ["started RM-1"])
         self.assertEqual((st.config(P)["worker_mode"], st.worker_for(P, task="RM-1")["mode"]), ("headless", "headless"))
         self.assertIn("worker_mode is now headless", (st.profile_dir(P) / "watch.log").read_text())
@@ -293,6 +294,32 @@ class Watch(unittest.TestCase):
         age(900); sw.step(P, None, tick=False); self.assertEqual(len(starts()), 3)
         age(10 ** 6); sw.step(P, None, tick=False); self.assertEqual(len(starts()), 3)  # then only on a key change
         (todo / "RM-1-F_x.md").write_text("b"); sw.step(P, None, tick=False); self.assertEqual(len(starts()), 4)
+        self.assertEqual(self.kinds().count("start_refused"), 1)  # the owner is told once
+
+    def test_a_refusal_that_only_names_claude_is_not_a_claude_failure_and_an_old_memory_is_retried(self):
+        self.pack("RM-2", name="claude-hooks")
+        todo = self.hub / "docs/tasks_manager/_todos"; todo.mkdir(parents=True)
+        (todo / "RM-2-x.md").write_text("# x\n\n| Blocked by | RM-9 |\n")
+        starts = lambda: [l for l in self.argv() if l.startswith("sup start-worker RM-2")]
+        mem = lambda: json.loads((st.profile_dir(P) / "watch.json").read_text())
+        for n in range(1, 5):  # four refusals, each after 5 minutes: never the 15 minutes or the stop of a claude failure
+            sw.step(P, None, tick=False); self.assertEqual(len(starts()), n); self.assertEqual(mem()["start_backoff"]["RM-2"]["n"], 0)
+            m = mem(); m["start_backoff"]["RM-2"]["at"] -= 301; (st.profile_dir(P) / "watch.json").write_text(json.dumps(m))
+        m = mem(); del m["start_backoff"]["RM-2"]; (st.profile_dir(P) / "watch.json").write_text(json.dumps(m))  # as 1.17.0 left it
+        sw.step(P, None, tick=False); self.assertEqual(len(starts()), 5)
+
+    def test_a_start_refused_before_claude_is_retried_every_5_minutes_and_starts_once_the_cause_is_gone(self):
+        self.pack("RM-2")
+        todo = self.hub / "docs/tasks_manager/_todos"; todo.mkdir(parents=True)
+        (todo / "RM-2-x.md").write_text("# x\n\n| Blocked by | RM-9 |\n")  # open and outside the pack: offered, refused
+        starts = lambda: [l for l in self.argv() if l.startswith("sup start-worker RM-2")]
+        def age(sec):
+            m = json.loads((st.profile_dir(P) / "watch.json").read_text()); m["start_backoff"]["RM-2"]["at"] -= sec
+            (st.profile_dir(P) / "watch.json").write_text(json.dumps(m))
+        sw.step(P, None, tick=False); sw.step(P, None, tick=False); self.assertEqual(len(starts()), 1)
+        st.emit(P, "landed", task="RM-9")  # the cause goes away; nothing the key sees changes
+        sw.step(P, None, tick=False); self.assertEqual(len(starts()), 1)
+        age(301); self.assertEqual(sw.step(P, None, tick=False), ["started RM-2"]); self.assertEqual(len(starts()), 2)
         self.assertEqual(self.kinds().count("start_refused"), 1)  # the owner is told once
 
     def test_a_session_not_yet_in_agents_is_waited_for_and_one_that_never_shows_is_not_orphaned(self):
