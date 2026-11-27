@@ -263,7 +263,7 @@ class Sup(unittest.TestCase):
 
     def test_a_tick_timeout_kills_the_whole_process_group(self):
         self.init(); st.emit("rm", "need", "RM-1", resource="lab", minutes=5); child = Path(self.tmp.name) / "child.pid"
-        os.environ.update(FAKE_SLEEP="30", FAKE_CHILD=str(child), AGENTS_SUP_TICK_TIMEOUT="1")
+        os.environ.update(FAKE_SLEEP="30", FAKE_CHILD=str(child), AGENTS_SUP_TICK_TIMEOUT="3")
         self.assertEqual(self.run_cmd("tick", "--profile", "rm"), 3)
         pid = int(child.read_text())
         for _ in range(50):
